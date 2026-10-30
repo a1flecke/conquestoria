@@ -16,8 +16,9 @@ the served route below has been checked. Serving it is the easiest:
 ./scripts/dev-server.sh start
 ```
 
-then open `http://localhost:<port>/conquestoria/design/png-sprites/previews/spearman/index.html` (the port is printed). Stop it
-with `./scripts/dev-server.sh stop`.
+then open `http://localhost:<port>/conquestoria/design/png-sprites/previews/viewer.html?unit=spearman` (the port is printed;
+`spearman/index.html` redirects there). The viewer is shared by every strip unit: `?unit=<id>` loads `<id>/manifest.js`. Stop the
+server with `./scripts/dev-server.sh stop`.
 
 What it shows: the soldier on a hex map with buttons for each state the game sends a unit (`idle`, `walk`, `attack`, `hurt`,
 `death`, `work`), a health slider driving the four damage tiers, the six faction colours plus a free colour picker, four unit

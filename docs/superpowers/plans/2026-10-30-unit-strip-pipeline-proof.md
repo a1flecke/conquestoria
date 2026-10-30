@@ -152,7 +152,12 @@ a boot, so those tiers walk like the master until the prompt change in `set.md` 
 - [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS.
 - [ ] **Step 5: Commit** `art: strips.py prompt builds both ChatGPT prompts from the spec (#364)`.
 
-### Task 4: Shared preview viewer
+### Task 4: Shared preview viewer ✅ done
+
+Built as specified, checked in the browser pane (Spearman: all eight actions, tier behaviour, hurt note, defeat hold; the index
+page, a bad name and an unknown unit). Two decisions: the viewer holds a `UNITS` list (a static page cannot list a folder), so
+**each unit task adds its id to it**; and `strips.py` now writes `family` and `restHeight` into the manifest so the viewer does
+not hard-code 150. Smooth animation timing is still unchecked (the pane throttles frames), so the owner's review covers it.
 
 **Files:**
 - Create: `design/png-sprites/previews/viewer.html` (from `spearman/index.html`)

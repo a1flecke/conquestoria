@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit strip preview</title>
+<style>
+  :root {
+    --bg: #f3efe6; --card: #fffdf8; --ink: #2b2620; --muted: #6d6556; --line: #ddd4c2;
+    --accent: #8a3b1f; --btn: #efe6d3; --btn-hover: #e4d6b9; --warn: #8a5a00; --warn-bg: #fff3d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1d1a16; --card: #26221c; --ink: #efe8da; --muted: #a79d89; --line: #3b352b;
+      --accent: #e0a070; --btn: #353026; --btn-hover: #463f31; --warn: #f2c56b; --warn-bg: #3a2f14;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 10px; }
+  p { margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
+  .banner { background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 10px 14px; margin-top: 12px; font-size: .9rem; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--btn); color: var(--ink); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button:hover { background: var(--btn-hover); }
+  button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  .row { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin: 10px 0; }
+  label { display: inline-flex; gap: 8px; align-items: center; }
+  .swatches { display: inline-flex; gap: 6px; }
+  .swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); padding: 0; }
+  .swatch[aria-pressed="true"] { border-color: var(--ink); }
+  .mapwrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--line); background: #8fbf6a; }
+  canvas { display: block; }
+  .status { font-variant-numeric: tabular-nums; margin-top: 8px; min-height: 1.4em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .tile { background: #8fbf6a; border-radius: 10px; padding: 8px; border: 1px solid var(--line); }
+  .tile canvas { width: 100%; height: auto; }
+  .tile .cap { background: var(--card); color: var(--ink); border-radius: 6px; padding: 4px 8px; margin-top: 6px; font-size: .85rem; }
+  .tiers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 640px) { .tiers { grid-template-columns: repeat(2, 1fr); } }
+  ul { margin: 6px 0 0 18px; padding: 0; }
+  code { background: var(--btn); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">Unit strip preview</h1>
+  <p id="msg" class="muted"></p>
+  <div id="app" hidden>
+  <p class="muted">What a unit drawn from ChatGPT-generated strips (plus loops built in code) would look like on a hex map, with every movement the game asks a unit for.</p>
+  <div class="banner" role="note"><strong>Prototype only.</strong> Not wired into the game. The game's PNG player does not accept these strips yet; this page draws the sheet the prototype tool built (<code>scripts/sprite-puppet/strips.py</code>).</div>
+
+  <section class="card" aria-labelledby="map-h">
+    <h2 id="map-h">On the map</h2>
+    <div class="controls" role="group" aria-label="Unit actions">
+      <button data-act="walk1" data-role="walk" title="One hex in 220 ms, the game's real pace">Walk 1 hex</button>
+      <button data-act="walk4" data-role="walk" title="Four hexes in 800 ms, the longest move animation the game plays">Walk 4 hexes</button>
+      <button data-act="walkloop" data-role="walk" title="Walk on the spot until another button is pressed">Walk in place</button>
+      <button data-act="attack" data-role="attack">Attack</button>
+      <button data-act="hit" data-role="hurt">Hurt</button>
+      <button data-act="work" data-role="work">Work</button>
+      <button data-act="defeat" data-role="death">Defeat</button>
+      <button data-act="idle" data-role="idle">Idle</button>
+      <button class="primary" id="seq">Play everything</button>
+      <button id="reset">Reset</button>
+    </div>
+    <div class="row">
+      <label>Health <input id="health" type="range" min="0" max="100" value="100" aria-describedby="tierline"> <output id="healthOut">100</output></label>
+      <span id="tierline" class="muted"></span>
+    </div>
+    <div class="row">
+      <span>Civ colour</span><span class="swatches" id="swatches" role="group" aria-label="Civ colour"></span>
+      <label>Custom <input id="custom" type="color" value="#b53026"></label>
+      <label>Unit size
+        <select id="size" aria-label="Unit size">
+          <option value="48">Small (48 px figure)</option>
+          <option value="72">Medium (72 px)</option>
+          <option value="100" selected>Large (100 px)</option>
+          <option value="150">Native (150 px)</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label>Speed
+        <select id="speed" aria-label="Playback speed">
+          <option value="1" selected>Game speed</option>
+          <option value="0.5">Half speed</option>
+          <option value="0.25">Quarter speed</option>
+        </select>
+      </label>
+      <label id="variantLabel" hidden>Walk
+        <select id="variant" aria-label="Which walk to play">
+          <option value="rig" selected>Built in code (legs alternate by construction)</option>
+          <option value="all">Drawn frames, all of them</option>
+          <option value="first">Drawn frames, first half repeated</option>
+          <option value="second">Drawn frames, second half repeated</option>
+        </select>
+      </label>
+      <span class="muted">In the game a unit crosses one hex in 220 ms and a whole move is capped at 800 ms.</span>
+    </div>
+    <div class="mapwrap"><canvas id="map" aria-label="Hex map with the unit"></canvas></div>
+    <div class="status" id="status" aria-live="polite"></div>
+    <div id="gapnote" class="banner" hidden></div>
+  </section>
+
+  <section class="card" aria-labelledby="all-h">
+    <h2 id="all-h">Every movement, looping</h2>
+    <p class="muted">The states the game sends a unit (idle, walk, attack, hurt, death, work). Each loops here so you can judge the motion; a state this unit has no art for is left out.</p>
+    <div class="grid" id="loops"></div>
+  </section>
+
+  <section class="card" aria-labelledby="dmg-h" id="dmgcard">
+    <h2 id="dmg-h">Damage tiers</h2>
+    <p class="muted">The same four health bands the game uses (76-100, 51-75, 26-50, 0-25).</p>
+    <div class="tiers" id="tiers"></div>
+    <div id="tierwalks" hidden>
+      <h2 style="margin-top:16px">Walking at each tier</h2>
+      <p class="muted">The walk is built in code from each damage drawing, so a wounded unit moves wounded. A tier whose drawing could not be cut walks like the previous tier (the build prints a warning).</p>
+      <div class="tiers" id="tierwalkgrid"></div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="size-h">
+    <h2 id="size-h">Size check</h2>
+    <p class="muted">The unit at the heights it really draws on screen. Check the face, shield and weapon still read.</p>
+    <div class="mapwrap"><canvas id="sizes" aria-label="The unit at five sizes"></canvas></div>
+  </section>
+
+  <section class="card" aria-labelledby="gaps-h">
+    <h2 id="gaps-h">What is real and what is not</h2>
+    <ul>
+      <li>Today the game only draws idle, walk and attack for a PNG unit; hurt, death and work reuse the idle frame with a colour filter. Every state this unit has art for is shown here.</li>
+      <li>Damage tiers always exist for the standing pose. Another movement shows the wounded unit only when it is built from each damage drawing (the walk is); the rest show the healthy unit and the page says so.</li>
+      <li>The unit only faces right, as with every unit today.</li>
+      <li>The civ colour is applied at run time from a mask of the red cloth, the same way the game tints PNG units.</li>
+    </ul>
+  </section>
+  </div>
+</main>
+
+<script>
+(() => {
+  /** Units with a preview folder next to this page; add an id here when a unit's sheet is committed. */
+  const UNITS = ['spearman'];
+  const $ = (id) => document.getElementById(id);
+  const unit = new URLSearchParams(location.search).get('unit');
+
+  function say(text) { $('msg').textContent = text; }
+  function showIndex() {
+    $('title').textContent = 'Unit strip previews';
+    const p = $('msg'); p.textContent = 'Choose a unit: ';
+    UNITS.forEach((u, i) => {
+      if (i) p.append(', ');
+      const a = document.createElement('a'); a.href = '?unit=' + u; a.textContent = u; p.append(a);
+    });
+  }
+  if (!unit) { showIndex(); return; }
+  if (!/^[A-Za-z0-9_-]+$/.test(unit)) { say('Not a unit name: letters, digits, "_" and "-" only.'); return; }
+
+  const manifestScript = document.createElement('script');
+  manifestScript.src = unit + '/manifest.js';
+  manifestScript.onerror = () => say('No preview named "' + unit + '" (looked for ' + unit + '/manifest.js).');
+  manifestScript.onload = () => window.STRIP_MANIFEST ? run(window.STRIP_MANIFEST) : say('The manifest for "' + unit + '" is empty.');
+  document.head.append(manifestScript);
+
+  function run(M) {
+    const CW = M.cellWidth, CH = M.cellHeight, BASE = M.baseline, REST_H = M.restHeight || 150;
+    const FACTIONS = [['Imperials', '#b53026'], ['Vikings', '#1d4a8c'], ['Pharaohs', '#d4a13c'], ['Hellenes', '#2c8a5a'], ['Khanate', '#7a3a14'], ['Shogunate', '#5b4a7a']];
+    const TERRAIN = ['#8fbf6a', '#86b762', '#a2c474', '#6fa65c', '#b9b573'];
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // the sheet rows that can play each of the game's roles, best first
+    const ROLES = { idle: ['idle'], walk: ['walkrig', 'walk', 'move'], attack: ['attack', 'fire'], hurt: ['hit', 'hurt'],
+      death: ['defeat', 'death', 'wreck', 'sinking', 'down'], work: ['work'] };
+    const WALK_SEQ = { all: null, first: [0, 1, 2, 3], second: [4, 5, 6, 7] };
+    const has = (n) => Object.prototype.hasOwnProperty.call(M.states, n);
+    const hasRole = (role) => ROLES[role].some(has);
+    const tierOf = (h) => h > 75 ? 0 : h > 50 ? 1 : h > 25 ? 2 : 3;
+
+    let sheet, mask, tint = '#b53026', figureH = 100, health = 100, speed = 1, variant = 'rig';
+    const bakes = new Map();
+    const name = unit.charAt(0).toUpperCase() + unit.slice(1).replace(/_/g, ' ');
+    $('title').textContent = name + ': image-generated strip prototype';
+    document.title = name + ' strip preview';
+    $('map').setAttribute('aria-label', 'Hex map with the ' + name.toLowerCase());
+    $('sizes').setAttribute('aria-label', name + ' at five sizes');
+
+    function load(src) {
+      return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Could not load ' + src)); i.src = src; });
+    }
+    function bake(color) {
+      if (bakes.has(color)) return bakes.get(color);
+      const c = document.createElement('canvas'); c.width = sheet.width; c.height = sheet.height;
+      const x = c.getContext('2d'); x.drawImage(sheet, 0, 0);
+      const t = document.createElement('canvas'); t.width = c.width; t.height = c.height;
+      const tx = t.getContext('2d'); tx.drawImage(mask, 0, 0);
+      tx.globalCompositeOperation = 'source-in'; tx.fillStyle = color; tx.fillRect(0, 0, t.width, t.height);
+      x.globalCompositeOperation = 'multiply'; x.drawImage(t, 0, 0);
+      bakes.set(color, c);
+      return c;
+    }
+    /** Draw frame `i` of sheet row `rowName` with its boots at (fx, fy), figure scale k. */
+    function drawFrame(ctx, rowName, i, fx, fy, k, color) {
+      const s = M.states[rowName];
+      ctx.drawImage(bake(color || tint), i * CW, s.row * CH, CW, CH, fx - (CW / 2) * k, fy - BASE * k, CW * k, CH * k);
+    }
+    /** The row that plays `role` now: the best row the unit has, at the current damage tier when its rows come in tiers. */
+    function rowOf(role) {
+      const names = ROLES[role].filter(has);
+      if (!names.length) return null;
+      if (role === 'walk' && variant !== 'rig' && has('walk')) return { row: 'walk', seq: WALK_SEQ[variant], tiered: false };
+      const group = M.tiers && M.tiers[names[0]];
+      if (group) return { row: group[Math.min(tierOf(health), group.length - 1)], seq: null, tiered: true };
+      return { row: names[0], seq: null, tiered: false };
+    }
+    /** The row and frame to draw `elapsed` ms into `role` (playback speed applied). */
+    function frameAt(role, elapsed, forceLoop) {
+      const r = rowOf(role);
+      const s = M.states[r.row];
+      const n = r.seq ? r.seq.length : s.frames;
+      const f = Math.floor(elapsed * speed / 1000 * s.fps);
+      const i = (s.loop || forceLoop) ? f % n : Math.min(f, n - 1);
+      return { row: r.row, frame: r.seq ? r.seq[i] : i, tiered: r.tiered };
+    }
+    const durationOf = (role) => { const s = M.states[rowOf(role).row]; return s.frames / s.fps * 1000 / speed; };
+
+    function setupCanvas(cv, w, h) {
+      const dpr = window.devicePixelRatio || 1;
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      cv.style.width = w + 'px'; cv.style.height = h + 'px';
+      const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingQuality = 'high';
+      return ctx;
+    }
+
+    /* ---------------- hex map ---------------- */
+    const COLS = 8, ROWS = 3, UNIT_ROW = 1;
+    const mapCv = $('map');
+    let mapCtx, R, mapW, mapH;
+    const hexCentre = (q, r) => ({ x: Math.sqrt(3) * R * (q + (r % 2) / 2) + Math.sqrt(3) * R / 2, y: 1.5 * R * r + R + 6 });
+    function hexPath(ctx, cx, cy, r) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) { const a = Math.PI / 180 * (60 * i - 30); const px = cx + r * Math.cos(a), py = cy + r * Math.sin(a); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.closePath();
+    }
+    function layoutMap() {
+      R = Math.round(figureH * 0.62);
+      mapW = Math.ceil(Math.sqrt(3) * R * (COLS + 0.5)) + 4;
+      mapH = Math.ceil(1.5 * R * (ROWS - 1) + 2 * R) + 24;
+      mapCtx = setupCanvas(mapCv, mapW, mapH);
+    }
+
+    const actor = { col: 1, x: 0, role: 'idle', t0: 0, loop: true, dead: false };
+    let token = 0;
+    const feetOf = (col) => { const c = hexCentre(col, UNIT_ROW); return { x: c.x, y: c.y + R * 0.38 }; };
+    function placeActor(col) { actor.col = col; actor.x = feetOf(col).x; }
+
+    function play(role, { loop, moveTo, dur: moveMs } = {}) {
+      const my = ++token;
+      actor.role = role; actor.t0 = performance.now(); actor.loop = !!loop;
+      const from = actor.x;
+      const to = moveTo == null ? from : feetOf(moveTo).x;
+      const dur = moveTo == null ? durationOf(role) : (moveMs ?? 1200);
+      actor.move = { from, to, dur, t0: actor.t0 };
+      return new Promise((res) => {
+        if (loop) { res(); return; }
+        setTimeout(() => {
+          if (token !== my) { res(); return; }
+          if (moveTo != null) placeActor(moveTo);
+          if (role === 'death') { actor.dead = true; res(); return; }
+          actor.role = 'idle'; actor.t0 = performance.now(); actor.move = null; res();
+        }, dur);
+      });
+    }
+    function revive() { actor.dead = false; }
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    /** Move `n` hexes at the game's pace: 220 ms per hex, one move capped at 800 ms (`getMovementDurationMs`). */
+    function walkHexes(n) {
+      revive();
+      if (actor.col + n > COLS - 3) placeActor(1);
+      return play('walk', { moveTo: actor.col + n, dur: Math.min(800, n * 220) / speed });
+    }
+    const ACTIONS = {
+      idle: () => { revive(); return play('idle', { loop: true }); },
+      walk1: () => walkHexes(1),
+      walk4: () => walkHexes(4),
+      walkloop: () => { revive(); return play('walk', { loop: true }); },
+      attack: () => { revive(); return play('attack'); },
+      hit: () => { revive(); return play('hurt'); },
+      work: () => { revive(); return play('work', { loop: true }); },
+      defeat: () => play('death'),
+    };
+    const ACTION_ROLE = { idle: 'idle', walk1: 'walk', walk4: 'walk', walkloop: 'walk', attack: 'attack', hit: 'hurt', work: 'work', defeat: 'death' };
+    let seqId = 0;
+    async function sequence() {
+      const mine = ++seqId;
+      revive(); placeActor(1);
+      const steps = [['walk4', 250], ['attack', 350], ['hit', 350], ['work', 1800], ['defeat', 1600]].filter(([a]) => hasRole(ACTION_ROLE[a]));
+      for (const [act, pause] of steps) {
+        if (seqId !== mine) return;
+        await ACTIONS[act]();
+        await sleep(pause);
+      }
+      if (seqId === mine) ACTIONS.idle();
+    }
+
+    function shadow(ctx, x, y) { ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(x, y, R * 0.38, R * 0.09, 0, 0, 7); ctx.fill(); }
+    function drawMap(now) {
+      const ctx = mapCtx;
+      ctx.clearRect(0, 0, mapW, mapH);
+      for (let r = 0; r < ROWS; r++) for (let q = 0; q < COLS; q++) {
+        const c = hexCentre(q, r);
+        hexPath(ctx, c.x, c.y, R - 1);
+        ctx.fillStyle = TERRAIN[(q * 7 + r * 13 + 50) % TERRAIN.length]; ctx.fill();
+        ctx.strokeStyle = 'rgba(40,70,30,.35)'; ctx.lineWidth = 1; ctx.stroke();
+      }
+      const tgt = hexCentre(actor.col + 1, UNIT_ROW);
+      if (actor.role === 'attack') { hexPath(ctx, tgt.x, tgt.y, R - 3); ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 3; ctx.stroke(); }
+      const e = now - actor.t0;
+      let x = actor.x;
+      if (actor.move && actor.move.to !== actor.move.from) { const u = Math.min(1, e / actor.move.dur); x = actor.move.from + (actor.move.to - actor.move.from) * u; }
+      const feet = feetOf(actor.col);
+      const tier = tierOf(health);
+      const k = figureH / REST_H;
+      shadow(ctx, x, feet.y);
+      if (actor.role === 'idle') {
+        const bob = reduceMotion ? 0 : Math.sin(now / 520) * 0.8;
+        const damaged = tier > 0 && !actor.dead && has('damage');
+        drawFrame(ctx, damaged ? 'damage' : rowOf('idle').row, damaged ? tier : 0, x, feet.y + bob, k);
+        setStatus(damaged ? `idle (damage tier ${tier})` : 'idle', damaged || tier === 0);
+        return;
+      }
+      const pick = frameAt(actor.role, reduceMotion ? 0 : e, actor.role === 'work' && actor.loop);
+      drawFrame(ctx, pick.row, pick.frame, x, feet.y, k);
+      const rigged = pick.row.startsWith('walkrig') || pick.row.startsWith('move');
+      setStatus(`${rigged ? actor.role + ' (built in code)' : actor.role}: frame ${pick.frame + 1} of ${M.states[pick.row].frames}${pick.tiered ? `, damage tier ${tier}` : ''}`, pick.tiered || tier === 0);
+    }
+    let lastStatus = '';
+    function setStatus(t, tierShown) {
+      const note = $('gapnote');
+      if (t !== lastStatus) { $('status').textContent = t; lastStatus = t; }
+      if (!tierShown) { note.hidden = false; note.textContent = `Health is at damage tier ${tierOf(health)}, but this movement has no damaged art. It shows the healthy unit.`; }
+      else note.hidden = true;
+    }
+
+    /* ---------------- looping previews ---------------- */
+    const LOOPS = [['idle', 'idle (gentle bob added by the page)'], ['walk', 'walk'], ['attack', 'attack'], ['hurt', 'hurt (hit reaction)'], ['death', 'death'], ['work', 'work']];
+    const loopCtx = [];
+    function cycleFrame(rowName, seq, now) {
+      const s = M.states[rowName];
+      const n = seq ? seq.length : s.frames;
+      const cycle = n / s.fps * 1000 + (s.loop ? 0 : 400); // a one-shot pauses 400 ms on its last frame
+      const e = reduceMotion ? 0 : (now * speed) % cycle;
+      const k = n === 1 ? 0 : Math.min(n - 1, Math.floor(e / 1000 * s.fps));
+      return seq ? seq[k] : k;
+    }
+    function previewTile(host, label, ctxList, spec) {
+      const tile = document.createElement('div'); tile.className = 'tile';
+      const cv = document.createElement('canvas');
+      const ctx = setupCanvas(cv, CW, CH); cv.style.width = '100%'; cv.style.height = 'auto';
+      const cap = document.createElement('div'); cap.className = 'cap'; cap.textContent = label;
+      tile.append(cv, cap); host.append(tile);
+      ctxList.push({ ctx, ...spec });
+    }
+    function buildLoops() {
+      const host = $('loops'); host.textContent = '';
+      for (const [role, label] of LOOPS) {
+        if (!hasRole(role)) continue;
+        const s = M.states[rowOf(role).row];
+        previewTile(host, s.frames > 1 ? `${label}, ${s.frames} frames, ${s.fps} fps` : label, loopCtx, { role });
+      }
+    }
+    function drawLoops(now) {
+      for (const { ctx, role, row } of loopCtx) {
+        ctx.clearRect(0, 0, CW, CH);
+        const r = row ? { row, seq: null } : rowOf(role);
+        ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(CW / 2, BASE + 1, 34, 6, 0, 0, 7); ctx.fill();
+        drawFrame(ctx, r.row, cycleFrame(r.row, r.seq, now), CW / 2, BASE, 1);
+      }
+    }
+
+    /* ---------------- damage tiers ---------------- */
+    const BANDS = ['76-100 health', '51-75 health', '26-50 health', '0-25 health'];
+    function buildTiers() {
+      $('dmgcard').hidden = !has('damage');
+      if (!has('damage')) return;
+      const host = $('tiers'); host.textContent = '';
+      for (let t = 0; t < 4; t++) {
+        const tile = document.createElement('div'); tile.className = 'tile';
+        const cv = document.createElement('canvas'); const ctx = setupCanvas(cv, 230, CH); cv.style.width = '100%'; cv.style.height = 'auto';
+        drawFrame(ctx, 'damage', t, 115, BASE, 1);
+        const cap = document.createElement('div'); cap.className = 'cap'; cap.textContent = `Tier ${t}: ${BANDS[t]}`;
+        tile.append(cv, cap); host.append(tile);
+      }
+    }
+    function buildTierWalks() {
+      const group = M.tiers && M.tiers[ROLES.walk.find(has)];
+      $('tierwalks').hidden = !group;
+      if (!group) return;
+      const host = $('tierwalkgrid'); host.textContent = '';
+      for (let t = 0; t < 4; t++) {
+        const row = group[Math.min(t, group.length - 1)];
+        previewTile(host, `Tier ${t}: ${row}`, loopCtx, { row });
+      }
+    }
+
+    /* ---------------- size check ---------------- */
+    function drawSizes() {
+      const heights = [36, 48, 72, 100, 150];
+      const pad = 20, w = heights.reduce((a, h) => a + h * (CW / REST_H) * 0.55 + pad, pad), h = 196;
+      const ctx = setupCanvas($('sizes'), Math.ceil(w), h);
+      ctx.fillStyle = '#8fbf6a'; ctx.fillRect(0, 0, w, h);
+      let x = pad;
+      ctx.font = '12px system-ui, sans-serif';
+      for (const fh of heights) {
+        const k = fh / REST_H, slot = fh * (CW / REST_H) * 0.55;
+        ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x + slot / 2, 176, slot * 0.3, 4, 0, 0, 7); ctx.fill();
+        drawFrame(ctx, rowOf('idle').row, 0, x + slot / 2, 176, k);
+        ctx.fillStyle = '#1d3314'; ctx.textAlign = 'center'; ctx.fillText(fh + ' px', x + slot / 2, 192);
+        x += slot + pad;
+      }
+    }
+
+    /* ---------------- wiring ---------------- */
+    function setTint(c) {
+      tint = c; $('custom').value = c;
+      for (const b of document.querySelectorAll('.swatch')) b.setAttribute('aria-pressed', String(b.dataset.c === c));
+      drawSizes(); buildTiers();
+    }
+    function updateHealth() {
+      health = Number($('health').value); $('healthOut').textContent = String(health);
+      const t = tierOf(health);
+      $('tierline').textContent = t === 0 ? 'Damage tier 0 (healthy)' : `Damage tier ${t}`;
+    }
+
+    async function start() {
+      try {
+        [sheet, mask] = await Promise.all([load(unit + '/' + M.sheet), load(unit + '/' + M.mask)]);
+      } catch (err) { say(String(err.message)); return; }
+      $('app').hidden = false;
+      for (const b of document.querySelectorAll('[data-role]')) b.hidden = !hasRole(b.dataset.role);
+      $('variantLabel').hidden = !(has('walkrig') && has('walk'));
+      const sw = $('swatches');
+      for (const [fname, c] of FACTIONS) {
+        const b = document.createElement('button'); b.className = 'swatch'; b.style.background = c; b.dataset.c = c;
+        b.setAttribute('aria-label', fname); b.title = fname; b.setAttribute('aria-pressed', String(c === tint));
+        b.addEventListener('click', () => setTint(c)); sw.append(b);
+      }
+      $('custom').addEventListener('input', (e) => setTint(e.target.value));
+      $('size').addEventListener('change', (e) => { figureH = Number(e.target.value); layoutMap(); placeActor(actor.col); });
+      $('speed').addEventListener('change', (e) => { speed = Number(e.target.value); });
+      $('variant').addEventListener('change', (e) => { variant = e.target.value; });
+      $('health').addEventListener('input', updateHealth);
+      for (const b of document.querySelectorAll('[data-act]')) b.addEventListener('click', () => { seqId++; ACTIONS[b.dataset.act](); });
+      $('seq').addEventListener('click', sequence);
+      $('reset').addEventListener('click', () => { seqId++; token++; revive(); placeActor(1); $('health').value = 100; updateHealth(); play('idle', { loop: true }); });
+      layoutMap(); placeActor(1); play('idle', { loop: true }); updateHealth();
+      buildLoops(); buildTiers(); buildTierWalks(); drawSizes();
+      const frame = (now) => { drawMap(now); drawLoops(now); requestAnimationFrame(frame); };
+      requestAnimationFrame(frame);
+    }
+    start();
+  }
+})();
+</script>
+</body>
+</html>
