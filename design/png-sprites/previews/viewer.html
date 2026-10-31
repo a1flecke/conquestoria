@@ -181,6 +181,8 @@
     const has = (n) => Object.prototype.hasOwnProperty.call(M.states, n);
     const hasRole = (role) => ROLES[role].some(has);
     const tierOf = (h) => h > 75 ? 0 : h > 50 ? 1 : h > 25 ? 2 : 3;
+    /** A tier group lists the master's row first when it was built from the master and the four damage drawings: tier t is then entry t + 1. */
+    const tierRow = (group, t) => group[Math.min(t + (group.length > 4 ? group.length - 4 : 0), group.length - 1)];
 
     let sheet, mask, tint = '#b53026', figureH = 100, health = 100, speed = 1, variant = 'rig';
     const bakes = new Map();
@@ -215,7 +217,7 @@
       if (!names.length) return null;
       if (role === 'walk' && variant !== 'rig' && has('walk')) return { row: 'walk', seq: WALK_SEQ[variant], tiered: false };
       const group = M.tiers && M.tiers[names[0]];
-      if (group) return { row: group[Math.min(tierOf(health), group.length - 1)], seq: null, tiered: true };
+      if (group) return { row: tierRow(group, tierOf(health)), seq: null, tiered: true };
       return { row: names[0], seq: null, tiered: false };
     }
     /** The row and frame to draw `elapsed` ms into `role` (playback speed applied). */
@@ -404,7 +406,7 @@
       if (!group) return;
       const host = $('tierwalkgrid'); host.textContent = '';
       for (let t = 0; t < 4; t++) {
-        const row = group[Math.min(t, group.length - 1)];
+        const row = tierRow(group, t);
         previewTile(host, `Tier ${t}: ${row}`, loopCtx, { row });
       }
     }
