@@ -55,7 +55,7 @@ skin, hair, leather, wood, metal, stains
 ### pose
 - The animal stands square on one ground line: all four legs straight and vertical, every hoof flat, and a clear gap between
   each pair of neighbouring legs. Seen from the side the four legs read as four separate posts; no leg overlaps another.
-- The tail hangs free and does not touch the hind legs. The head is up, the neck arched.
+- The tail hangs free, ends well above the hooves and does not touch the hind legs. The head is up, the neck arched.
 - {{coat}}
 - The rider sits upright. His feet, weapon, saddle cloth and any fringe all stay above the animal's knees.
 - {{weapon_pose}}
