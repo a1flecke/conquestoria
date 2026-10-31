@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horseman comparison</title>
+<style>
+  :root { --bg: #f3efe6; --card: #fffdf8; --ink: #2b2620; --muted: #6d6556; --line: #ddd4c2; --accent: #8a3b1f; --btn: #efe6d3; --ground: #8fbf6a; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #1d1a16; --card: #26221c; --ink: #efe8da; --muted: #a79d89; --line: #3b352b; --accent: #e0a070; --btn: #353026; --ground: #5d8a46; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1000px; margin: 0 auto; padding: 20px max(16px, env(safe-area-inset-right, 0px)) 60px max(16px, env(safe-area-inset-left, 0px)); }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  figure { margin: 0; min-width: 0; text-align: center; }
+  figcaption { font-size: .85rem; color: var(--muted); margin-top: 4px; }
+  canvas { max-width: 100%; background: var(--ground); border-radius: 8px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+  button, select { font: inherit; border: 1px solid var(--line); background: var(--btn); color: var(--ink); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Horseman: the game's art next to the new strips</h1>
+  <p class="muted">Left: the horseman the game draws today (<code>puppet.py</code> animating one painted still). Right: the new set (drawn poses plus the four-leg walk built in code). Both are drawn at the same cell height and in the same colour, as the game would show them. <a href="../viewer.html?unit=horseman">Open the full viewer</a>.</p>
+  <div class="controls">
+    <label for="speed">Speed</label>
+    <select id="speed"><option value="1">Game speed</option><option value="0.5">Half</option><option value="0.25">Quarter</option></select>
+    <label for="color">Faction colour</label>
+    <select id="color"><option value="#b53026">Imperials</option><option value="#1d4a8c">Vikings</option><option value="#d4a13c">Pharaohs</option><option value="#2c8a5a">Hellenes</option></select>
+    <label for="size">Size</label>
+    <select id="size"><option value="1">Full (192 px)</option><option value="0.5">Half</option><option value="0.3">Map size</option></select>
+  </div>
+  <div id="panels"></div>
+</main>
+<script src="manifest.js"></script>
+<script>
+(() => {
+  const NEW = window.STRIP_MANIFEST;
+  // the game's current manifest (src/renderer/sprites/png/generated/horseman.manifest.ts); its ground line is 0.8 of the cell
+  const OLD = { cellWidth: 192, cellHeight: 192, baseline: 154, dir: 'current/',
+    states: { idle: { row: 0, frames: 4, fps: 4 }, walk: { row: 1, frames: 8, fps: 11 }, attack: { row: 2, frames: 8, fps: 8 } } };
+  const SIDES = [
+    { label: 'Current (game today)', M: OLD, rows: { idle: 'idle', walk: 'walk', attack: 'attack' } },
+    { label: 'New strips', M: Object.assign({ dir: '' }, NEW), rows: { idle: 'idle', walk: 'walkrig', attack: 'attack' } },
+  ];
+  const $ = (id) => document.getElementById(id);
+  const load = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Could not load ' + src)); i.src = src; });
+  const state = { speed: 1, color: '#b53026', size: 1 };
+  const bakes = new Map();
+  const loaded = [];
+
+  function bake(side, color) {
+    const key = side.label + color;
+    if (bakes.has(key)) return bakes.get(key);
+    const { sheet, mask } = side;
+    const c = document.createElement('canvas'); c.width = sheet.width; c.height = sheet.height;
+    const x = c.getContext('2d'); x.drawImage(sheet, 0, 0);
+    const t = document.createElement('canvas'); t.width = c.width; t.height = c.height;
+    const tx = t.getContext('2d'); tx.drawImage(mask, 0, 0);
+    tx.globalCompositeOperation = 'source-in'; tx.fillStyle = color; tx.fillRect(0, 0, t.width, t.height);
+    x.globalCompositeOperation = 'multiply'; x.drawImage(t, 0, 0);
+    bakes.set(key, c);
+    return c;
+  }
+
+  const panels = [];
+  function build() {
+    const host = $('panels');
+    for (const role of ['idle', 'walk', 'attack']) {
+      const card = document.createElement('section'); card.className = 'card';
+      const h = document.createElement('h2'); h.textContent = role === 'walk' ? 'Walk (looping in place)' : role === 'attack' ? 'Attack (looping)' : 'Idle';
+      const pair = document.createElement('div'); pair.className = 'pair';
+      for (const side of SIDES) {
+        const fig = document.createElement('figure');
+        const cv = document.createElement('canvas'); cv.setAttribute('aria-label', side.label + ', ' + role);
+        const cap = document.createElement('figcaption'); cap.textContent = side.label;
+        fig.append(cv, cap); pair.append(fig);
+        panels.push({ cv, side, role });
+      }
+      card.append(h, pair); host.append(card);
+    }
+  }
+
+  function draw(now) {
+    for (const p of panels) {
+      const { M, rows } = p.side, s = M.states[rows[p.role]];
+      const k = state.size, W = Math.round(M.cellWidth * k), H = Math.round(M.cellHeight * k);
+      const dpr = window.devicePixelRatio || 1;
+      if (p.cv.width !== Math.round(W * dpr)) { p.cv.width = Math.round(W * dpr); p.cv.height = Math.round(H * dpr); p.cv.style.width = W + 'px'; p.cv.style.height = H + 'px'; }
+      const ctx = p.cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+      const i = Math.floor(now * state.speed / 1000 * s.fps) % s.frames;
+      ctx.drawImage(bake(p.side, state.color), i * M.cellWidth, s.row * M.cellHeight, M.cellWidth, M.cellHeight, 0, 0, W, H);
+    }
+    requestAnimationFrame(draw);
+  }
+
+  Promise.all(SIDES.flatMap((side) => [load(side.M.dir + 'sheet.png').then((i) => { side.sheet = i; }), load(side.M.dir + 'mask.png').then((i) => { side.mask = i; })]))
+    .then(() => {
+      build();
+      $('speed').onchange = (e) => { state.speed = +e.target.value; };
+      $('color').onchange = (e) => { state.color = e.target.value; };
+      $('size').onchange = (e) => { state.size = +e.target.value; };
+      requestAnimationFrame(draw);
+    })
+    .catch((e) => { $('panels').textContent = e.message; });
+})();
+</script>
+</body>
+</html>
