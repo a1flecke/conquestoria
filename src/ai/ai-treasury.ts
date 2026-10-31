@@ -34,6 +34,32 @@ import { completesFromOwnProduction, rushBuyActiveProduction } from '@/systems/r
  * it faster inherits that priority for free. Difficulty-invariant: every
  * challenge tier and personality gets the identical rule, matching
  * `getRushBuyQuote`'s own legality (no challenge-profile input).
+ *
+ * #1480 re-audit (current main, deterministic `lh-late-era-medium`): the
+ * `gold-hoard` detector no longer fires, and the treasury behaviour it described
+ * is NOT an unspent-opportunity defect. Every legal sink was independently
+ * exhausted for the audited era-9 civs, so retaining gold was the correct
+ * decision:
+ *
+ *  - rush-buy: every sampled legal quote was an item the city finishes from its
+ *    own production this turn, which `completesFromOwnProduction` (above)
+ *    correctly refuses -- buying it forfeits the turn's output;
+ *  - upgrades: 0 canonical upgrade targets, because at 310 completed techs each
+ *    unit's `upgradesTo` successor is itself `obsoletedByTech`. The player's
+ *    panel applies the same gate, so this is parity, not an AI shortcut;
+ *  - imports: no AI civ owned a trade unit in 750 civ-round samples, so the
+ *    seller-offer pipeline could never load anything (fixed by the bounded
+ *    `trade-procurement` demand in `ai-prepared-turn.ts`);
+ *  - diplomacy / crises / pirates: no AI-founded gold settlement terms, and no
+ *    crisis or pirate actor was active in the scenario.
+ *
+ * What that audit DID surface is why no worthwhile target ever existed: the
+ * missionary production candidate was unbounded, so every city completed a
+ * 16-production missionary every round and discarded the rest of its output
+ * (ai-2: 375 missionaries of 427 units, 92 consecutive rounds of discarded
+ * production). That is now capped by `MISSIONARY_SOFT_CAP_PER_CITY`. No new gold
+ * sink, no treasury target, and no fake purchase was introduced to make this
+ * number move: a mature civ with nothing worth buying should keep the gold.
  */
 const RESERVE_ROUNDS = 2;
 

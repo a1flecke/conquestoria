@@ -5,12 +5,13 @@ import {
   mergePreparedForceDemands,
   prepareMajorCivStrategicPlan,
   WORKER_SOFT_CAP,
+  TRADE_ROUTES_PER_CITIES,
   buildKnownPathMap,
 } from '@/ai/ai-prepared-turn';
 import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
 import { refreshMajorCivIntel } from '@/ai/ai-perception';
-import { applyAIProduction } from '@/ai/ai-production';
+import { applyAIProduction, generateAIProductionCandidates } from '@/ai/ai-production';
 import { createNewGame } from '@/core/game-state';
 import { getWrappedHexNeighbors, hexDistance, hexKey, mapHexesInRange } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
@@ -977,6 +978,115 @@ describe('#1064 bounded force demands', () => {
 
     expect(civ.cities.length).toBeGreaterThan(WORKER_SOFT_CAP);
     expect(demand?.desired ?? 0).toBeLessThanOrEqual(WORKER_SOFT_CAP);
+  });
+
+  // #1480: the buyer half of the commerce pipeline (rank a known seller, price the route, write
+  // standing orders, load at the supplier) was fully wired but unreachable, because no AI demand
+  // ever asked production for a trade unit -- `idleCaravans` was always empty. Measured on
+  // `lh-late-era-medium`: zero AI civs owned a trade unit in 750 civ-round samples.
+  describe('#1480 bounded trader demand', () => {
+    /** One city whose active head needs `iron` the civ cannot get, plus trade partners. */
+    function tradeNeedFixture(
+      seed: string,
+      options: { head?: string | null; partners?: readonly string[] } = {},
+    ): GameState {
+      const state = createNewGame(undefined, seed, 'small');
+      const civ = state.civilizations['ai-1'];
+      addSpacedCities(state, civ.id, 0);       // exactly one AI city
+      addSpacedCities(state, 'player', 0);     // a partner that holds territory
+      if (!civ.techState.completed.includes('trade-routes')) {
+        civ.techState.completed = [...civ.techState.completed, 'trade-routes'];
+      }
+      for (const tile of Object.values(state.map.tiles)) {
+        if (tile.resource === 'iron') tile.resource = null;
+      }
+      const head = options.head === undefined ? 'steel_mill' : options.head;
+      if (head) state.cities[civ.cities[0]!]!.productionQueue = [head];
+      const partners = options.partners ?? ['player'];
+      for (const partner of partners) {
+        const treaty = {
+          type: 'trade_agreement' as const,
+          civA: partner,
+          civB: civ.id,
+          turnsRemaining: -1,
+        };
+        state.civilizations[partner]!.diplomacy.treaties.push(treaty);
+        civ.diplomacy.treaties.push({ ...treaty });
+      }
+      return state;
+    }
+
+    const tradeDemand = (state: GameState) => prepareMajorCivStrategicPlan(state, state.civilizations['ai-1'].id)
+      .forceDemands.find(entry => entry.role === 'trade');
+
+    it('asks for one trader when a production head is material-blocked and a partner is permitted', () => {
+      const state = tradeNeedFixture('trade-demand-need');
+
+      expect(tradeDemand(state)).toMatchObject({
+        role: 'trade',
+        desired: 1,
+        assigned: 0,
+        missing: 1,
+      });
+    });
+
+    it('never asks for a trader when no production head is material-blocked', () => {
+      const state = tradeNeedFixture('trade-demand-no-need', { head: null });
+
+      expect(tradeDemand(state)).toBeUndefined();
+    });
+
+    it('never asks for a trader without a permitted partner', () => {
+      const state = tradeNeedFixture('trade-demand-no-partner', { partners: [] });
+
+      expect(tradeDemand(state)).toBeUndefined();
+    });
+
+    it('stops asking once the city-count cap is met', () => {
+      const state = tradeNeedFixture('trade-demand-capped');
+      const civ = state.civilizations['ai-1'];
+      // One city -> cap is one trader.
+      const city = state.cities[civ.cities[0]!]!;
+      const trader = createUnit('merchant_wagon', civ.id, city.position, state.idCounters);
+      state.units[trader.id] = trader;
+      civ.units.push(trader.id);
+
+      const demand = tradeDemand(state);
+
+      expect(demand?.missing ?? 0).toBe(0);
+      expect(demand?.desired ?? 0).toBeLessThanOrEqual(1);
+    });
+
+    it('never asks for more traders than the per-cities ceiling however many cities it holds', () => {
+      const state = tradeNeedFixture('trade-demand-softcap');
+      const civ = state.civilizations['ai-1'];
+      addSpacedCities(state, civ.id, TRADE_ROUTES_PER_CITIES * 2);
+
+      const demand = tradeDemand(state);
+
+      expect(civ.cities.length).toBeGreaterThan(TRADE_ROUTES_PER_CITIES);
+      expect(demand?.desired ?? 0).toBeLessThanOrEqual(
+        Math.ceil(civ.cities.length / TRADE_ROUTES_PER_CITIES),
+      );
+    });
+
+    it('turns the demand into a real trade-unit production candidate, and only with the demand', () => {
+      const state = tradeNeedFixture('trade-demand-candidate');
+      const civ = state.civilizations['ai-1'];
+      const cityId = civ.cities[0]!;
+      const personality = {
+        traits: ['trader' as const], warLikelihood: 0.2, diplomacyFocus: 0.5, expansionDrive: 0.5,
+      };
+      const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+      const tradeCandidates = (demands: typeof prepared.forceDemands) =>
+        generateAIProductionCandidates(state, civ.id, cityId, demands, personality)
+          .filter(candidate => candidate.roles.includes('trade'));
+
+      // Conjunctive: the demand alone is not enough -- production must also offer a trainable
+      // trade unit -- and the unit alone is not enough, or the AI would produce traders forever.
+      expect(tradeCandidates(prepared.forceDemands).length).toBeGreaterThan(0);
+      expect(tradeCandidates([])).toHaveLength(0);
+    });
   });
 
   it('re-opens a readiness demand only while the civilization owns no unit of that role', () => {

@@ -77,9 +77,22 @@ export interface AcceptedOccurrence {
  *     streak and ~25% headroom: `no-research-choice` lh-veteran-large ai-2 (#1479), `gold-hoard` lh-late-era-medium
  *     ai-1/ai-2 (#1480), `production-idle` lh-late-era-medium ai-3 (#1481).
  *
- * `lh-late-era-medium`, where all three current entries live, uses `mapSeed: 'lh-1107-search-0'`; why that map was
- * chosen (a recoverable 43-tile landmass for `ai-1`) is in
- * `docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md`.
+ * What the 2026-10-30 re-audit found (deterministic `lh-late-era-medium` runs on main d12b4e23, artifacts preserved
+ * for the audit): the 2026-10-13 register no longer matched reality either.
+ *
+ *   - `gold-hoard` did not fire for ANY civ in either audit run. Gold now dips often enough (observed 5-433 gold dips
+ *     every ~10-40 rounds) that no 60-round non-decreasing run survives. The economically meaningful fact behind #1480
+ *     was that a fully-teched civ has no legal *worthwhile* gold sink: every sampled rush-buy quote was an item the
+ *     city finishes from its own production, `getCanonicalUpgradeTarget` returned null for every unit at 310 completed
+ *     techs, and no AI civ owned a trade unit. The entry was stale and is deleted; #1480 keeps the analysis.
+ *   - `production-idle` moved: ai-3's 14-round occurrence no longer reproduced, while ai-1 (68 rounds, 182-249) and
+ *     ai-2 (92 rounds, 158-249) newly fired. Root cause: the missionary production candidate was unbounded, so every
+ *     city completed a 16-production missionary every round and discarded the rest of its output (ai-2 reached 375
+ *     missionaries of 427 units). #1480's fix caps it, and this scenario now produces NO findings at all, so the
+ *     entry is deleted. A fresh production-idle streak would be reported as `unregistered` by this ratchet.
+ *
+ * `lh-late-era-medium` uses `mapSeed: 'lh-1107-search-0'`; why that map was chosen (a recoverable 43-tile landmass
+ * for `ai-1`) is in `docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md`.
  *
  * Rules for editing this register (all but the last are machine-checked by `findInvalidGapRegistrations` and
  * `findOwnerProblems`, run offline by `tests/scripts/known-campaign-gap-registry.test.ts`):
@@ -101,27 +114,6 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       + 'reproduce. Not root-caused.',
     scenarios: ['lh-veteran-large'],
     accepted: [{ scenario: 'lh-veteran-large', civId: 'ai-2', maxRounds: 8 }],
-  },
-  {
-    code: 'gold-hoard',
-    issue: '#1480',
-    why: 'lh-late-era-medium ai-1 and ai-2 never spend their treasury for the last ~90 rounds (gold 24,368 and 36,388 at '
-      + 'round 250) with no production-idle finding of their own, so the old "downstream of a production-idle window" '
-      + 'explanation does not obviously apply. Not root-caused.',
-    scenarios: ['lh-late-era-medium'],
-    // Observed streaks 94 and 82 rounds; budgets are the streak plus ~25%.
-    accepted: [
-      { scenario: 'lh-late-era-medium', civId: 'ai-1', maxRounds: 118 },
-      { scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 103 },
-    ],
-  },
-  {
-    code: 'production-idle',
-    issue: '#1481',
-    why: 'lh-late-era-medium ai-3 leaves every city idle and unconverted for 14 rounds (155-168) then recovers; the '
-      + 'detector threshold is 12. The #1127 occurrence (ai-1, 63 rounds) no longer reproduces. Not root-caused.',
-    scenarios: ['lh-late-era-medium'],
-    accepted: [{ scenario: 'lh-late-era-medium', civId: 'ai-3', maxRounds: 18 }],
   },
 ];
 

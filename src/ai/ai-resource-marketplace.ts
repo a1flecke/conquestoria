@@ -11,6 +11,8 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { getMarketOfferForBuyer, getMarketProcurementPolicy, setMarketProcurementPolicy } from '@/systems/resource-market-offers';
+import { getCommercialPassagePermission } from '@/systems/commerce-permissions';
+import { getCityMaterialProjection } from '@/systems/city-production-materials';
 import type { ResourceProcurementTerms } from '@/core/types/commerce';
 import { findTradeGood, resourceGoodId } from '@/systems/trade-good-definitions';
 
@@ -64,6 +66,41 @@ export function getAIMissingResource(state: GameState, civId: string): ResourceT
     }
   }
   return null;
+}
+
+/**
+ * #1480: does this civ have a *reason to own a trader*?
+ *
+ * The buyer half of the commerce pipeline only spends gold when a trader physically loads at a
+ * permitted supplier, so a civ that owns no trader can never buy anything — measured on
+ * `lh-late-era-medium`: zero AI civs owned a trade unit in 750 civ-round samples, while both
+ * audited civs reported a missing hard material for 100+ consecutive rounds. This is the cheap
+ * "should production ask for a trader" query behind that fix.
+ *
+ * Two facts, both from this civ's own view, and deliberately no offer snapshot: `market.offers` is
+ * only rebuilt when a load happens (`refreshMarketOffers` is turn-stamped and has no round phase),
+ * so requiring a visible offer here would deadlock the first purchase forever.
+ *
+ *  1. real work is blocked — an active production head whose recipe is not fully held; and
+ *  2. at least one partner may legally trade with this civ — the same directional permission
+ *     `getMarketOffersForBuyer` applies to a seller/buyer pair, so a war, embargo, or eliminated
+ *     partner never asks for a trader it could not use.
+ *
+ * No hidden information is read: own queues, own ledger, and the public passage rule.
+ */
+export function hasAITradeProcurementNeed(state: GameState, civId: string): boolean {
+  const civ = state.civilizations[civId];
+  if (!civ) return false;
+  const blocked = [...civ.cities].sort().some(cityId => {
+    const city = state.cities[cityId];
+    if (!city || city.owner !== civId || city.productionQueue.length === 0) return false;
+    return getCityMaterialProjection(state, cityId).missing.length > 0;
+  });
+  if (!blocked) return false;
+  return Object.keys(state.civilizations)
+    .filter(partner => partner !== civId)
+    .sort()
+    .some(partner => getCommercialPassagePermission(state, partner, civId).allowed);
 }
 
 /**

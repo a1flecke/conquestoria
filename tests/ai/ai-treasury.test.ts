@@ -3,6 +3,7 @@ import { applyAIGoldSpending } from '@/ai/ai-treasury';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { processCity } from '@/systems/city-system';
 import { completesFromOwnProduction, rushBuyActiveProduction } from '@/systems/rush-buy-system';
+import { getCityMaterialProjection } from '@/systems/city-production-materials';
 import { buildProductionCostContext } from '@/systems/production-cost-context';
 import type { GameState, OpponentChallenge } from '@/core/types';
 import { createHotSeatGame, createNewGame } from '@/core/game-state';
@@ -348,6 +349,44 @@ describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
       expect(hotSeatResult.cities[cityId]!.productionQueue).toEqual(soloResult.cities[cityId]!.productionQueue);
     }
     expect(hotSeatResult.civilizations['ai-1']!.gold).toBe(soloResult.civilizations['ai-1']!.gold);
+  });
+});
+
+/**
+ * #1480: the audited civs had no legal *worthwhile* purchase, so gold correctly stayed put. These
+ * pin the two gates that make that a decision rather than an accident: a material-blocked head is
+ * never bought, and a queued item the city finishes itself is never bought.
+ */
+describe('applyAIGoldSpending honours the canonical purchase gates (#1480)', () => {
+  it('never buys a head whose material recipe is not funded, however much gold it holds', () => {
+    const state = setupState();
+    state.civilizations['ai-1']!.gold = 50_000;
+    // `steel_mill` pays an iron recipe; stripping every iron source makes it genuinely unfunded.
+    for (const tile of Object.values(state.map.tiles)) {
+      if (tile.resource === 'iron') tile.resource = null;
+    }
+    state.cities['city-a']!.productionQueue = ['steel_mill'];
+
+    // Fails loudly rather than vacuously if the fixture is not actually material-blocked.
+    const projection = getCityMaterialProjection(state, 'city-a');
+    expect(projection.known).toBe(true);
+    expect(projection.funded).toBe(false);
+    expect(projection.missing.map(row => row.goodId)).toEqual(['resource:iron']);
+
+    const result = applyAIGoldSpending(state, 'ai-1', new EventBus());
+
+    expect(result.civilizations['ai-1']!.gold).toBe(50_000);
+    expect(result.cities['city-a']!.productionQueue).toEqual(['steel_mill']);
+  });
+
+  it('retains gold and the queue when no city has any active production to buy', () => {
+    const state = setupState(['city-a', 'city-b']);
+    state.civilizations['ai-1']!.gold = 50_000;
+    for (const cityId of ['city-a', 'city-b']) state.cities[cityId]!.productionQueue = [];
+
+    const result = applyAIGoldSpending(state, 'ai-1', new EventBus());
+
+    expect(result.civilizations['ai-1']!.gold).toBe(50_000);
   });
 });
 

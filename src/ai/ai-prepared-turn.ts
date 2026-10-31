@@ -18,6 +18,7 @@ import {
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { isVisible } from '@/systems/fog-of-war';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { hasAITradeProcurementNeed } from './ai-resource-marketplace';
 import { buildKnownPathMap } from './ai-path-knowledge';
 export { buildKnownPathMap } from './ai-path-knowledge';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -184,6 +185,23 @@ export function incrementalDemandSeed(
 export const WORKER_SOFT_CAP = 4;
 
 /**
+ * #1480: one trader per this many cities, matching `getAITradeRouteDemand`'s
+ * `max(1, ceil(cities / 3))` procurement-route target.
+ *
+ * `src/ai/ai-trade-strategy.ts` could already rank known sellers, price a route and write standing
+ * orders, and `basic-ai.ts` could establish a procurement route and attach those terms — but no AI
+ * demand ever asked production for a trade unit, so `hasAITradeRole` never matched, `idleCaravans`
+ * was always empty, and that entire buyer half of the #1514 commerce strategy was unreachable.
+ * Measured on `lh-late-era-medium`: zero AI civs owned a trade unit in 750 civ-round samples.
+ *
+ * Deliberately incremental and capped, not a standing roster: `incrementalDemandSeed` keeps the
+ * merged `missing` at 0 or 1, so this can never become a trader farm, and the demand disappears
+ * once the cap is reached or the material need is resolved.
+ */
+export const TRADE_ROUTES_PER_CITIES = 3;
+export const TRADE_PROCUREMENT_DEMAND_PRIORITY = 30;
+
+/**
  * Force-demand `sourcePlanIds` entries that name a standing, observation-derived need
  * rather than a specific `AIStrategicPlan` -- these are recomputed fresh from world
  * state every round (never carried over from a prior round the way a plan is), so they
@@ -205,6 +223,7 @@ export const WORKER_SOFT_CAP = 4;
 export const PLAN_AGNOSTIC_DEMAND_SOURCE_IDS: ReadonlySet<string> = new Set([
   'objective-readiness',
   'worker-infrastructure',
+  'trade-procurement',
   'observed-armor',
   'remembered-armor',
   'observed-air',
@@ -266,6 +285,28 @@ function observedAirDefenseDemand(
   const assigned = perception.ownUnits.filter(unit =>
     getAIStrategicRoles(unit.type).includes('air-defense')).length;
   return [{ role: 'air-defense', sourceId: visible.length > 0 ? 'observed-air' : 'remembered-air', priority: visible.length > 0 ? 180 : 80, desired: 1, assigned }];
+}
+
+/**
+ * #1480: request a trade unit while real work is material-blocked and a permitted partner exists.
+ * Incremental and city-bounded (see `TRADE_ROUTES_PER_CITIES`), and `[]` once the cap is reached or
+ * the need is gone, so an empire never accumulates traders.
+ */
+function tradeProcurementDemand(
+  state: Readonly<GameState>,
+  perception: MajorCivPerception,
+): PreparedForceDemandSeed[] {
+  if (perception.ownCities.length === 0) return [];
+  if (!hasAITradeProcurementNeed(state, perception.actorId)) return [];
+  const ownedTraders = perception.ownUnits.filter(unit =>
+    getAIStrategicRoles(unit.type).includes('trade')).length;
+  return incrementalDemandSeed(
+    'trade',
+    'trade-procurement',
+    TRADE_PROCUREMENT_DEMAND_PRIORITY,
+    ownedTraders,
+    Math.max(1, Math.ceil(perception.ownCities.length / TRADE_ROUTES_PER_CITIES)),
+  );
 }
 
 function distance(
@@ -937,6 +978,11 @@ export function prepareMajorCivStrategicPlan(
           !unit.transportId && getAIStrategicRoles(unit.type).includes('worker')).length,
         Math.min(perception.ownCities.length, WORKER_SOFT_CAP),
       ),
+      // #1480: the buyer half of the commerce pipeline needs a trader to exist before it can
+      // spend anything, and nothing else ever asked production for one. Same incremental,
+      // city-bounded shape as workers, and only while real work is material-blocked with at
+      // least one legally permitted partner.
+      ...tradeProcurementDemand(state, perception),
       ...(counterplay ? [{
         ...counterplay.forceDemand,
         desired: 1,
