@@ -242,12 +242,13 @@ def calibrate(rgba: np.ndarray, rig: dict) -> dict:
     top, bottom = int(rows.min()), int(rows.max())
     h = bottom - top + 1
     u = h / REF_FIGURE_PX
-    legs, shafts = rig.get('legs', 2), rig.get('shafts', 1)
+    mounted = rig.get('kind') == 'mounted'  # a four-legged animal: its belly line sits higher and it carries no shaft below it
+    legs, shafts = rig.get('legs', 4 if mounted else 2), rig.get('shafts', 0 if mounted else 1)
     want = legs + shafts
     if 'cut_y' in rig:
         cut = int(rig['cut_y'])
     else:
-        lo, hi = rig.get('hem', [0.22, 0.40])
+        lo, hi = rig.get('hem', [0.30, 0.50] if mounted else [0.22, 0.40])
         step = max(1, h // 200)
         seen: dict[int, int] = {}
 
@@ -272,8 +273,55 @@ def calibrate(rgba: np.ndarray, rig: dict) -> dict:
     out = {'cut_y': cut}
     out['overlap_top'] = int(rig['overlap_top']) if 'overlap_top' in rig else cut - round(0.02 * h)
     out['hip_y'] = int(rig['hip_y']) if 'hip_y' in rig else cut + round(0.01 * h)
-    out['knee_y'] = int(rig['knee_y']) if 'knee_y' in rig else cut + round(rig.get('knee', 0.25) * (bottom - cut))
+    out['knee_y'] = int(rig['knee_y']) if 'knee_y' in rig else cut + round(rig.get('knee', 0.5 if mounted else 0.25) * (bottom - cut))
     return out
+
+
+def leg_pieces(alpha: np.ndarray, cut_y: int, u: float, legs: int, shafts: int) -> list[dict]:
+    """The pieces of the figure below `cut_y`, left to right, as {'mask', 'x0', 'x1'}: `shafts` straight pieces that stay with
+    the body first, then the `legs` legs. Raises RigCutError when the count is wrong."""
+    low = alpha.copy()
+    low[:cut_y, :] = False
+    lab, n = ndi.label(low)
+    comps = []
+    for i in range(1, n + 1):
+        m = lab == i
+        if m.sum() > min_piece(u):
+            xs = np.where(m.any(0))[0]
+            comps.append({'mask': m, 'x0': int(xs.min()), 'x1': int(xs.max())})
+    comps.sort(key=lambda d: d['x0'])
+    if len(comps) != legs + shafts:
+        raise RigCutError(f'expected {legs} legs below the hem (plus {shafts} shaft) at cut_y={cut_y}, found '
+                          f'{len(comps)} pieces {[(d["x0"], d["x1"]) for d in comps]}: the legs touch or merge; '
+                          'redraw the master with the legs apart')
+    return comps
+
+
+def leg_band(d: dict, alpha: np.ndarray, rig: dict, cut_y: int, u: float) -> tuple[np.ndarray, float]:
+    """The band of body pixels a leg carries so its join to the body stays closed, and the x of the leg's hip. The band spans
+    the leg's thigh, not its toe: a bow tip or a shield edge beside the foot would otherwise ride along with the leg
+    (`band_full` keeps the older whole-leg span)."""
+    H, W = alpha.shape
+    m6, f60 = max(1, round(6 * u)), round(60 * u)
+    top = d['mask'].copy()
+    top[cut_y + f60:, :] = False
+    tx = np.where(top.any(0))[0]
+    bx0, bx1 = (d['x0'], d['x1']) if rig.get('band_full') else (int(tx.min()), int(tx.max()))
+    band = np.zeros((H, W), bool)
+    band[rig['overlap_top']:cut_y, max(0, bx0 - m6):bx1 + m6 + 1] = True
+    return band, float(np.where(top)[1].mean())
+
+
+def leg_bones(mask: np.ndarray, band: np.ndarray, alpha: np.ndarray, knee_y: int, overlap: int) -> tuple[np.ndarray, np.ndarray]:
+    """Split a leg into the thigh (hip to knee, plus the body band) and the shin with boot (below the knee, keeping a short
+    band of leg above it so the joint stays closed while it bends)."""
+    rows = np.arange(mask.shape[0])[:, None]
+    return (mask & (rows < knee_y)) | (band & alpha), mask & (rows >= knee_y - overlap)
+
+
+def knee_x(mask: np.ndarray, knee_y: int, u: float) -> float:
+    rows = np.arange(mask.shape[0])[:, None]
+    return float(np.where(mask & (np.abs(rows - knee_y) < round(20 * u)))[1].mean())
 
 
 class LegRig:
@@ -298,50 +346,26 @@ class LegRig:
         self.stride, self.lift, self.bob = rig.get('stride_deg', 20.0), rig.get('lift', 36.0) * u, rig.get('bob', 14.0) * u
         self.cv = puppet.Canvas((W, H), int(max(W, H) * 0.14))
         shafts = rig.get('shafts', 1)  # straight pieces that stay with the body (a spear shaft); the leftmost piece
-        low = alpha.copy()
-        low[:self.cut_y, :] = False
-        lab, n = ndi.label(low)
-        comps = []
-        for i in range(1, n + 1):
-            m = lab == i
-            if m.sum() > min_piece(u):
-                xs = np.where(m.any(0))[0]
-                comps.append({'mask': m, 'x0': int(xs.min()), 'x1': int(xs.max())})
-        comps.sort(key=lambda d: d['x0'])
-        if len(comps) != 2 + shafts:
-            raise RigCutError(f'expected 2 legs below the hem (plus {shafts} shaft) at cut_y={self.cut_y}, found '
-                              f'{len(comps)} pieces {[(d["x0"], d["x1"]) for d in comps]}: the legs touch or merge; '
-                              'redraw the master with the legs apart')
+        comps = leg_pieces(alpha, self.cut_y, u, 2, shafts)
         shaft = comps[0] if shafts else None
         back, front = comps[-2:]
         self.legs, self.shins, self.feet, self.rest = [], [], [], []
         self.foot_level = rig.get('foot_level', 0.0)  # share of the leg's turn the boot undoes about the ankle (0 = rigid)
-        m6, f60 = max(1, round(6 * u)), round(60 * u)
+        f60 = round(60 * u)
         self.knee_y = rig.get('knee_y')  # absent: rigid legs
         self.knee_bend = rig.get('knee_bend', 0.0)
         rows = np.arange(H)[:, None]
         for d in (back, front):
-            top = d['mask'].copy()
-            top[self.cut_y + f60:, :] = False
-            tx = np.where(top.any(0))[0]
-            # the band of body pixels a leg carries spans the leg's thigh, not its toe: a bow tip or a shield edge beside
-            # the foot would otherwise ride along with the leg (`band_full` keeps the older whole-leg span)
-            bx0, bx1 = (d['x0'], d['x1']) if rig.get('band_full') else (int(tx.min()), int(tx.max()))
-            band = np.zeros((H, W), bool)
-            band[rig['overlap_top']:self.cut_y, max(0, bx0 - m6):bx1 + m6 + 1] = True
-            px = float(np.where(top)[1].mean())
+            band, px = leg_band(d, alpha, rig, self.cut_y, u)
             ys, xs = np.where(d['mask'])
             foot = ys > ys.max() - f60
             self.rest.append(float(np.degrees(np.arctan2(xs[foot].mean() - px, ys[foot].mean() - self.hip_y))))
             if self.knee_y is None:
                 self.legs.append(puppet.Layer(puppet.layer_from(rgba, d['mask'] | (band & alpha)), pivot=(px, self.hip_y)))
                 continue
-            # two bones: the thigh (hip to knee) and the shin and boot (below knee_y), the shin keeping a short band of
-            # leg above the knee so the joint stays closed while it bends
-            overlap = rig.get('knee_overlap', round(30 * u))
-            thigh = (d['mask'] & (rows < self.knee_y)) | (band & alpha)
-            shin = d['mask'] & (rows >= self.knee_y - overlap)
-            kx = float(np.where(d['mask'] & (np.abs(rows - self.knee_y) < round(20 * u)))[1].mean())
+            # two bones: the thigh (hip to knee) and the shin and boot (below knee_y)
+            thigh, shin = leg_bones(d['mask'], band, alpha, self.knee_y, rig.get('knee_overlap', round(30 * u)))
+            kx = knee_x(d['mask'], self.knee_y, u)
             self.legs.append(puppet.Layer(puppet.layer_from(rgba, thigh), pivot=(px, self.hip_y)))
             if self.foot_level > 0:
                 # the foot is its own bone: it keeps part of its drawn angle however the leg swings, so a boot drawn three
@@ -391,6 +415,66 @@ class LegRig:
         return self.cv.compose(parts)
 
 
+# when each leg of a walking four-legged animal is furthest forward, as a share of the cycle: hind far, hind near, fore far,
+# fore near (the lateral-sequence walk `puppet.MountedRig` uses)
+QUAD_PHASES = (0.0, 0.5, 0.75, 0.25)
+
+
+class QuadRig:
+    """A gait built in code from the idle drawing of a four-legged animal (a horse), for the same reason as `LegRig`.
+
+    The figure is cut below the belly line into the body and four legs, left to right: hind far, hind near, fore far, fore near
+    (the animal faces right). Each leg is two bones (thigh, and shin with hoof) joined at the knee, swings about its own hip
+    on its own phase (`QUAD_PHASES`), lifts its hoof and folds its shin back while it swings forward, and is lowered so a
+    planted hoof stays on the ground line however far the leg leans. Far legs are drawn first. Keys (source pixels, as for
+    `LegRig`): cut_y, overlap_top, hip_y, knee_y, stride_deg (default 16), knee_bend (25), lift (24), bob (6).
+    """
+
+    def __init__(self, rgba: np.ndarray, rig: dict):
+        H, W = rgba.shape[:2]
+        alpha = rgba[..., 3] > 40
+        u = figure_scale(alpha)
+        self.cut_y, self.hip_y, self.knee_y = rig['cut_y'], rig['hip_y'], rig['knee_y']
+        self.stride, self.knee_bend = rig.get('stride_deg', 16.0), rig.get('knee_bend', 25.0)
+        self.lift, self.bob = rig.get('lift', 24.0) * u, rig.get('bob', 6.0) * u
+        self.cv = puppet.Canvas((W, H), int(max(W, H) * 0.14))
+        comps = leg_pieces(alpha, self.cut_y, u, 4, rig.get('shafts', 0))
+        f60 = round(60 * u)
+        self.legs, self.shins, self.rest, self.reach, self.drop = [], [], [], [], []
+        for d in comps[-4:]:
+            band, px = leg_band(d, alpha, rig, self.cut_y, u)
+            ys, xs = np.where(d['mask'])
+            foot = ys > ys.max() - f60
+            self.rest.append(float(np.degrees(np.arctan2(xs[foot].mean() - px, ys[foot].mean() - self.hip_y))))
+            thigh, shin = leg_bones(d['mask'], band, alpha, self.knee_y, rig.get('knee_overlap', round(30 * u)))
+            self.legs.append(puppet.Layer(puppet.layer_from(rgba, thigh), pivot=(px, self.hip_y)))
+            self.shins.append(puppet.Layer(puppet.layer_from(rgba, shin), pivot=(knee_x(d['mask'], self.knee_y, u), self.knee_y)))
+            # straightened (the rest angle undone) the leg is `reach` long, and its drawn hoof is `drop` below the hip
+            self.drop.append(float(ys.max() - self.hip_y))
+            self.reach.append(self.drop[-1] / np.cos(np.radians(self.rest[-1])))
+        body = alpha.copy()
+        body[self.cut_y:, :] = False
+        self.body = puppet.Layer(puppet.layer_from(rgba, body), pivot=(W * 0.5, H * 0.97))
+
+    def frame(self, i: int, n: int) -> Image.Image:
+        t = i / n
+        dy_body = -self.bob * (1 - np.cos(4 * np.pi * t)) / 2
+        far, near = [], []
+        for k, phase in enumerate(QUAD_PHASES):
+            a = 2 * np.pi * (t - phase)
+            lean = self.stride * np.cos(a)  # forward-most at t == phase
+            swing = max(0.0, -np.sin(a))  # how far through its forward swing the leg is
+            hip_angle = self.rest[k] - lean
+            # a planted hoof stays on the ground line (the leg is lowered as it leans); a swinging one is lifted off it
+            dy = self.drop[k] - self.reach[k] * np.cos(np.radians(lean)) - self.lift * swing
+            thigh = self.cv.place(self.legs[k], 0, dy, hip_angle)
+            bent = self.cv.place(self.shins[k], 0, 0, self.knee_bend * swing)
+            hip = (self.legs[k].pivot[0] + self.cv.pad, self.hip_y + self.cv.pad)
+            shin = bent.rotate(-hip_angle, resample=Image.BICUBIC, center=hip, translate=(0, dy))
+            (far if k % 2 == 0 else near).extend([shin, thigh])  # shin behind the thigh so the knee stays closed
+        return self.cv.compose([*far, *near, self.cv.place(self.body, 0, dy_body, 0)])
+
+
 def rig_source_image(spec: dict, sources: Path, ref: str) -> np.ndarray:
     """uint8 RGBA drawing a rig is cut from. A plain name is the whole image when it has real transparency (the rig's
     coordinates then refer to that image); a '<image>#<index>' reference, or an image on a magenta field, is one keyed figure."""
@@ -404,7 +488,7 @@ def rig_source_image(spec: dict, sources: Path, ref: str) -> np.ndarray:
 def walk_frames(rgba: np.ndarray, rig: dict, n: int):
     """`n` frames of a LegRig walk as (rgba float crop, mask crop), cut from one drawing (uint8 RGBA). Cut positions not
     given in `rig` are calibrated from the drawing."""
-    r = LegRig(rgba, {**rig, **calibrate(rgba, rig)})
+    r = (QuadRig if rig.get('kind') == 'mounted' else LegRig)(rgba, {**rig, **calibrate(rgba, rig)})
     out = []
     for i in range(n):
         im = np.array(r.frame(i, n)).astype(np.float32) / 255.0
