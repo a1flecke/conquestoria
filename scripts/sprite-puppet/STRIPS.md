@@ -92,6 +92,7 @@ conversation-B attempts per unit before changing the prompt template itself.
 | Horseman | mounted | five, accepted first generation | 0 errors, 0 warnings | `QuadRig`: cut low (near the knee), tail left on the body, a planted-then-lifted gait. The first sine swing was judged "a shuffle where the legs crisscross"; the planted gait was "a lot better" | Owner approved the walk. Side by side with the game's current puppet horseman (`previews/horseman/compare.html`): **the current horse looks better, the new actions look better** (the drawn attack, hit and defeat against the puppet's one stiff attack). The horse was the spec's choice: it was drawn dapple-grey to keep the coat out of the team-colour key (`coat` in `horseman.json`), so a chestnut or bay coat would need the tint key checked first (`probe` tint fraction). Sheet and mask are 2.0 MB |
 | Tank | vehicle | three: master, damage x4, wreck (3 frames). The master was redrawn once, the wreck prompt rewritten once | 0 errors, 2 warnings, both on the wreck row (a figure touches the image edge but nothing is cut off; the smallest figure is 299 px against a 300 px limit) | `VehicleRig`: bounce, wheel spin, a track that scrolls a quarter link per frame, recoil with a muzzle flash and smoke, a decaying hit shake. Rig keys moved from the defaults: `tread.depth` 0.085, `tread.above` 0.277 (the track top is measured up from the bottom so smoke above the hull cannot move it), `muzzle` set by hand (the default landed on the track's front tip), `restHeight` 74 and `restFrames [0, 1]` on the damage sheet (hatch and smoke frames had skewed the scale) | Owner approved after the viewer (all four damage tiers, move, fire, hit, wreck). Not compared side by side with the game's current puppet tank. The sheet and mask are 1.0 MB |
 | Ironclad | naval | three, accepted first generation: master, damage x4, sinking (3 frames in one row) | 0 errors, 0 warnings | `NavalRig` on the vehicle rig: roll about the keel, heave, white bow foam and a pale wake while moving (never red); fire and hit are the vehicle's. Rig keys moved from the defaults: `bob` 0.07 and `rock` 3.2 on the move rig (the defaults of 0.02 and 1.6 read as nothing at game size), `muzzle` set by hand to the front gun port (the default landed on the ram tip), `restHeight` 58. The viewer draws ships on water hexes | Owner: bobbing better after the first increase. Not compared side by side with the game's current puppet ironclad. The sheet and mask are 0.5 MB |
+| Biplane | aircraft | three: master, damage x4, going down (3 frames in one row). The going-down row was redrawn once (the first came back with the red fuselage repainted brown and black, which loses the team colour; the template said "scorched dark") | 0 errors, 0 warnings | `FlightRig` on the vehicle rig: heave, nose pitch about the middle of the aircraft (nose up while it climbs), a grey shimmering propeller blur disc that follows the aircraft, a nose-gun flash with a small kick; no ground anchoring. Rig keys set by hand: `prop` (the drawn edge-on blade is tall, so the default half-height of 16% of the height was wrong), `muzzle`, and `bob` 0.05 and `pitch` 4 on the move rig | Owner approved after the viewer (aircraft are drawn over sky-blue hexes). Not compared side by side with the game's current puppet biplane. The sheet and mask are 1.4 MB |
 
 What carried over to the next units:
 
@@ -103,4 +104,29 @@ What carried over to the next units:
 - **Say "one row" and forbid the grid in the wreck prompt.** A wreck asked for among other images came back as a damage grid twice; a prompt that names the one image, the exact layout ("not a grid, not a column") and says the band darkens in the burning frames came back right. `probe` then confirmed three separate figures and no flame in the tint key.
 - **Measure scale from frames that match the master.** Smoke and an open hatch make a damage frame taller; `restFrames` picks the frames that set the scale, and a tread position given as a width fraction from the bottom (`above`) stays put when something rises above the hull.
 - **Ships need a bigger heave than a first guess.** A rock of 1.6 degrees and a bob of 2% of the hull's height were invisible at 58 px tall; 3.2 degrees and 7% read as a ship. The drawing must stop at a straight waterline with no water, so all of the water is code and viewer.
-- **Still open:** the aircraft rig (plan Task 10), and the game-side work (non-square cells, hurt/death/work rows, play-once, tier rows, the death snapshot) that the preview does not need.
+- **A wreck must not repaint the team colour.** The Tank and Ironclad wrecks darken the band and were approved, but the first Biplane going-down row turned the whole fuselage brown and black and the owner disliked it. For aircraft the template now says the red stays the same and the damage is soot, scorch marks, flames and smoke drawn over it. A burning frame's orange sits close to the tint key (hue 0 to 0.045); check a few factions in the viewer.
+- **Aircraft need their own propeller size.** The drawn blade is a tall thin shape, so the blur disc takes its position and half-height from the drawing (`prop`), not from a default.
+- **Still open:** the game-side work (non-square cells, hurt/death/work rows, play-once, tier rows, the death snapshot) that the preview does not need.
+
+
+## Decision (plan Task 10)
+
+Against the plan's thresholds (approved in the viewer, master redrawn at most twice, at most three regenerations, at most two rig keys moved from their defaults):
+
+| Family | Approved | Redraws | Rig keys moved | Verdict |
+|---|---|---|---|---|
+| Biped (Spearman, Archer) | yes | Spearman two sets, Archer 0 | `foot_level`, calibrated cut | proven |
+| Mounted (Horseman) | yes | 0 | cut height, tail, gait | proven |
+| Vehicle (Tank) | yes | master 1, wreck prompt 1 | tread depth and band, muzzle, `restHeight`, `restFrames` (five) | proven on images and approval; over the key limit |
+| Naval (Ironclad) | yes | 0 | `bob`, `rock`, muzzle (three) | proven on images and approval; one over the key limit |
+| Aircraft (Biplane) | yes | going-down row 1 | `prop`, muzzle, `bob`, `pitch` (four) | proven on images and approval; over the key limit |
+
+Reading the three families that miss the key count: none of the moved keys was a failed default for the whole family; they are
+part positions (where the gun fires from, where the propeller is, where the track band sits) and two strengths (ships and
+aircraft need a bigger heave than a first guess). The next step that would bring them under the limit is to make the family
+defaults carry those strengths (a naval `bob` and `rock`, an aircraft `bob` and `pitch`) and to derive the muzzle and the
+propeller from the drawing. That is a tooling change for the owner to approve, not a reason to send a family back to the puppet.
+
+The game-side PR that the previews do not need (non-square cells, hurt/death/work rows, play-once, tier rows, the death
+snapshot for all units) is listed in `design/png-sprites/previews/spearman/README.md` and tracked with the rollout in #1627.
+Nothing here is wired into the game.
