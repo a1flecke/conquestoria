@@ -1,0 +1,26 @@
+{
+  "id": "horseman",
+  "family": "mounted",
+  "prompt": {
+    "name": "Horseman",
+    "look": "A classical light cavalryman on a dapple-grey horse with a dark grey mane and tail and white socks. The rider has a short brown beard, a bronze open-faced helmet, a short-sleeved tunic and brown leather boots, and carries a long javelin. The horse wears a saddle cloth under a brown leather saddle and a brown bridle.",
+    "team_area": "the rider's tunic and the saddle cloth",
+    "coat": "The horse is dapple-grey with a dark grey mane and tail: no chestnut, bay or orange-brown anywhere on it.",
+    "identity": "the same rider, helmet, beard, red tunic and javelin, and the same dapple-grey horse, saddle, red saddle cloth and bridle",
+    "weapon_pose": "He holds the javelin upright in his right hand, its butt end above the horse's belly.",
+    "attack_frames": 6,
+    "attack": "(1) ready, javelin upright; (2) he raises the javelin to his shoulder, pointing right; (3) wind-up: arm drawn far back, body twisting; (4) the thrust: arm and javelin driving forward and down to the right; (5) full extension, the javelin still in his hand; (6) recover to ready.",
+    "damage_gear": "a dented helmet",
+    "damage_gear_critical": "a broken javelin shaft and a torn bridle",
+    "defeat_prop": "the javelin lying beside him"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 150 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",    "file": "a", "cells": 1, "fps": 4 },
+    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "attack",  "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "restFrames": [0, 5] },
+    { "state": "hit",     "file": "d", "cells": 4, "grid": [2, 2], "fps": 8, "restFrames": [0, 3], "loop": false },
+    { "state": "defeat",  "file": "e", "cells": 4, "grid": [2, 2], "fps": 5, "restFrames": [0], "loop": false }
+  ]
+}
