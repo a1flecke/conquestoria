@@ -107,4 +107,4 @@ rust, paint, flags, markings, lights, metal, wood
 level flight, propeller stopped and edge-on
 
 ### not_red
-metal, canvas, wood, and any markings (no red roundels or stripes)
+metal, canvas, wood, leather, the pilot's clothing and scarf, and any markings (no red roundels or stripes)

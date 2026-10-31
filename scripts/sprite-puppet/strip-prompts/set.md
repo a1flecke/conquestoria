@@ -102,9 +102,14 @@ touching; nothing detached; red only on {{team_area}}. If any is false, redraw t
 ## Family: aircraft
 
 ### images
-1. DAMAGE (4 frames, a grid of 2 by 2): the master four times, progressively damaged, same position and outline. (1) intact,
-   identical to the master; (2) light: bullet holes and scorch marks; (3) serious: torn fabric or panels, an oil streak,
-   {{damage_gear}}; (4) critical: a smoking engine with a short grey smoke trail touching the aircraft,
-   {{damage_gear_critical}}.
-2. GOING DOWN (3 frames, one row): (1) hit: a yellow-orange burst touching the aircraft; (2) nose tipping down, smoking; (3) a
-   steep dive, smoke trailing from it.
+1. DAMAGE (4 frames, a grid of 2 by 2): the master four times, progressively damaged, in exactly the master's position and
+   outline, level flight with the propeller stopped and edge-on in all four. (1) intact, identical to the master; (2) light:
+   bullet holes and scorch marks, a torn patch of fabric; (3) serious: torn fabric and panels, an oil streak, {{damage_gear}},
+   dark soot streaks; (4) critical: a smoking engine with a short grey smoke trail touching the aircraft,
+   {{damage_gear_critical}}. No ground, clouds or sky in any frame.
+2. GOING DOWN (3 frames in exactly ONE horizontal row, left to right: not a grid, not a column, a single wide image): (1) a
+   hit: a bright yellow-orange burst touching the aircraft, otherwise intact like the master; (2) going down: the nose tipping
+   about 25 degrees down, orange flames and black smoke trailing from the engine and touching it, {{team_area}} scorched
+   dark; (3) a steep dive, the nose about 60 degrees down, charred, black smoke trailing from it and touching it. Bright
+   red is only on {{team_area}} in frame 1. No ground, clouds or sky.
+{{extra_images}}

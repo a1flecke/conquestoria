@@ -1,0 +1,27 @@
+{
+  "id": "biplane",
+  "family": "aircraft",
+  "prompt": {
+    "name": "Biplane (First World War)",
+    "look": "A First World War biplane: two cream canvas wings stacked one above the other, joined by wooden struts and taut bracing wires, a round engine cowling at the nose on the right with a two-blade wooden propeller, an open cockpit with a goggled pilot in a leather helmet, a tail fin and rudder at the left end, and two small wheels under the nose. The whole fuselage and the tail are painted in one solid colour.",
+    "team_area": "the fuselage and the tail",
+    "gear": "The two wheels hang under the nose exactly as in a normal side view and nothing else hangs below the fuselage. Wings, struts and wires are straight and do not overlap the propeller.",
+    "identity": "the same two wings, struts, wires, engine cowling, propeller, cockpit and pilot, tail and wheels, and the same red fuselage and tail",
+    "damage_gear": "a snapped bracing wire and a torn wing patch",
+    "damage_gear_critical": "a bent strut and a cracked propeller"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 70 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",   "file": "a", "cells": 1, "fps": 4 },
+    { "state": "damage", "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "restFrames": [0, 1], "note": "idle pose at damage tiers 0-3" },
+    { "state": "move",   "cells": 8, "fps": 12,
+      "note": "heave, nose pitch and a spinning propeller built in code from the master and from each damage drawing",
+      "rig": { "kind": "flight", "action": "move", "sources": ["a", "b#0", "b#1", "b#2", "b#3"] } },
+    { "state": "fire",   "cells": 8, "fps": 8, "loop": false, "note": "nose-gun flash and a small kick built in code",
+      "rig": { "kind": "flight", "action": "fire", "source": "a" } },
+    { "state": "hit",    "cells": 4, "fps": 8, "loop": false, "note": "the aircraft jolted and the nose dipped, built in code",
+      "rig": { "kind": "flight", "action": "hit", "source": "a" } },
+    { "state": "down",   "file": "c", "cells": 3, "fps": 4, "loop": false, "restFrames": [0] }
+  ]
+}
