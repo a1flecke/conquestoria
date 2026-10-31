@@ -501,6 +501,79 @@ print(json.dumps({'flash': flash, 'team': team}))
   }, 30000);
 });
 
+describe.skipIf(!haveDeps)('strips.py naval rig (#364 prototype)', () => {
+  const navalPy = (root: string, body: string): any =>
+    JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${VEHICLE}\n${body}`], { encoding: 'utf8' }));
+
+  it('the hull rocks about its keel: the bow and the stern trade places going up and down', () => {
+    const { root } = sandbox();
+    const out = navalPy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img, band=False)
+tilt = []
+for rgba, mask, fx, lift in m.walk_frames(np.array(img), {'kind': 'naval', 'action': 'move', 'bob': 0, 'rock': 3.0}, 8):
+    grey = (np.abs(rgba[..., 0] - 90 / 255) < 0.08) & (rgba[..., 3] > 0.5) & (rgba[..., 2] < 0.5)
+    g0 = int(np.where(grey.any(0))[0].min())  # the hull's left end (the wake may stretch the crop further left)
+    left, right = range(g0 + 10, g0 + 40), range(g0 + 400, g0 + 430)  # hull columns only: not the gun barrel or the wheel
+    bottom = lambda cs: float(np.mean([np.where(grey[:, c])[0].max() for c in cs]))
+    tilt.append(bottom(right) - bottom(left))
+print(json.dumps(tilt))
+`);
+    const note = JSON.stringify(out);
+    expect(Math.max(...out), note).toBeGreaterThan(4);
+    expect(Math.min(...out), note).toBeLessThan(-4);
+  }, 30000);
+
+  it('foam rides the bow while the ship moves, never when it idles, and never in the team-colour range', () => {
+    const { root } = sandbox();
+    const out = navalPy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img, band=False)
+res = {}
+for action in ('idle', 'move'):
+    white, team, lowest, right = [], [], [], []
+    for rgba, mask, fx, lift in m.walk_frames(np.array(img), {'kind': 'naval', 'action': action, 'bob': 0}, 8):
+        h, s, v = m.puppet.rgb_to_hsv_arrays(rgba[..., :3])
+        solid = rgba[..., 3] > 0.5
+        foam = solid & (s < 0.2) & (v > 0.9)
+        white.append(int(foam.sum()))
+        team.append(int((solid & ((h < 0.045) | (h > 0.955)) & (s > 0.45) & (v > 0.18)).sum()))
+        ys, xs = np.where(foam)
+        lowest.append(float(ys.mean() / rgba.shape[0]) if len(ys) else -1.0)
+        right.append(float(xs.mean() / rgba.shape[1]) if len(xs) else -1.0)
+    res[action] = {'white': white, 'team': team, 'lowest': lowest, 'right': right}
+print(json.dumps(res))
+`);
+    const note = JSON.stringify(out);
+    expect(Math.max(...out.idle.white), note).toBe(0);
+    expect(out.move.white.every((n: number) => n > 40), note).toBe(true);
+    expect(Math.max(...out.move.team, ...out.idle.team), note).toBe(0);
+    for (const f of out.move.lowest) expect(f, note).toBeGreaterThan(0.6); // low in the picture, at the waterline
+  }, 30000);
+
+  it('fire still flashes once and build emits idle, move, fire and hit rows', () => {
+    const { root, sources, tool } = sandbox();
+    draw(`${VEHICLE}
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img, band=False)
+ImageDraw.Draw(img).rectangle((300, 215, 420, 245), fill=(224, 16, 16, 255))
+img.save(${JSON.stringify(join(sources, 'a.png'))})
+`);
+    const nav = (action: string) => ({ kind: 'naval', action, source: 'a' });
+    const spec = writeSpec(root, [
+      { state: 'idle', file: 'a', cells: 1, fps: 4 },
+      { state: 'move', cells: 8, fps: 12, rig: nav('move') },
+      { state: 'fire', cells: 8, fps: 8, loop: false, rig: nav('fire') },
+      { state: 'hit', cells: 4, fps: 8, loop: false, rig: nav('hit') },
+    ]);
+    const out = join(root, 'out');
+    const r = run(tool, ['build', spec, '--sources', sources, '--out', out]);
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    const found = py(root, `
+man = json.loads(Path(${JSON.stringify(join(out, 'manifest.json'))}).read_text())
+print(json.dumps({'rows': sorted(man['states'])}))
+`);
+    expect(found.rows).toEqual(['fire', 'hit', 'idle', 'move']);
+  }, 60000);
+});
+
 const BIPED_PROMPT = {
   name: 'Archer', look: 'A lean young archer with a leather hood.', team_area: 'his tunic', identity: 'the same hood, tunic and bow',
   weapon_pose: 'He holds the bow upright in his left hand.', attack_frames: 6, attack: '(1) ready; (2) draw; (3) release.',
