@@ -574,6 +574,89 @@ print(json.dumps({'rows': sorted(man['states'])}))
   }, 60000);
 });
 
+describe.skipIf(!haveDeps)('strips.py flight rig (#364 prototype)', () => {
+  const flightPy = (root: string, body: string): any =>
+    JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${VEHICLE}\n${body}`], { encoding: 'utf8' }));
+
+  it('the nose pitches up and down while it flies, and the whole aircraft heaves', () => {
+    const { root } = sandbox();
+    const out = flightPy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img, band=False)
+tilt, rise = [], []
+for rgba, mask, fx, lift in m.walk_frames(np.array(img), {'kind': 'flight', 'action': 'move', 'bob': 0.05, 'pitch': 4.0, 'prop': False}, 8):
+    grey = (np.abs(rgba[..., 0] - 90 / 255) < 0.08) & (rgba[..., 3] > 0.5) & (rgba[..., 2] < 0.5)
+    g0 = int(np.where(grey.any(0))[0].min())
+    left, right = range(g0 + 10, g0 + 40), range(g0 + 400, g0 + 430)
+    bottom = lambda cs: float(np.mean([np.where(grey[:, c])[0].max() for c in cs]))
+    tilt.append(bottom(right) - bottom(left))
+    rise.append(float(lift))
+print(json.dumps({'tilt': tilt, 'rise': rise}))
+`);
+    const note = JSON.stringify(out);
+    expect(Math.max(...out.tilt), note).toBeGreaterThan(4);
+    expect(Math.min(...out.tilt), note).toBeLessThan(-4);
+    expect(Math.max(...out.rise) - Math.min(...out.rise), note).toBeGreaterThan(8);
+  }, 30000);
+
+  it('a blurred propeller disc sits on the nose in every action, shimmers between frames and is never in the team-colour range', () => {
+    const { root } = sandbox();
+    const out = flightPy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img, band=False)
+res = {}
+for action in ('idle', 'move', 'fire', 'hit'):
+    blur, team = [], []
+    for rgba, mask, fx, lift in m.walk_frames(np.array(img), {'kind': 'flight', 'action': action, 'bob': 0}, 8):
+        a = rgba[..., 3]
+        h, s, v = m.puppet.rgb_to_hsv_arrays(np.clip(rgba[..., :3] / np.maximum(a, 1e-3)[..., None], 0, 1))  # the crop is premultiplied
+        soft = (a > 0.2) & (a < 0.9) & (s < 0.2) & (v > 0.6)
+        blur.append(float(a[soft].sum()))
+        team.append(int(((a > 0.5) & ((h < 0.045) | (h > 0.955)) & (s > 0.45) & (v > 0.18)).sum()))
+    res[action] = {'blur': blur, 'team': team}
+print(json.dumps(res))
+`);
+    const note = JSON.stringify(out);
+    for (const action of ['idle', 'move', 'fire', 'hit']) {
+      expect(Math.min(...out[action].blur), note).toBeGreaterThan(20);
+      expect(Math.max(...out[action].team), note).toBe(0);
+    }
+    expect(new Set(out.move.blur.map((n: number) => Math.round(n))).size, note).toBeGreaterThan(1);
+  }, 30000);
+
+  it('fire flashes at the muzzle once and build emits idle, move, fire and hit rows', () => {
+    const { root, sources, tool } = sandbox();
+    draw(`${VEHICLE}
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img, band=False)
+ImageDraw.Draw(img).rectangle((300, 215, 420, 245), fill=(224, 16, 16, 255))
+img.save(${JSON.stringify(join(sources, 'a.png'))})
+`);
+    const fly = (action: string) => ({ kind: 'flight', action, source: 'a' });
+    const spec = writeSpec(root, [
+      { state: 'idle', file: 'a', cells: 1, fps: 4 },
+      { state: 'move', cells: 8, fps: 12, rig: fly('move') },
+      { state: 'fire', cells: 8, fps: 8, loop: false, rig: fly('fire') },
+      { state: 'hit', cells: 4, fps: 8, loop: false, rig: fly('hit') },
+    ]);
+    const out = join(root, 'out');
+    const r = run(tool, ['build', spec, '--sources', sources, '--out', out]);
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    const found = py(root, `
+man = json.loads(Path(${JSON.stringify(join(out, 'manifest.json'))}).read_text())
+print(json.dumps({'rows': sorted(man['states'])}))
+`);
+    expect(found.rows).toEqual(['fire', 'hit', 'idle', 'move']);
+    const flashes = flightPy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img, band=False)
+n = []
+for rgba, mask, fx, lift in m.walk_frames(np.array(img), {'kind': 'flight', 'action': 'fire', 'prop': False}, 8):
+    solid = rgba[..., 3] > 0.5
+    n.append(int((solid & (rgba[..., 0] > 0.9) & (rgba[..., 1] > 0.75) & (rgba[..., 2] < 0.5)).sum()))
+print(json.dumps(n))
+`);
+    expect(flashes.filter((c: number) => c > 20).length, JSON.stringify(flashes)).toBeGreaterThanOrEqual(1);
+    expect(flashes.filter((c: number) => c > 20).length, JSON.stringify(flashes)).toBeLessThan(5);
+  }, 60000);
+});
+
 const BIPED_PROMPT = {
   name: 'Archer', look: 'A lean young archer with a leather hood.', team_area: 'his tunic', identity: 'the same hood, tunic and bow',
   weapon_pose: 'He holds the bow upright in his left hand.', attack_frames: 6, attack: '(1) ready; (2) draw; (3) release.',
