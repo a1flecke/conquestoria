@@ -80,6 +80,22 @@ the animal's coat, mane and hooves, skin, leather, wood, metal
 ### not_red
 rust, paint, markings, lights, metal
 
+## Family: naval
+
+### pose
+- Level on one straight horizontal waterline. The hull is cut off cleanly at that line: the bottom edge of the drawing is a
+  perfectly straight horizontal line and nothing is drawn below it. No water, waves, wake, bow spray, foam or reflection.
+- Nothing hangs below the line (no keel, rudder, oars in the water or anchor chain). The ram or bow stays above the line.
+- {{running_gear}}
+- Guns, masts, funnels and flags are upright or pointing straight to the right, overlapping nothing. No crew outside, no
+  smoke, no steam, no muzzle flash.
+
+### check
+hull cut off at a straight horizontal waterline with no water drawn, {{running_gear_check}}
+
+### not_red
+rust, paint, flags, markings, lights, metal, wood
+
 ## Family: aircraft
 
 ### pose

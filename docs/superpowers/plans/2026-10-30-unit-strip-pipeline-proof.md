@@ -295,6 +295,8 @@ Spec `prompt` block:
 
 ### Task 10: Results and decision
 
+> Progress: the naval proof (`NavalRig`, Ironclad) is done and in the STRIPS.md results table. The aircraft proof (Biplane, `FlightRig`) and the decision write-up remain.
+
 **Files:**
 - Modify: `scripts/sprite-puppet/STRIPS.md` (results table complete, decision section), `design/png-sprites/previews/spearman/README.md` (link), PR #1624 body
 

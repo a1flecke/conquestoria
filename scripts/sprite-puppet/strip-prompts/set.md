@@ -77,8 +77,26 @@ touching; nothing detached; red only on {{team_area}}. If any is false, redraw t
    outline (wheels or tracks exactly where they are). (1) intact, identical to the master; (2) light: scorch marks, dents,
    mud; (3) serious: holes in the armour, {{damage_gear}}, a hatch hanging open, dark soot streaks; (4) critical: large
    holes, {{damage_gear_critical}}, blackened plates, a thin wisp of grey smoke rising from it and touching it.
-2. WRECK (3 frames, one row): (1) a hit: a bright yellow-orange burst touching the hull and the hull jolted; (2) burning:
-   orange flames and black smoke rising from the hull, touching it; (3) the burnt-out wreck, blackened and sagging, no flames.
+2. WRECK (3 frames in exactly ONE horizontal row, left to right: not a grid, not a column, a single wide image): (1) a hit:
+   a bright yellow-orange burst touching the hull and the hull jolted, otherwise intact like the master; (2) burning: orange
+   flames and black smoke rising from the hull, touching it, the plates scorched and {{team_area}} darkened and soot-streaked;
+   (3) the burnt-out wreck, blackened and sagging, no flames and no smoke. Bright red is only on {{team_area}} in frame 1.
+{{extra_images}}
+
+## Family: naval
+
+### images
+1. DAMAGE (4 frames, a grid of 2 by 2): the master four times, progressively damaged, in exactly the master's position and
+   outline, every hull cut off at the same straight waterline with nothing drawn below it. (1) intact, identical to the
+   master; (2) light: scorch marks and a few dents on the hull and a torn flag; (3) serious: holes in the hull side and
+   deck, {{damage_gear}}, dark soot streaks, a little grey smoke; (4) critical: large holes, {{damage_gear_critical}},
+   blackened plates, a thin wisp of grey smoke rising from it and touching it. No water, waves or spray in any frame.
+2. SINKING (3 frames in exactly ONE horizontal row, left to right: not a grid, not a column, a single wide image): every
+   hull is cut off at the same straight horizontal line (the waterline) with nothing drawn below it and no water drawn: (1) a
+   hit: a bright yellow-orange burst touching the hull and the ship jolted, otherwise intact like the master; (2) going down:
+   listing a few degrees with the bow low, burning, black smoke rising from it and touching it, {{team_area}} scorched dark;
+   (3) nearly under: only the top of the hull above the line, the upper deck, the funnel and the masts above it, charred,
+   leaning, no flames. Bright red is only on {{team_area}} in frame 1.
 {{extra_images}}
 
 ## Family: aircraft
