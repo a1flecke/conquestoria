@@ -681,8 +681,72 @@ class NavalRig(VehicleRig):
         return self.cv.compose(parts)
 
 
-GIVEN_KINDS = ('vehicle', 'naval')  # rigs that return where the drawing's centre falls in each crop (anchor 'given')
-RIG_CLASSES = {'vehicle': VehicleRig, 'naval': NavalRig}
+class FlightRig(VehicleRig):
+    """An aircraft drawn in level flight with its propeller stopped and edge-on. It never touches the ground, so the loops
+    are all in the air: a heave, a pitch of the nose, and a propeller blur that turns the drawn blade into a spinning disc.
+
+    `bob` (default 0.03, a fraction of the height) is the heave; `pitch` (default 3 degrees) the nose rising and dipping
+    about the middle of the aircraft, nose up while it climbs. `prop`: [x, y, half_height] as fractions of the figure's box
+    (default: the right-most pixel, a sixth of the height either side), or false for none (a jet). The blur is a soft grey
+    disc whose strength alternates every frame so it shimmers; it is never red, so the tint key cannot pick it up. Fire
+    flashes at `muzzle` (see `vehicle_muzzle`) with a small kick; hit jolts the aircraft and dips the nose.
+    """
+
+    def __init__(self, rgba: np.ndarray, rig: dict):
+        super().__init__(rgba, {'bob': 0.03, **rig})
+        self.pitch = rig.get('pitch', 3.0)
+        bw, bh = self.x1 - self.x0 + 1, self.y1 - self.y0 + 1
+        alpha = rgba[..., 3] > 40
+        self.centre = ((self.x0 + self.x1) / 2, (self.y0 + self.y1) / 2)
+        spec = rig.get('prop', True)
+        if spec is False:
+            self.prop = None
+        elif spec is True:
+            nose = int(np.where(alpha.any(0))[0].max())
+            ys = np.where(alpha[:, max(self.x0, nose - max(2, bw // 50)):nose + 1].any(1))[0]
+            self.prop = (float(nose), float(np.median(ys)), 0.16 * bh)
+        else:
+            self.prop = (self.x0 + spec[0] * bw, self.y0 + spec[1] * bh, spec[2] * bh)
+        self.size = (rgba.shape[1], rgba.shape[0])
+
+    def _prop_layer(self, i: int):
+        img = Image.new('RGBA', self.size, (0, 0, 0, 0))
+        px, py, hh = self.prop
+        half_w = max(2.0, 0.02 * (self.x1 - self.x0 + 1))
+        a = 190 + 40 * (i % 2)  # alternate frames so the disc shimmers
+        ImageDraw.Draw(img).ellipse([px - half_w, py - hh, px + half_w, py + hh], fill=(205, 205, 200, a))
+        return puppet.Layer(img.filter(ImageFilter.GaussianBlur(max(0.8, half_w * 0.25))), pivot=self.centre)
+
+    def frame(self, action: str, i: int, n: int) -> Image.Image:
+        t = i / n
+        dx = dy = ang = flash = 0.0
+        if action == 'idle':
+            dy = 0.4 * self.bob * math.cos(2 * math.pi * t)
+            ang = -0.3 * self.pitch * math.sin(2 * math.pi * t)
+        elif action == 'move':
+            dy = self.bob * math.cos(2 * math.pi * t)
+            ang = -self.pitch * math.sin(2 * math.pi * t)
+        elif action == 'fire':
+            kick, _ = puppet.keyframes(t, [(0, 0, 0), (0.2, 0, 0.3), (0.3, -1, -2.2), (0.55, -0.35, -0.8), (1, 0, 0)])
+            dx = 0.5 * kick * self.recoil
+            flash = max(0.0, 1 - abs(t - 0.3) / 0.14) if 0.16 <= t <= 0.45 else 0.0
+        elif action == 'hit':
+            dx = self.shake * (1 - t) * (1 if i % 2 == 0 else -1)
+            dy = -0.4 * self.bob * (1 - t)
+            ang = 2 * self.pitch * (1 - t)
+        else:
+            raise ValueError(f'flight action "{action}": expected idle, move, fire or hit')
+        body = puppet.Layer(self._hull(None), pivot=self.centre)
+        parts = [self._place(body, dx, dy, ang)]
+        if self.prop is not None:
+            parts.append(self._place(self._prop_layer(i), dx, dy, ang))
+        if flash > 0:
+            parts.append(self._flash(flash, 0.0, dx, dy))
+        return self.cv.compose(parts)
+
+
+GIVEN_KINDS = ('vehicle', 'naval', 'flight')  # rigs that return where the drawing's centre falls in each crop (anchor 'given')
+RIG_CLASSES = {'vehicle': VehicleRig, 'naval': NavalRig, 'flight': FlightRig}
 
 
 def rig_source_image(spec: dict, sources: Path, ref: str) -> np.ndarray:
