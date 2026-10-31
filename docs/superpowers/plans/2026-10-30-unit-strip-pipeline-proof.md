@@ -250,7 +250,7 @@ Spec `prompt` block:
   the results row. Most likely failure: the master's legs overlap (horses are usually drawn mid-stride); the gate in Step 2
   catches it.
 
-### Task 8: Vehicle rig
+### Task 8: Vehicle rig ✅ done (`VehicleRig`; fire, hit, move with a track and wheels, built with the Tank)
 
 **Files:**
 - Modify: `scripts/sprite-puppet/strips.py` (new `VehicleRig`)
@@ -273,7 +273,7 @@ Spec `prompt` block:
 - [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS.
 - [ ] **Step 5: Commit** `art: vehicle rig (wheels, tread, recoil, flash) (#364)`.
 
-### Task 9: Tank (vehicle proof)
+### Task 9: Tank (vehicle proof) ✅ done (owner approved; the spec below is the original: the shipped spec uses a top turret, see `strip-rigs/tank.json`; no side-by-side with the puppet tank)
 
 **Files:** as Task 5 with `tank`.
 
