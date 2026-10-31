@@ -240,7 +240,7 @@ def calibrate(rgba: np.ndarray, rig: dict) -> dict:
     """
     alpha = rgba[..., 3] > 40
     if rig.get('kind') in GIVEN_KINDS:  # no cut to find: only where the gun fires from, drawn on the review image
-        mx, my = vehicle_muzzle(alpha, rig)
+        mx, my = (flight_muzzle if rig.get('kind') == 'flight' else vehicle_muzzle)(alpha, rig)
         return {'muzzle_x': round(mx), 'muzzle_y': round(my)}
     rows = np.where(alpha.any(1))[0]
     top, bottom = int(rows.min()), int(rows.max())
@@ -639,15 +639,15 @@ class NavalRig(VehicleRig):
     """A ship drawn with its hull cut off at a straight waterline (no water in the drawing). Everything a vehicle does
     (recoil, muzzle flash and smoke, a hit shake) carries over; moving and idling differ because a hull on water rocks.
 
-    `rock` (default 1.6 degrees) is the roll about the keel's mid-point, so the bow and the stern trade places going up and
-    down; an idling ship rocks at half that. `bob` (default 0.02, the heave) is bigger than a vehicle's. While it moves, white
+    `rock` (default 3.2 degrees) is the roll about the keel's mid-point, so the bow and the stern trade places going up and
+    down; an idling ship rocks at half that. `bob` (default 0.07, the heave) is much bigger than a vehicle's: anything smaller does not read at game size. While it moves, white
     foam rides the bow and a short wake trails the stern, both at the waterline (`foam`: scale, default 1). The foam is white
     and pale blue, never red, so the tint key cannot pick it up.
     """
 
     def __init__(self, rgba: np.ndarray, rig: dict):
-        super().__init__(rgba, {'bob': 0.02, **rig})
-        self.rock = rig.get('rock', 1.6)
+        super().__init__(rgba, {'bob': 0.07, **rig})
+        self.rock = rig.get('rock', 3.2)
         self.foam = rig.get('foam', 1.0)
         self.keel = ((self.x0 + self.x1) / 2, float(self.y1))  # the roll pivots here: the middle of the waterline
 
@@ -681,20 +681,42 @@ class NavalRig(VehicleRig):
         return self.cv.compose(parts)
 
 
+def flight_prop(alpha: np.ndarray) -> tuple[float, float, float]:
+    """The drawn propeller of an aircraft facing right, from the drawing alone: (nose_x, centre_y, half_height) in source px.
+    The edge-on blade is the right-most thin vertical sliver, so its rows are those occupied in the last 2% of the figure's
+    width; the spinning disc it traces is as tall as the blade itself."""
+    ys, xs = np.where(alpha)
+    x0, x1 = int(xs.min()), int(xs.max())
+    sliver = alpha[:, max(x0, x1 - max(2, round(0.02 * (x1 - x0 + 1)))):x1 + 1]
+    rows = np.where(sliver.any(1))[0]
+    return float(x1), (float(rows.min()) + float(rows.max())) / 2, (float(rows.max()) - float(rows.min()) + 1) / 2
+
+
+def flight_muzzle(alpha: np.ndarray, rig: dict) -> tuple[float, float]:
+    """Where an aircraft's nose gun fires from: `rig['muzzle']` (fractions of the figure box) or, by default, just behind the
+    propeller (2% of the width) and above the hub (30% of the blade's half-height), where a synchronised gun sits."""
+    if 'muzzle' in rig:
+        return vehicle_muzzle(alpha, rig)
+    ys, xs = np.where(alpha)
+    bw = int(xs.max()) - int(xs.min()) + 1
+    nose, cy, hh = flight_prop(alpha)
+    return nose - 0.02 * bw, cy - 0.3 * hh
+
+
 class FlightRig(VehicleRig):
     """An aircraft drawn in level flight with its propeller stopped and edge-on. It never touches the ground, so the loops
     are all in the air: a heave, a pitch of the nose, and a propeller blur that turns the drawn blade into a spinning disc.
 
-    `bob` (default 0.03, a fraction of the height) is the heave; `pitch` (default 3 degrees) the nose rising and dipping
+    `bob` (default 0.05, a fraction of the height) is the heave; `pitch` (default 4 degrees) the nose rising and dipping
     about the middle of the aircraft, nose up while it climbs. `prop`: [x, y, half_height] as fractions of the figure's box
-    (default: the right-most pixel, a sixth of the height either side), or false for none (a jet). The blur is a soft grey
+    (default: read from the drawn blade, see `flight_prop`), or false for none (a jet). The blur is a soft grey
     disc whose strength alternates every frame so it shimmers; it is never red, so the tint key cannot pick it up. Fire
-    flashes at `muzzle` (see `vehicle_muzzle`) with a small kick; hit jolts the aircraft and dips the nose.
+    flashes at `muzzle` (see `flight_muzzle`) with a small kick; hit jolts the aircraft and dips the nose.
     """
 
     def __init__(self, rgba: np.ndarray, rig: dict):
-        super().__init__(rgba, {'bob': 0.03, **rig})
-        self.pitch = rig.get('pitch', 3.0)
+        super().__init__(rgba, {'bob': 0.05, **rig})
+        self.pitch = rig.get('pitch', 4.0)
         bw, bh = self.x1 - self.x0 + 1, self.y1 - self.y0 + 1
         alpha = rgba[..., 3] > 40
         self.centre = ((self.x0 + self.x1) / 2, (self.y0 + self.y1) / 2)
@@ -702,11 +724,11 @@ class FlightRig(VehicleRig):
         if spec is False:
             self.prop = None
         elif spec is True:
-            nose = int(np.where(alpha.any(0))[0].max())
-            ys = np.where(alpha[:, max(self.x0, nose - max(2, bw // 50)):nose + 1].any(1))[0]
-            self.prop = (float(nose), float(np.median(ys)), 0.16 * bh)
+            _, py, hh = flight_prop(alpha)
+            self.prop = (float(self.x1), py, hh)
         else:
             self.prop = (self.x0 + spec[0] * bw, self.y0 + spec[1] * bh, spec[2] * bh)
+        self.muzzle = flight_muzzle(alpha, rig)
         self.size = (rgba.shape[1], rgba.shape[0])
 
     def _prop_layer(self, i: int):

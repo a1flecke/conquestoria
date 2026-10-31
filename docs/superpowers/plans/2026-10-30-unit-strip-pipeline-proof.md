@@ -295,7 +295,7 @@ Spec `prompt` block:
 
 ### Task 10: Results and decision
 
-> Progress: the naval proof (`NavalRig`, Ironclad) and the aircraft proof (`FlightRig`, Biplane) are done and in the STRIPS.md results table, with the decision section. Left for the owner: approve the tooling change that moves family strengths into defaults, and the game-side rollout (#1627).
+> Progress: the naval proof (`NavalRig`, Ironclad) and the aircraft proof (`FlightRig`, Biplane) are done and in the STRIPS.md results table, with the decision section. Family defaults for the naval and flight rigs are done. Left: the Tank track band (a derived default) and the game-side rollout (#1627).
 
 **Files:**
 - Modify: `scripts/sprite-puppet/STRIPS.md` (results table complete, decision section), `design/png-sprites/previews/spearman/README.md` (link), PR #1624 body
