@@ -1,0 +1,19 @@
+{
+  "id": "horseman",
+  "status": "prototype preview, not shipped and not registered in PNG_UNIT_SPRITES",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-10-30 to 2026-10-31",
+  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/horseman.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/). Conversation A drew the master; conversation B, with the master attached, drew the damage, attack, hit and defeat sheets. The prompts ChatGPT actually ran were not captured.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). If this art is adopted for the game it needs a ledger family row and a provenance record under design/png-sprites/sources/ like the other generated units.",
+  "originals_committed": false,
+  "originals_note": "The five downloaded originals are not committed. Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all five passed (PNG magic bytes, nothing after the image stream, one frame, within the pixel limit). ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "None: every image was accepted on its first generation. `strips.py probe` reported 0 errors and 0 warnings.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1448, 1086], "sha256": "83ab5883f6b3867038069438e1b199ea0e5bb64afe036e0dc4ebb39f6844bd23" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1426, 1103], "sha256": "ad07eca42df7e81dbd9b2ce668aad808e313d1da313d9b544fb2759426c14243" },
+    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1448, 1086], "sha256": "09fdc9b924a144f52bfd769187ecc5c5343160ef85f6b29ee7f6f1611453b166" },
+    { "role": "hit reaction, 4 frames (2 x 2 grid)", "file": "d", "size": [1448, 1086], "sha256": "7ad231fdb66fbf208847ca3fa5bc84893d6743f3cce7271e77ffc5fd334f4507" },
+    { "role": "defeat, 4 frames (2 x 2 grid)", "file": "e", "size": [1448, 1086], "sha256": "c09fb4173c1ae06731c6d820ead81a74d07efa2dde41155f220adf8a2fbb7673" }
+  ]
+}

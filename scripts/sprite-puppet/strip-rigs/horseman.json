@@ -19,6 +19,9 @@
   "states": [
     { "state": "idle",    "file": "a", "cells": 1, "fps": 4 },
     { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the four legs alternate by construction",
+      "rig": { "kind": "mounted", "sources": ["a", "b#0", "b#1", "b#2", "b#3"] } },
     { "state": "attack",  "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "restFrames": [0, 5] },
     { "state": "hit",     "file": "d", "cells": 4, "grid": [2, 2], "fps": 8, "restFrames": [0, 3], "loop": false },
     { "state": "defeat",  "file": "e", "cells": 4, "grid": [2, 2], "fps": 5, "restFrames": [0], "loop": false }
