@@ -242,20 +242,22 @@ def calibrate(rgba: np.ndarray, rig: dict) -> dict:
     top, bottom = int(rows.min()), int(rows.max())
     h = bottom - top + 1
     u = h / REF_FIGURE_PX
-    mounted = rig.get('kind') == 'mounted'  # a four-legged animal: its belly line sits higher and it carries no shaft below it
+    # a four-legged animal: its legs merge into the body high up (a horse's separate above the knee at best), so the cut sits
+    # low; only pieces that reach the ground count as legs (a tail hangs clear of it), and it carries no shaft
+    mounted = rig.get('kind') == 'mounted'
     legs, shafts = rig.get('legs', 4 if mounted else 2), rig.get('shafts', 0 if mounted else 1)
     want = legs + shafts
     if 'cut_y' in rig:
         cut = int(rig['cut_y'])
     else:
-        lo, hi = rig.get('hem', [0.30, 0.50] if mounted else [0.22, 0.40])
+        lo, hi = rig.get('hem', [0.08, 0.30] if mounted else [0.22, 0.40])
         step = max(1, h // 200)
         seen: dict[int, int] = {}
 
         def count(y: int) -> int:
             if y not in seen:
                 lab, n = ndi.label(alpha[y:])
-                seen[y] = int((ndi.sum(alpha[y:], lab, range(1, n + 1)) > min_piece(u)).sum()) if n else 0
+                seen[y] = len(real_pieces(lab, n, y, bottom, h, u, mounted)) if n else 0
             return seen[y]
 
         floor = bottom - max(1, round(0.05 * h))  # the soles themselves can merge; the last 5% is not judged
@@ -277,24 +279,41 @@ def calibrate(rgba: np.ndarray, rig: dict) -> dict:
     return out
 
 
-def leg_pieces(alpha: np.ndarray, cut_y: int, u: float, legs: int, shafts: int) -> list[dict]:
+def real_pieces(lab: np.ndarray, n: int, y0: int, bottom: int, h: int, u: float, grounded: bool) -> list[int]:
+    """Labels (1..n) of the pieces below a cut that count: big enough, and with `grounded` also standing on the ground line.
+    A horse's tail hangs well clear of the ground, so only the legs reach it; the tail stays with the body."""
+    out = []
+    for i, box in enumerate(ndi.find_objects(lab), start=1):
+        if box is None or (lab[box] == i).sum() <= min_piece(u):
+            continue
+        if grounded and y0 + box[0].stop - 1 < bottom - max(1, round(0.05 * h)):
+            continue
+        out.append(i)
+    return out
+
+
+def leg_pieces(alpha: np.ndarray, cut_y: int, u: float, legs: int, shafts: int, grounded: bool = False) -> tuple[list[dict], np.ndarray]:
     """The pieces of the figure below `cut_y`, left to right, as {'mask', 'x0', 'x1'}: `shafts` straight pieces that stay with
-    the body first, then the `legs` legs. Raises RigCutError when the count is wrong."""
+    the body first, then the `legs` legs; and the mask of every other piece below the cut (specks, and with `grounded` a tail),
+    which also stays with the body. Raises RigCutError when the count is wrong."""
     low = alpha.copy()
     low[:cut_y, :] = False
+    rows = np.where(alpha.any(1))[0]
     lab, n = ndi.label(low)
+    keep = real_pieces(lab[cut_y:], n, cut_y, int(rows.max()), int(rows.max() - rows.min() + 1), u, grounded)
     comps = []
-    for i in range(1, n + 1):
+    rest = low.copy()
+    for i in keep:
         m = lab == i
-        if m.sum() > min_piece(u):
-            xs = np.where(m.any(0))[0]
-            comps.append({'mask': m, 'x0': int(xs.min()), 'x1': int(xs.max())})
+        rest &= ~m
+        xs = np.where(m.any(0))[0]
+        comps.append({'mask': m, 'x0': int(xs.min()), 'x1': int(xs.max())})
     comps.sort(key=lambda d: d['x0'])
     if len(comps) != legs + shafts:
         raise RigCutError(f'expected {legs} legs below the hem (plus {shafts} shaft) at cut_y={cut_y}, found '
                           f'{len(comps)} pieces {[(d["x0"], d["x1"]) for d in comps]}: the legs touch or merge; '
                           'redraw the master with the legs apart')
-    return comps
+    return comps, rest
 
 
 def leg_band(d: dict, alpha: np.ndarray, rig: dict, cut_y: int, u: float) -> tuple[np.ndarray, float]:
@@ -346,7 +365,7 @@ class LegRig:
         self.stride, self.lift, self.bob = rig.get('stride_deg', 20.0), rig.get('lift', 36.0) * u, rig.get('bob', 14.0) * u
         self.cv = puppet.Canvas((W, H), int(max(W, H) * 0.14))
         shafts = rig.get('shafts', 1)  # straight pieces that stay with the body (a spear shaft); the leftmost piece
-        comps = leg_pieces(alpha, self.cut_y, u, 2, shafts)
+        comps, _ = leg_pieces(alpha, self.cut_y, u, 2, shafts)
         shaft = comps[0] if shafts else None
         back, front = comps[-2:]
         self.legs, self.shins, self.feet, self.rest = [], [], [], []
@@ -438,7 +457,7 @@ class QuadRig:
         self.stride, self.knee_bend = rig.get('stride_deg', 16.0), rig.get('knee_bend', 25.0)
         self.lift, self.bob = rig.get('lift', 24.0) * u, rig.get('bob', 6.0) * u
         self.cv = puppet.Canvas((W, H), int(max(W, H) * 0.14))
-        comps = leg_pieces(alpha, self.cut_y, u, 4, rig.get('shafts', 0))
+        comps, rest = leg_pieces(alpha, self.cut_y, u, 4, rig.get('shafts', 0), grounded=True)
         f60 = round(60 * u)
         self.legs, self.shins, self.rest, self.reach, self.drop = [], [], [], [], []
         for d in comps[-4:]:
@@ -454,6 +473,7 @@ class QuadRig:
             self.reach.append(self.drop[-1] / np.cos(np.radians(self.rest[-1])))
         body = alpha.copy()
         body[self.cut_y:, :] = False
+        body |= rest  # a tail hanging below the cut stays with the body
         self.body = puppet.Layer(puppet.layer_from(rgba, body), pivot=(W * 0.5, H * 0.97))
 
     def frame(self, i: int, n: int) -> Image.Image:
