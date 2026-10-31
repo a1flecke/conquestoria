@@ -3,11 +3,11 @@
   "family": "vehicle",
   "prompt": {
     "name": "Tank (First World War)",
-    "look": "A First World War rhomboid tank: a long low rhomboid hull with caterpillar tracks running all the way around its sides, riveted olive-drab armour plates, a short cannon in a side sponson pointing right, and a small commander hatch on top. A broad horizontal band is painted along the middle of the hull side.",
+    "look": "A First World War rhomboid tank: a long low rhomboid hull with caterpillar tracks running all the way around its sides, riveted olive-drab armour plates, a small round turret on top of the hull with a short cannon pointing right, and a small commander hatch on the turret. A broad horizontal band is painted along the middle of the hull side.",
     "team_area": "the broad band along the hull side",
     "running_gear": "The caterpillar track wraps the whole hull outline as one clear dark-grey band of separate links, each link a distinct plate with a visible gap between links.",
     "running_gear_check": "track drawn as a band of separate links",
-    "identity": "the same hull shape, plates, rivets, track, sponson gun, hatch and red band",
+    "identity": "the same hull shape, plates, rivets, track, turret, gun, hatch and red band",
     "damage_gear": "a few track links missing",
     "damage_gear_critical": "a bent gun barrel and a sagging broken track"
   },
