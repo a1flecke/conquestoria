@@ -109,7 +109,9 @@ touching; nothing detached; red only on {{team_area}}. If any is false, redraw t
    {{damage_gear_critical}}. No ground, clouds or sky in any frame.
 2. GOING DOWN (3 frames in exactly ONE horizontal row, left to right: not a grid, not a column, a single wide image): (1) a
    hit: a bright yellow-orange burst touching the aircraft, otherwise intact like the master; (2) going down: the nose tipping
-   about 25 degrees down, orange flames and black smoke trailing from the engine and touching it, {{team_area}} scorched
-   dark; (3) a steep dive, the nose about 60 degrees down, charred, black smoke trailing from it and touching it. Bright
-   red is only on {{team_area}} in frame 1. No ground, clouds or sky.
+   about 25 degrees down, orange flames and black smoke trailing from the engine and touching it, black soot streaks and
+   scorch marks on the aircraft; (3) a steep dive, the nose about 60 degrees down, more soot and scorching, black smoke
+   trailing from it and touching it. In all three frames the red paint ({{team_area}}) stays the same bright red as the master: show the
+   damage only as soot, scorch marks, flames and smoke drawn over the red, never by repainting it brown or black. Everything
+   else keeps the master's colours. No ground, clouds or sky.
 {{extra_images}}
