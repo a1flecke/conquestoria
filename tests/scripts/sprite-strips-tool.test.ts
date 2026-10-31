@@ -657,6 +657,80 @@ print(json.dumps(n))
   }, 60000);
 });
 
+describe.skipIf(!haveDeps)('strips.py family defaults (#364 prototype)', () => {
+  const defaultsPy = (root: string, body: string): any =>
+    JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${VEHICLE}\n${body}`], { encoding: 'utf8' }));
+
+  it('a ship with no rig keys already heaves and rolls enough to read at game size', () => {
+    const { root } = sandbox();
+    const out = defaultsPy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img, band=False)
+tilt, lifts = [], []
+for rgba, mask, fx, lift in m.walk_frames(np.array(img), {'kind': 'naval', 'action': 'move'}, 8):
+    grey = (np.abs(rgba[..., 0] - 90 / 255) < 0.08) & (rgba[..., 3] > 0.5) & (rgba[..., 2] < 0.5)
+    g0 = int(np.where(grey.any(0))[0].min())
+    left, right = range(g0 + 10, g0 + 40), range(g0 + 400, g0 + 430)
+    bottom = lambda cs: float(np.mean([np.where(grey[:, c])[0].max() for c in cs]))
+    tilt.append(bottom(right) - bottom(left))
+    lifts.append(float(lift))
+print(json.dumps({'tilt': tilt, 'heave': max(lifts) - min(lifts)}))
+`);
+    const note = JSON.stringify(out);
+    expect(Math.max(...out.tilt), note).toBeGreaterThan(10);
+    expect(Math.min(...out.tilt), note).toBeLessThan(-10);
+    expect(out.heave, note).toBeGreaterThan(8);
+  }, 30000);
+
+  it('an aircraft with no rig keys already heaves and pitches enough to read at game size', () => {
+    const { root } = sandbox();
+    const out = defaultsPy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img, band=False)
+tilt, lifts = [], []
+for rgba, mask, fx, lift in m.walk_frames(np.array(img), {'kind': 'flight', 'action': 'move', 'prop': False}, 8):
+    grey = (np.abs(rgba[..., 0] - 90 / 255) < 0.08) & (rgba[..., 3] > 0.5) & (rgba[..., 2] < 0.5)
+    g0 = int(np.where(grey.any(0))[0].min())
+    left, right = range(g0 + 10, g0 + 40), range(g0 + 400, g0 + 430)
+    bottom = lambda cs: float(np.mean([np.where(grey[:, c])[0].max() for c in cs]))
+    tilt.append(bottom(right) - bottom(left))
+    lifts.append(float(lift))
+print(json.dumps({'tilt': tilt, 'heave': max(lifts) - min(lifts)}))
+`);
+    const note = JSON.stringify(out);
+    expect(Math.max(...out.tilt), note).toBeGreaterThan(12);
+    expect(Math.min(...out.tilt), note).toBeLessThan(-12);
+    expect(out.heave, note).toBeGreaterThan(12);
+  }, 30000);
+
+  it('the propeller blur is as tall as the drawn blade and the muzzle sits just behind it, from the drawing alone', () => {
+    const { root } = sandbox();
+    const out = defaultsPy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0))
+d = ImageDraw.Draw(img)
+d.rectangle((100, 200, 560, 300), fill=(90, 90, 100, 255))   # fuselage
+d.rectangle((560, 120, 568, 380), fill=(120, 80, 40, 255))   # a tall thin edge-on blade, 261 px
+alpha = np.array(img)[..., 3] > 40
+nose_x, cy, hh = m.flight_prop(alpha)
+mx, my = m.flight_muzzle(alpha, {})
+soft_rows = []
+for rgba, mask, fx, lift in m.walk_frames(np.array(img), {'kind': 'flight', 'action': 'idle', 'bob': 0}, 4):
+    a = rgba[..., 3]
+    straight = np.clip(rgba[..., :3] / np.maximum(a, 1e-3)[..., None], 0, 1)
+    soft = (a > 0.2) & (a < 0.9) & (straight.min(2) > 0.6)
+    ys = np.where(soft.any(1))[0]
+    soft_rows.append(int(ys.max() - ys.min() + 1) if len(ys) else 0)
+print(json.dumps({'nose_x': nose_x, 'cy': cy, 'hh': hh, 'mx': mx, 'my': my, 'soft_rows': soft_rows}))
+`);
+    const note = JSON.stringify(out);
+    expect(out.nose_x, note).toBeGreaterThanOrEqual(566);
+    expect(Math.abs(out.cy - 250), note).toBeLessThan(4);
+    expect(Math.abs(out.hh - 130), note).toBeLessThan(6);
+    expect(out.mx, note).toBeLessThan(out.nose_x);
+    expect(out.mx, note).toBeGreaterThan(out.nose_x - 40);
+    expect(out.my, note).toBeLessThan(out.cy);
+    expect(Math.min(...out.soft_rows), note).toBeGreaterThan(200);
+  }, 30000);
+});
+
 const BIPED_PROMPT = {
   name: 'Archer', look: 'A lean young archer with a leather hood.', team_area: 'his tunic', identity: 'the same hood, tunic and bow',
   weapon_pose: 'He holds the bow upright in his left hand.', attack_frames: 6, attack: '(1) ready; (2) draw; (3) release.',

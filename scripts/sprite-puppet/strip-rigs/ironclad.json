@@ -11,18 +11,102 @@
     "damage_gear": "a few gun ports smashed open",
     "damage_gear_critical": "a bent funnel and a snapped mast"
   },
-  "frame": { "height": 192, "baseline": 176, "restHeight": 58 },
-  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 58
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0,
+        0.045
+      ],
+      [
+        0.955,
+        1
+      ]
+    ],
+    "min_sat": 0.45,
+    "min_val": 0.18
+  },
   "states": [
-    { "state": "idle",   "file": "a", "cells": 1, "fps": 4 },
-    { "state": "damage", "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "restFrames": [0, 1], "note": "idle pose at damage tiers 0-3" },
-    { "state": "move",   "cells": 8, "fps": 12,
+    {
+      "state": "idle",
+      "file": "a",
+      "cells": 1,
+      "fps": 4
+    },
+    {
+      "state": "damage",
+      "file": "b",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 1,
+      "loop": false,
+      "restFrames": [
+        0,
+        1
+      ],
+      "note": "idle pose at damage tiers 0-3"
+    },
+    {
+      "state": "move",
+      "cells": 8,
+      "fps": 12,
       "note": "rocking about the keel, heave and bow foam built in code from the master and from each damage drawing",
-      "rig": { "kind": "naval", "action": "move", "bob": 0.07, "rock": 3.2, "sources": ["a", "b#0", "b#1", "b#2", "b#3"] } },
-    { "state": "fire",   "cells": 8, "fps": 8, "loop": false, "note": "recoil, muzzle flash and smoke built in code",
-      "rig": { "kind": "naval", "action": "fire", "source": "a", "muzzle": [0.652, 0.784] } },
-    { "state": "hit",    "cells": 4, "fps": 8, "loop": false, "note": "the hull rocked, built in code",
-      "rig": { "kind": "naval", "action": "hit", "source": "a" } },
-    { "state": "sinking", "file": "c", "cells": 3, "fps": 4, "loop": false, "restFrames": [0] }
+      "rig": {
+        "kind": "naval",
+        "action": "move",
+        "sources": [
+          "a",
+          "b#0",
+          "b#1",
+          "b#2",
+          "b#3"
+        ]
+      }
+    },
+    {
+      "state": "fire",
+      "cells": 8,
+      "fps": 8,
+      "loop": false,
+      "note": "recoil, muzzle flash and smoke built in code",
+      "rig": {
+        "kind": "naval",
+        "action": "fire",
+        "source": "a",
+        "muzzle": [
+          0.652,
+          0.784
+        ]
+      }
+    },
+    {
+      "state": "hit",
+      "cells": 4,
+      "fps": 8,
+      "loop": false,
+      "note": "the hull rocked, built in code",
+      "rig": {
+        "kind": "naval",
+        "action": "hit",
+        "source": "a"
+      }
+    },
+    {
+      "state": "sinking",
+      "file": "c",
+      "cells": 3,
+      "fps": 4,
+      "loop": false,
+      "restFrames": [
+        0
+      ]
+    }
   ]
 }

@@ -8,7 +8,7 @@
   "originals_committed": false,
   "originals_note": "The three downloaded originals are not committed. Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
   "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all downloads passed (PNG magic bytes, nothing after the image stream, one frame, within the pixel limit). ClamAV was not installed, so only the structural checks ran.",
-  "regenerations": "The first going-down row repainted the fuselage and tail dark brown then black (the template said 'scorched dark'), which loses the team colour, so the template now asks for soot and flames over the same red and the row was redrawn once. The rejected row is not shipped or committed. `strips.py probe` on the accepted set reported 0 errors and 0 warnings. Rig keys set by hand: prop [0.975, 0.48, 0.2] (the drawn blade is tall), muzzle [0.957, 0.32], bob 0.05 and pitch 4 on the move rig.",
+  "regenerations": "The first going-down row repainted the fuselage and tail dark brown then black (the template said 'scorched dark'), which loses the team colour, so the template now asks for soot and flames over the same red and the row was redrawn once. The rejected row is not shipped or committed. `strips.py probe` on the accepted set reported 0 errors and 0 warnings. The final build sets no rig keys by hand: the propeller disc and the muzzle are read from the drawing and the heave and pitch are the FlightRig defaults.",
   "originals": [
     {
       "role": "idle (master)",
