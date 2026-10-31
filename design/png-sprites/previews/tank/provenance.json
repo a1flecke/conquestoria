@@ -1,0 +1,17 @@
+{
+  "id": "tank",
+  "status": "prototype preview, not shipped and not registered in PNG_UNIT_SPRITES",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-10-31",
+  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/tank.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/). Conversation A drew the master; conversation B, with the master attached, drew the damage sheet; a third conversation, with the master attached and a wreck-only prompt, drew the wreck row. The prompts ChatGPT actually ran were not captured.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). If this art is adopted for the game it needs a ledger family row and a provenance record under design/png-sprites/sources/ like the other generated units.",
+  "originals_committed": false,
+  "originals_note": "The three downloaded originals are not committed. Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all three passed (PNG magic bytes, nothing after the image stream, one frame, within the pixel limit). ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "The first master drew the gun as a side sponson pointing forward, which is geometrically wrong; the spec was changed to a top turret and the master redrawn. The first attempts at the wreck came back as damage grids instead of one row of three frames, so the wreck prompt was rewritten to forbid a grid. `strips.py probe` on the accepted set reported 0 errors and 2 warnings, both on the wreck row: a figure touches the right image edge (checked, nothing is cut off) and the smallest figure is 299 px tall (limit 300).",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1254, 1254], "sha256": "3900285236a79af0cf6b37ff0f3ab21f60d00b9b5cab5ece1346d10e3b362ced" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1536, 1024], "sha256": "cbbdc85703109cecb6df4ff83cea016ce095b5bb758a1e69b9bb2721ba2a66fd" },
+    { "role": "wreck, 3 frames (1 x 3 row): hit burst, burning, burnt out", "file": "c", "size": [2172, 724], "sha256": "fa193fe0d862a8780ff1840d277790346efe8e6aef09d502d5120d852e889f3b" }
+  ]
+}
