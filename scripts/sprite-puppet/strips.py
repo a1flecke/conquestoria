@@ -314,7 +314,8 @@ class LegRig:
                               'redraw the master with the legs apart')
         shaft = comps[0] if shafts else None
         back, front = comps[-2:]
-        self.legs, self.shins, self.rest = [], [], []
+        self.legs, self.shins, self.feet, self.rest = [], [], [], []
+        self.foot_level = rig.get('foot_level', 0.0)  # share of the leg's turn the boot undoes about the ankle (0 = rigid)
         m6, f60 = max(1, round(6 * u)), round(60 * u)
         self.knee_y = rig.get('knee_y')  # absent: rigid legs
         self.knee_bend = rig.get('knee_bend', 0.0)
@@ -342,6 +343,15 @@ class LegRig:
             shin = d['mask'] & (rows >= self.knee_y - overlap)
             kx = float(np.where(d['mask'] & (np.abs(rows - self.knee_y) < round(20 * u)))[1].mean())
             self.legs.append(puppet.Layer(puppet.layer_from(rgba, thigh), pivot=(px, self.hip_y)))
+            if self.foot_level > 0:
+                # the foot is its own bone: it keeps part of its drawn angle however the leg swings, so a boot drawn three
+                # quarters on does not turn toe-down with the back leg
+                ankle_y = round(self.knee_y + rig.get('ankle_frac', 0.8) * (ys.max() - self.knee_y))
+                seam = round(10 * u)
+                foot = d['mask'] & (rows >= ankle_y - seam)
+                shin = shin & (rows < ankle_y + seam)
+                ax = float(np.where(d['mask'] & (np.abs(rows - ankle_y) < round(20 * u)))[1].mean())
+                self.feet.append(puppet.Layer(puppet.layer_from(rgba, foot), pivot=(ax, ankle_y)))
             self.shins.append(puppet.Layer(puppet.layer_from(rgba, shin), pivot=(kx, self.knee_y)))
         mid = sum(leg.pivot[0] for leg in self.legs) / 2
         self.shift = [mid - leg.pivot[0] for leg in self.legs]  # one hip line, as in a side view
@@ -368,7 +378,15 @@ class LegRig:
             bent = self.cv.place(self.shins[k], 0, 0, self.knee_bend * swing[k])
             hip = (self.legs[k].pivot[0] + self.cv.pad, self.hip_y + self.cv.pad)
             shin = bent.rotate(-hip_angle, resample=Image.BICUBIC, center=hip, translate=(self.shift[k], dy - self.lift * swing[k]))
-            parts.extend([shin, thigh])  # shin behind the thigh so the knee stays closed
+            carried = [shin]
+            if self.foot_level > 0:
+                bend = self.knee_bend * swing[k]
+                boot = self.cv.place(self.feet[k], 0, 0, -self.foot_level * (hip_angle + bend))  # undo part of the leg's turn
+                knee = (self.shins[k].pivot[0] + self.cv.pad, self.knee_y + self.cv.pad)
+                boot = boot.rotate(-bend, resample=Image.BICUBIC, center=knee)
+                carried.append(boot.rotate(-hip_angle, resample=Image.BICUBIC, center=hip,
+                                           translate=(self.shift[k], dy - self.lift * swing[k])))
+            parts.extend([*carried, thigh])  # shin behind the thigh so the knee stays closed
         parts.append(self.cv.place(self.body, 0, dy, 0))
         return self.cv.compose(parts)
 
