@@ -90,6 +90,12 @@ export interface AcceptedOccurrence {
  *     city completed a 16-production missionary every round and discarded the rest of its output (ai-2 reached 375
  *     missionaries of 427 units). #1480's fix caps it, and this scenario now produces NO findings at all, so the
  *     entry is deleted. A fresh production-idle streak would be reported as `unregistered` by this ratchet.
+ *   - `no-research-choice` was already mis-scoped on main before this branch: a `lh-veteran-large` run on
+ *     unmodified d12b4e23 reports ai-3 for 7 rounds (492-498), not the registered ai-2. The occurrence is
+ *     re-scoped to the civ the baseline run actually names, with its observed streak plus ~25% headroom.
+ *
+ * Every claim above is backed by a deterministic `.verification/ai-long-horizon/<seed>.json` artifact produced
+ * from this branch and, for the two "already true before this branch" claims, from a d12b4e23 worktree.
  *
  * `lh-late-era-medium` uses `mapSeed: 'lh-1107-search-0'`; why that map was chosen (a recoverable 43-tile landmass
  * for `ai-1`) is in `docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md`.
@@ -109,11 +115,12 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
     code: 'no-research-choice',
     issue: '#1479',
-    why: 'lh-veteran-large ai-2 (era 8, 246 techs) selects no research for 6 consecutive rounds (480-485) while techs are '
-      + 'available; the detector threshold is 6. Different civ and later than the #1413 occurrences, which no longer '
-      + 'reproduce. Not root-caused.',
+    why: 'lh-veteran-large ai-3 selects no research for 7 consecutive rounds (492-498 on the d12b4e23 baseline run, '
+      + '490-496 on this branch) while techs are available; the detector threshold is 6. The registered ai-2 '
+      + 'occurrence no longer reproduced even before this branch, so it was replaced by the civ the baseline run '
+      + 'actually names. Not root-caused.',
     scenarios: ['lh-veteran-large'],
-    accepted: [{ scenario: 'lh-veteran-large', civId: 'ai-2', maxRounds: 8 }],
+    accepted: [{ scenario: 'lh-veteran-large', civId: 'ai-3', maxRounds: 9 }],
   },
 ];
 
