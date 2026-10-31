@@ -439,6 +439,19 @@ class LegRig:
 QUAD_PHASES = (0.0, 0.5, 0.75, 0.25)
 
 
+QUAD_STANCE = 0.6  # share of the cycle a hoof is planted, sliding back at a steady pace (a walk, not a shuffle)
+
+
+def quad_gait(u: float) -> tuple[float, float]:
+    """One leg's gait at `u` (0 = furthest forward, in [0, 1)): its lean as a fraction of the stride (+1 furthest forward, -1
+    furthest back) and how far through its lifted swing it is (0 while planted, a hump to 1 and back while it swings
+    forward). Planted, the lean falls linearly, so the hoof slides back at one pace as the ground does under a walker."""
+    if u < QUAD_STANCE:
+        return 1.0 - 2.0 * u / QUAD_STANCE, 0.0
+    v = (u - QUAD_STANCE) / (1.0 - QUAD_STANCE)
+    return -1.0 + 2.0 * v * v * (3.0 - 2.0 * v), float(np.sin(np.pi * v))
+
+
 class QuadRig:
     """A gait built in code from the idle drawing of a four-legged animal (a horse), for the same reason as `LegRig`.
 
@@ -446,7 +459,7 @@ class QuadRig:
     (the animal faces right). Each leg is two bones (thigh, and shin with hoof) joined at the knee, swings about its own hip
     on its own phase (`QUAD_PHASES`), lifts its hoof and folds its shin back while it swings forward, and is lowered so a
     planted hoof stays on the ground line however far the leg leans. Far legs are drawn first. Keys (source pixels, as for
-    `LegRig`): cut_y, overlap_top, hip_y, knee_y, stride_deg (default 16), knee_bend (25), lift (24), bob (6).
+    `LegRig`): cut_y, overlap_top, hip_y, knee_y, stride_deg (default 9), knee_bend (35), lift (28), bob (6).
     """
 
     def __init__(self, rgba: np.ndarray, rig: dict):
@@ -454,8 +467,8 @@ class QuadRig:
         alpha = rgba[..., 3] > 40
         u = figure_scale(alpha)
         self.cut_y, self.hip_y, self.knee_y = rig['cut_y'], rig['hip_y'], rig['knee_y']
-        self.stride, self.knee_bend = rig.get('stride_deg', 16.0), rig.get('knee_bend', 25.0)
-        self.lift, self.bob = rig.get('lift', 24.0) * u, rig.get('bob', 6.0) * u
+        self.stride, self.knee_bend = rig.get('stride_deg', 9.0), rig.get('knee_bend', 35.0)
+        self.lift, self.bob = rig.get('lift', 28.0) * u, rig.get('bob', 6.0) * u
         self.cv = puppet.Canvas((W, H), int(max(W, H) * 0.14))
         comps, rest = leg_pieces(alpha, self.cut_y, u, 4, rig.get('shafts', 0), grounded=True)
         f60 = round(60 * u)
@@ -481,9 +494,8 @@ class QuadRig:
         dy_body = -self.bob * (1 - np.cos(4 * np.pi * t)) / 2
         far, near = [], []
         for k, phase in enumerate(QUAD_PHASES):
-            a = 2 * np.pi * (t - phase)
-            lean = self.stride * np.cos(a)  # forward-most at t == phase
-            swing = max(0.0, -np.sin(a))  # how far through its forward swing the leg is
+            lean, swing = quad_gait((t - phase) % 1.0)  # forward-most at t == phase
+            lean *= self.stride
             hip_angle = self.rest[k] - lean
             # a planted hoof stays on the ground line (the leg is lowered as it leans); a swinging one is lifted off it
             dy = self.drop[k] - self.reach[k] * np.cos(np.radians(lean)) - self.lift * swing
