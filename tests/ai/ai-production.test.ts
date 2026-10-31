@@ -1180,7 +1180,7 @@ describe('#592 MR5 — missionary production scoring', () => {
         [religionId]: { id: religionId, name: 'Test Faith', ownerCivId: 'ai-1', foundedTurn: 1 },
       };
       for (const cityId of cityIds) {
-        state.cityFaith[cityId] = { religionId };
+        state.cityFaith = { ...(state.cityFaith ?? {}), [cityId]: { religionId } };
         state.cities[cityId]!.buildings = [...state.cities[cityId]!.buildings, 'temple'];
       }
       return state;
