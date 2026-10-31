@@ -160,6 +160,42 @@ export function getAITradeRouteDemand(state: GameState, civId: string): number {
 }
 
 /**
+ * #1480: does this civ have a *reason to own a trader*?
+ *
+ * The buyer half of the commerce pipeline only spends gold when a trader physically loads at a
+ * permitted supplier, so a civ that owns no trader can never buy anything — measured on
+ * `lh-late-era-medium`: zero AI civs owned a trade unit in 750 civ-round samples, while both
+ * audited civs reported a missing hard material for 100+ consecutive rounds. This is the cheap
+ * "should production ask for a trader" query behind that fix, and it lives here because this
+ * module already owns the AI's commerce policy and its two system dependencies.
+ *
+ * Two facts, both from this civ's own view, and deliberately no offer snapshot: `market.offers` is
+ * only rebuilt when a load happens (`refreshMarketOffers` is turn-stamped and has no round phase),
+ * so requiring a visible offer here would deadlock the first purchase forever.
+ *
+ *  1. real work is blocked — an active production head whose recipe is not fully held; and
+ *  2. at least one partner may legally trade with this civ — the same directional permission
+ *     `getMarketOffersForBuyer` applies to a seller/buyer pair, so a war, embargo, or eliminated
+ *     partner never asks for a trader it could not use.
+ *
+ * No hidden information is read: own queues, own ledger, and the public passage rule.
+ */
+export function hasAITradeProcurementNeed(state: GameState, civId: string): boolean {
+  const civ = state.civilizations[civId];
+  if (!civ) return false;
+  const blocked = [...civ.cities].sort().some(cityId => {
+    const city = state.cities[cityId];
+    if (!city || city.owner !== civId || city.productionQueue.length === 0) return false;
+    return getCityMaterialProjection(state, cityId).missing.length > 0;
+  });
+  if (!blocked) return false;
+  return Object.keys(state.civilizations)
+    .filter(partner => partner !== civId)
+    .sort()
+    .some(partner => getCommercialPassagePermission(state, partner, civId).allowed);
+}
+
+/**
  * Write native-surplus export policies through the same writer a human uses. Partners must pass the
  * actual commercial-passage permission, so war/embargo/elimination withholding is automatic; the
  * protected reserve keeps the AI's own planned target at home.
