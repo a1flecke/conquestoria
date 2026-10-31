@@ -432,6 +432,20 @@ print(json.dumps({'quarter': corr(lum[0], lum[1]), 'half': corr(lum[0], lum[2]),
     expect(out.still, JSON.stringify(out)).toBeLessThan(0.01);
   }, 30000);
 
+  it('tread "above" keeps the track pattern to the lowest part of the drawing, measured up from its bottom', () => {
+    const { root } = sandbox();
+    const out = vehiclePy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img)
+rig = {'kind': 'vehicle', 'action': 'move', 'bob': 0, 'tread': {'depth': 0.08, 'above': 0.2}}  # the lowest 104 px (0.2 of the width)
+frames = [rgba for rgba, mask, fx, lift in m.walk_frames(np.array(img), rig, 8)]
+moved = np.abs(frames[1][..., :3] - frames[0][..., :3]).max(-1) > 0.01
+ys = np.where(moved.any(1))[0]
+print(json.dumps({'first': int(ys.min()), 'height': int(frames[0].shape[0])}))
+`);
+    // the crop is 251 px tall (the wheel hangs below the hull); only the bottom 104 px may change between frames
+    expect(out.first, JSON.stringify(out)).toBeGreaterThanOrEqual(out.height - 104 - 2);
+  }, 30000);
+
   it('build emits move, fire and hit rows and keeps the recoil and the bounce when it packs them', () => {
     const { root, sources, tool } = sandbox();
     draw(`${VEHICLE}

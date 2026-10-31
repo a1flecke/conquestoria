@@ -530,7 +530,8 @@ class VehicleRig:
     `frame(action, i, n)` with `action` one of idle, move, fire, hit. All keys are fractions of the figure's box (its tight
     bounding box in the drawing; a radius is a fraction of its width). `wheels`: [[cx, cy, r], ...], each disc turns
     `wheel_deg_per_frame` (default 45, clockwise: the vehicle faces right) while it moves. `tread`: {depth, links, top}, the
-    pixels within `depth` (default 0.06) of the outline and below `top` (default 0, the whole outline) get a light and dark
+    pixels within `depth` (default 0.06) of the outline and below `top` (a fraction of the height, default 0, the whole
+    outline) or within `above` (a fraction of the width, up from the bottom) get a light and dark
     pattern of `links` repeats around the outline that advances a quarter of a link per frame, clockwise, so the track runs
     forward along the top and back along the ground. `muzzle`: where the gun fires from (see `vehicle_muzzle`). `bob` (0.01)
     is the vertical bounce of a moving or idling hull, `recoil` (0.02) how far a shot kicks the hull back, `shake` (0.015)
@@ -559,7 +560,10 @@ class VehicleRig:
         self.band = None
         tread = rig.get('tread')
         if tread:
-            depth, top = tread.get('depth', 0.06) * bh, self.y0 + tread.get('top', 0.0) * bh
+            # the band's top edge: `above` (a fraction of the width, up from the bottom: a smoke wisp or an open hatch adds
+            # height but not width, so it is the same on every damage drawing) or `top` (a fraction of the height)
+            depth = tread.get('depth', 0.06) * bh
+            top = self.y1 - tread['above'] * bw if 'above' in tread else self.y0 + tread.get('top', 0.0) * bh
             inside = ndi.distance_transform_edt(np.pad(alpha, 1))[1:-1, 1:-1]  # padded: the drawing's edge is an outline too
             self.band = alpha & (inside <= depth) & (yy >= top)
             centre = ((self.x0 + self.x1) / 2, (self.y0 + self.y1) / 2)
