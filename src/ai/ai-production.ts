@@ -82,6 +82,34 @@ const COMBAT_CARGO_ROLES = new Set<AIStrategicRole>([
 
 const UNIQUE_SUPPORT_ROLES = new Set<AIStrategicRole>(['recon', 'detection']);
 
+/**
+ * #1480: how many missionaries one city's worth of faith spread justifies holding at once.
+ *
+ * A missionary carries 2-3 charges and rests on its own cooldown after preaching, so concurrent
+ * coverage — not lifetime production — is the scarce resource. One per city is already more
+ * coverage than `basic-ai.ts`'s dispatch loop can keep busy, and the unit is consumed once its
+ * charges run out, so the roster replenishes itself.
+ */
+export const MISSIONARY_SOFT_CAP_PER_CITY = 1;
+
+/**
+ * #1480: missionaries this civ already owns plus ones already queued in any of its cities.
+ *
+ * Queued work must count, or two cities scoring the same round would each add one on top of a
+ * count that has not moved yet, and the cap would never bind for a multi-city empire.
+ */
+function missionarySupply(state: GameState, civId: string): number {
+  const civ = state.civilizations[civId];
+  if (!civ) return 0;
+  const owned = civ.units.filter(unitId => {
+    const unit = state.units[unitId];
+    return unit !== undefined && getAIStrategicRoles(unit.type).includes('missionary');
+  }).length;
+  const queued = getOwnedCities(state, civId)
+    .filter(city => city.productionQueue.includes('missionary')).length;
+  return owned + queued;
+}
+
 function cloneDemands(demands: readonly AIForceDemand[]): AIForceDemand[] {
   return demands.map(entry => ({
     ...entry,
@@ -690,10 +718,22 @@ function generateWithResidual(
   // AIForceDemand entry for it to match against. Only scored when the unit is actually
   // trainable (religion founded + city follows own faith + Temple), mirroring the real
   // trainability gate rather than a duplicated check.
+  //
+  // #1480: this used to be an UNBOUNDED candidate — a flat positive score with no cap and no
+  // decrement, so once every other candidate scored lower a developed civ queued one missionary
+  // per city per round forever. Measured on `lh-late-era-medium`: ai-2 owned 375 missionaries out
+  // of 427 units by round 240, every city ended every round with an empty queue, and the majority
+  // of a 400-production city was discarded as overflow. That is why `production-idle` now fires
+  // on ai-1/ai-2, and why no multi-turn item ever existed for the treasury to accelerate. Bounded
+  // by `MISSIONARY_SOFT_CAP_PER_CITY`; units and queued missionaries both count, so the cap holds
+  // across a whole round rather than once per city.
   const civReligion = Object.values(state.religions ?? {}).find(r => r.ownerCivId === civId);
   if (civReligion) {
     const missionaryTrainable = offered.units.some(candidate => candidate.type === 'missionary');
-    if (missionaryTrainable) {
+    const ownedCities = civ.cities.filter(id => state.cities[id]?.owner === civId).length;
+    const missionaryCapacity = Math.max(1, ownedCities) * MISSIONARY_SOFT_CAP_PER_CITY;
+    const missionaryRoom = missionarySupply(state, civId) < missionaryCapacity;
+    if (missionaryTrainable && missionaryRoom) {
       const maintenanceImpact = projectedUnitMaintenanceImpact(state, civId, cityId, 'missionary');
       if (reserveAllows(state, civId, maintenanceImpact, false, 1)) {
         const cost = getContextualProductionCost('missionary', productionCostContext);

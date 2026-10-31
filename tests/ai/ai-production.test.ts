@@ -1170,6 +1170,70 @@ describe('#592 MR5 — missionary production scoring', () => {
     expect(fervorScore).toBeGreaterThan(baseScore);
   });
 
+  // #1480: the candidate used to be unbounded -- one missionary per city per round, forever,
+  // because its flat score never decreased and nothing counted what the civ already owned.
+  describe('#1480 missionary supply cap', () => {
+    function withOwnFaith(cityIds: string[]): GameState {
+      const state = setupState(['philosophy'], cityIds);
+      const religionId = 'religion-ai-1';
+      state.religions = {
+        [religionId]: { id: religionId, name: 'Test Faith', ownerCivId: 'ai-1', foundedTurn: 1 },
+      };
+      for (const cityId of cityIds) {
+        state.cityFaith[cityId] = { religionId };
+        state.cities[cityId]!.buildings = [...state.cities[cityId]!.buildings, 'temple'];
+      }
+      return state;
+    }
+
+    function giveMissionary(state: GameState, cityId: string): void {
+      const civ = state.civilizations['ai-1']!;
+      const unit = createUnit('missionary', civ.id, state.cities[cityId]!.position, state.idCounters);
+      state.units[unit.id] = unit;
+      civ.units.push(unit.id);
+    }
+
+    const missionaryCandidate = (state: GameState, cityId = 'city-a') =>
+      generateAIProductionCandidates(state, 'ai-1', cityId, [], aggressive)
+        .find(candidate => candidate.itemId === 'missionary');
+
+    it('still offers a missionary while the city-count cap has room', () => {
+      const state = withOwnFaith(['city-a', 'city-b']);
+      giveMissionary(state, 'city-a');
+
+      expect(missionaryCandidate(state)).toBeDefined();
+    });
+
+    it('stops offering missionaries once the civ already holds one per city', () => {
+      const state = withOwnFaith(['city-a', 'city-b']);
+      giveMissionary(state, 'city-a');
+      giveMissionary(state, 'city-b');
+
+      expect(missionaryCandidate(state)).toBeUndefined();
+    });
+
+    it('counts a missionary already queued, so one round cannot overshoot the cap', () => {
+      const state = withOwnFaith(['city-a']);
+      state.cities['city-a']!.productionQueue = ['missionary'];
+
+      expect(missionaryCandidate(state)).toBeUndefined();
+    });
+
+    it('ignores a queued missionary in a city the civ no longer owns', () => {
+      const state = withOwnFaith(['city-a']);
+      // A stale roster entry: `civ.cities` names a city that is not owned by this civ.
+      state.cities['city-stale'] = {
+        ...state.cities['city-a']!,
+        id: 'city-stale',
+        owner: 'player',
+        productionQueue: ['missionary'],
+      };
+      state.civilizations['ai-1']!.cities = [...state.civilizations['ai-1']!.cities, 'city-stale'];
+
+      expect(missionaryCandidate(state)).toBeDefined();
+    });
+  });
+
   it('Attack Helicopter production candidate is byte-identical whether or not its airAssault capability field is present (regression for the "no production reweighting" design decision, #543 Phase 2)', () => {
     const state = setupState(['helicopter-warfare']);
     state.cities['city-a']!.buildings = ['helicopter_base'];
