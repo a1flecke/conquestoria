@@ -372,6 +372,121 @@ img.save(${JSON.stringify(join(sources, 'a.png'))})
   });
 });
 
+// A synthetic vehicle: a grey hull (x 100-540, y 180-380) with a light-grey band painted along its outline (the track), a gun
+// barrel out to the right (x 540-620, y 250-270) and a dark wheel disc (centre 220,380, radius 50) with one blue spoke marker.
+const VEHICLE = `
+HULL = (100, 180, 540, 380)
+def vehicle(img, band=True):
+    d = ImageDraw.Draw(img)
+    d.rectangle(HULL, fill=(90, 90, 100, 255))
+    if band:
+        d.rectangle(HULL, outline=(160, 160, 170, 255), width=14)
+    d.rectangle((540, 250, 620, 270), fill=(90, 90, 100, 255))
+    d.ellipse((170, 330, 270, 430), fill=(50, 50, 55, 255))
+    d.rectangle((244, 374, 256, 386), fill=(0, 200, 255, 255))  # the spoke marker, 30 px right of the wheel centre
+BOX = (100, 180, 620, 430)
+WHEEL = [round((220 - 100) / 520, 4), round((380 - 180) / 250, 4), round(50 / 520, 4)]
+`;
+
+describe.skipIf(!haveDeps)('strips.py vehicle rig (#364 prototype)', () => {
+  const vehiclePy = (root: string, body: string): any =>
+    JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${VEHICLE}\n${body}`], { encoding: 'utf8' }));
+
+  it('wheels spin: the spoke marker advances 45 degrees per frame', () => {
+    const { root } = sandbox();
+    const angles = vehiclePy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img, band=False)
+out = []
+for rgba, mask, fx, lift in m.walk_frames(np.array(img), {'kind': 'vehicle', 'action': 'move', 'bob': 0, 'wheels': [WHEEL]}, 8):
+    blue = (rgba[..., 2] > 0.9) & (rgba[..., 1] > 0.7) & (rgba[..., 0] < 0.2) & (rgba[..., 3] > 0.5)
+    ys, xs = np.where(blue)
+    cx, cy = 220 - BOX[0], 380 - BOX[1]
+    out.append(float(np.degrees(np.arctan2(ys.mean() - cy, xs.mean() - cx))))
+print(json.dumps(out))
+`);
+    for (let i = 0; i < 8; i++) {
+      const step = (((angles[(i + 1) % 8] - angles[i]) % 360) + 360) % 360;
+      expect(Math.abs(step - 45), JSON.stringify(angles)).toBeLessThan(8);
+    }
+  }, 30000);
+
+  it('tread scrolls: a quarter of a link per frame in the band, nothing moves outside it', () => {
+    const { root } = sandbox();
+    const out = vehiclePy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img)
+rig = {'kind': 'vehicle', 'action': 'move', 'bob': 0, 'tread': {'depth': 0.05, 'links': 16}}
+frames = [rgba for rgba, mask, fx, lift in m.walk_frames(np.array(img), rig, 8)]
+a = frames[0][..., 3] > 0.5
+inside = m.ndi.distance_transform_edt(np.pad(a, 1))[1:-1, 1:-1]
+track = np.array(img)[BOX[1]:BOX[3] + 1, BOX[0]:BOX[2] + 1, 0] == 160  # the pixels the drawing paints as track
+band = a & track & (inside > 3) & (inside < 9)
+core = a & (inside > 30)
+lum = [f[..., 0][band] for f in frames]
+corr = lambda x, y: float(np.corrcoef(x, y)[0, 1])
+still = max(float(np.abs(f[..., :3][core] - frames[0][..., :3][core]).max()) for f in frames)
+print(json.dumps({'quarter': corr(lum[0], lum[1]), 'half': corr(lum[0], lum[2]), 'full': corr(lum[0], lum[4]), 'still': still}))
+`);
+    expect(out.full, JSON.stringify(out)).toBeGreaterThan(0.95);
+    expect(out.half, JSON.stringify(out)).toBeLessThan(-0.7);
+    expect(Math.abs(out.quarter), JSON.stringify(out)).toBeLessThan(0.4);
+    expect(out.still, JSON.stringify(out)).toBeLessThan(0.01);
+  }, 30000);
+
+  it('build emits move, fire and hit rows and keeps the recoil and the bounce when it packs them', () => {
+    const { root, sources, tool } = sandbox();
+    draw(`${VEHICLE}
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img)
+ImageDraw.Draw(img).rectangle((300, 215, 420, 245), fill=(224, 16, 16, 255))  # the team-colour band
+img.save(${JSON.stringify(join(sources, 'a.png'))})
+`);
+    const veh = (action: string) => ({ kind: 'vehicle', action, source: 'a', bob: 0.03, wheels: [JSON.parse('[0.2308, 0.8, 0.0962]')] });
+    const spec = writeSpec(root, [
+      { state: 'idle', file: 'a', cells: 1, fps: 4 },
+      { state: 'move', cells: 8, fps: 12, rig: veh('move') },
+      { state: 'fire', cells: 8, fps: 8, loop: false, rig: veh('fire') },
+      { state: 'hit', cells: 4, fps: 8, loop: false, rig: veh('hit') },
+    ]);
+    const out = join(root, 'out');
+    const r = run(tool, ['build', spec, '--sources', sources, '--out', out]);
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    const found = py(root, `
+man = json.loads(Path(${JSON.stringify(join(out, 'manifest.json'))}).read_text())
+sheet = np.array(Image.open(${JSON.stringify(join(out, 'sheet.png'))}))
+W, H = man['cellWidth'], man['cellHeight']
+def edges(row, n):
+    xs, bottoms = [], []
+    for c in range(n):
+        a = sheet[row * H:(row + 1) * H, c * W:(c + 1) * W, 3] > 128
+        xs.append(int(np.where(a.any(0))[0].min())); bottoms.append(int(np.where(a.any(1))[0].max()))
+    return xs, bottoms
+fire = edges(man['states']['fire']['row'], 8)
+move = edges(man['states']['move']['row'], 8)
+print(json.dumps({'rows': sorted(man['states']), 'fireLeft': fire[0], 'moveBottom': move[1]}))
+`);
+    expect(found.rows).toEqual(['fire', 'hit', 'idle', 'move']);
+    expect(Math.max(...found.fireLeft) - Math.min(...found.fireLeft)).toBeGreaterThanOrEqual(3); // the hull kicks back
+    expect(Math.max(...found.moveBottom) - Math.min(...found.moveBottom)).toBeGreaterThanOrEqual(2); // and bounces
+  }, 60000);
+
+  it('fire flashes once, in frames 2 to 4, and never in the team-colour range', () => {
+    const { root } = sandbox();
+    const out = vehiclePy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0)); vehicle(img, band=False)
+flash, team = [], []
+for rgba, mask, fx, lift in m.walk_frames(np.array(img), {'kind': 'vehicle', 'action': 'fire', 'bob': 0}, 8):
+    h, s, v = m.puppet.rgb_to_hsv_arrays(rgba[..., :3])
+    solid = rgba[..., 3] > 0.5
+    flash.append(int((solid & (h > 0.10) & (h < 0.17) & (s > 0.4) & (v > 0.6)).sum()))
+    team.append(int((solid & ((h < 0.045) | (h > 0.955)) & (s > 0.45) & (v > 0.18)).sum()))
+print(json.dumps({'flash': flash, 'team': team}))
+`);
+    const note = JSON.stringify(out);
+    expect(out.flash.slice(2, 5).some((n: number) => n > 20), note).toBe(true);
+    for (const i of [0, 1, 5, 6, 7]) expect(out.flash[i], note).toBe(0);
+    expect(Math.max(...out.team), note).toBe(0);
+  }, 30000);
+});
+
 const BIPED_PROMPT = {
   name: 'Archer', look: 'A lean young archer with a leather hood.', team_area: 'his tunic', identity: 'the same hood, tunic and bow',
   weapon_pose: 'He holds the bow upright in his left hand.', attack_frames: 6, attack: '(1) ready; (2) draw; (3) release.',

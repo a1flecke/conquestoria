@@ -25,13 +25,14 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import math
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 from scipy import ndimage as ndi
 
 REPO = Path(__file__).resolve().parents[2]
@@ -238,6 +239,9 @@ def calibrate(rgba: np.ndarray, rig: dict) -> dict:
     from the cut to the feet. Raises RigCutError when no row qualifies.
     """
     alpha = rgba[..., 3] > 40
+    if rig.get('kind') == 'vehicle':  # no cut to find: only where the gun fires from, drawn on the review image
+        mx, my = vehicle_muzzle(alpha, rig)
+        return {'muzzle_x': round(mx), 'muzzle_y': round(my)}
     rows = np.where(alpha.any(1))[0]
     top, bottom = int(rows.min()), int(rows.max())
     h = bottom - top + 1
@@ -507,6 +511,126 @@ class QuadRig:
         return self.cv.compose([*far, *near, self.cv.place(self.body, 0, dy_body, 0)])
 
 
+def vehicle_muzzle(alpha: np.ndarray, rig: dict) -> tuple[float, float]:
+    """Where a vehicle's gun fires from, in source px: `rig['muzzle']` (fractions of the figure box) or, by default, the
+    right-most opaque pixel in the figure's upper 80% (the drawing faces right and a gun is its furthest point)."""
+    ys, xs = np.where(alpha)
+    x0, y0 = int(xs.min()), int(ys.min())
+    bw, bh = int(xs.max()) - x0 + 1, int(ys.max()) - y0 + 1
+    if 'muzzle' in rig:
+        return x0 + rig['muzzle'][0] * bw, y0 + rig['muzzle'][1] * bh
+    upper = alpha[y0:y0 + int(0.8 * bh) + 1]
+    x = int(np.where(upper.any(0))[0].max())
+    return float(x), float(y0 + np.median(np.where(upper[:, x])[0]))
+
+
+class VehicleRig:
+    """Loops built in code from one drawing of a vehicle (a tank, a car, a gun on wheels), for the same reason as `LegRig`.
+
+    `frame(action, i, n)` with `action` one of idle, move, fire, hit. All keys are fractions of the figure's box (its tight
+    bounding box in the drawing; a radius is a fraction of its width). `wheels`: [[cx, cy, r], ...], each disc turns
+    `wheel_deg_per_frame` (default 45, clockwise: the vehicle faces right) while it moves. `tread`: {depth, links, top}, the
+    pixels within `depth` (default 0.06) of the outline and below `top` (default 0, the whole outline) get a light and dark
+    pattern of `links` repeats around the outline that advances a quarter of a link per frame, clockwise, so the track runs
+    forward along the top and back along the ground. `muzzle`: where the gun fires from (see `vehicle_muzzle`). `bob` (0.01)
+    is the vertical bounce of a moving or idling hull, `recoil` (0.02) how far a shot kicks the hull back, `shake` (0.015)
+    how far a hit rocks it. The muzzle flash and smoke are yellow, white and grey, never red, so the tint key cannot pick
+    them up.
+    """
+
+    def __init__(self, rgba: np.ndarray, rig: dict):
+        H, W = rgba.shape[:2]
+        alpha = rgba[..., 3] > 40
+        ys, xs = np.where(alpha)
+        self.x0, self.x1, self.y0, self.y1 = int(xs.min()), int(xs.max()), int(ys.min()), int(ys.max())
+        bw, bh = self.x1 - self.x0 + 1, self.y1 - self.y0 + 1
+        self.cv = puppet.Canvas((W, H), int(max(W, H) * 0.14))
+        self.rgb = rgba.astype(np.float32)
+        self.bob, self.recoil, self.shake = rig.get('bob', 0.01) * bh, rig.get('recoil', 0.02) * bw, rig.get('shake', 0.015) * bw
+        self.deg = rig.get('wheel_deg_per_frame', 45.0)
+        self.k = bw / 256.0  # the flash and smoke were drawn for a 256 px figure (`puppet.FirearmRig._flash`)
+        self.muzzle = vehicle_muzzle(alpha, rig)
+        yy, xx = np.mgrid[0:H, 0:W]
+        self.wheels = []
+        for fx, fy, fr in rig.get('wheels', []):
+            cx, cy, r = self.x0 + fx * bw, self.y0 + fy * bh, fr * bw
+            disc = alpha & ((xx - cx) ** 2 + (yy - cy) ** 2 <= r * r)
+            self.wheels.append(puppet.Layer(puppet.layer_from(rgba, disc), pivot=(cx, cy)))
+        self.band = None
+        tread = rig.get('tread')
+        if tread:
+            depth, top = tread.get('depth', 0.06) * bh, self.y0 + tread.get('top', 0.0) * bh
+            inside = ndi.distance_transform_edt(np.pad(alpha, 1))[1:-1, 1:-1]  # padded: the drawing's edge is an outline too
+            self.band = alpha & (inside <= depth) & (yy >= top)
+            centre = ((self.x0 + self.x1) / 2, (self.y0 + self.y1) / 2)
+            self.theta = np.arctan2(yy - centre[1], xx - centre[0])
+            radius = float(np.hypot(xx - centre[0], yy - centre[1])[self.band].mean())
+            self.links = tread.get('links') or max(8, round(2 * math.pi * radius / (0.045 * bw)))
+        self.rest_x, self.rest_bottom = (self.x0 + self.x1 + 1) / 2 + self.cv.pad, self.y1 + 1 + self.cv.pad
+
+    def _place(self, layer, dx: float, dy: float, ang: float) -> Image.Image:
+        """`Canvas.place` with bilinear resampling: bicubic rings (an overshoot of the dark side of a hard edge) and a
+        dark-red ring is exactly what the team-colour key picks up. Hard edges are common in drawn armour."""
+        canvas = Image.new('RGBA', self.cv.can, (0, 0, 0, 0))
+        canvas.paste(layer.image, (self.cv.pad, self.cv.pad), layer.image)
+        centre = (layer.pivot[0] + self.cv.pad, layer.pivot[1] + self.cv.pad)
+        return canvas.rotate(-ang, resample=Image.BILINEAR, center=centre, translate=(dx, dy))
+
+    def _hull(self, step: int) -> Image.Image:
+        rgb = self.rgb
+        if self.band is not None and step is not None:
+            rgb = rgb.copy()
+            light = 1.0 + 0.18 * np.cos(self.links * self.theta[self.band] - 2 * math.pi * 0.25 * step)
+            rgb[self.band, :3] = np.clip(rgb[self.band, :3] * light[:, None], 0, 255)
+        return Image.fromarray(np.clip(rgb + 0.5, 0, 255).astype(np.uint8))
+
+    def _flash(self, strength: float, smoke: float, dx: float, dy: float) -> Image.Image:
+        out = Image.new('RGBA', self.cv.can, (0, 0, 0, 0))
+        d = ImageDraw.Draw(out)
+        k = self.k
+        mx, my = self.muzzle[0] + self.cv.pad + dx, self.muzzle[1] + self.cv.pad + dy
+        if strength > 0:
+            r = 26 * strength * k
+            star = []
+            for j in range(16):  # 8-point starburst
+                rr = r if j % 2 == 0 else r * 0.38
+                ang = j * math.pi / 8
+                star.append((mx + 6 * k + math.cos(ang) * rr * (1.35 if j % 4 == 0 else 1.0), my + math.sin(ang) * rr))
+            d.polygon(star, fill=(255, 214, 92, 235))
+            d.ellipse([mx + 6 * k - r * 0.45, my - r * 0.45, mx + 6 * k + r * 0.45, my + r * 0.45], fill=(255, 250, 220, 255))
+        if smoke > 0:
+            for j, (ox, oy, rad) in enumerate([(10, -2, 9), (24, -8, 12), (40, -13, 14)]):
+                a = round(150 * smoke * (1 - j * 0.22))
+                d.ellipse([mx + (ox - rad) * k, my + (oy - rad) * k, mx + (ox + rad) * k, my + (oy + rad) * k], fill=(205, 205, 205, a))
+        return out.filter(ImageFilter.GaussianBlur(0.8 * max(1.0, k)))
+
+    def frame(self, action: str, i: int, n: int) -> Image.Image:
+        t = i / n
+        dx = dy = flash = smoke = 0.0
+        spin, step = 0.0, None
+        if action == 'idle':
+            dy = -0.5 * self.bob * (1 - math.cos(2 * math.pi * t))
+        elif action == 'move':
+            dy = -0.5 * self.bob * (1 - math.cos(4 * math.pi * t))
+            spin, step = self.deg * i, i
+        elif action == 'fire':  # the hull kicks back as the gun fires, flash at the muzzle, smoke drifts off
+            kick, _ = puppet.keyframes(t, [(0, 0, 0), (0.2, 0, 0.3), (0.3, -1, -2.2), (0.55, -0.35, -0.8), (1, 0, 0)])
+            dx = kick * self.recoil
+            flash = max(0.0, 1 - abs(t - 0.3) / 0.14) if 0.16 <= t <= 0.45 else 0.0
+            smoke = max(0.0, min(1.0, (t - 0.28) / 0.1)) * (1 - max(0.0, (t - 0.65) / 0.35)) if t >= 0.28 else 0.0
+        elif action == 'hit':  # rocked left and right, settling
+            dx = self.shake * (1 - t) * (1 if i % 2 == 0 else -1)
+            dy = -0.4 * self.bob * (1 - t)
+        else:
+            raise ValueError(f'vehicle action "{action}": expected idle, move, fire or hit')
+        hull = puppet.Layer(self._hull(step), pivot=(0.0, 0.0))
+        parts = [self._place(hull, dx, dy, 0)]
+        parts += [self._place(w, dx, dy, spin) for w in self.wheels]
+        if flash > 0 or smoke > 0:
+            parts.append(self._flash(flash, smoke, dx, dy))
+        return self.cv.compose(parts)
+
+
 def rig_source_image(spec: dict, sources: Path, ref: str) -> np.ndarray:
     """uint8 RGBA drawing a rig is cut from. A plain name is the whole image when it has real transparency (the rig's
     coordinates then refer to that image); a '<image>#<index>' reference, or an image on a magenta field, is one keyed figure."""
@@ -518,15 +642,20 @@ def rig_source_image(spec: dict, sources: Path, ref: str) -> np.ndarray:
 
 
 def walk_frames(rgba: np.ndarray, rig: dict, n: int):
-    """`n` frames of a LegRig walk as (rgba float crop, mask crop), cut from one drawing (uint8 RGBA). Cut positions not
-    given in `rig` are calibrated from the drawing."""
-    r = (QuadRig if rig.get('kind') == 'mounted' else LegRig)(rgba, {**rig, **calibrate(rgba, rig)})
+    """`n` frames of a loop built in code from one drawing (uint8 RGBA), as (rgba float crop, mask crop). Cut positions not
+    given in `rig` are calibrated from the drawing. A `"kind": "vehicle"` rig plays its `action` (default move) and returns
+    (crop, mask, fx, lift) instead: fx is where the drawing's centre falls in the crop and lift how many source px the
+    crop's bottom sits above the drawing's own (bounce), so a recoil or a bounce is kept when the sheet is packed rather
+    than cancelled by aligning every crop on its own bottom and centre."""
+    kind = rig.get('kind')
+    r = (VehicleRig if kind == 'vehicle' else QuadRig if kind == 'mounted' else LegRig)(rgba, {**rig, **calibrate(rgba, rig)})
     out = []
     for i in range(n):
-        im = np.array(r.frame(i, n)).astype(np.float32) / 255.0
+        im = np.array(r.frame(rig.get('action', 'move'), i, n) if kind == 'vehicle' else r.frame(i, n)).astype(np.float32) / 255.0
         ys, xs = np.where(im[..., 3] > 0.02)
         y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
-        out.append((im[y0:y1, x0:x1], im[y0:y1, x0:x1, 3] > 0.5))
+        crop, mask = im[y0:y1, x0:x1], im[y0:y1, x0:x1, 3] > 0.5
+        out.append((crop, mask, r.rest_x - x0, r.rest_bottom - y1) if kind == 'vehicle' else (crop, mask))
     return out
 
 
@@ -669,11 +798,16 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
                 prepared = group[-1]['prepared']
             group.append({'state': name, 'fps': st['fps'], 'loop': st.get('loop', True), 'prepared': prepared,
                           'steel': 1.0, 'scale': by_state[origin]['scale'], 'note': st.get('note', ''),
-                          'anchor': st.get('anchor', 'feet'), 'match': None, 'tier_group': st['state']})
+                          'anchor': 'given' if rig.get('kind') == 'vehicle' else st.get('anchor', 'feet'), 'match': None,
+                          'tier_group': st['state']})
     rows = [r for group in slots for r in group]
 
     for r in rows:
-        r['frames'] = [(rgba, m, r['scale'], anchor_x(m, r['anchor'])) for rgba, m in r['prepared']]
+        # a vehicle rig hands over where the drawing's centre falls in each crop (anchor 'given') and how far the crop sits
+        # above the drawing's own bottom (a bounce), so a recoil or a bounce is kept; every other row aligns on its own
+        r['frames'] = [(p[0], p[1], r['scale'], p[2] if r['anchor'] == 'given' else anchor_x(p[1], r['anchor']))
+                       for p in r['prepared']]
+        r['lifts'] = [p[3] if len(p) > 3 else 0.0 for p in r['prepared']]
 
     # one cell width for the whole sheet: the widest reach of any frame from its anchor
     reach = 0.0
@@ -703,7 +837,7 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
             base, mask = puppet.split_base_and_mask(u8, key, vref)
             sb, sm = scale_premult(base, s), scale_premult(mask, s)
             ox = round(W / 2 - fx * s)
-            oy = base_y - sb.shape[0]
+            oy = base_y - sb.shape[0] - round(r['lifts'][ci] * s)
             cell, mcell = np.zeros((H, W, 4), np.float32), np.zeros((H, W, 4), np.float32)
             paste(cell, sb, ox, oy)
             paste(mcell, sm, ox, oy)
@@ -825,7 +959,12 @@ def calibrate_command(spec: dict, sources: Path) -> int:
             bg.alpha_composite(img)
             d = ImageDraw.Draw(bg)
             for key, colour in (('cut_y', (220, 30, 30)), ('hip_y', (30, 160, 30)), ('knee_y', (30, 60, 220))):
-                d.line([(0, cuts[ref][key]), (img.size[0], cuts[ref][key])], fill=colour, width=max(2, img.size[1] // 300))
+                if key in cuts[ref]:
+                    d.line([(0, cuts[ref][key]), (img.size[0], cuts[ref][key])], fill=colour, width=max(2, img.size[1] // 300))
+            if 'muzzle_x' in cuts[ref]:  # a vehicle: a cross where the flash will be drawn
+                mx, my, rad = cuts[ref]['muzzle_x'], cuts[ref]['muzzle_y'], max(6, img.size[1] // 40)
+                d.line([(mx - rad, my), (mx + rad, my)], fill=(220, 30, 30), width=max(2, img.size[1] // 300))
+                d.line([(mx, my - rad), (mx, my + rad)], fill=(220, 30, 30), width=max(2, img.size[1] // 300))
             tiles.append(bg.convert('RGB'))
     if tiles:
         height = 700
