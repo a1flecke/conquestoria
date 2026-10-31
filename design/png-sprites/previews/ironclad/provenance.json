@@ -1,0 +1,17 @@
+{
+  "id": "ironclad",
+  "status": "prototype preview, not shipped and not registered in PNG_UNIT_SPRITES",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-10-31",
+  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/ironclad.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/, family naval). Conversation A drew the master; conversation B, with the master attached, drew the damage sheet and the sinking row. The prompts ChatGPT actually ran were not captured.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). If this art is adopted for the game it needs a ledger family row and a provenance record under design/png-sprites/sources/ like the other generated units.",
+  "originals_committed": false,
+  "originals_note": "The three downloaded originals are not committed. Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all three passed (PNG magic bytes, nothing after the image stream, one frame, within the pixel limit). ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "None: the first master, damage sheet and sinking row were accepted. `strips.py probe` reported 0 errors and 0 warnings. The muzzle was set by hand to the front gun port because the default (right-most pixel) picks the ram tip.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1448, 1086], "sha256": "ec58e5de5f599f728993dab558f8ccc7a699a4e081816018a23e40e01fcc8bf0" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [2317, 1301], "sha256": "8a1475606ed0eae0e6d0163aa7599ebfbc2224031ebb61ba3ba158ff022592f6" },
+    { "role": "sinking, 3 frames (1 x 3 row): hit burst, going down, nearly under", "file": "c", "size": [3881, 1280], "sha256": "5d334707f2c51228c4eb411e846606332b5c162a4966b886b003a06b5768812e" }
+  ]
+}
