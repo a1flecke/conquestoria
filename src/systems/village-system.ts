@@ -2,6 +2,8 @@ import type { GameMap, HexCoord, GameState, TechState, Unit, TribalVillage } fro
 import type { VillageOutcomeType } from '@/core/types/world';
 import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { createUnit } from './unit-lifecycle';
+import { buildUnitOccupancy, getUnitIdsAtCoord } from './unit-occupancy';
+import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
 import { TECH_TREE, applyResearchBonus, getEffectiveTechCost } from './tech-system';
 import { createRng } from './map-generator';
 import { recordLegendaryWonderDiscoverySite } from './legendary-wonder-history';
@@ -189,9 +191,22 @@ export function visitVillage(
     }
     case 'ambush': {
       const neighbors = mapNeighbors(state.map, village.position);
+      // #1480 follow-up: an ambush spawns barbarians by CREATION, which bypasses the
+      // `validateUnitMove` stacking check that guards ordinary movement. Filtering on terrain
+      // alone could therefore place a barbarian on top of an existing unit of another owner --
+      // reproducibly two owners sharing one tile (`lh-hotseat-medium`, round 89: a barbarian
+      // warrior created on `mc-samarkand`'s archer tile), which the
+      // `no-illegal-blocking-occupancy` invariant correctly refuses. Exclude occupied hexes
+      // (transported cargo and based aircraft are not map occupants, same exclusion
+      // `barbarian-system.ts`'s own spawn filter uses) and every hex a barbarian owner cannot
+      // stand on at all, so a creation-only spawn obeys the same rule as a move.
+      const occupancy = buildUnitOccupancy(state.units);
+      const barbarianBlockedHexes = getBlockingMapEntityKeysForOwner(state, 'barbarian');
       const passable = neighbors.filter(n => {
         const t = state.map.tiles[hexKey(n)];
-        return t && !IMPASSABLE_TERRAIN.has(t.terrain);
+        if (!t || IMPASSABLE_TERRAIN.has(t.terrain)) return false;
+        if (barbarianBlockedHexes.has(hexKey(n))) return false;
+        return getUnitIdsAtCoord(occupancy, n).length === 0;
       });
       const spawnCount = Math.min(1 + Math.floor(rng() * 2), passable.length); // 1-2
       for (let i = 0; i < spawnCount; i++) {

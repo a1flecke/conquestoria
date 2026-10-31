@@ -754,7 +754,7 @@ export function assertNoIllegalBlockingOccupancy(state: GameState): void {
     if (owners.size > 1) {
       const position = state.units[unitIds[0]].position;
       problems.push(
-        `tile (${position.q},${position.r}) holds units from ${owners.size} different owners: ${unitIds.map(id => `"${id}" (${occupancy.ownersByUnitId[id]})`).join(', ')}`,
+        `tile (${position.q},${position.r}) holds units from ${owners.size} different owners: ${unitIds.map(id => `"${id}" (${occupancy.ownersByUnitId[id]} ${state.units[id].type})`).join(', ')}`,
       );
     }
   }

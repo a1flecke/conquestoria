@@ -2,9 +2,23 @@ import { describe, it, expect } from 'vitest';
 import { placeVillages, visitVillage, rollVillageOutcome } from '@/systems/village-system';
 import { generateMap, findStartPositions } from '@/systems/map-generator';
 import { createNewGame } from '@/core/game-state';
-import { hexDistance, hexKey } from '@/systems/hex-utils';
+import { hexDistance, hexKey, mapNeighbors } from '@/systems/hex-utils';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { TECH_TREE, getTechById } from '@/systems/tech-system';
 import type { GameState } from '@/core/types';
+
+/**
+ * Hexes holding map units from more than one owner — the exact condition
+ * `assertNoIllegalBlockingOccupancy` refuses at the end of every simulated round.
+ */
+function ownersSharingOneTile(state: GameState): string[] {
+  const occupancy = buildUnitOccupancy(state.units);
+  return Object.entries(occupancy.unitIdsByHex)
+    .filter(([, unitIds]) => new Set(unitIds.map(id => occupancy.ownersByUnitId[id])).size > 1)
+    .map(([hex]) => hex)
+    .sort();
+}
 
 function makeMap(size: 'small' | 'medium' | 'large') {
   const dims = { small: { w: 30, h: 30 }, medium: { w: 50, h: 50 }, large: { w: 80, h: 80 } };
@@ -121,6 +135,63 @@ describe('visitVillage', () => {
         siteType: 'tribal-village',
       }),
     );
+  });
+
+  it('ambush never creates a barbarian on a tile another owner already occupies', () => {
+    // #1480 follow-up / `lh-hotseat-medium` round 89: an ambush spawns its barbarians by
+    // CREATION, which bypasses `validateUnitMove`'s stacking check. Filtering neighbours on
+    // terrain alone let a barbarian warrior materialise on `mc-samarkand`'s archer tile — two
+    // owners on one tile, exactly what `assertNoIllegalBlockingOccupancy` refuses. With every
+    // passable neighbour occupied there is no legal spawn tile, so nothing may be created.
+    const state = makeGameState();
+    const villagePosition = { q: 5, r: 5 };
+    state.tribalVillages = { v1: { id: 'v1', position: villagePosition } };
+    const visitors = Object.values(state.units).find(u => u.owner === 'player')!;
+    visitors.position = villagePosition;
+    for (const coord of [villagePosition, ...mapNeighbors(state.map, villagePosition)]) {
+      state.map.tiles[hexKey(coord)] = {
+        coord, terrain: 'grassland', elevation: 'lowland', resource: null,
+        improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null, owner: null,
+      } as never;
+    }
+    for (const coord of mapNeighbors(state.map, villagePosition)) {
+      const occupier = createUnit('archer', 'mc-samarkand', coord, state.idCounters);
+      state.units[occupier.id] = occupier;
+    }
+
+    const before = Object.keys(state.units).length;
+    visitVillage(state, 'v1', visitors, () => 0.9); // 0.9 = ambush, spawn count 2
+
+    expect(Object.keys(state.units).length).toBe(before);
+    expect(ownersSharingOneTile(state)).toEqual([]);
+  });
+
+  it('ambush still spawns on a legal free neighbour when occupied tiles exist', () => {
+    const state = makeGameState();
+    const villagePosition = { q: 5, r: 5 };
+    state.tribalVillages = { v1: { id: 'v1', position: villagePosition } };
+    const visitors = Object.values(state.units).find(u => u.owner === 'player')!;
+    visitors.position = villagePosition;
+    const neighbors = mapNeighbors(state.map, villagePosition);
+    for (const coord of [villagePosition, ...neighbors]) {
+      state.map.tiles[hexKey(coord)] = {
+        coord, terrain: 'grassland', elevation: 'lowland', resource: null,
+        improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null, owner: null,
+      } as never;
+    }
+    const freeNeighbor = neighbors[neighbors.length - 1]!;
+    for (const coord of neighbors.slice(0, -1)) {
+      const occupier = createUnit('archer', 'mc-samarkand', coord, state.idCounters);
+      state.units[occupier.id] = occupier;
+    }
+
+    const rolls = [0.9, 0.0]; // ambush, then one spawn
+    visitVillage(state, 'v1', visitors, () => rolls.shift() ?? 0);
+
+    const barbarians = Object.values(state.units).filter(unit => unit.owner === 'barbarian');
+    expect(barbarians).toHaveLength(1);
+    expect(hexKey(barbarians[0]!.position)).toBe(hexKey(freeNeighbor));
+    expect(ownersSharingOneTile(state)).toEqual([]);
   });
 
   it('gold outcome adds gold to civ', () => {
