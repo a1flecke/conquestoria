@@ -10,18 +10,119 @@
     "damage_gear": "a snapped bracing wire and a torn wing patch",
     "damage_gear_critical": "a bent strut and a cracked propeller"
   },
-  "frame": { "height": 192, "baseline": 176, "restHeight": 70 },
-  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 70
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0,
+        0.045
+      ],
+      [
+        0.955,
+        1
+      ]
+    ],
+    "min_sat": 0.45,
+    "min_val": 0.18
+  },
   "states": [
-    { "state": "idle",   "file": "a", "cells": 1, "fps": 4 },
-    { "state": "damage", "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "restFrames": [0, 1], "note": "idle pose at damage tiers 0-3" },
-    { "state": "move",   "cells": 8, "fps": 12,
+    {
+      "state": "idle",
+      "file": "a",
+      "cells": 1,
+      "fps": 4
+    },
+    {
+      "state": "damage",
+      "file": "b",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 1,
+      "loop": false,
+      "restFrames": [
+        0,
+        1
+      ],
+      "note": "idle pose at damage tiers 0-3"
+    },
+    {
+      "state": "move",
+      "cells": 8,
+      "fps": 12,
       "note": "heave, nose pitch and a spinning propeller built in code from the master and from each damage drawing",
-      "rig": { "kind": "flight", "action": "move", "sources": ["a", "b#0", "b#1", "b#2", "b#3"] } },
-    { "state": "fire",   "cells": 8, "fps": 8, "loop": false, "note": "nose-gun flash and a small kick built in code",
-      "rig": { "kind": "flight", "action": "fire", "source": "a" } },
-    { "state": "hit",    "cells": 4, "fps": 8, "loop": false, "note": "the aircraft jolted and the nose dipped, built in code",
-      "rig": { "kind": "flight", "action": "hit", "source": "a" } },
-    { "state": "down",   "file": "c", "cells": 3, "fps": 4, "loop": false, "restFrames": [0] }
+      "rig": {
+        "kind": "flight",
+        "action": "move",
+        "sources": [
+          "a",
+          "b#0",
+          "b#1",
+          "b#2",
+          "b#3"
+        ],
+        "prop": [
+          0.975,
+          0.48,
+          0.2
+        ],
+        "bob": 0.05,
+        "pitch": 4.0
+      }
+    },
+    {
+      "state": "fire",
+      "cells": 8,
+      "fps": 8,
+      "loop": false,
+      "note": "nose-gun flash and a small kick built in code",
+      "rig": {
+        "kind": "flight",
+        "action": "fire",
+        "source": "a",
+        "prop": [
+          0.975,
+          0.48,
+          0.2
+        ],
+        "muzzle": [
+          0.957,
+          0.32
+        ]
+      }
+    },
+    {
+      "state": "hit",
+      "cells": 4,
+      "fps": 8,
+      "loop": false,
+      "note": "the aircraft jolted and the nose dipped, built in code",
+      "rig": {
+        "kind": "flight",
+        "action": "hit",
+        "source": "a",
+        "prop": [
+          0.975,
+          0.48,
+          0.2
+        ]
+      }
+    },
+    {
+      "state": "down",
+      "file": "c",
+      "cells": 3,
+      "fps": 4,
+      "loop": false,
+      "restFrames": [
+        0
+      ]
+    }
   ]
 }

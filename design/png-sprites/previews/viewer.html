@@ -147,7 +147,7 @@
 <script>
 (() => {
   /** Units with a preview folder next to this page; add an id here when a unit's sheet is committed. */
-  const UNITS = ['spearman', 'archer', 'horseman', 'tank', 'ironclad'];
+  const UNITS = ['spearman', 'archer', 'horseman', 'tank', 'ironclad', 'biplane'];
   const $ = (id) => document.getElementById(id);
   const unit = new URLSearchParams(location.search).get('unit');
 
@@ -173,7 +173,8 @@
     const CW = M.cellWidth, CH = M.cellHeight, BASE = M.baseline, REST_H = M.restHeight || 150;
     const FACTIONS = [['Imperials', '#b53026'], ['Vikings', '#1d4a8c'], ['Pharaohs', '#d4a13c'], ['Hellenes', '#2c8a5a'], ['Khanate', '#7a3a14'], ['Shogunate', '#5b4a7a']];
     const NAVAL = ['ironclad'].includes(unit); // ships are drawn on water, not grass
-    const TERRAIN = NAVAL ? ['#3f7fae', '#3a78a6', '#468ab8', '#34709c', '#4a8fbd'] : ['#8fbf6a', '#86b762', '#a2c474', '#6fa65c', '#b9b573'];
+    const AIR = ['biplane'].includes(unit); // aircraft are drawn over open sky, not grass
+    const TERRAIN = AIR ? ['#9cc7e8', '#93c0e4', '#a5cdec', '#8bb9de', '#aad0ee'] : NAVAL ? ['#3f7fae', '#3a78a6', '#468ab8', '#34709c', '#4a8fbd'] : ['#8fbf6a', '#86b762', '#a2c474', '#6fa65c', '#b9b573'];
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     // the sheet rows that can play each of the game's roles, best first
     const ROLES = { idle: ['idle'], walk: ['walkrig', 'walk', 'move'], attack: ['attack', 'fire'], hurt: ['hit', 'hurt'],
@@ -320,7 +321,7 @@
         const c = hexCentre(q, r);
         hexPath(ctx, c.x, c.y, R - 1);
         ctx.fillStyle = TERRAIN[(q * 7 + r * 13 + 50) % TERRAIN.length]; ctx.fill();
-        ctx.strokeStyle = NAVAL ? 'rgba(20,50,80,.35)' : 'rgba(40,70,30,.35)'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.strokeStyle = AIR ? 'rgba(40,80,120,.25)' : NAVAL ? 'rgba(20,50,80,.35)' : 'rgba(40,70,30,.35)'; ctx.lineWidth = 1; ctx.stroke();
       }
       const tgt = hexCentre(actor.col + 1, UNIT_ROW);
       if (actor.role === 'attack') { hexPath(ctx, tgt.x, tgt.y, R - 3); ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 3; ctx.stroke(); }

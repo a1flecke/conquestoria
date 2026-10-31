@@ -1,0 +1,41 @@
+{
+  "id": "biplane",
+  "status": "prototype preview, not shipped and not registered in PNG_UNIT_SPRITES",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-10-31",
+  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/biplane.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/, family aircraft). Conversation A drew the master; conversation B, with the master attached, drew the damage sheet and the going-down row. The prompts ChatGPT actually ran were not captured.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). If this art is adopted for the game it needs a ledger family row and a provenance record under design/png-sprites/sources/ like the other generated units.",
+  "originals_committed": false,
+  "originals_note": "The three downloaded originals are not committed. Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all downloads passed (PNG magic bytes, nothing after the image stream, one frame, within the pixel limit). ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "The first going-down row repainted the fuselage and tail dark brown then black (the template said 'scorched dark'), which loses the team colour, so the template now asks for soot and flames over the same red and the row was redrawn once. The rejected row is not shipped or committed. `strips.py probe` on the accepted set reported 0 errors and 0 warnings. Rig keys set by hand: prop [0.975, 0.48, 0.2] (the drawn blade is tall), muzzle [0.957, 0.32], bob 0.05 and pitch 4 on the move rig.",
+  "originals": [
+    {
+      "role": "idle (master)",
+      "file": "a",
+      "size": [
+        1448,
+        1086
+      ],
+      "sha256": "2d77c255b7400af2a78e7eed2f3d8cf239956926f06f98e797012ed288124ad1"
+    },
+    {
+      "role": "damage tiers 0-3 (2 x 2 grid)",
+      "file": "b",
+      "size": [
+        1746,
+        998
+      ],
+      "sha256": "a41f25ae73fbe1b2b7c8084f6df587c07fdd6f7ae6dcce320c5979eb7ad5e4a0"
+    },
+    {
+      "role": "going down, 3 frames (1 x 3 row): hit burst, burning and nose down, steep dive (redrawn to keep the red)",
+      "file": "c",
+      "size": [
+        2172,
+        724
+      ],
+      "sha256": "c8a76b0212334d0985cb07b276d30f6f9772b6b40d20eb00d403058460688098"
+    }
+  ]
+}
