@@ -175,7 +175,7 @@ not hard-code 150. Smooth animation timing is still unchecked (the pane throttle
   the error line. `./scripts/dev-server.sh stop`.
 - [ ] **Step 3: Commit** `art: one preview viewer for every strip unit (#364)`.
 
-### Task 5: Archer (biped proof)
+### Task 5: Archer (biped proof) ✅ done (PR #1624)
 
 **Files:**
 - Create: `scripts/sprite-puppet/strip-rigs/archer.json`, `design/png-sprites/previews/archer/{sheet.png,mask.png,manifest.json,manifest.js,provenance.json}`
@@ -207,7 +207,7 @@ Spec `prompt` block (exact values):
   owner's verdict.
 - [ ] **Step 7: Commit** `art: Archer strips through the generalised pipeline (#364)`; push.
 
-### Task 6: Four-leg rig
+### Task 6: Four-leg rig ✅ done (`QuadRig`; the real horse needed a low cut, a grounded-pieces count and a planted-then-lifted gait, see STRIPS.md)
 
 **Files:**
 - Modify: `scripts/sprite-puppet/strips.py` (new `QuadRig`, shared two-bone leg code with `LegRig`)
@@ -229,7 +229,7 @@ Spec `prompt` block (exact values):
   both rigs use. **Step 4: Run** → PASS (and the biped tests still pass).
 - [ ] **Step 5: Commit** `art: four-leg rig for mounted units (#364)`.
 
-### Task 7: Horseman (mounted proof)
+### Task 7: Horseman (mounted proof) ✅ done (the side-by-side with the puppet horseman is still open)
 
 **Files:** as Task 5 with `horseman`.
 

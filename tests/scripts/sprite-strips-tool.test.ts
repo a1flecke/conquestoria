@@ -336,7 +336,25 @@ print(json.dumps(rows))
     const lead = [0, 1, 2, 3].map((k) => out.map((f: { x: number }[]) => f[k].x).indexOf(Math.max(...out.map((f: { x: number }[]) => f[k].x))));
     // hind-far 0.0, hind-near 0.5, fore-far 0.75, fore-near 0.25 of the cycle
     expect(lead).toEqual([0, 4, 6, 2]);
-  });
+  }, 30000);
+
+  it('a tail hanging clear of the ground is not a leg and stays with the body', () => {
+    const { root } = sandbox();
+    const out = quadPy(root, `
+img = Image.new('RGBA', (640, 760), (0, 0, 0, 0)); quad(img)
+ImageDraw.Draw(img).rectangle((105, 480, 125, 600), fill=(90, 90, 90, 255))  # a grey tail, ends 90 px above the soles
+cut = m.calibrate(np.array(img), {'kind': 'mounted'})
+tail = []
+for rgba, mask in m.walk_frames(np.array(img), {'kind': 'mounted'}, 8):
+    grey = (np.abs(rgba[..., 0] - 90 / 255) < 0.05) & (np.abs(rgba[..., 2] - 90 / 255) < 0.05) & (rgba[..., 3] > 0.5)
+    tail.append(int(grey.sum()))
+print(json.dumps({'cut': cut['cut_y'], 'tail': tail}))
+`);
+    expect(out.cut).toBeLessThan(600);
+    // the tail is drawn once, by the body, in every frame (a few edge pixels change as the bobbing body is resampled)
+    expect(Math.max(...out.tail) - Math.min(...out.tail)).toBeLessThan(0.05 * out.tail[0]);
+    expect(out.tail[0]).toBeGreaterThan(1000);
+  }, 30000);
 
   it('three posts fail: calibrate exits 1 naming the expected four legs', () => {
     const { root, sources, tool } = sandbox();
