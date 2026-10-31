@@ -239,7 +239,7 @@ def calibrate(rgba: np.ndarray, rig: dict) -> dict:
     from the cut to the feet. Raises RigCutError when no row qualifies.
     """
     alpha = rgba[..., 3] > 40
-    if rig.get('kind') == 'vehicle':  # no cut to find: only where the gun fires from, drawn on the review image
+    if rig.get('kind') in GIVEN_KINDS:  # no cut to find: only where the gun fires from, drawn on the review image
         mx, my = vehicle_muzzle(alpha, rig)
         return {'muzzle_x': round(mx), 'muzzle_y': round(my)}
     rows = np.where(alpha.any(1))[0]
@@ -635,6 +635,56 @@ class VehicleRig:
         return self.cv.compose(parts)
 
 
+class NavalRig(VehicleRig):
+    """A ship drawn with its hull cut off at a straight waterline (no water in the drawing). Everything a vehicle does
+    (recoil, muzzle flash and smoke, a hit shake) carries over; moving and idling differ because a hull on water rocks.
+
+    `rock` (default 1.6 degrees) is the roll about the keel's mid-point, so the bow and the stern trade places going up and
+    down; an idling ship rocks at half that. `bob` (default 0.02, the heave) is bigger than a vehicle's. While it moves, white
+    foam rides the bow and a short wake trails the stern, both at the waterline (`foam`: scale, default 1). The foam is white
+    and pale blue, never red, so the tint key cannot pick it up.
+    """
+
+    def __init__(self, rgba: np.ndarray, rig: dict):
+        super().__init__(rgba, {'bob': 0.02, **rig})
+        self.rock = rig.get('rock', 1.6)
+        self.foam = rig.get('foam', 1.0)
+        self.keel = ((self.x0 + self.x1) / 2, float(self.y1))  # the roll pivots here: the middle of the waterline
+
+    def _foam(self, phase: float, dx: float, dy: float) -> Image.Image:
+        out = Image.new('RGBA', self.cv.can, (0, 0, 0, 0))
+        d = ImageDraw.Draw(out)
+        bw = self.x1 - self.x0 + 1
+        u = bw / 256.0 * self.foam
+        bx, by = self.x1 + self.cv.pad + dx, self.y1 + self.cv.pad + dy - 2 * u  # the bow tip, at the waterline
+        sx = self.x0 + self.cv.pad + dx
+        swell = 0.75 + 0.25 * math.sin(2 * math.pi * phase)
+        for ox, oy, rad in [(-4, 0, 7), (4, -1, 6), (11, 0, 4.5), (-14, 1, 5)]:  # a lump of foam hugging the bow
+            r = rad * u * swell
+            d.ellipse([bx + ox * u - r, by + oy * u - r * 0.7, bx + ox * u + r, by + oy * u + r * 0.7], fill=(247, 250, 255, 225))
+        for ox, oy, rad in [(2, 1, 6), (-10, 1, 5), (-20, 2, 4)]:  # a short wake behind the stern
+            r = rad * u * (1.1 - 0.25 * math.sin(2 * math.pi * phase))
+            d.ellipse([sx - ox * u - r * 1.3, by + oy * u - r * 0.6, sx - ox * u + r * 1.3, by + oy * u + r * 0.6], fill=(214, 232, 247, 190))
+        return out.filter(ImageFilter.GaussianBlur(0.7 * max(1.0, u)))
+
+    def frame(self, action: str, i: int, n: int) -> Image.Image:
+        if action not in ('idle', 'move'):
+            return super().frame(action, i, n)
+        t = i / n
+        moving = action == 'move'
+        dy = -0.5 * self.bob * (1 - math.cos(4 * math.pi * t))
+        ang = self.rock * (1.0 if moving else 0.5) * math.sin(2 * math.pi * t)
+        hull = puppet.Layer(self._hull(None), pivot=self.keel)
+        parts = [self._place(hull, 0, dy, ang)]
+        if moving:
+            parts.append(self._foam(t, 0, dy))
+        return self.cv.compose(parts)
+
+
+GIVEN_KINDS = ('vehicle', 'naval')  # rigs that return where the drawing's centre falls in each crop (anchor 'given')
+RIG_CLASSES = {'vehicle': VehicleRig, 'naval': NavalRig}
+
+
 def rig_source_image(spec: dict, sources: Path, ref: str) -> np.ndarray:
     """uint8 RGBA drawing a rig is cut from. A plain name is the whole image when it has real transparency (the rig's
     coordinates then refer to that image); a '<image>#<index>' reference, or an image on a magenta field, is one keyed figure."""
@@ -652,14 +702,15 @@ def walk_frames(rgba: np.ndarray, rig: dict, n: int):
     crop's bottom sits above the drawing's own (bounce), so a recoil or a bounce is kept when the sheet is packed rather
     than cancelled by aligning every crop on its own bottom and centre."""
     kind = rig.get('kind')
-    r = (VehicleRig if kind == 'vehicle' else QuadRig if kind == 'mounted' else LegRig)(rgba, {**rig, **calibrate(rgba, rig)})
+    given = kind in GIVEN_KINDS
+    r = (RIG_CLASSES[kind] if given else QuadRig if kind == 'mounted' else LegRig)(rgba, {**rig, **calibrate(rgba, rig)})
     out = []
     for i in range(n):
-        im = np.array(r.frame(rig.get('action', 'move'), i, n) if kind == 'vehicle' else r.frame(i, n)).astype(np.float32) / 255.0
+        im = np.array(r.frame(rig.get('action', 'move'), i, n) if given else r.frame(i, n)).astype(np.float32) / 255.0
         ys, xs = np.where(im[..., 3] > 0.02)
         y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
         crop, mask = im[y0:y1, x0:x1], im[y0:y1, x0:x1, 3] > 0.5
-        out.append((crop, mask, r.rest_x - x0, r.rest_bottom - y1) if kind == 'vehicle' else (crop, mask))
+        out.append((crop, mask, r.rest_x - x0, r.rest_bottom - y1) if given else (crop, mask))
     return out
 
 
@@ -802,7 +853,7 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
                 prepared = group[-1]['prepared']
             group.append({'state': name, 'fps': st['fps'], 'loop': st.get('loop', True), 'prepared': prepared,
                           'steel': 1.0, 'scale': by_state[origin]['scale'], 'note': st.get('note', ''),
-                          'anchor': 'given' if rig.get('kind') == 'vehicle' else st.get('anchor', 'feet'), 'match': None,
+                          'anchor': 'given' if rig.get('kind') in GIVEN_KINDS else st.get('anchor', 'feet'), 'match': None,
                           'tier_group': st['state']})
     rows = [r for group in slots for r in group]
 
