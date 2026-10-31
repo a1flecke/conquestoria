@@ -299,6 +299,61 @@ print(json.dumps({'tiers': man['tiers'], 'same': bool(np.array_equal(sheet[a * H
   });
 });
 
+// A synthetic mounted figure: a red body (rows 60-479) over four posts (rows 480-689): hind-far blue, hind-near green,
+// fore-far yellow, fore-near purple. `posts` keeps only the first n of them.
+const QUAD = `
+POSTS = [((0, 0, 255, 255), 130), ((0, 200, 0, 255), 210), ((230, 230, 0, 255), 390), ((160, 0, 200, 255), 470)]
+def quad(img, posts=4):
+    d = ImageDraw.Draw(img)
+    d.rectangle((100, 60, 520, 479), fill=(224, 16, 16, 255))
+    for colour, x in POSTS[:posts]:
+        d.rectangle((x, 480, x + 30, 689), fill=colour)
+`;
+
+describe.skipIf(!haveDeps)('strips.py four-leg rig (#364 prototype)', () => {
+  const quadPy = (root: string, body: string): any =>
+    JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${QUAD}\n${body}`], { encoding: 'utf8' }));
+
+  it('four legs, one gait: two hooves down in every frame, each leg leads at its own phase', () => {
+    const { root } = sandbox();
+    const out = quadPy(root, `
+img = Image.new('RGBA', (640, 760), (0, 0, 0, 0)); quad(img)
+rows = []
+for rgba, mask in m.walk_frames(np.array(img), {'kind': 'mounted', 'shafts': 0}, 8):
+    a = rgba[..., 3] > 0.5
+    ground = np.where(a.any(1))[0].max()
+    body = np.where(a & (rgba[..., 0] > 0.8) & (rgba[..., 1] < 0.2) & (rgba[..., 2] < 0.2))[1].mean()
+    legs = []
+    for colour, _ in POSTS:
+        c = np.array(colour[:3]) / 255.0
+        near = a & (np.abs(rgba[..., :3] - c).sum(-1) < 0.25)
+        ys, xs = np.where(near)
+        legs.append({'x': float(xs.mean() - body), 'down': bool(ys.max() >= ground - 2)})
+    rows.append(legs)
+print(json.dumps(rows))
+`);
+    for (const frame of out) expect(frame.filter((l: { down: boolean }) => l.down).length).toBeGreaterThanOrEqual(2);
+    const lead = [0, 1, 2, 3].map((k) => out.map((f: { x: number }[]) => f[k].x).indexOf(Math.max(...out.map((f: { x: number }[]) => f[k].x))));
+    // hind-far 0.0, hind-near 0.5, fore-far 0.75, fore-near 0.25 of the cycle
+    expect(lead).toEqual([0, 4, 6, 2]);
+  });
+
+  it('three posts fail: calibrate exits 1 naming the expected four legs', () => {
+    const { root, sources, tool } = sandbox();
+    draw(`${QUAD}
+img = Image.new('RGBA', (640, 760), (0, 0, 0, 0)); quad(img, 3)
+img.save(${JSON.stringify(join(sources, 'a.png'))})
+`);
+    const spec = writeSpec(root, [
+      { state: 'idle', file: 'a', cells: 1, fps: 4 },
+      { state: 'walkrig', cells: 8, fps: 10, rig: { kind: 'mounted', source: 'a' } },
+    ]);
+    const r = run(tool, ['calibrate', spec, '--sources', sources]);
+    expect(r.status, r.stdout + r.stderr).toBe(1);
+    expect(r.stdout).toMatch(/expected 4 legs/);
+  });
+});
+
 const BIPED_PROMPT = {
   name: 'Archer', look: 'A lean young archer with a leather hood.', team_area: 'his tunic', identity: 'the same hood, tunic and bow',
   weapon_pose: 'He holds the bow upright in his left hand.', attack_frames: 6, attack: '(1) ready; (2) draw; (3) release.',
