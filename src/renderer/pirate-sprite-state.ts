@@ -36,10 +36,10 @@ type PersistentVisualState = Omit<PirateSpriteVisualState, 'state' | 'expiresAtM
 // shared 420ms window flipped `data-state` back to idle just past the strike frame,
 // so all the player ever saw was a truncated pulse (#916). Mirrors WORK_STATE_MS's
 // "long enough to see the loop play at least once" convention.
-const ATTACK_STATE_MS = 1_500;
+export const ATTACK_STATE_MS = 1_500;
 // `cq2-hurt` is a 0.55s one-shot (single iteration). 700ms clears it with margin
 // without freezing the struck unit in a recoil pose the way ATTACK_STATE_MS would.
-const HURT_STATE_MS = 700;
+export const HURT_STATE_MS = 700;
 /**
  * How long a unit / landmark stays in the `death` sprite state. Exported because
  * `render-loop.ts` keeps a parallel death *snapshot* (the dead entity's data,
@@ -55,6 +55,8 @@ const WORK_STATE_MS = 1_400;
 
 interface TransientState {
   state: PirateSpriteState;
+  /** When this transient began; a renewed one (a second attack) has a later start, which is how the sprite player knows to replay. */
+  startedAtMs: number;
   expiresAtMs?: number;
   mode?: PirateSpriteMode;
 }
@@ -95,27 +97,29 @@ export class PirateSpriteStateController {
       case 'combat':
         this.transients.set(event.attackerId, {
           state: event.attackerSurvived ? 'attack' : 'death',
+          startedAtMs: nowMs,
           expiresAtMs: nowMs + (event.attackerSurvived ? ATTACK_STATE_MS : DEATH_STATE_MS),
         });
         this.transients.set(event.defenderId, {
           state: event.defenderSurvived ? 'hurt' : 'death',
+          startedAtMs: nowMs,
           expiresAtMs: nowMs + (event.defenderSurvived ? HURT_STATE_MS : DEATH_STATE_MS),
         });
         return;
       case 'destroyed':
-        this.transients.set(event.entityId, { state: 'death', expiresAtMs: nowMs + DEATH_STATE_MS });
+        this.transients.set(event.entityId, { state: 'death', startedAtMs: nowMs, expiresAtMs: nowMs + DEATH_STATE_MS });
         return;
       case 'attack':
-        this.transients.set(event.entityId, { state: 'attack', expiresAtMs: nowMs + ATTACK_STATE_MS });
+        this.transients.set(event.entityId, { state: 'attack', startedAtMs: nowMs, expiresAtMs: nowMs + ATTACK_STATE_MS });
         return;
       case 'hurt':
-        this.transients.set(event.entityId, { state: 'hurt', expiresAtMs: nowMs + HURT_STATE_MS });
+        this.transients.set(event.entityId, { state: 'hurt', startedAtMs: nowMs, expiresAtMs: nowMs + HURT_STATE_MS });
         return;
       case 'work':
-        this.transients.set(event.entityId, { state: 'work', expiresAtMs: nowMs + WORK_STATE_MS });
+        this.transients.set(event.entityId, { state: 'work', startedAtMs: nowMs, expiresAtMs: nowMs + WORK_STATE_MS });
         return;
       case 'relocation-started':
-        this.transients.set(event.entityId, { state: 'walk', mode: 'relocating' });
+        this.transients.set(event.entityId, { state: 'walk', startedAtMs: nowMs, mode: 'relocating' });
         return;
       case 'relocation-finished':
         this.transients.delete(event.entityId);
@@ -162,5 +166,16 @@ export class PirateSpriteStateController {
       return 'idle';
     }
     return transient.state;
+  }
+
+  /**
+   * When the live transient for this entity began, or 0 when it has none (or it has expired). Two plays of the same clip differ
+   * only by this value, so it is what lets the sprite player restart a one-shot that was renewed while it was still playing.
+   */
+  resolveTransientEpoch(entityId: string, nowMs: number): number {
+    const transient = this.transients.get(entityId);
+    if (!transient) return 0;
+    if (transient.expiresAtMs !== undefined && transient.expiresAtMs <= nowMs) return 0;
+    return transient.startedAtMs;
   }
 }

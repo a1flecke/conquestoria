@@ -138,6 +138,7 @@ export function buildUnitEntities(
       subtype: presentation.leadUnit.type,
       coord: presentation.coord,
       state: entityState,
+      stateEpoch: combatState === 'idle' ? 0 : pirateSpriteState.resolveTransientEpoch(presentation.leadUnitId, nowMs),
       faction: presentation.faction,
       damage: visual?.damage ?? presentation.damage,
       stackCount: presentation.stackCount,

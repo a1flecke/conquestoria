@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  HURT_STATE_MS,
   PirateSpriteStateController,
   derivePirateSpriteMode,
 } from '@/renderer/pirate-sprite-state';
@@ -26,6 +27,22 @@ describe('PirateSpriteStateController', () => {
       .toEqual({ state: 'idle', mode: 'patrol', damage: 2, tier: 1, stage: 2 });
     expect(controller.resolve('pirate-ship', { mode: 'blockade', damage: 1, tier: 3, stage: 3 }, 2_600))
       .toEqual({ state: 'idle', mode: 'blockade', damage: 1, tier: 3, stage: 3 });
+  });
+
+  it('gives a renewed attack a new epoch, so the sprite player replays it (#1627)', () => {
+    const controller = new PirateSpriteStateController();
+    controller.apply({ type: 'attack', entityId: 'unit-1' }, 1_000);
+    expect(controller.resolveTransientEpoch('unit-1', 1_100)).toBe(1_000);
+    controller.apply({ type: 'attack', entityId: 'unit-1' }, 1_800);
+    expect(controller.resolveTransientEpoch('unit-1', 1_900)).toBe(1_800);
+  });
+
+  it('has epoch 0 for an entity with no live transient, including one that has just expired (#1627)', () => {
+    const controller = new PirateSpriteStateController();
+    expect(controller.resolveTransientEpoch('nobody', 500)).toBe(0);
+    controller.apply({ type: 'hurt', entityId: 'unit-2' }, 1_000);
+    expect(controller.resolveTransientEpoch('unit-2', 1_000 + HURT_STATE_MS - 1)).toBe(1_000);
+    expect(controller.resolveTransientEpoch('unit-2', 1_000 + HURT_STATE_MS)).toBe(0);
   });
 
   it('keeps death visible longer than a hit and then removes the transient entry', () => {
