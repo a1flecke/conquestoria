@@ -111,6 +111,17 @@ describe('SpriteOverlay with a strip unit', () => {
     expect((wrappers[1] as HTMLElement).style.overflow).toBe('hidden');
   });
 
+  it('draws a strip unit\'s selection ring past its box, and keeps the ring of a puppet unit inside it', () => {
+    const { overlay, mount } = mountOverlay();
+    overlay.sync(cam(), [
+      entity({ selected: true }),
+      entity({ id: 'u2', subtype: 'horseman', coord: { q: 1, r: 0 }, selected: true }),
+    ], MAP, OPTS);
+    const rings = mount.querySelectorAll<HTMLElement>('.cq-unit-selected');
+    expect(rings[0].style.inset).toBe('-22%');
+    expect(rings[1].style.inset).toBe('4%');
+  });
+
   it('places the strip cell inside the box from its layout', () => {
     const { overlay, mount } = mountOverlay();
     overlay.sync(cam(), [entity()], MAP, OPTS);
