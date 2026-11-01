@@ -162,9 +162,17 @@ gradients for banding at the screenshot review), the mask is grey plus alpha.
 - a standing pose or walk frame reaches outside the unit box placed on the feet line (lower `--scale`, or redraw it smaller);
 - the sheet and mask are over 640 KB on disk or 24 MiB decoded (`--max-kb`, `--max-mib` override this for experiments).
 
-Results on the six previews at 0.75: Spearman 158 KB and 12.1 MiB, Archer 248 KB and 11.8 MiB, Horseman 281 KB and 12.7 MiB,
-Tank 154 KB and 11.0 MiB, Ironclad 71 KB and 7.6 MiB. The **Biplane is refused**: its idle pose sits 29 px left of the middle of
-its cell while the rows built in code are centred. A drawn row is anchored on the mean x of its lowest 10% of rows (`anchor_x`,
-`'feet'`), which for an aircraft is the undercarriage, well forward of the middle of a long tail, while the rig rows are centred on
-their bounding box. The fix is to anchor the idle row of a `flight` or `naval` spec on its bounding box in `build`, then rebuild
-the preview from the originals (planned as part of Task 9).
+Results at 0.75 (Ironclad after its `restHeight` rise, Biplane after the anchor fix below): Spearman 158 KB and 12.1 MiB, Archer
+248 KB and 11.8 MiB, Horseman 281 KB and 12.7 MiB, Tank 154 KB and 11.0 MiB, Ironclad 123 KB and 11.0 MiB, Biplane 224 KB and
+9.3 MiB.
+
+**The Biplane used to be refused** (#1627): its idle pose sat 29 px left of the middle of its cell while the rows built in code
+were centred. A drawn row was anchored on the mean x of its lowest 10% of rows (`anchor_x`, `'feet'`), which for an aircraft is
+the undercarriage, well off the middle of a long tail, and the rig rows are centred on their bounding box. Drawn rows of a spec
+that has a `flight` or `naval` rig now default to `anchor: 'center'` (the middle of the drawing's box); a spec's own `anchor`
+still wins, and a biped keeps `'feet'` (`tests/scripts/sprite-strips-tool.test.ts`, "drawn rows of a flight or naval unit").
+
+**Size on the hex is a spec choice, not an export choice.** The Ironclad's first `restHeight` (58 of 192) made the ship fill 58%
+of the box width where the puppet filled 94%, so it read as a regression in the game. Compare the widest idle figure with the
+cell height (`idle figure width / cell height`: Tank 0.92, Biplane 0.74, Ironclad 0.88 after `restHeight` 88) when you pick
+`restHeight` for a low, wide unit, and look at it in `/?scenario=strip-units-showcase` next to the unit it replaces.
