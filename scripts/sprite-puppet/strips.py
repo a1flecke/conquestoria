@@ -179,13 +179,21 @@ def steel_area(rgba: np.ndarray, m: np.ndarray) -> int:
 
 
 def anchor_x(mask: np.ndarray, how: str) -> float:
-    """Horizontal anchor of a frame: the boots ('feet'), the whole body ('mass') or the torso ('torso').
+    """Horizontal anchor of a frame: the boots ('feet'), the whole body ('mass'), the torso ('torso') or the middle of the
+    drawing's box ('center').
+
+    'center' is what the flight and naval rigs hand over for the rows they build, and so the default for the drawn rows of those
+    units: the lowest pixels of an aircraft are wheels hanging under one end, and of a ship a keel, so 'feet' would put the
+    standing pose off-centre against its own move row.
 
     'torso' (the band between 30% and 60% of the figure's height) keeps the body still while the legs swing, which is what a
     walk in place needs; 'feet' lets the body lunge or stagger while the boots stay planted, which suits an attack."""
     if how == 'mass':
         xs = np.where(mask)[1]
         return float(xs.mean())
+    if how == 'center':
+        xs = np.where(mask.any(0))[0]
+        return float((xs.min() + xs.max()) / 2) if xs.size else mask.shape[1] / 2
     if how == 'torso':
         h = mask.shape[0]
         band = mask[int(h * 0.30):int(h * 0.60)]
@@ -902,6 +910,8 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
     slots: list[list[dict]] = []
     by_state: dict[str, dict] = {}
     rig_states: list[tuple[dict, list[dict]]] = []
+    # a drawn row's default anchor is the boots; for a flight or naval unit it is the drawing's centre, like its built rows
+    default_anchor = 'center' if any((st.get('rig') or {}).get('kind') in ('flight', 'naval') for st in spec['states']) else 'feet'
     for st in spec['states']:
         if st.get('rig'):
             group: list[dict] = []
@@ -921,7 +931,7 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
             scale = rest_h / float(np.median([heights[i] for i in ref]))
         row = {'state': st['state'], 'fps': st['fps'], 'loop': st.get('loop', True), 'prepared': prepared,
                'steel': float(np.median(steel)), 'scale': scale, 'note': st.get('note', ''),
-               'anchor': st.get('anchor', 'feet'), 'match': st.get('matchSteelTo'), 'tier_group': None}
+               'anchor': st.get('anchor', default_anchor), 'match': st.get('matchSteelTo'), 'tier_group': None}
         slots.append([row])
         by_state[st['state']] = row
 

@@ -664,6 +664,77 @@ print(json.dumps(n))
   }, 60000);
 });
 
+describe.skipIf(!haveDeps)('strips.py drawn rows of a flight or naval unit (#1627)', { timeout: PYTHON_TOOL_TIMEOUT_MS }, () => {
+  // A drawn row anchors on the mean x of its lowest rows (the boots of a biped). An aircraft's lowest pixels are its wheels,
+  // which hang to one side of the fuselage, and a ship's are its keel or a ram; the rows built in code anchor on the drawing's
+  // own centre. So the standing pose sat off-centre against its own move row (the Biplane's idle was 29 px left), and the
+  // game's export refuses a unit whose standing pose is more than 12 px off the cell middle.
+  const centreOf = (root: string, out: string, state: string): number => py(root, `
+man = json.loads(Path(${JSON.stringify(join(out, 'manifest.json'))}).read_text())
+sheet = np.array(Image.open(${JSON.stringify(join(out, 'sheet.png'))}))
+W, H = man['cellWidth'], man['cellHeight']
+row = man['states'][${JSON.stringify(state)}]['row']
+a = sheet[row * H:(row + 1) * H, 0:W, 3] > 128
+xs = np.where(a.any(0))[0]
+print(json.dumps((int(xs.min()) + int(xs.max())) / 2 - W / 2))
+`);
+
+  it.each([['flight'], ['naval']])('a %s unit\'s standing pose is centred like its move row, whatever hangs below one side', kind => {
+    const { root, sources, tool } = sandbox();
+    draw(`
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0))
+d = ImageDraw.Draw(img)
+d.rectangle((100, 200, 600, 260), fill=(90, 90, 100, 255))     # the body
+d.rectangle((520, 260, 560, 330), fill=(60, 60, 70, 255))      # a wheel (or a keel) hanging below the right end only
+d.rectangle((300, 215, 420, 245), fill=(224, 16, 16, 255))     # the team-colour band
+img.save(${JSON.stringify(join(sources, 'a.png'))})
+`);
+    const spec = writeSpec(root, [
+      { state: 'idle', file: 'a', cells: 1, fps: 4 },
+      { state: 'move', cells: 8, fps: 12, rig: { kind, action: 'move', source: 'a', ...(kind === 'flight' ? { prop: false } : {}) } },
+    ]);
+    const out = join(root, 'out');
+    const r = run(tool, ['build', spec, '--sources', sources, '--out', out]);
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    const idle = centreOf(root, out, 'idle');
+    const move = centreOf(root, out, 'move');
+    expect(Math.abs(idle - move), `idle ${idle}, move ${move}`).toBeLessThanOrEqual(6);
+    expect(Math.abs(idle), `idle ${idle} from the cell middle`).toBeLessThanOrEqual(6);
+  }, 60000);
+
+  it('anchor_x: "feet" is still the mean of the lowest rows, and "center" is the middle of the drawing\'s box', () => {
+    const { root } = sandbox();
+    const out = py(root, `
+mask = np.zeros((100, 400), bool)
+mask[10:60, 50:150] = True      # the body: box middle x = 100 (x runs 50..349 once the foot is added)
+mask[60:100, 300:350] = True    # one foot far to the right, the only thing in the lowest rows
+print(json.dumps({'feet': m.anchor_x(mask, 'feet'), 'center': m.anchor_x(mask, 'center'), 'mass': m.anchor_x(mask, 'mass')}))
+`);
+    expect(out.feet, JSON.stringify(out)).toBeCloseTo(324.5, 1);   // the foot only
+    expect(out.center, JSON.stringify(out)).toBeCloseTo(199.5, 1); // (50 + 349) / 2
+  }, 30000);
+
+  it('an explicit anchor in the spec still wins over the family default', () => {
+    const { root, sources, tool } = sandbox();
+    draw(`
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0))
+d = ImageDraw.Draw(img)
+d.rectangle((100, 200, 600, 260), fill=(90, 90, 100, 255))
+d.rectangle((520, 260, 560, 330), fill=(60, 60, 70, 255))
+d.rectangle((300, 215, 420, 245), fill=(224, 16, 16, 255))
+img.save(${JSON.stringify(join(sources, 'a.png'))})
+`);
+    const spec = writeSpec(root, [
+      { state: 'idle', file: 'a', cells: 1, fps: 4, anchor: 'feet' },
+      { state: 'move', cells: 8, fps: 12, rig: { kind: 'flight', action: 'move', source: 'a', prop: false } },
+    ]);
+    const out = join(root, 'out');
+    const r = run(tool, ['build', spec, '--sources', sources, '--out', out]);
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    expect(Math.abs(centreOf(root, out, 'idle')), 'the spec asked for the old boots anchor').toBeGreaterThan(6);
+  }, 60000);
+});
+
 describe.skipIf(!haveDeps)('strips.py family defaults (#364 prototype)', { timeout: PYTHON_TOOL_TIMEOUT_MS }, () => {
   const defaultsPy = (root: string, body: string): any =>
     JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${VEHICLE}\n${body}`], { encoding: 'utf8' }));
