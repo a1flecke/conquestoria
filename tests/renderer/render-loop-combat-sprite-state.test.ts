@@ -103,6 +103,40 @@ describe('render-loop — non-pirate combat sprite state', () => {
     expect(defenderWrap?.getAttribute('data-state')).toBe('hurt');
   });
 
+  it('hands the sprite player the start time of the combat pulse, and a renewed one has a later start (#1627)', () => {
+    const { canvas, mount } = createMountedCanvas();
+    const loop = new RenderLoop(canvas);
+    const attacker = {
+      id: 'rifleman-1', type: 'rifleman', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false,
+      isResting: false,
+    } as unknown as Unit;
+    const defender = {
+      id: 'barbarian-1', type: 'warrior', owner: 'barbarian', position: { q: 1, r: 0 },
+      movementPointsLeft: 2, health: 60, experience: 0, hasMoved: false, hasActed: false,
+      isResting: false,
+    } as unknown as Unit;
+    loop.setGameState(buildTestState(attacker, defender));
+    loop.camera.isHexVisible = () => true;
+    const result = {
+      attackerId: attacker.id, defenderId: defender.id, attackerDamage: 10, defenderDamage: 40,
+      attackerSurvived: true, defenderSurvived: true, attackerStrength: 10, defenderStrength: 6,
+      attackerPosition: attacker.position, defenderPosition: defender.position,
+    } as CombatResult;
+    const render = () => (loop as unknown as { render: () => void }).render();
+    const keyOf = () => (mount.querySelector(`[data-entity-id="${attacker.id}"]`)?.firstElementChild as HTMLElement).getAttribute('data-png-key');
+
+    const first = performance.now();
+    loop.applyCombatVisual(result, first);
+    render();
+    expect(keyOf()).toBe(`attack:0:${first}`); // the rifleman is a PNG unit: state, damage tier, epoch
+
+    const second = first + 0.5; // inside the first attack's 1.5 s hold
+    loop.applyCombatVisual(result, second);
+    render();
+    expect(keyOf()).toBe(`attack:0:${second}`);
+  });
+
   it('returns to idle after the combat pulse window expires', () => {
     const { canvas, mount } = createMountedCanvas();
     const loop = new RenderLoop(canvas);
