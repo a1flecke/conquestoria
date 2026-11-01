@@ -9,6 +9,9 @@ import {
   getImprovementSpriteV2,
   getPirateHeadquartersSpriteV2,
 } from './sprites/v2/index';
+import { getPngUnitManifest } from './sprites/png/png-sprite-catalog';
+import { applyPngPlayback } from './sprites/png/png-sprite-playback';
+import type { PngUnitSprite } from './sprites/png/png-sprite-types';
 import type { Camera } from './camera';
 import type { HexCoord } from '@/core/types';
 import { applyUnitAnchorOffset, getUnitLayoutMetrics } from './unit-map-presentation';
@@ -46,6 +49,11 @@ export interface SpriteEntity {
    * Always 0 for non-combat units (strength === 0). Defaults to 0 when absent.
    */
   damage?: number;
+  /**
+   * When the unit's current transient state (attack, hurt, death) began, 0 or absent for none. A one-shot clip replays when
+   * this changes, so a second attack inside the first one's hold is seen.
+   */
+  stateEpoch?: number;
   /** Canonical unit IDs represented by this one static stack element. */
   memberIds?: string[];
   stackCount?: number;
@@ -163,6 +171,8 @@ export class SpriteOverlay {
           // Pool hit — update state via setAttribute (no node replacement!)
           existing.spriteWrapEl.setAttribute('data-state', entity.state);
           existing.spriteWrapEl.setAttribute('data-damage', String(entity.damage ?? 0));
+          const pngSprite = pngSpriteFor(existing.spriteWrapEl, entity);
+          if (pngSprite) applyPngPlayback(existing.spriteWrapEl, pngSprite, entity.state, entity.damage, entity.stateEpoch ?? 0, existing.phase);
           setLandmarkAttributes(existing.spriteWrapEl, entity);
           existing.memberIds = entity.memberIds ?? [entity.id];
           existing.el.dataset.entityId = entity.id;
@@ -213,6 +223,12 @@ export class SpriteOverlay {
           spriteWrapEl.style.setProperty('--phase', String(phase));
           spriteWrapEl.setAttribute('data-state', entity.state);
           spriteWrapEl.setAttribute('data-damage', String(entity.damage ?? 0));
+          const newPngSprite = pngSpriteFor(spriteWrapEl, entity);
+          if (newPngSprite) {
+            applyPngPlayback(spriteWrapEl, newPngSprite, entity.state, entity.damage, entity.stateEpoch ?? 0, phase);
+            // a strip cell is wider than the unit box (a spear thrust) and may reach above it: do not clip it
+            if (newPngSprite.baseline !== null) wrapper.style.overflow = 'visible';
+          }
           setLandmarkAttributes(spriteWrapEl, entity);
           if (entity.kind === 'unit') updateUnitDecorations(wrapper, entity);
 
@@ -282,6 +298,12 @@ export class SpriteOverlay {
       for (const memberId of entry.memberIds) this._activeIds.add(memberId);
     }
   }
+}
+
+/** The PNG sprite behind a pooled element, or null for an SVG sprite (the element says which player built it). */
+function pngSpriteFor(el: HTMLElement, entity: SpriteEntity): PngUnitSprite | null {
+  if (entity.kind !== 'unit' || el.getAttribute('data-sprite-kind') !== 'png') return null;
+  return getPngUnitManifest(entity.subtype);
 }
 
 function getOrCreateDecoration(wrapper: HTMLElement, className: string): HTMLDivElement {
