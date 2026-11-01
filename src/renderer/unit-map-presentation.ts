@@ -100,7 +100,8 @@ export function getFaction(state: GameState, ownerId: string): string {
   return civilization ? civTypeToFaction(civilization.civType) : ownerId;
 }
 
-function getDamage(unit: Unit): number {
+/** Health-driven damage tier 0..3 shared by the DOM overlay and the Canvas layer. */
+export function getDamage(unit: Unit): number {
   const strength = UNIT_DEFINITIONS[unit.type]?.strength ?? 0;
   if (strength === 0 || unit.health >= 76) return 0;
   if (unit.health >= 51) return 1;

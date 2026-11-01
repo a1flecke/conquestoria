@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PNG_STRIP_FEET_LINE, getPngBakeGeometry, getPngCellPlacement } from '@/renderer/sprites/png/png-sprite-layout';
-import { getPngCanvasFrame } from '@/renderer/sprites/png/png-sprite-canvas';
+import { getPngCanvasDamageTiers, getPngCanvasFrame, pngCanvasCacheKey } from '@/renderer/sprites/png/png-sprite-canvas';
 import { buildPngUnitSpriteHtml } from '@/renderer/sprites/png/png-sprite-html';
 import { getPngUnitManifest } from '@/renderer/sprites/png/png-sprite-catalog';
 import type { PngUnitSprite } from '@/renderer/sprites/png/png-sprite-types';
@@ -69,5 +69,32 @@ describe('a strip unit\'s list icon and map overlay share one builder', () => {
     expect(html).toContain('--cell-width:125%');
     expect(html).toContain('--cell-left:-12.5%');
     expect(html).toContain('--cell-top:-11.6667%');
+  });
+});
+
+describe('canvas damage tiers (#1627)', () => {
+  const clip = (row: number, frames = 2) => ({ row, firstCol: 0, frames, fps: 4, loop: true });
+  const wounded = strip({
+    clips: {
+      idle: [clip(0), clip(1), clip(2), clip(3)],
+      walk: [clip(4, 6), clip(5, 6), clip(6, 4), clip(7, 6)],
+      attack: [clip(0), clip(0), clip(0), clip(0)],
+    },
+  });
+
+  it('bakes only the tiers whose idle or walk art differs from the healthy art', () => {
+    expect(getPngCanvasDamageTiers(wounded)).toEqual([1, 2, 3]);
+    expect(getPngCanvasDamageTiers(strip())).toEqual([]); // one clip repeated for every tier: nothing extra to bake
+  });
+
+  it('keeps the historical key for a healthy frame and suffixes the wounded ones', () => {
+    expect(pngCanvasCacheKey('tank', 'idle', 0)).toBe('tank:idle');
+    expect(pngCanvasCacheKey('tank', 'move-a', 2)).toBe('tank:move-a:d2');
+    expect(pngCanvasCacheKey('tank', 'idle', 9)).toBe('tank:idle:d3'); // odd values clamp like the DOM player
+  });
+
+  it('indexes the walk frame count by the unit\'s tier', () => {
+    expect(getPngCanvasFrame(wounded, 'move-b', 2)).toEqual({ state: 'walk', frame: 5 % 4 });
+    expect(getPngCanvasFrame(wounded, 'move-b', 0)).toEqual({ state: 'walk', frame: 5 });
   });
 });

@@ -9,7 +9,7 @@ import { BUILDING_ART } from '../buildings/building-art-catalog';
 import { buildBuildingArtSvg } from '../buildings/building-art-sprite';
 import { loadBuildingArtDataUri } from '../buildings/building-art-data-uri';
 import { getPngUnitManifest } from './png/png-sprite-catalog';
-import { bakePngUnitImage } from './png/png-sprite-canvas';
+import { bakePngUnitImage, getPngCanvasDamageTiers, pngCanvasCacheKey } from './png/png-sprite-canvas';
 import type { UnitType } from '@/core/types';
 import type { FactionPalette } from './sprite-system';
 import type { UnitSpriteMotion } from './units';
@@ -303,6 +303,21 @@ class SpriteCache {
           if (motion === 'idle') bucket.units.set(id, img);
         });
         (motion === 'idle' ? visibleWork : motionWork).push(load);
+        // #1627: a strip unit with tiered art also bakes its wounded frames, so the low-zoom layer shows the same damage the DOM player does.
+        const tierManifest = getPngUnitManifest(id);
+        if (tierManifest) {
+          for (const tier of getPngCanvasDamageTiers(tierManifest)) {
+            const tierKey = pngCanvasCacheKey(id, motion, tier);
+            if (bucket.units.has(tierKey)) continue;
+            motionWork.push(spriteLoadQueue.schedule(SPRITE_PRIORITY.motion, async () => {
+              if (!isCurrent()) return;
+              const baked = await bakePngUnitImage(tierManifest, civColor, motion, tier)
+                .then(img => attachSpriteDiagnosticMetadata(img, { ...metadata, motion }))
+                .catch(() => null);
+              if (baked && isCurrent()) bucket.units.set(tierKey, baked); // a failure keeps the healthy frame
+            }));
+          }
+        }
       }
     }
 
@@ -419,15 +434,17 @@ class SpriteCache {
     return civId === PIRATE_OWNER_FAMILY ? this.pirateUnits : this.civs.get(civId)?.units;
   }
 
-  getUnit(type: UnitType, civId: string): HTMLImageElement | null {
-    const image = this.unitsFor(civId)?.get(type);
+  getUnit(type: UnitType, civId: string, damage = 0): HTMLImageElement | null {
+    const units = this.unitsFor(civId);
+    const image = (damage > 0 ? units?.get(pngCanvasCacheKey(type, 'idle', damage)) : undefined) ?? units?.get(type);
     if (image) return image;
     this.requestInBackground(type, civId);
     return null;
   }
 
-  getUnitMotion(type: UnitType, civId: string, motion: UnitSpriteMotion): HTMLImageElement | null {
-    const image = this.unitsFor(civId)?.get(`${type}:${motion}`);
+  getUnitMotion(type: UnitType, civId: string, motion: UnitSpriteMotion, damage = 0): HTMLImageElement | null {
+    const units = this.unitsFor(civId);
+    const image = (damage > 0 ? units?.get(pngCanvasCacheKey(type, motion, damage)) : undefined) ?? units?.get(`${type}:${motion}`);
     if (image) return image;
     this.requestInBackground(type, civId);
     return null;

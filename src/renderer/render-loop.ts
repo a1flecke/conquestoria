@@ -21,7 +21,7 @@ import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
 import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { SpriteOverlay } from './sprite-overlay';
 import type { SpriteEntity } from './sprite-overlay';
-import { buildUnitMapPresentations, getFaction } from './unit-map-presentation';
+import { buildUnitMapPresentations, getDamage, getFaction } from './unit-map-presentation';
 import { hasPngDeathClip } from './sprites/png/png-sprite-catalog';
 import { isPirateOwner } from '@/core/owner-kind';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
@@ -1319,7 +1319,7 @@ export class RenderLoop {
       const visual = resolveUnitVisual(this.state, animation.unit, colorLookup, frame.motion);
       const useSprites = this.camera.zoom >= LOD_SPRITE_ZOOM_THRESHOLD;
       const sprite = useSprites
-        ? spriteCache.getUnitMotion(animation.unit.type, visual.spriteOwnerId, frame.motion)
+        ? spriteCache.getUnitMotion(animation.unit.type, visual.spriteOwnerId, frame.motion, getDamage(animation.unit))
         : null;
       for (const renderCoord of overlayActiveIds.has(animation.unit.id) ? [] : renderCoords) {
         if (!this.camera.isHexVisible(renderCoord)) continue;
