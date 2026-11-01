@@ -127,6 +127,44 @@ and read the propeller from the drawing. The Tank is under the limit too: its tr
 silhouette and its gun is found in the top 30% of the figure, so `tank.json` sets no rig key by hand. Every family is within
 the key limit.
 
-The game-side PR that the previews do not need (non-square cells, hurt/death/work rows, play-once, tier rows, the death
-snapshot for all units) is listed in `design/png-sprites/previews/spearman/README.md` and tracked with the rollout in #1627.
-Nothing here is wired into the game.
+## Export to the game (#1627)
+
+The game's PNG player now takes wide cells, a pose per damage tier, play-once one-shots and a death pose (#1634). `export`
+repacks an approved preview into the files it plays; it does not wire a unit in (that is a catalog row, done per unit on the
+owner's word).
+
+```
+python3 -I scripts/sprite-puppet/strips.py export scripts/sprite-puppet/strip-rigs/<id>.json [--scale 0.75]
+```
+
+It reads `design/png-sprites/previews/<id>/` and writes `public/images/units/<id>/{sheet,mask}.png` and
+`src/renderer/sprites/png/generated/<id>.manifest.ts` (a `PngUnitSprite`; never hand-edit it). Nothing is written unless every
+check passes.
+
+| Game row | Built from the preview | Played |
+|---|---|---|
+| poses (row 0) | idle frame 0, then column 1 to 3 of the damage row (tiers 0 to 3) | one still frame per tier |
+| walk | `walkrig`, else `move`, else `walk`; one row per tier when the preview has a tier group (tier t is the group's entry t + 1, as the viewer shows it), else one row for all tiers | loop |
+| attack | `attack`, else `fire` | once, then holds its last frame |
+| hurt | `hit` | once |
+| death | `defeat`, else `wreck`, `sinking`, `down` | once |
+
+The drawn walk, the master walk and a `work` row are not exported: the game never plays them. Cells are scaled by `--scale`
+(default 0.75: the largest on-screen unit box is about 86 CSS px, and the Spearman's wide thrust would take 36 MiB at full size).
+The sheet is a 256-colour palette PNG with no dither (median error 4, 99th percentile 17 of 255 on the six previews; watch smooth
+gradients for banding at the screenshot review), the mask is grey plus alpha.
+
+**It refuses**, naming the unit and the row, when:
+
+- a role is missing (no attack, hurt or death row);
+- a one-shot is longer than the game holds it (attack 1.5 s, hurt 0.7 s, death 1.2 s, mirrored from `pirate-sprite-state.ts` and pinned by a test), so the clip would be cut off;
+- the idle pose is more than 12 px from the middle of its cell, or a standing pose or walk frame is more than 12 px from the idle pose (a unit would jump when it starts to move). One-shots are not held to this: a thrust and a recoil legitimately move the figure;
+- a standing pose or walk frame reaches outside the unit box placed on the feet line (lower `--scale`, or redraw it smaller);
+- the sheet and mask are over 640 KB on disk or 24 MiB decoded (`--max-kb`, `--max-mib` override this for experiments).
+
+Results on the six previews at 0.75: Spearman 158 KB and 12.1 MiB, Archer 248 KB and 11.8 MiB, Horseman 281 KB and 12.7 MiB,
+Tank 154 KB and 11.0 MiB, Ironclad 71 KB and 7.6 MiB. The **Biplane is refused**: its idle pose sits 29 px left of the middle of
+its cell while the rows built in code are centred. A drawn row is anchored on the mean x of its lowest 10% of rows (`anchor_x`,
+`'feet'`), which for an aircraft is the undercarriage, well forward of the middle of a long tail, while the rig rows are centred on
+their bounding box. The fix is to anchor the idle row of a `flight` or `naval` spec on its bounding box in `build`, then rebuild
+the preview from the originals (planned as part of Task 9).
