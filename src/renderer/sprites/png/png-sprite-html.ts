@@ -1,9 +1,9 @@
 import '@/assets/png-sprite-animations.css';
 import { FACTION_SPRITE_ACCENT, NEUTRAL_PNG_TINT } from '../faction-accent-colors';
 import { resolveAppAssetUrl } from '../../asset-url';
-import type { PngSpriteManifest, PngSpriteState } from './png-sprite-types';
+import type { PngPuppetState, PngUnitSprite } from './png-sprite-types';
 
-const STATES: readonly PngSpriteState[] = ['idle', 'walk', 'attack'];
+const STATES: readonly PngPuppetState[] = ['idle', 'walk', 'attack'];
 /** Colours reach a style attribute, so accept only hex notation (never a free-form string). */
 const SAFE_HEX = /^#[0-9a-fA-F]{3,8}$/;
 
@@ -21,11 +21,11 @@ function pct(n: number): string {
  * position, step count and loop duration. Percent positions follow background-position semantics: with the sheet sized
  * to `cols * 100%`, cell k sits at k / (cols - 1) * 100%.
  */
-export function getPngSpriteCssVars(manifest: PngSpriteManifest): Record<string, string> {
+export function getPngSpriteCssVars(manifest: PngUnitSprite): Record<string, string> {
   const { cols, rows } = manifest;
   const vars: Record<string, string> = { '--cols': String(cols), '--rows': String(rows) };
   for (const state of STATES) {
-    const s = manifest.states[state];
+    const s = manifest.clips[state][0];
     vars[`--${state}-y`] = pct(rows > 1 ? (s.row / (rows - 1)) * 100 : 0);
     vars[`--${state}-end`] = pct(cols > 1 ? ((s.frames - 1) / (cols - 1)) * 100 : 0);
     vars[`--${state}-steps`] = String(s.frames);
@@ -34,7 +34,7 @@ export function getPngSpriteCssVars(manifest: PngSpriteManifest): Record<string,
   return vars;
 }
 
-export function pngSpriteUrl(manifest: PngSpriteManifest, which: 'sheet' | 'mask'): string {
+export function pngSpriteUrl(manifest: PngUnitSprite, which: 'sheet' | 'mask'): string {
   return resolveAppAssetUrl(manifest[which]);
 }
 
@@ -43,7 +43,7 @@ export function pngSpriteUrl(manifest: PngSpriteManifest, which: 'sheet' | 'mask
  * case: the first element is `.cq-sprite-wrap`, state arrives as `data-state`, the phase offset as `--phase`.
  * Contains only values this module built (manifest paths, validated colour), so it is safe to insert as HTML.
  */
-export function buildPngUnitSpriteHtml(manifest: PngSpriteManifest, tint: string): string {
+export function buildPngUnitSpriteHtml(manifest: PngUnitSprite, tint: string): string {
   const vars = Object.entries(getPngSpriteCssVars(manifest)).map(([k, v]) => `${k}:${v}`).join(';');
   const sheet = pngSpriteUrl(manifest, 'sheet');
   const mask = pngSpriteUrl(manifest, 'mask');

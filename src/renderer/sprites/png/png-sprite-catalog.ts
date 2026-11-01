@@ -1,4 +1,5 @@
-import type { PngSpriteManifest } from './png-sprite-types';
+import type { PngSpriteManifest, PngUnitSprite } from './png-sprite-types';
+import { fromPuppetManifest } from './png-sprite-normalise';
 import { manifest as cavalry } from './generated/cavalry.manifest';
 import { manifest as biplane } from './generated/biplane.manifest';
 import { manifest as horseman } from './generated/horseman.manifest';
@@ -15,9 +16,12 @@ import { manifest as tank } from './generated/tank.manifest';
  * rendered by the PNG player (DOM overlay and Canvas); every other unit keeps its SVG sprite. Moving a unit across is
  * one row here plus its generated manifest — and moving it back is deleting the row.
  *
+ * Puppet units (`puppet.py`) are generated as `PngSpriteManifest` and converted once by `fromPuppetManifest`; strip units
+ * (`strips.py export`) are generated as `PngUnitSprite` and listed directly.
+ *
  * Recipe: scripts/sprite-puppet/README.md.
  */
-const PNG_UNIT_SPRITES: Readonly<Record<string, PngSpriteManifest>> = {
+const PUPPET_UNITS: Readonly<Record<string, PngSpriteManifest>> = {
   biplane,
   cavalry,
   horseman,
@@ -30,7 +34,11 @@ const PNG_UNIT_SPRITES: Readonly<Record<string, PngSpriteManifest>> = {
   tank,
 };
 
-export function getPngUnitManifest(unitType: string): PngSpriteManifest | null {
+const PNG_UNIT_SPRITES: Readonly<Record<string, PngUnitSprite>> = Object.fromEntries(
+  Object.entries(PUPPET_UNITS).map(([id, manifest]) => [id, fromPuppetManifest(manifest)]),
+);
+
+export function getPngUnitManifest(unitType: string): PngUnitSprite | null {
   return PNG_UNIT_SPRITES[unitType] ?? null;
 }
 
@@ -38,6 +46,12 @@ export function isPngUnit(unitType: string): boolean {
   return unitType in PNG_UNIT_SPRITES;
 }
 
-export function listPngUnitManifests(): readonly PngSpriteManifest[] {
+export function listPngUnitManifests(): readonly PngUnitSprite[] {
   return Object.values(PNG_UNIT_SPRITES);
+}
+
+/** True when this unit's sprite has its own death clip, so a dead unit is worth keeping on the map for a moment. */
+export function hasPngDeathClip(unitType: string): boolean {
+  // Match against the list, not a keyed lookup: `getPngUnitManifest('__proto__')` is truthy (a plain-object table).
+  return listPngUnitManifests().some(sprite => sprite.id === unitType && sprite.clips.death !== undefined);
 }
