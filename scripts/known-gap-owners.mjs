@@ -45,8 +45,20 @@ function main(mode) {
   }
   const owners = registeredOwners(readFileSync(REGISTER, 'utf8'));
   if (owners.length === 0) {
-    console.error('known-gap-owners: found no `issue: \'#N\'` literals; has the register moved?');
-    return 2;
+    // #1479: an EMPTY register is the intended state after a clean matrix — no finding is accepted, so there is no
+    // owner to check. It is not a sign the register "moved": the parser reads the same file the ratchet reads, and
+    // the ratchet fails the run for any finding the register does not cover.
+    console.log('known-gap-owners: the register accepts no gaps, so there is no owner to verify.');
+    if (mode === 'refresh') {
+      const snapshot = {
+        _comment: 'Recorded GitHub state of every known-gap owner. Regenerate with ./scripts/dev.sh known-gap-owners-refresh; never edit by hand.',
+        checkedAt: new Date().toISOString().slice(0, 10),
+        owners: {},
+      };
+      writeFileSync(SNAPSHOT, `${JSON.stringify(snapshot, null, 2)}\n`);
+      console.log(`known-gap-owners: wrote ${SNAPSHOT}`);
+    }
+    return 0;
   }
   const states = {};
   try {

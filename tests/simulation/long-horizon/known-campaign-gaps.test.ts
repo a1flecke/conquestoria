@@ -3,7 +3,6 @@ import type { CampaignFindingCode } from './campaign-analysis';
 import {
   evaluateGapRatchet,
   findInvalidGapRegistrations,
-  KNOWN_CAMPAIGN_GAPS,
   type KnownCampaignGap,
   type RatchetFinding,
 } from './known-campaign-gaps';
@@ -29,8 +28,9 @@ const run = (entries: Array<[string, RatchetFinding[]]>, gaps = [scoped]) =>
 
 describe('known-gap ratchet v2 (#1407)', () => {
   it('the shipped register is well-formed', () => {
+    // #1479: an EMPTY register is legal — it is the state after a matrix run with no findings. The ratchet's first
+    // direction (an uncovered finding fails the run) is what keeps an empty register from hiding a new stall.
     expect(findInvalidGapRegistrations()).toEqual([]);
-    expect(KNOWN_CAMPAIGN_GAPS.length).toBeGreaterThan(0);
   });
 
   it('all accepted occurrences reproducing within budget: clean', () => {

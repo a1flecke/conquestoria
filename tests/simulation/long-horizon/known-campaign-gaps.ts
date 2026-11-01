@@ -97,6 +97,17 @@ export interface AcceptedOccurrence {
  * Every claim above is backed by a deterministic `.verification/ai-long-horizon/<seed>.json` artifact produced
  * from this branch and, for the two "already true before this branch" claims, from a d12b4e23 worktree.
  *
+ * What the 2026-10-31 re-audit of #1479 found (deterministic `lh-veteran-large` on main `3962a5ff`, per-round research
+ * dump preserved for the audit): the last remaining entry was a DETECTOR false positive, not an AI stall.
+ *
+ *   - `no-research-choice` ai-3 (490-496) completed a technology in EVERY one of those rounds — 246 -> 257 completed
+ *     techs, eleven technologies — and `applyAIResearch` started a new research in rounds 491-496 (round 490 already
+ *     had one active, whose completion made the overflow guard queue the successor). The civ's science
+ *     (~650/turn) simply exceeded every remaining technology's cost, so `processResearch` finished the newly chosen
+ *     technology in the same round and left `currentResearch` null at the sample point. The old predicate read that
+ *     null as "made no choice". `campaign-analysis.ts` now requires the round to have completed nothing as well, and
+ *     the entry is deleted: the matrix currently has no accepted gaps.
+ *
  * `lh-late-era-medium` uses `mapSeed: 'lh-1107-search-0'`; why that map was chosen (a recoverable 43-tile landmass
  * for `ai-1`) is in `docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md`.
  *
@@ -110,19 +121,11 @@ export interface AcceptedOccurrence {
  *     with an `ownerClosedRationale`.
  *   - Never re-point a still-reproducing finding at a closed issue, and never widen a budget to make a run pass: file
  *     or reuse an OPEN issue and attach the matrix run.
+ *   - An EMPTY register is a legal, intended state: it means the last matrix run produced no findings at all. The
+ *     ratchet's first direction still fails the run for any finding that is not covered, so an empty register can
+ *     never hide a new stall.
  */
-export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
-  {
-    code: 'no-research-choice',
-    issue: '#1479',
-    why: 'lh-veteran-large ai-3 selects no research for 7 consecutive rounds (492-498 on the d12b4e23 baseline run, '
-      + '490-496 on this branch) while techs are available; the detector threshold is 6. The registered ai-2 '
-      + 'occurrence no longer reproduced even before this branch, so it was replaced by the civ the baseline run '
-      + 'actually names. Not root-caused.',
-    scenarios: ['lh-veteran-large'],
-    accepted: [{ scenario: 'lh-veteran-large', civId: 'ai-3', maxRounds: 9 }],
-  },
-];
+export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [];
 
 export type UnknownFindingReason = 'unregistered' | 'new-civ' | 'worsened';
 
