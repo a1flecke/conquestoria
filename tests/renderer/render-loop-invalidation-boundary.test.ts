@@ -18,7 +18,7 @@ const CANVAS_INPUT_FIELDS = new Set([
   'religionBadgePresentation', 'airDefenseOverlayProviders', 'supplyOverlayPresentation',
   'airDefenseOverlayEnabledByViewer', 'supplyOverlayEnabledByViewer', 'highlights', 'journeyPath',
   'selectedUnitId', 'selectedPirateFactionId', 'strategicLaunchPreview', 'touchHandlerRef',
-  'unitMovementAnimations', 'pirateUnitDeathSnapshots', 'pirateLandmarkDeathSnapshots',
+  'unitMovementAnimations', 'unitDeathSnapshots', 'pirateLandmarkDeathSnapshots',
 ]);
 const EXEMPT_METHODS = new Map<string, string>([
   ['advance', 'retires expired death snapshots; the wake timer and overlayStale cover the repaint'],

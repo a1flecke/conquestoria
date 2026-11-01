@@ -92,7 +92,8 @@ function chooseLead(state: GameState, viewerId: string, stack: Unit[], selectedU
   return [...stack].sort((a, b) => a.id.localeCompare(b.id))[0];
 }
 
-function getFaction(state: GameState, ownerId: string): string {
+/** The sprite faction an owner's units are drawn in: pirates and crisis forces have their own; a civilization maps from its civ type; any other owner id stands for itself. */
+export function getFaction(state: GameState, ownerId: string): string {
   if (isPirateOwner(ownerId)) return 'pirates';
   if (isCrisisForceOwner(ownerId)) return 'crisis';
   const civilization = state.civilizations?.[ownerId];
