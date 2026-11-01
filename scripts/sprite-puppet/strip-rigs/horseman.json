@@ -17,8 +17,8 @@
   "frame": { "height": 192, "baseline": 176, "restHeight": 150 },
   "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
   "states": [
-    { "state": "idle",    "file": "a", "cells": 1, "fps": 4 },
-    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "idle",    "file": "a", "cells": 1, "fps": 4, "anchor": "torso", "note": "anchored on the torso like the walk, so the unit does not jump when it starts to move" },
+    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "anchor": "torso", "note": "idle pose at damage tiers 0-3, anchored on the torso like the walk" },
     { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso",
       "note": "walk built in code from the master and from each damage drawing; the four legs alternate by construction",
       "rig": { "kind": "mounted", "sources": ["a", "b#0", "b#1", "b#2", "b#3"] } },
