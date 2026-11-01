@@ -23,3 +23,27 @@ export function getPngCellPlacement(sprite: PngUnitSprite): PngCellPlacement {
     topPct: (PNG_STRIP_FEET_LINE - sprite.baseline / sprite.cellHeight) * 100,
   };
 }
+
+/**
+ * Where the Canvas bake copies a cell from and to. The bake draws into a square `side x side` image (the unit box), so a
+ * strip cell, wider than the box, is centred in it and lifted onto the feet line exactly as the DOM player places it; a
+ * puppet cell is already square and fills it (`dx = dy = 0`). `col` is the sheet column of the frame being baked.
+ */
+export interface PngBakeGeometry {
+  side: number;
+  sx: number;
+  sy: number;
+  dx: number;
+  dy: number;
+}
+
+export function getPngBakeGeometry(sprite: PngUnitSprite, row: number, col: number): PngBakeGeometry {
+  const side = sprite.cellHeight;
+  return {
+    side,
+    sx: col * sprite.cellWidth,
+    sy: row * sprite.cellHeight,
+    dx: (side - sprite.cellWidth) / 2,
+    dy: (getPngCellPlacement(sprite).topPct / 100) * side,
+  };
+}
