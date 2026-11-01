@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { listPngUnitManifests } from '@/renderer/sprites/png/png-sprite-catalog';
 
 // docs/asset-rights-ledger.md states how many assets each AI generator produced. It is a hand-written record, so this
 // pins its counts to the provenance files: adding or removing a generated asset without updating the ledger fails here.
@@ -19,6 +20,10 @@ const wonders = records('design/wonder-art');
 const portraits = records('design/general-portraits');
 const codexImages = records('design/wonder-codex-images');
 const buildingArt = records('design/building-art');
+// strip units (strips.py export): one provenance record per shipped strip unit, kept beside its approved preview
+const stripUnits = listPngUnitManifests()
+  .filter(m => m.baseline !== null)
+  .map(m => JSON.parse(readFileSync(resolve(ROOT, 'design/png-sprites/previews', m.id, 'provenance.json'), 'utf8')) as Record<string, unknown>);
 
 const generator = (r: Record<string, unknown>) => String(r.generator ?? '');
 const portraitTitle = (r: Record<string, unknown>) => String(r.title ?? '');
@@ -30,6 +35,7 @@ const counts = {
   'ChatGPT image generation (General portrait)': portraits.filter(r => portraitTitle(r).startsWith('ChatGPT')).length,
   'ChatGPT image generation (codex illustrations)': codexImages.filter(r => String(r.generator ?? '').startsWith('ChatGPT')).length,
   'ChatGPT image generation (building sprites)': buildingArt.filter(r => String(r.generator ?? '').startsWith('ChatGPT')).length,
+  'ChatGPT image generation (unit strips)': stripUnits.filter(r => String(r.generator ?? '').startsWith('ChatGPT')).length,
   'Public-domain artwork (General portraits)': portraits.filter(r => r.licence === 'Public domain').length,
 };
 
@@ -42,7 +48,7 @@ describe('asset rights ledger', () => {
 
   it('every provenance record belongs to a ledger family (nothing generated is unaccounted for)', () => {
     const accounted = Object.values(counts).reduce((a, b) => a + b, 0);
-    expect(accounted).toBe(units.length + wonders.length + portraits.length + codexImages.length + buildingArt.length);
+    expect(accounted).toBe(units.length + wonders.length + portraits.length + codexImages.length + buildingArt.length + stripUnits.length);
   });
 
   it('states the release posture and the commercial-release gate, and makes no clearance claim', () => {

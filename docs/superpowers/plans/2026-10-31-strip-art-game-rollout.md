@@ -308,7 +308,7 @@ of its hex is `'visible'` (the check that exists today).
   about 40 px left of its move rows; Task 9 fixes it), the other five pass.
 - [ ] **Step 5:** Commit: `art: strips.py export writes a game sheet within budget from an approved preview (#1627)`.
 
-### Task 8: Spearman and Archer in the game
+### Task 8: Spearman and Archer in the game  🟡 in PR; waiting on the owner's screenshot gate (Step 5)
 
 These two are SVG units today, so nothing painted is replaced.
 

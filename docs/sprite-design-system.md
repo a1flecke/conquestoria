@@ -46,7 +46,7 @@ sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you whi
 | warrior | ✅ sprite | melee |
 | swordsman | ✅ sprite | melee |
 | pikeman | ✅ sprite | melee |
-| archer | ✅ sprite | ranged |
+| archer | ✅ painted strips (#1627) | ranged |
 | musketeer | ✅ sprite | ranged |
 | galley | ✅ sprite | naval |
 | trireme | ✅ sprite | naval |
@@ -55,7 +55,7 @@ sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you whi
 | steamship | ✅ sprite | naval |
 | troop_transport | ✅ sprite | naval |
 | axeman | ✅ sprite | melee |
-| spearman | ✅ sprite | melee |
+| spearman | ✅ painted strips (#1627) | melee |
 | horseman | ✅ sprite | animal |
 | cavalry | ✅ sprite | animal |
 | knight | ✅ sprite | animal |
