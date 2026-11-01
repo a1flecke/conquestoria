@@ -1,5 +1,6 @@
 import type { UnitSpriteMotion } from '../units';
 import { pngSpriteUrl } from './png-sprite-html';
+import { getPngBakeGeometry } from './png-sprite-layout';
 import type { PngPuppetState, PngUnitSprite } from './png-sprite-types';
 
 /**
@@ -49,9 +50,9 @@ export async function bakePngUnitImage(
     loadImage(pngSpriteUrl(manifest, 'mask')),
   ]);
   const { state, frame } = getPngCanvasFrame(manifest, motion);
-  const S = manifest.cellHeight; // puppet cells are square; strip framing arrives with #1627 Task 6
-  const sx = frame * S;
-  const sy = manifest.clips[state][0].row * S;
+  const clip = manifest.clips[state][0];
+  const { side: S, sx, sy, dx, dy } = getPngBakeGeometry(manifest, clip.row, clip.firstCol + frame);
+  const { cellWidth: W, cellHeight: H } = manifest;
 
   const out = makeCanvas(S);
   const ctx = out.getContext('2d');
@@ -59,9 +60,9 @@ export async function bakePngUnitImage(
   const tctx = tintCanvas.getContext('2d');
   if (!ctx || !tctx) throw new Error('2D canvas unavailable');
 
-  ctx.drawImage(sheet, sx, sy, S, S, 0, 0, S, S);
+  ctx.drawImage(sheet, sx, sy, W, H, dx, dy, W, H);
   // civ colour cut to the mask, then multiplied onto the grey tint region of the base
-  tctx.drawImage(mask, sx, sy, S, S, 0, 0, S, S);
+  tctx.drawImage(mask, sx, sy, W, H, dx, dy, W, H);
   tctx.globalCompositeOperation = 'source-in';
   tctx.fillStyle = tint;
   tctx.fillRect(0, 0, S, S);

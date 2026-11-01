@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { PNG_STRIP_FEET_LINE, getPngCellPlacement } from '@/renderer/sprites/png/png-sprite-layout';
+import { PNG_STRIP_FEET_LINE, getPngBakeGeometry, getPngCellPlacement } from '@/renderer/sprites/png/png-sprite-layout';
+import { getPngCanvasFrame } from '@/renderer/sprites/png/png-sprite-canvas';
+import { buildPngUnitSpriteHtml } from '@/renderer/sprites/png/png-sprite-html';
 import { getPngUnitManifest } from '@/renderer/sprites/png/png-sprite-catalog';
 import type { PngUnitSprite } from '@/renderer/sprites/png/png-sprite-types';
 
@@ -33,5 +35,39 @@ describe('getPngCellPlacement', () => {
   it('a puppet cell fills the box exactly as it always did', () => {
     const puppet = getPngUnitManifest('horseman')!;
     expect(getPngCellPlacement(puppet)).toEqual({ widthPct: 100, leftPct: 0, topPct: 0 });
+  });
+});
+
+describe('getPngBakeGeometry', () => {
+  it('centres a strip cell in the baked square and lifts it onto the feet line, as the DOM player does', () => {
+    const g = getPngBakeGeometry(strip(), 2, 3);
+    expect(g).toMatchObject({ side: 192, sx: 3 * 240, sy: 2 * 192 });
+    expect(g.dx).toBeCloseTo(-24, 3);
+    expect(g.dy).toBeCloseTo(-22.4, 3);
+  });
+
+  it('a puppet cell fills the baked square exactly as it always did', () => {
+    const horseman = getPngUnitManifest('horseman')!;
+    expect(getPngBakeGeometry(horseman, 1, 4)).toEqual({ side: 192, sx: 4 * 192, sy: 192, dx: 0, dy: 0 });
+  });
+});
+
+describe('the strip frame the low-zoom bake picks', () => {
+  it('uses the idle clip for idle and two distinct walk columns for the two motions, wrapped to the clip', () => {
+    const sprite = strip();
+    expect(getPngCanvasFrame(sprite, 'idle')).toEqual({ state: 'idle', frame: 0 });
+    const walk = { row: 1, firstCol: 0, frames: 6, fps: 10, loop: true };
+    const six = strip({ clips: { ...sprite.clips, walk: [walk, walk, walk, walk] } });
+    expect(getPngCanvasFrame(six, 'move-a')).toEqual({ state: 'walk', frame: 1 });
+    expect(getPngCanvasFrame(six, 'move-b')).toEqual({ state: 'walk', frame: 5 });
+  });
+});
+
+describe('a strip unit\'s list icon and map overlay share one builder', () => {
+  it('writes the cell placement into the HTML both surfaces use', () => {
+    const html = buildPngUnitSpriteHtml(strip(), '#336699');
+    expect(html).toContain('--cell-width:125%');
+    expect(html).toContain('--cell-left:-12.5%');
+    expect(html).toContain('--cell-top:-11.6667%');
   });
 });
