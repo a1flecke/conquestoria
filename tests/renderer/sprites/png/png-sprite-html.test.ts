@@ -32,18 +32,19 @@ describe('resolvePngTint', () => {
 });
 
 describe('getPngSpriteCssVars', () => {
-  it('maps each state to its row, last-frame offset, step count and loop time', () => {
+  it('describes the sheet grid, the cell placement and the healthy idle clip', () => {
     const v = getPngSpriteCssVars(horseman);
-    const { cols, rows, clips } = horseman;
-    const states = { idle: clips.idle[0], walk: clips.walk[0], attack: clips.attack[0] };
+    const { cols, rows } = horseman;
+    const idle = horseman.clips.idle[0];
     expect(v['--cols']).toBe(String(cols));
     expect(v['--rows']).toBe(String(rows));
+    // a puppet cell is the whole unit box
+    expect([v['--cell-width'], v['--cell-left'], v['--cell-top']]).toEqual(['100%', '0%', '0%']);
     // frame k of an N-column sheet sits at k / (N - 1) of the background-position range
-    expect(parseFloat(v['--walk-end'])).toBeCloseTo(((states.walk.frames - 1) / (cols - 1)) * 100, 3);
-    expect(parseFloat(v['--idle-end'])).toBeCloseTo(((states.idle.frames - 1) / (cols - 1)) * 100, 3);
-    expect(parseFloat(v['--attack-y'])).toBeCloseTo((states.attack.row / (rows - 1)) * 100, 3);
-    expect(v['--walk-steps']).toBe(String(states.walk.frames));
-    expect(parseFloat(v['--walk-dur'])).toBeCloseTo(states.walk.frames / states.walk.fps, 2);
+    expect(parseFloat(v['--to'])).toBeCloseTo(((idle.frames - 1) / (cols - 1)) * 100, 3);
+    expect(parseFloat(v['--row'])).toBeCloseTo((idle.row / (rows - 1)) * 100, 3);
+    expect(v['--steps']).toBe(String(idle.frames));
+    expect(parseFloat(v['--dur'])).toBeCloseTo(idle.frames / idle.fps, 2);
   });
 
   it('handles a single-row, single-column sheet without dividing by zero', () => {
@@ -52,8 +53,8 @@ describe('getPngSpriteCssVars', () => {
       ...horseman, cols: 1, rows: 1,
       clips: { idle: [clip, clip, clip, clip], walk: [clip, clip, clip, clip], attack: [clip, clip, clip, clip] },
     });
-    expect(v['--idle-y']).toBe('0%');
-    expect(v['--idle-end']).toBe('0%');
+    expect(v['--row']).toBe('0%');
+    expect(v['--to']).toBe('0%');
   });
 });
 
@@ -78,7 +79,7 @@ describe('buildPngUnitSpriteHtml', () => {
   it('defines every custom property the stylesheet reads', () => {
     const used = new Set([...css.matchAll(/var\((--[a-z-]+)/g)].map(m => m[1]));
     // properties the stylesheet sets itself, or the overlay provides
-    const own = new Set(['--row', '--end', '--steps', '--dur', '--phase']);
+    const own = new Set(['--phase']);
     for (const name of used) {
       if (own.has(name)) continue;
       expect(html, `${name} is read by png-sprite-animations.css but never set by the HTML builder`).toContain(`${name}:`);
@@ -87,11 +88,19 @@ describe('buildPngUnitSpriteHtml', () => {
 });
 
 describe('png-sprite-animations.css', () => {
-  it('has a row per animated state, the shared keyframes, and a reduced-motion stop', () => {
-    for (const state of ['walk', 'attack']) expect(css).toContain(`.cq-png[data-state="${state}"]`);
-    expect(css).toContain('@keyframes cq-png-play');
+  it('plays the clip variables with swappable keyframes, a still frame for one-frame clips, and a reduced-motion stop', () => {
+    expect(css).toContain('@keyframes cq-png-play-a');
+    expect(css).toContain('@keyframes cq-png-play-b');
+    expect(css).toContain('.cq-png[data-png-epoch="1"]');
     expect(css).toMatch(/steps\(var\(--steps\), jump-none\)/);
+    expect(css).toMatch(/data-png-static="true"\] \.cq-png-layer\s*\{\s*animation: none/);
     expect(css).toMatch(/data-reduced-motion="true"\] \.cq-png-layer\s*\{\s*animation: none !important/);
+  });
+
+  it('keeps the colour filters only for a state the sprite has no art for', () => {
+    expect(css).toContain('.cq-png[data-png-fallback="hurt"]');
+    expect(css).toContain('.cq-png[data-png-fallback="death"]');
+    expect(css).not.toMatch(/\.cq-png\[data-state="(hurt|death)"\]/);
   });
 
   it('tints with a mask and a multiply blend confined to the sprite', () => {

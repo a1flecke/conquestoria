@@ -1,40 +1,51 @@
 /*
  * PNG spritesheet unit player (the raster counterpart of sprite-animations-v2.css).
  *
- * DOM contract (built by src/renderer/sprites/png/png-sprite-html.ts):
- *   .cq-png[data-state]               the element the overlay updates (data-state, --phase)
+ * DOM contract (built by src/renderer/sprites/png/png-sprite-html.ts, driven by applyPngPlayback in png-sprite-playback.ts):
+ *   .cq-png                           the element the overlay updates (data-state, --phase, and the clip variables below)
  *     .cq-png-base                    the painted sheet (tint region already grey)
  *     .cq-png-tint                    civ colour, cut to the mask sheet and multiplied onto the base
- * The sheet is `--cols` cells wide and `--rows` tall; each cell is exactly the element's size, so a frame is chosen with
- * background-position alone. The per-state vars (--idle-y, --walk-end, ...) come from the unit's manifest.
+ * The sheet is `--cols` cells wide and `--rows` tall. Each layer is exactly one cell: a puppet cell fills the unit box, a
+ * strip cell is as tall as the box and wider, centred and lifted so its ground line meets the feet line
+ * (--cell-width / --cell-left / --cell-top, from png-sprite-layout.ts). A frame is chosen with background-position alone.
  *
- * States without their own row fall back to idle: `work` (and `hurt`/`death`, which add a filter below).
+ * The clip now playing is described by custom properties the player writes (never a per-state selector):
+ *   --row     the sheet row, as a background-position-y percentage
+ *   --from    first frame, --to  last frame (background-position-x percentages)
+ *   --steps   frames in the clip,  --dur  its duration,  --iter  infinite for a loop, 1 for a one-shot
+ *   --delay   a loop's phase offset (a one-shot always starts on its first frame)
+ * Two keyframe sets are swapped by data-png-epoch (0/1) so a clip renewed while it plays (a second attack) restarts.
+ *
+ * A state the sprite has no art for stands in with its idle clip and sets data-png-fallback; only then does a colour filter
+ * stand in for the missing art.
  */
 .cq-png {
   position: relative;
   width: 100%;
   height: 100%;
   isolation: isolate; /* the multiply blend sees only this sprite, never the map behind it */
-  --row: var(--idle-y);
-  --end: var(--idle-end);
-  --steps: var(--idle-steps);
-  --dur: var(--idle-dur);
 }
-.cq-png[data-state="walk"]   { --row: var(--walk-y);   --end: var(--walk-end);   --steps: var(--walk-steps);   --dur: var(--walk-dur); }
-.cq-png[data-state="attack"] { --row: var(--attack-y); --end: var(--attack-end); --steps: var(--attack-steps); --dur: var(--attack-dur); }
-.cq-png[data-state="hurt"]   { filter: brightness(1.55) saturate(0.7); }
-.cq-png[data-state="death"]  { filter: grayscale(1) brightness(0.6); opacity: 0.35; }
+.cq-png[data-png-fallback="hurt"]  { filter: brightness(1.55) saturate(0.7); }
+.cq-png[data-png-fallback="death"] { filter: grayscale(1) brightness(0.6); opacity: 0.35; }
 
 .cq-png-layer {
   position: absolute;
-  inset: 0;
+  left: var(--cell-left, 0%);
+  top: var(--cell-top, 0%);
+  width: var(--cell-width, 100%);
+  height: 100%;
   background-repeat: no-repeat;
   background-size: calc(var(--cols) * 100%) calc(var(--rows) * 100%);
-  background-position-x: 0%;
+  background-position-x: var(--from);
   background-position-y: var(--row);
-  animation: cq-png-play var(--dur) steps(var(--steps), jump-none) infinite;
-  animation-delay: calc(var(--phase, 0) * var(--dur) * -1);
+  animation-name: cq-png-play-a;
+  animation-duration: var(--dur);
+  animation-timing-function: steps(var(--steps), jump-none);
+  animation-iteration-count: var(--iter);
+  animation-delay: var(--delay);
+  animation-fill-mode: forwards; /* a one-shot holds its last frame */
 }
+.cq-png[data-png-epoch="1"] .cq-png-layer { animation-name: cq-png-play-b; }
 
 .cq-png-tint {
   background-color: var(--cq-tint);
@@ -43,21 +54,37 @@
   mask-repeat: no-repeat;
   -webkit-mask-size: calc(var(--cols) * 100%) calc(var(--rows) * 100%);
   mask-size: calc(var(--cols) * 100%) calc(var(--rows) * 100%);
-  -webkit-mask-position-x: 0%;
-  mask-position-x: 0%;
+  -webkit-mask-position-x: var(--from);
+  mask-position-x: var(--from);
   -webkit-mask-position-y: var(--row);
   mask-position-y: var(--row);
 }
 
-/* One keyframe set drives both layers: it slides the sheet to the row's last frame in `--steps` equal jumps. */
-@keyframes cq-png-play {
-  from { background-position-x: 0%;         -webkit-mask-position-x: 0%;         mask-position-x: 0%; }
-  to   { background-position-x: var(--end); -webkit-mask-position-x: var(--end); mask-position-x: var(--end); }
+/* One keyframe set drives both layers: it slides the sheet from the clip's first frame to its last in `--steps` equal jumps. */
+@keyframes cq-png-play-a {
+  from { background-position-x: var(--from); -webkit-mask-position-x: var(--from); mask-position-x: var(--from); }
+  to   { background-position-x: var(--to);   -webkit-mask-position-x: var(--to);   mask-position-x: var(--to); }
+}
+@keyframes cq-png-play-b {
+  from { background-position-x: var(--from); -webkit-mask-position-x: var(--from); mask-position-x: var(--from); }
+  to   { background-position-x: var(--to);   -webkit-mask-position-x: var(--to);   mask-position-x: var(--to); }
 }
 
-/* Reduced motion: hold the first frame of the current state's row. */
+/* A one-frame clip (a damage pose) has nothing to step through: steps(1, jump-none) is invalid and would stall the layer. */
+.cq-png[data-png-static="true"] .cq-png-layer {
+  animation: none;
+}
+
+/* Reduced motion: a loop holds its first frame; a one-shot holds its last, because the outcome (fallen, recovered) is the information. */
 #sprite-overlay[data-reduced-motion="true"] .cq-png-layer {
   animation: none !important;
+}
+#sprite-overlay[data-reduced-motion="true"] .cq-png[data-png-loop="false"] .cq-png-base {
+  background-position-x: var(--to);
+}
+#sprite-overlay[data-reduced-motion="true"] .cq-png[data-png-loop="false"] .cq-png-tint {
+  -webkit-mask-position-x: var(--to);
+  mask-position-x: var(--to);
 }
 
 /* A PNG unit shown as a list icon (the city panel's production lists, #1535) holds its first frame instead of looping. */

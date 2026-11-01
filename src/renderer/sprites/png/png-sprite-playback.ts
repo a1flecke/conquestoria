@@ -32,6 +32,33 @@ function seconds(n: number): string {
 }
 
 /**
+ * Writes the clip for (state, tier, epoch) onto a `.cq-png` root. A no-op while that key is unchanged, so a loop is never
+ * restarted by a sync that changed nothing. When the key changes the epoch attribute flips between `0` and `1`, which swaps the
+ * stylesheet's keyframe set and so restarts the animation: that is how a second attack inside the first one's hold replays.
+ * `epoch` is when the current transient began (0 for none); it only has to differ between two plays of the same clip.
+ */
+export function applyPngPlayback(
+  el: HTMLElement,
+  sprite: PngUnitSprite,
+  state: PngSpriteState,
+  damage: number | undefined,
+  epoch: number,
+  phase: number,
+): void {
+  const playback = resolvePngPlayback(sprite, state, damage);
+  const key = `${state}:${playback.tier}:${epoch}`;
+  if (el.getAttribute('data-png-key') === key) return;
+  el.setAttribute('data-png-key', key);
+  for (const [name, value] of Object.entries(getPngPlaybackCssVars(sprite, playback, phase))) el.style.setProperty(name, value);
+  el.setAttribute('data-png-epoch', el.getAttribute('data-png-epoch') === '0' ? '1' : '0');
+  el.setAttribute('data-png-loop', String(playback.clip.loop));
+  if (playback.clip.frames === 1) el.setAttribute('data-png-static', 'true');
+  else el.removeAttribute('data-png-static');
+  if (playback.fallback) el.setAttribute('data-png-fallback', playback.fallback);
+  else el.removeAttribute('data-png-fallback');
+}
+
+/**
  * CSS custom properties the player stylesheet reads for the clip now playing. Percent positions follow background-position
  * semantics: with the sheet sized to `cols * 100%`, cell k sits at k / (cols - 1) * 100%. A loop takes the unit's phase so a
  * stack of units does not step in unison; a one-shot always starts on its first frame.
