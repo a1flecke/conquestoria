@@ -3,6 +3,7 @@ import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { simTimeout } from '../helpers/sim-timeout';
 
 // #364 prototype: the image-strip intake tool (scripts/sprite-puppet/strips.py). It runs in a throwaway copy of the two scripts
 // (the tool derives the repo root from its own path), on synthetic images, so the real design/ tree is never touched.
@@ -48,7 +49,13 @@ ${extra}
 im.save(${JSON.stringify(file)})
 `;
 
-describe.skipIf(!haveDeps)('strips.py (#364 prototype)', () => {
+// Every test here starts python3 (several times) and does numpy/scipy image work, so it is a heavy test in the sense of
+// .claude/rules/hooks-and-tooling.md ("Heavy simulation tests need an explicit, headroom-sized timeout", #608): solo, the slowest
+// takes about 4.6 s on a quiet host, and the 5 s default failed the push gate (and so the PR) when the host was busy. One constant sizes
+// the whole block from the solo worst case, so a test added later inherits the headroom.
+const PYTHON_TOOL_TIMEOUT_MS = simTimeout(5000);
+
+describe.skipIf(!haveDeps)('strips.py (#364 prototype)', { timeout: PYTHON_TOOL_TIMEOUT_MS }, () => {
   it('probe reports a white background as code "background"', () => {
     const { root, sources, tool } = sandbox();
     draw(`
@@ -178,7 +185,7 @@ ${BIPED}
 const py = (root: string, body: string): any =>
   JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${body}`], { encoding: 'utf8' }));
 
-describe.skipIf(!haveDeps)('strips.py rig calibration and per-tier walks (#364 prototype)', () => {
+describe.skipIf(!haveDeps)('strips.py rig calibration and per-tier walks (#364 prototype)', { timeout: PYTHON_TOOL_TIMEOUT_MS }, () => {
   it('calibrate finds the hem on a synthetic biped', () => {
     const { root } = sandbox();
     const cut = py(root, `
@@ -310,7 +317,7 @@ def quad(img, posts=4):
         d.rectangle((x, 480, x + 30, 689), fill=colour)
 `;
 
-describe.skipIf(!haveDeps)('strips.py four-leg rig (#364 prototype)', () => {
+describe.skipIf(!haveDeps)('strips.py four-leg rig (#364 prototype)', { timeout: PYTHON_TOOL_TIMEOUT_MS }, () => {
   const quadPy = (root: string, body: string): any =>
     JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${QUAD}\n${body}`], { encoding: 'utf8' }));
 
@@ -388,7 +395,7 @@ BOX = (100, 180, 620, 430)
 WHEEL = [round((220 - 100) / 520, 4), round((380 - 180) / 250, 4), round(50 / 520, 4)]
 `;
 
-describe.skipIf(!haveDeps)('strips.py vehicle rig (#364 prototype)', () => {
+describe.skipIf(!haveDeps)('strips.py vehicle rig (#364 prototype)', { timeout: PYTHON_TOOL_TIMEOUT_MS }, () => {
   const vehiclePy = (root: string, body: string): any =>
     JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${VEHICLE}\n${body}`], { encoding: 'utf8' }));
 
@@ -501,7 +508,7 @@ print(json.dumps({'flash': flash, 'team': team}))
   }, 30000);
 });
 
-describe.skipIf(!haveDeps)('strips.py naval rig (#364 prototype)', () => {
+describe.skipIf(!haveDeps)('strips.py naval rig (#364 prototype)', { timeout: PYTHON_TOOL_TIMEOUT_MS }, () => {
   const navalPy = (root: string, body: string): any =>
     JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${VEHICLE}\n${body}`], { encoding: 'utf8' }));
 
@@ -574,7 +581,7 @@ print(json.dumps({'rows': sorted(man['states'])}))
   }, 60000);
 });
 
-describe.skipIf(!haveDeps)('strips.py flight rig (#364 prototype)', () => {
+describe.skipIf(!haveDeps)('strips.py flight rig (#364 prototype)', { timeout: PYTHON_TOOL_TIMEOUT_MS }, () => {
   const flightPy = (root: string, body: string): any =>
     JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${VEHICLE}\n${body}`], { encoding: 'utf8' }));
 
@@ -657,7 +664,7 @@ print(json.dumps(n))
   }, 60000);
 });
 
-describe.skipIf(!haveDeps)('strips.py family defaults (#364 prototype)', () => {
+describe.skipIf(!haveDeps)('strips.py family defaults (#364 prototype)', { timeout: PYTHON_TOOL_TIMEOUT_MS }, () => {
   const defaultsPy = (root: string, body: string): any =>
     JSON.parse(execFileSync('python3', ['-I', '-c', `${prelude(root)}\n${VEHICLE}\n${body}`], { encoding: 'utf8' }));
 
@@ -762,7 +769,7 @@ function writePromptSpec(root: string, over: Record<string, unknown>, prompt: Re
   return path;
 }
 
-describe.skipIf(!haveDeps)('strips.py prompt (#364 prototype)', () => {
+describe.skipIf(!haveDeps)('strips.py prompt (#364 prototype)', { timeout: PYTHON_TOOL_TIMEOUT_MS }, () => {
   it('fills every placeholder of both prompts from the family and the spec', () => {
     const { root, tool } = sandbox();
     const r = run(tool, ['prompt', writePromptSpec(root, {})]);

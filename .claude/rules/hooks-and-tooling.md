@@ -248,6 +248,18 @@ immediate child; and a lease whose supervisor was SIGKILLed outright
 while its registered job is still alive, but becomes acquirable the moment
 that job actually ends.
 
+### A claimed lease is never unprotected (#1627)
+
+Once `hvl_owner_claim` has published an owner record, a signal must release it, in every state between the claim and the
+caller's own traps. Two gaps let a TERM exit 143 with the lease still published (it failed a real push as "lease was
+left behind after the owner was cancelled", only on a loaded host): `hvl_wait_cancel` (the wait-loop trap) released
+nothing, and `hvl_acquire` reset INT/TERM to the default before `run-under-host-lease.sh` installed its releasing trap.
+`hvl_wait_cancel` now releases the lease and any budget slot this process already owns (owner-checked, so a wait that
+never won releases nothing), and `hvl_acquire` hands over to `hvl_cancel_and_release` traps instead of the default
+disposition. A caller's own traps replace them as before. Never `trap - INT TERM` between an ownership claim and the
+caller's traps. `tests/hooks/host-verification-lease-cancel-window.test.sh` forces each window with a shadowed function
+(no timing), and was verified to fail on the unfixed library.
+
 ### The library's value helpers must be total (#1403)
 
 `host-verification-lease.sh` is sourced by `sh` scripts **and** by `run-ai-long-horizon.sh`, which runs under

@@ -3,6 +3,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { simTimeout } from '../helpers/sim-timeout';
 import { ATTACK_STATE_MS, DEATH_STATE_MS, HURT_STATE_MS } from '@/renderer/pirate-sprite-state';
 import { PNG_STRIP_FEET_LINE } from '@/renderer/sprites/png/png-sprite-layout';
 
@@ -122,7 +123,13 @@ print(json.dumps([r, a, mask.getpixel((x, y))[1]]))
   return `${ROWS[srcRow]![0]}#${id % 8}`;
 }
 
-describe.skipIf(!haveDeps)('strips.py export (#1627)', () => {
+// Every test here starts python3 (several times) and does numpy/scipy image work, so it is a heavy test in the sense of
+// .claude/rules/hooks-and-tooling.md ("Heavy simulation tests need an explicit, headroom-sized timeout", #608): solo, the slowest
+// takes about 4.4 s on a quiet host, and the 5 s default failed the push gate (and so the PR) when the host was busy. One constant sizes
+// the whole block from the solo worst case, so a test added later inherits the headroom.
+const PYTHON_TOOL_TIMEOUT_MS = simTimeout(5000);
+
+describe.skipIf(!haveDeps)('strips.py export (#1627)', { timeout: PYTHON_TOOL_TIMEOUT_MS }, () => {
   it('packs the standing poses by tier, one walk row per tier, then the one-shots, and maps the tiers like the viewer does', () => {
     const { root, tool } = sandbox();
     const result = runExport(root, tool, makePreview(root));
