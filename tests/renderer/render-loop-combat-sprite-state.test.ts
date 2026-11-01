@@ -389,7 +389,7 @@ describe('render-loop — pirate death snapshots (#1439 characterization)', () =
     renderAt(loop, nowMs + DEATH_STATE_MS + 50);
     const expiredEntities = syncSpy.mock.calls.at(-1)?.[1] as Array<{ id: string; state: string }>;
     expect(expiredEntities.some(entity => entity.id === pirate.id)).toBe(false);
-    expect((loop as unknown as { pirateUnitDeathSnapshots: Map<string, unknown> }).pirateUnitDeathSnapshots.size).toBe(0);
+    expect((loop as unknown as { unitDeathSnapshots: Map<string, unknown> }).unitDeathSnapshots.size).toBe(0);
     vi.restoreAllMocks();
   });
 

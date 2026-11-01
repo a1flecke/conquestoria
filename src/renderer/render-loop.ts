@@ -21,8 +21,9 @@ import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
 import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { SpriteOverlay } from './sprite-overlay';
 import type { SpriteEntity } from './sprite-overlay';
-import { buildUnitMapPresentations } from './unit-map-presentation';
-import { isCrisisForceOwner, isPirateOwner } from '@/core/owner-kind';
+import { buildUnitMapPresentations, getFaction } from './unit-map-presentation';
+import { hasPngDeathClip } from './sprites/png/png-sprite-catalog';
+import { isPirateOwner } from '@/core/owner-kind';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import {
   CIVTYPE_TO_FACTION,
@@ -184,7 +185,6 @@ export function buildMovingUnitEntities(
     const frame = getMovementAnimationPosition(animation, progress);
     const unit = authoritativeUnit ?? animation.unit;
     const visual = resolveUnitVisual(state, unit, colorLookup, frame.motion);
-    const civilization = state.civilizations[unit.owner];
     return [{
       id: unit.id,
       memberIds: [unit.id],
@@ -192,11 +192,7 @@ export function buildMovingUnitEntities(
       subtype: unit.type,
       coord: frame.coord,
       state: 'walk' as const,
-      faction: isPirateOwner(unit.owner)
-        ? 'pirates'
-        : isCrisisForceOwner(unit.owner)
-          ? 'crisis'
-        : civilization ? civTypeToFaction(civilization.civType) : unit.owner,
+      faction: getFaction(state, unit.owner),
       damage: movingUnitDamage(unit),
       stackCount: 1,
       health: unit.health,
@@ -434,7 +430,7 @@ export class RenderLoop {
     this.invalidate();
   }
   private pirateSpriteState = new PirateSpriteStateController();
-  private pirateUnitDeathSnapshots = new Map<string, { unit: Unit; expiresAtMs: number }>();
+  private unitDeathSnapshots = new Map<string, { unit: Unit; expiresAtMs: number }>();
   private pirateLandmarkDeathSnapshots = new Map<string, {
     entity: ReturnType<typeof buildPirateHeadquartersMapPresentation>['entities'][number];
     expiresAtMs: number;
@@ -474,8 +470,8 @@ export class RenderLoop {
       [result.defenderId, result.defenderSurvived],
     ] as const) {
       const unit = this.state.units[unitId];
-      if (!survived && unit && isPirateOwner(unit.owner)) {
-        this.pirateUnitDeathSnapshots.set(unitId, { unit: { ...unit }, expiresAtMs: nowMs + DEATH_STATE_MS });
+      if (!survived && unit && (isPirateOwner(unit.owner) || hasPngDeathClip(unit.type))) {
+        this.unitDeathSnapshots.set(unitId, { unit: { ...unit }, expiresAtMs: nowMs + DEATH_STATE_MS });
       }
     }
   }
@@ -823,7 +819,7 @@ export class RenderLoop {
     if (generation !== this.lastPaintedGeneration || this.camera.isMoving()) return null;
     if (this.unitMovementAnimations.length > 0 || this.timeline.hasActive()) return null;
     if (this.overlayStale || this.pirateSpriteState.nextExpiryMs() !== null) return null;
-    if (this.pirateUnitDeathSnapshots.size > 0 || this.pirateLandmarkDeathSnapshots.size > 0) return null;
+    if (this.unitDeathSnapshots.size > 0 || this.pirateLandmarkDeathSnapshots.size > 0) return null;
     return region;
   }
 
@@ -870,7 +866,7 @@ export class RenderLoop {
     }
     const effect = this.timeline.nextDeadline();
     if (effect !== null) candidates.push(effect);
-    for (const snapshot of this.pirateUnitDeathSnapshots.values()) candidates.push(snapshot.expiresAtMs);
+    for (const snapshot of this.unitDeathSnapshots.values()) candidates.push(snapshot.expiresAtMs);
     for (const snapshot of this.pirateLandmarkDeathSnapshots.values()) candidates.push(snapshot.expiresAtMs);
     const transient = this.pirateSpriteState.nextExpiryMs();
     if (transient !== null) candidates.push(transient);
@@ -907,9 +903,9 @@ export class RenderLoop {
    */
   private advance(nowMs: number): void {
     this.timeline.advance(nowMs);
-    for (const [unitId, snapshot] of this.pirateUnitDeathSnapshots) {
+    for (const [unitId, snapshot] of this.unitDeathSnapshots) {
       if (snapshot.expiresAtMs <= nowMs) {
-        this.pirateUnitDeathSnapshots.delete(unitId);
+        this.unitDeathSnapshots.delete(unitId);
         this.overlayStale = true;
       }
     }
@@ -1127,7 +1123,7 @@ export class RenderLoop {
         || this.unitMovementAnimations.length > 0
         || this.overlayStale
         || this.pirateSpriteState.nextExpiryMs() !== null
-        || this.pirateUnitDeathSnapshots.size > 0
+        || this.unitDeathSnapshots.size > 0
         || this.pirateLandmarkDeathSnapshots.size > 0
         || this.spriteOverlay === null;
       if (syncOverlay) {
@@ -1140,7 +1136,7 @@ export class RenderLoop {
         this.pirateSpriteState,
         nowMs,
       );
-      for (const [unitId, snapshot] of this.pirateUnitDeathSnapshots) {
+      for (const [unitId, snapshot] of this.unitDeathSnapshots) {
         if (snapshot.expiresAtMs <= nowMs) continue;
         if (getVisibility(viewerVisibility, snapshot.unit.position) !== 'visible') continue;
         unitEntities.push({
@@ -1150,7 +1146,8 @@ export class RenderLoop {
           subtype: snapshot.unit.type,
           coord: snapshot.unit.position,
           state: 'death',
-          faction: 'pirates',
+          stateEpoch: snapshot.expiresAtMs - DEATH_STATE_MS, // when the death began
+          faction: getFaction(this.state, snapshot.unit.owner),
           damage: 3,
           stackCount: 1,
           selected: false,
