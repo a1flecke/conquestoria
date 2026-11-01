@@ -343,7 +343,7 @@ These two are SVG units today, so nothing painted is replaced.
   owner's word, then stop the dev server.
 - [ ] **Step 6:** Commit `art: Spearman and Archer play their painted strips in the game (#1627)` and open the PR.
 
-### Task 9: Tank, Ironclad, Biplane and Horseman replace their puppet art
+### Task 9: Tank, Ironclad, Biplane and Horseman replace their puppet art  🟡 in PR: Tank and Biplane switched (owner approved), Ironclad resized and awaiting the owner's look, Horseman stays a puppet until a chestnut redraw
 
 The game already shows painted puppet sheets for these four. Each switches only on the owner's word; a unit the owner keeps on the
 puppet keeps its row as is.

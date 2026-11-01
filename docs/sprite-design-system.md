@@ -72,13 +72,13 @@ sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you whi
 | cannon | ✅ sprite | siege |
 | grenadier | ✅ sprite | melee |
 | rifleman | ✅ painted PNG (#621) | ranged |
-| ironclad | ✅ painted PNG (#621) | naval |
+| ironclad | ✅ painted strips (#621 puppet, #1627 strips) | naval |
 | machine_gunner | ✅ painted PNG (#621) | ranged |
 | pre_dreadnought | ✅ painted PNG (#621) | naval |
-| tank | ✅ painted PNG (#621) | melee |
+| tank | ✅ painted strips (#621 puppet, #1627 strips) | melee |
 | submarine | ✅ painted PNG (#621) | naval |
 | observation_balloon | ✅ painted PNG (#621) | air |
-| biplane | ✅ painted PNG (#621) | air |
+| biplane | ✅ painted strips (#621 puppet, #1627 strips) | air |
 
 **#621 military visual identity.** These eight units (the last `TODO(art)` placeholders) ship as painted PNG spritesheets through the
 PNG pipeline above; their SVG functions in `units.tsx` stay as the fallback and say so in a comment. Sources: Sprite-AI

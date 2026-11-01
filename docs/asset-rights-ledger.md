@@ -31,7 +31,7 @@ changes.
 | ChatGPT image generation (General portrait) | 1 | `design/general-portraits/gen_oreius.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
 | ChatGPT image generation (codex illustrations) | 42 | `design/wonder-codex-images/*.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
 | ChatGPT image generation (building sprites) | 167 | `design/building-art/*.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
-| ChatGPT image generation (unit strips) | 2 | `design/png-sprites/previews/<unit>/provenance.json` of each strip unit in the catalog | Sufficient evidence recorded (owner's statement of a paid plan) |
+| ChatGPT image generation (unit strips) | 5 | `design/png-sprites/previews/<unit>/provenance.json` of each strip unit in the catalog | Sufficient evidence recorded (owner's statement of a paid plan) |
 | Public-domain artwork (General portraits) | 8 | `design/general-portraits/*.provenance.json` | Sufficient evidence recorded |
 | Kenney CC0 and credited audio | not counted here | `AUDIO-CREDITS.md`, `src/audio/*-audio-sources.ts` | Sufficient where reviewed; not re-audited here |
 | Wonder codex photographs and video | not counted here | `docs/wonder-codex-source-ledger.md` (test-enforced) | Sufficient where reviewed; not re-audited here |
@@ -106,7 +106,7 @@ Determinations used: *sufficient evidence recorded*, *missing documentation*, *p
   writes (a master drawing, then damage, attack, hit and defeat sheets), with no logo, brand, person or lettering. OpenAI's current terms
   were **not** reviewed. Each unit's record under `design/png-sprites/previews/<unit>/` keeps the SHA-256 of every original; the originals
   are never committed, and `strips.py build` and `export` re-encode from decoded pixels, which drops any generator metadata (for example
-  C2PA). Counted here: Spearman and Archer (shipped as strips in #1627). Puppet units keep their records under
+  C2PA). Counted here: Spearman, Archer, Tank, Ironclad and Biplane (shipped as strips in #1627). The Horseman's strip is not shipped yet (the owner prefers a chestnut coat), so its preview record is not counted. Puppet units keep their records under
   `design/png-sprites/sources/` and the families above.
 - Same re-check gate before any commercial release.
 

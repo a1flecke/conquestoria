@@ -1,7 +1,7 @@
 window.STRIP_MANIFEST = {
   "id": "biplane",
   "family": "aircraft",
-  "cellWidth": 240,
+  "cellWidth": 176,
   "cellHeight": 192,
   "cols": 8,
   "rows": 10,
