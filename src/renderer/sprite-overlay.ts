@@ -177,7 +177,7 @@ export class SpriteOverlay {
           existing.memberIds = entity.memberIds ?? [entity.id];
           existing.el.dataset.entityId = entity.id;
           existing.el.dataset.memberIds = existing.memberIds.join(',');
-          if (entity.kind === 'unit') updateUnitDecorations(existing.el, entity);
+          if (entity.kind === 'unit') updateUnitDecorations(existing.el, entity, pngSprite?.baseline != null);
           // Update world position if unit moved hex after movement animation completed
           if (
             existing.coord.q !== coord.q
@@ -230,7 +230,7 @@ export class SpriteOverlay {
             if (newPngSprite.baseline !== null) wrapper.style.overflow = 'visible';
           }
           setLandmarkAttributes(spriteWrapEl, entity);
-          if (entity.kind === 'unit') updateUnitDecorations(wrapper, entity);
+          if (entity.kind === 'unit') updateUnitDecorations(wrapper, entity, newPngSprite?.baseline != null);
 
           this.layers[entity.kind].appendChild(wrapper);
           this.pool.set(key, {
@@ -319,11 +319,14 @@ function removeDecoration(wrapper: HTMLElement, className: string): void {
   wrapper.querySelector(`.${className}`)?.remove();
 }
 
-function updateUnitDecorations(wrapper: HTMLElement, entity: SpriteEntity): void {
+function updateUnitDecorations(wrapper: HTMLElement, entity: SpriteEntity, isStripUnit: boolean): void {
   if (entity.selected) {
     const ring = getOrCreateDecoration(wrapper, 'cq-unit-selected');
+    // A strip figure stands taller and wider than its hex-sized wrapper, so its ring grows past the wrapper
+    // (which is `overflow: visible` for strip units) instead of cutting through the head and spear.
+    const inset = isStripUnit ? '-22%' : '4%';
     ring.style.cssText =
-      'position:absolute;inset:4%;border:2px solid #ffd54f;border-radius:50%;' +
+      `position:absolute;inset:${inset};border:2px solid #ffd54f;border-radius:50%;` +
       'box-sizing:border-box;pointer-events:none';
   } else {
     removeDecoration(wrapper, 'cq-unit-selected');
