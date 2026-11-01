@@ -105,7 +105,7 @@ describe('SpriteOverlay with a strip unit', () => {
 
   it('lets a strip cell draw outside the unit box, and keeps a puppet unit clipped', () => {
     const { overlay, mount } = mountOverlay();
-    overlay.sync(cam(), [entity(), entity({ id: 'u2', subtype: 'horseman', coord: { q: 1, r: 0 } })], MAP, OPTS);
+    overlay.sync(cam(), [entity(), entity({ id: 'u2', subtype: 'cavalry', coord: { q: 1, r: 0 } })], MAP, OPTS);
     const wrappers = mount.querySelectorAll('#unit-sprites > div');
     expect((wrappers[0] as HTMLElement).style.overflow).toBe('visible');
     expect((wrappers[1] as HTMLElement).style.overflow).toBe('hidden');
@@ -115,7 +115,7 @@ describe('SpriteOverlay with a strip unit', () => {
     const { overlay, mount } = mountOverlay();
     overlay.sync(cam(), [
       entity({ selected: true }),
-      entity({ id: 'u2', subtype: 'horseman', coord: { q: 1, r: 0 }, selected: true }),
+      entity({ id: 'u2', subtype: 'cavalry', coord: { q: 1, r: 0 }, selected: true }),
     ], MAP, OPTS);
     const rings = mount.querySelectorAll<HTMLElement>('.cq-unit-selected');
     expect(rings[0].style.inset).toBe('-22%');
