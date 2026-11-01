@@ -1,19 +1,78 @@
 {
   "id": "horseman",
-  "status": "prototype preview, not shipped and not registered in PNG_UNIT_SPRITES",
+  "status": "shipped: registered in PNG_UNIT_SPRITES and exported with strips.py export (#1627); the second, chestnut-coated set",
   "generator": "ChatGPT image generation (project owner, paid plan)",
-  "generated_on": "2026-10-30 to 2026-10-31",
-  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/horseman.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/). Conversation A drew the master; conversation B, with the master attached, drew the damage, attack, hit and defeat sheets. The prompts ChatGPT actually ran were not captured.",
-  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). If this art is adopted for the game it needs a ledger family row and a provenance record under design/png-sprites/sources/ like the other generated units.",
+  "generated_on": "2026-11-01",
+  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/horseman.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/), after the spec changed the horse from dapple-grey to a warm orange-brown chestnut (hue above the team-colour key). Conversation A drew the master; conversation B, with the master attached, drew the damage, attack, hit and defeat sheets. The prompts ChatGPT actually ran were not captured.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
   "originals_committed": false,
-  "originals_note": "The five downloaded originals are not committed. Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "originals_note": "The downloaded originals are not committed (kept by the owner under ~/conquestoria-art-originals/strips/horseman-chestnut). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
   "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all five passed (PNG magic bytes, nothing after the image stream, one frame, within the pixel limit). ClamAV was not installed, so only the structural checks ran.",
-  "regenerations": "None: every image was accepted on its first generation. `strips.py probe` reported 0 errors and 0 warnings.",
+  "regenerations": "None recorded. `strips.py probe` reported 0 errors and 3 warnings (the attack, hit and defeat figures are about 230 px tall, under the tool's 300 px advice; the game draws the unit about 150 px tall). The coat measures hue 0.053-0.086 (the team-colour key ends at 0.045) and 10.7-12.9% of each image sits in the key.",
+  "extraction_note": "Images c, d and e were supplied as separate transparent PNGs cut from ChatGPT's combined 1536 x 1024 combat sheet (combined_original below); how they were cut out was not recorded.",
   "originals": [
-    { "role": "idle (master)", "file": "a", "size": [1448, 1086], "sha256": "83ab5883f6b3867038069438e1b199ea0e5bb64afe036e0dc4ebb39f6844bd23" },
-    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1426, 1103], "sha256": "ad07eca42df7e81dbd9b2ce668aad808e313d1da313d9b544fb2759426c14243" },
-    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1448, 1086], "sha256": "09fdc9b924a144f52bfd769187ecc5c5343160ef85f6b29ee7f6f1611453b166" },
-    { "role": "hit reaction, 4 frames (2 x 2 grid)", "file": "d", "size": [1448, 1086], "sha256": "7ad231fdb66fbf208847ca3fa5bc84893d6743f3cce7271e77ffc5fd334f4507" },
-    { "role": "defeat, 4 frames (2 x 2 grid)", "file": "e", "size": [1448, 1086], "sha256": "c09fb4173c1ae06731c6d820ead81a74d07efa2dde41155f220adf8a2fbb7673" }
-  ]
+    {
+      "role": "idle (master)",
+      "file": "a",
+      "size": [
+        1312,
+        1199
+      ],
+      "sha256": "cfb77b4eb3a6c108ea5570e4ed07cd00e87b91f643f1bdf5af2603abe3a1d9b8"
+    },
+    {
+      "role": "damage tiers 0-3 (2 x 2 grid)",
+      "file": "b",
+      "size": [
+        1312,
+        1199
+      ],
+      "sha256": "4e2abd2dab6f4c46f9bf263935532e90d8f328648f067635aaceccfebb8674a8"
+    },
+    {
+      "role": "attack, 6 frames (3 x 2 grid)",
+      "file": "c",
+      "size": [
+        865,
+        505
+      ],
+      "sha256": "08863235847125515fbc4845fcc6cb84da378d706c39088cbb9eb7421c3faeed"
+    },
+    {
+      "role": "hit reaction, 4 frames (2 x 2 grid)",
+      "file": "d",
+      "size": [
+        675,
+        514
+      ],
+      "sha256": "a7f8ebc44f1e4b07267dea869c779fd20b7aee2a56e75f888f1f6a77a6eea89b"
+    },
+    {
+      "role": "defeat, 4 frames (2 x 2 grid)",
+      "file": "e",
+      "size": [
+        861,
+        514
+      ],
+      "sha256": "bc1aca175c18d526d81988ffddbfa3b1276a46e6dc8c845786a5f399731eca02"
+    }
+  ],
+  "combined_original": {
+    "file": "combined-original",
+    "size": [
+      1536,
+      1024
+    ],
+    "sha256": "437752b93e839dd2d1a3196865d82e1361c2719ced4a56afdc1e2a0bc7c1ba20"
+  },
+  "superseded_dapple_grey_set": {
+    "note": "The first Horseman set (2026-10-30 to 2026-10-31, a dapple-grey horse) was replaced because the owner preferred a chestnut coat. Its originals are kept by the owner under ~/conquestoria-art-originals/strips/horseman; its sheet is in git history.",
+    "sha256": [
+      "83ab5883f6b3867038069438e1b199ea0e5bb64afe036e0dc4ebb39f6844bd23",
+      "ad07eca42df7e81dbd9b2ce668aad808e313d1da313d9b544fb2759426c14243",
+      "09fdc9b924a144f52bfd769187ecc5c5343160ef85f6b29ee7f6f1611453b166",
+      "7ad231fdb66fbf208847ca3fa5bc84893d6743f3cce7271e77ffc5fd334f4507",
+      "c09fb4173c1ae06731c6d820ead81a74d07efa2dde41155f220adf8a2fbb7673"
+    ]
+  }
 }

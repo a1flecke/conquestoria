@@ -8,7 +8,7 @@ function cam(overrides: Record<string, unknown> = {}) {
 }
 
 function entity(overrides: Partial<SpriteEntity> = {}): SpriteEntity {
-  return { id: 'u1', kind: 'unit', subtype: 'horseman', coord: { q: 0, r: 0 }, state: 'idle', faction: 'imperials', ...overrides };
+  return { id: 'u1', kind: 'unit', subtype: 'cavalry', coord: { q: 0, r: 0 }, state: 'idle', faction: 'imperials', ...overrides };
 }
 
 function mountOverlay() {

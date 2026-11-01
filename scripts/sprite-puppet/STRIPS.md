@@ -99,6 +99,13 @@ What carried over to the next units:
 - **Master and set prompts worked as written.** Neither the Archer nor the Horseman needed a regeneration, and both passed `probe` on the first try.
 - **A cycle can be wrong in two ways**: the legs cross or alternate wrongly (fixed by building it in code), and a shape of motion that is not a walk (a sine on rigid legs). Check a new rig at quarter speed before blaming the drawing.
 - **A rig must be checked on every damage tier**, not only the master: each tier walks wounded, and `check_rigs` warns for a tier it cannot cut.
+- **A chestnut coat is safe; a red-brown one is not.** The team-colour key is hue <= 0.045 (or >= 0.955) at saturation >= 0.45. The
+  puppet's chestnut measured hue 0.050-0.090 (median 0.073, #89542E) and the second Horseman set 0.053-0.086, so only the red
+  tunic and saddle cloth take a player's colour (10.7-12.9% of each image in the key). Ask for an *orange* chestnut in the
+  prompt (the Horseman spec's `coat` gives the two hex values) and measure each image's coat hue before building.
+- **Standing rows and the walk need one anchor.** When the standing pose (anchored on the hooves, `'feet'`) and the walk (on the torso)
+  disagree by more than 12 px for a damage tier, `export` refuses the unit. The Horseman's standing rows are set to `"anchor": "torso"`
+  to match its walk.
 - **The look of the coat is a spec decision, not a pipeline limit.** The Horseman's grey coat was chosen to dodge the red-brown team-colour key, and the owner preferred the old chestnut horse. Before choosing a coat, run `probe` on a master with that coat and read the tint fraction (a healthy figure is about a tenth).
 - **Describe where the gun sits as a geometry, not a feature.** The first Tank master had a "side sponson" gun pointing forward, which cannot be both. A top turret with a forward barrel was drawn correctly at once. Ask for a shape that can exist.
 - **Say "one row" and forbid the grid in the wreck prompt.** A wreck asked for among other images came back as a damage grid twice; a prompt that names the one image, the exact layout ("not a grid, not a column") and says the band darkens in the burning frames came back right. `probe` then confirmed three separate figures and no flame in the tint key.
@@ -163,7 +170,7 @@ gradients for banding at the screenshot review), the mask is grey plus alpha.
 - the sheet and mask are over 640 KB on disk or 24 MiB decoded (`--max-kb`, `--max-mib` override this for experiments).
 
 Results at 0.75 (Ironclad after its `restHeight` rise, Biplane after the anchor fix below): Spearman 158 KB and 12.1 MiB, Archer
-248 KB and 11.8 MiB, Horseman 281 KB and 12.7 MiB, Tank 154 KB and 11.0 MiB, Ironclad 123 KB and 11.0 MiB, Biplane 224 KB and
+248 KB and 11.8 MiB, Horseman 265 KB and 12.7 MiB (the chestnut set), Tank 154 KB and 11.0 MiB, Ironclad 123 KB and 11.0 MiB, Biplane 224 KB and
 9.3 MiB.
 
 **The Biplane used to be refused** (#1627): its idle pose sat 29 px left of the middle of its cell while the rows built in code

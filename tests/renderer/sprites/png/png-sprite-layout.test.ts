@@ -33,7 +33,7 @@ describe('getPngCellPlacement', () => {
   });
 
   it('a puppet cell fills the box exactly as it always did', () => {
-    const puppet = getPngUnitManifest('horseman')!;
+    const puppet = getPngUnitManifest('cavalry')!;
     expect(getPngCellPlacement(puppet)).toEqual({ widthPct: 100, leftPct: 0, topPct: 0 });
   });
 });
@@ -47,8 +47,8 @@ describe('getPngBakeGeometry', () => {
   });
 
   it('a puppet cell fills the baked square exactly as it always did', () => {
-    const horseman = getPngUnitManifest('horseman')!;
-    expect(getPngBakeGeometry(horseman, 1, 4)).toEqual({ side: 192, sx: 4 * 192, sy: 192, dx: 0, dy: 0 });
+    const cavalry = getPngUnitManifest('cavalry')!;
+    expect(getPngBakeGeometry(cavalry, 1, 4)).toEqual({ side: 192, sx: 4 * 192, sy: 192, dx: 0, dy: 0 });
   });
 });
 

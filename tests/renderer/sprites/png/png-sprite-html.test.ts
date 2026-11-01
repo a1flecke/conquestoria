@@ -11,7 +11,7 @@ import { getPngCanvasFrame } from '@/renderer/sprites/png/png-sprite-canvas';
 import { getUnitSpriteV2, isV2NativeUnit } from '@/renderer/sprites/v2/index';
 import { FACTION_SPRITE_ACCENT, NEUTRAL_PNG_TINT } from '@/renderer/sprites/faction-accent-colors';
 
-const horseman = getPngUnitManifest('horseman')!;
+const cavalry = getPngUnitManifest('cavalry')!;
 const css = readFileSync(resolve(__dirname, '../../../../src/assets/png-sprite-animations.css'), 'utf8');
 
 describe('resolvePngTint', () => {
@@ -33,9 +33,9 @@ describe('resolvePngTint', () => {
 
 describe('getPngSpriteCssVars', () => {
   it('describes the sheet grid, the cell placement and the healthy idle clip', () => {
-    const v = getPngSpriteCssVars(horseman);
-    const { cols, rows } = horseman;
-    const idle = horseman.clips.idle[0];
+    const v = getPngSpriteCssVars(cavalry);
+    const { cols, rows } = cavalry;
+    const idle = cavalry.clips.idle[0];
     expect(v['--cols']).toBe(String(cols));
     expect(v['--rows']).toBe(String(rows));
     // a puppet cell is the whole unit box
@@ -50,7 +50,7 @@ describe('getPngSpriteCssVars', () => {
   it('handles a single-row, single-column sheet without dividing by zero', () => {
     const clip = { row: 0, firstCol: 0, frames: 2, fps: 4, loop: true };
     const v = getPngSpriteCssVars({
-      ...horseman, cols: 1, rows: 1,
+      ...cavalry, cols: 1, rows: 1,
       clips: { idle: [clip, clip, clip, clip], walk: [clip, clip, clip, clip], attack: [clip, clip, clip, clip] },
     });
     expect(v['--row']).toBe('0%');
@@ -59,7 +59,7 @@ describe('getPngSpriteCssVars', () => {
 });
 
 describe('buildPngUnitSpriteHtml', () => {
-  const html = buildPngUnitSpriteHtml(horseman, '#1d4a8c');
+  const html = buildPngUnitSpriteHtml(cavalry, '#1d4a8c');
 
   it('keeps the overlay contract of the SVG sprites: a .cq-sprite-wrap root with data-state and --phase', () => {
     expect(html.startsWith('<div class="cq-sprite-wrap cq-png"')).toBe(true);
@@ -70,8 +70,8 @@ describe('buildPngUnitSpriteHtml', () => {
 
   it('draws the base sheet and the tint layer from the manifest paths, tinted with the given colour', () => {
     expect(html).toContain('--cq-tint:#1d4a8c');
-    expect(html).toContain(horseman.sheet);
-    expect(html).toContain(horseman.mask);
+    expect(html).toContain(cavalry.sheet);
+    expect(html).toContain(cavalry.mask);
     expect(html).toContain('cq-png-base');
     expect(html).toContain('cq-png-tint');
   });
@@ -112,28 +112,28 @@ describe('png-sprite-animations.css', () => {
 
 describe('getPngCanvasFrame', () => {
   it('maps the three static motions onto sheet frames inside their rows', () => {
-    expect(getPngCanvasFrame(horseman, 'idle')).toEqual({ state: 'idle', frame: 0 });
-    const a = getPngCanvasFrame(horseman, 'move-a');
-    const b = getPngCanvasFrame(horseman, 'move-b');
+    expect(getPngCanvasFrame(cavalry, 'idle')).toEqual({ state: 'idle', frame: 0 });
+    const a = getPngCanvasFrame(cavalry, 'move-a');
+    const b = getPngCanvasFrame(cavalry, 'move-b');
     expect(a.state).toBe('walk');
     expect(b.state).toBe('walk');
     expect(a.frame).not.toBe(b.frame); // the map alternates two distinct walk poses
-    expect(Math.max(a.frame, b.frame)).toBeLessThan(horseman.clips.walk[0].frames);
+    expect(Math.max(a.frame, b.frame)).toBeLessThan(cavalry.clips.walk[0].frames);
   });
 });
 
 describe('getUnitSpriteV2 dispatch (both renderers coexist)', () => {
   it('serves the PNG player for a registered unit, for any faction and for owners with no faction record', () => {
     for (const faction of ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate', 'some-minor-civ-id']) {
-      const out = getUnitSpriteV2('horseman', faction)!;
+      const out = getUnitSpriteV2('cavalry', faction)!;
       expect(out, faction).toContain('cq-png');
       expect(out, faction).not.toContain('<svg');
     }
   });
 
   it('tints with the owner colour when one is supplied', () => {
-    expect(getUnitSpriteV2('horseman', 'imperials', '#2d6a4f')).toContain('--cq-tint:#2d6a4f');
-    expect(getUnitSpriteV2('horseman', 'khanate')).toContain(`--cq-tint:${FACTION_SPRITE_ACCENT.khanate}`);
+    expect(getUnitSpriteV2('cavalry', 'imperials', '#2d6a4f')).toContain('--cq-tint:#2d6a4f');
+    expect(getUnitSpriteV2('cavalry', 'khanate')).toContain(`--cq-tint:${FACTION_SPRITE_ACCENT.khanate}`);
   });
 
   it('leaves every other unit on its SVG sprite', () => {

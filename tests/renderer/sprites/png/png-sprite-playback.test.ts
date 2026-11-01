@@ -122,8 +122,8 @@ describe('getPngPlaybackCssVars', () => {
 
 describe('hasPngDeathClip', () => {
   it('is false for every shipped puppet unit and for a unit with no PNG row', () => {
-    expect(getPngUnitManifest('horseman')).not.toBeNull();
-    expect(hasPngDeathClip('horseman')).toBe(false);
+    expect(getPngUnitManifest('cavalry')).not.toBeNull();
+    expect(hasPngDeathClip('cavalry')).toBe(false);
     expect(hasPngDeathClip('warrior')).toBe(false);
     expect(hasPngDeathClip('__proto__')).toBe(false);
   });
