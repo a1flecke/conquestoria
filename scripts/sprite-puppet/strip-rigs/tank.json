@@ -18,9 +18,9 @@
     { "state": "damage", "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "restFrames": [0, 1], "note": "idle pose at damage tiers 0-3" },
     { "state": "move",   "cells": 8, "fps": 12,
       "note": "bounce and a scrolling track built in code from the master and from each damage drawing",
-      "rig": { "kind": "vehicle", "action": "move", "tread": { "depth": 0.085, "above": 0.277 }, "sources": ["a", "b#0", "b#1", "b#2", "b#3"] } },
+      "rig": { "kind": "vehicle", "action": "move", "tread": {},"sources": ["a", "b#0", "b#1", "b#2", "b#3"] } },
     { "state": "fire",   "cells": 8, "fps": 8, "loop": false, "note": "recoil, muzzle flash and smoke built in code",
-      "rig": { "kind": "vehicle", "action": "fire", "source": "a", "muzzle": [0.8184, 0.1748] } },
+      "rig": { "kind": "vehicle", "action": "fire", "source": "a" } },
     { "state": "hit",    "cells": 4, "fps": 8, "loop": false, "note": "the hull rocked, built in code",
       "rig": { "kind": "vehicle", "action": "hit", "source": "a" } },
     { "state": "wreck",  "file": "c", "cells": 3, "fps": 4, "loop": false, "restFrames": [0] }

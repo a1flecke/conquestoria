@@ -729,6 +729,25 @@ print(json.dumps({'nose_x': nose_x, 'cy': cy, 'hh': hh, 'mx': mx, 'my': my, 'sof
     expect(out.my, note).toBeLessThan(out.cy);
     expect(Math.min(...out.soft_rows), note).toBeGreaterThan(200);
   }, 30000);
+
+  it('a tank with no rig keys finds its gun, not its front, and keeps the turret out of the track band', () => {
+    const { root } = sandbox();
+    const out = defaultsPy(root, `
+img = Image.new('RGBA', (700, 480), (0, 0, 0, 0))
+d = ImageDraw.Draw(img)
+d.rectangle((100, 300, 540, 440), fill=(90, 100, 60, 255))   # hull
+d.rectangle((540, 380, 560, 440), fill=(60, 60, 60, 255))    # the track's front tip, further right than the hull
+d.rectangle((260, 220, 380, 300), fill=(90, 100, 60, 255))   # turret, a quarter of the width
+d.rectangle((380, 240, 470, 252), fill=(70, 80, 50, 255))    # the gun
+rig = m.VehicleRig(np.array(img), {'tread': {}})
+ys = np.where(rig.band.any(1))[0]
+print(json.dumps({'mx': rig.muzzle[0], 'my': rig.muzzle[1], 'band_top': int(ys.min())}))
+`);
+    const note = JSON.stringify(out);
+    expect(Math.abs(out.mx - 470), note).toBeLessThan(4);
+    expect(Math.abs(out.my - 246), note).toBeLessThan(8);
+    expect(out.band_top, note).toBeGreaterThanOrEqual(299);
+  }, 30000);
 });
 
 const BIPED_PROMPT = {

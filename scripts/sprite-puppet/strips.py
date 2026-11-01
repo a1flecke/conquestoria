@@ -513,13 +513,14 @@ class QuadRig:
 
 def vehicle_muzzle(alpha: np.ndarray, rig: dict) -> tuple[float, float]:
     """Where a vehicle's gun fires from, in source px: `rig['muzzle']` (fractions of the figure box) or, by default, the
-    right-most opaque pixel in the figure's upper 80% (the drawing faces right and a gun is its furthest point)."""
+    right-most opaque pixel in the figure's upper 30% (the drawing faces right and a gun on a turret is the furthest point
+    up there; the hull's own nose and its track sit lower, so a rhomboid tank's gun is found, not its front)."""
     ys, xs = np.where(alpha)
     x0, y0 = int(xs.min()), int(ys.min())
     bw, bh = int(xs.max()) - x0 + 1, int(ys.max()) - y0 + 1
     if 'muzzle' in rig:
         return x0 + rig['muzzle'][0] * bw, y0 + rig['muzzle'][1] * bh
-    upper = alpha[y0:y0 + int(0.8 * bh) + 1]
+    upper = alpha[y0:y0 + int(0.3 * bh) + 1]
     x = int(np.where(upper.any(0))[0].max())
     return float(x), float(y0 + np.median(np.where(upper[:, x])[0]))
 
@@ -530,8 +531,8 @@ class VehicleRig:
     `frame(action, i, n)` with `action` one of idle, move, fire, hit. All keys are fractions of the figure's box (its tight
     bounding box in the drawing; a radius is a fraction of its width). `wheels`: [[cx, cy, r], ...], each disc turns
     `wheel_deg_per_frame` (default 45, clockwise: the vehicle faces right) while it moves. `tread`: {depth, links, top}, the
-    pixels within `depth` (default 0.06) of the outline and below `top` (a fraction of the height, default 0, the whole
-    outline) or within `above` (a fraction of the width, up from the bottom) get a light and dark
+    pixels within `depth` (default 0.085) of the outline and below `top` (a fraction of the height; by default the hull's top,
+    the first row half as wide as the figure) or within `above` (a fraction of the width, up from the bottom) get a light and dark
     pattern of `links` repeats around the outline that advances a quarter of a link per frame, clockwise, so the track runs
     forward along the top and back along the ground. `muzzle`: where the gun fires from (see `vehicle_muzzle`). `bob` (0.01)
     is the vertical bounce of a moving or idling hull, `recoil` (0.02) how far a shot kicks the hull back, `shake` (0.015)
@@ -559,11 +560,16 @@ class VehicleRig:
             self.wheels.append(puppet.Layer(puppet.layer_from(rgba, disc), pivot=(cx, cy)))
         self.band = None
         tread = rig.get('tread')
-        if tread:
+        if tread is not None:
             # the band's top edge: `above` (a fraction of the width, up from the bottom: a smoke wisp or an open hatch adds
             # height but not width, so it is the same on every damage drawing) or `top` (a fraction of the height)
-            depth = tread.get('depth', 0.06) * bh
-            top = self.y1 - tread['above'] * bw if 'above' in tread else self.y0 + tread.get('top', 0.0) * bh
+            depth = tread.get('depth', 0.085) * bh
+            if 'above' in tread:
+                top = self.y1 - tread['above'] * bw
+            elif 'top' in tread:
+                top = self.y0 + tread['top'] * bh
+            else:  # the hull's top: the first row at least half as wide as the figure, so a turret or a wisp is left out
+                top = float(self.y0 + np.argmax(alpha[self.y0:self.y1 + 1].sum(1) >= 0.5 * bw))
             inside = ndi.distance_transform_edt(np.pad(alpha, 1))[1:-1, 1:-1]  # padded: the drawing's edge is an outline too
             self.band = alpha & (inside <= depth) & (yy >= top)
             centre = ((self.x0 + self.x1) / 2, (self.y0 + self.y1) / 2)
