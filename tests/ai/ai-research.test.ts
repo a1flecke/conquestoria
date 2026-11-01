@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as researchOutput from '@/systems/research-output-system';
-import { getAvailableTechs, processResearch } from '@/systems/tech-system';
+import { getAvailableTechs, getEffectiveTechCost, processResearch } from '@/systems/tech-system';
 import { getQueueableResearchIds } from '@/systems/tech-progression';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
@@ -662,6 +662,59 @@ describe('AI keeps a technology queued when the active one would finish with sci
       completedBefore = ts.completed.length;
     }
     expect(roundsWithoutChoice).toEqual([]);
+  });
+
+  // #1479 follow-up: the frontier can be EMPTY while more technology remains, because the only selectable technology
+  // is the one the AI just started (`fire` here) and the ones behind it need it completed. The overflow guard used to
+  // give up in that shape and let the surplus science evaporate; it now asks the planner for the best successor to the
+  // technology that is about to finish. Nothing is granted -- the id still goes through `enqueueResearch`.
+  it('queues the technology behind the only selectable one instead of discarding the overflow (#1479)', () => {
+    const state = setup('r1479-successor');
+    const ts = aiTech(state);
+    // Fire is the only frontier: every other technology still to research sits behind it.
+    ts.completed = TECH_TREE
+      .map(tech => tech.id)
+      .filter(id => id !== 'fire' && id !== 'writing' && id !== 'wheel');
+    ts.currentResearch = null;
+    ts.researchProgress = 0;
+    ts.researchQueue = [];
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    const result = withScience(HIGH_SCIENCE, () => applyAIResearch(state, 'ai-1', prepared, neutral));
+    const next = aiTech(result.state);
+
+    // The free choice is still the frontier technology...
+    expect(next.currentResearch).toBe('fire');
+    // ...and the successor behind it keeps this round's surplus science instead of throwing it away.
+    expect(next.researchQueue).toHaveLength(1);
+    const queued = next.researchQueue[0]!;
+    expect(['writing', 'wheel']).toContain(queued);
+    // Enqueued through the canonical eligibility rule: real completed techs plus the active one.
+    expect(getQueueableResearchIds({ ...next, researchQueue: [] }).has(queued)).toBe(true);
+
+    const processed = processResearch(next, HIGH_SCIENCE);
+    expect(processed.completedTech).toBe('fire');
+    // The fixture completes cloud-computing, so `fire` carries its effective (discounted) cost, not the list price.
+    const fireCost = getEffectiveTechCost(TECH_TREE.find(t => t.id === 'fire')!, next.completed);
+    expect(processed.carriedProgress).toBe(HIGH_SCIENCE - fireCost);
+    expect(processed.carriedProgress).toBeGreaterThan(0);
+    expect(processed.state.currentResearch).toBe(queued);
+  });
+
+  it('still queues nothing when nothing follows the only selectable technology (#1479 control)', () => {
+    const state = setup('r1479-no-successor');
+    const ts = aiTech(state);
+    // Fire is the last technology left: there is no successor to queue, so the old behaviour is correct.
+    ts.completed = TECH_TREE.map(tech => tech.id).filter(id => id !== 'fire');
+    ts.currentResearch = null;
+    ts.researchProgress = 0;
+    ts.researchQueue = [];
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    const result = withScience(HIGH_SCIENCE, () => applyAIResearch(state, 'ai-1', prepared, neutral));
+
+    expect(aiTech(result.state).currentResearch).toBe('fire');
+    expect(aiTech(result.state).researchQueue).toEqual([]);
   });
 
   it('recovers from a dead queue entry without keeping it', () => {

@@ -39,6 +39,14 @@ export interface AIResearchPlanningContext {
   availableResources: ReadonlySet<ResourceType>;
   sciencePerTurn: number;
   /**
+   * #1479 follow-up: technologies to rank as if they were already completed, without touching `techState`.
+   * The overflow guard is the only caller — it asks "what is the best successor to the technology that finishes
+   * this round?", a question the plain frontier (every prerequisite completed *already*) cannot answer once the
+   * only remaining selectable technology is the one it just started. Nothing is granted: the returned id is only
+   * ever passed to the canonical `enqueueResearch`, which re-validates queueability against the real state.
+   */
+  assumeCompletedTechIds?: readonly string[];
+  /**
    * City ids scoped to the relief building that can address their current
    * pressure. Identities, rather than counts, keep a future multi-building
    * unlock's bonus correct when its affected cities overlap.
@@ -354,7 +362,10 @@ export function planAIResearch(
 ): AIResearchDecision | null {
   const techs = context.techs ?? TECH_TREE;
   const knownTechIds = new Set(techs.map(tech => tech.id));
-  const completed = new Set(context.techState.completed);
+  // #1479 follow-up: an explicitly assumed completion is ranked as if it were already in `completed`, which both
+  // unlocks the technologies behind it and keeps it out of the candidate set itself. `techState` is never mutated.
+  const assumedCompleted = context.assumeCompletedTechIds ?? [];
+  const completed = new Set([...context.techState.completed, ...assumedCompleted]);
   const frontier = techs
     .filter(tech =>
       !completed.has(tech.id)
@@ -537,8 +548,10 @@ function buildResearchPlanningContext(
 /**
  * #1413: keeps ONE technology queued behind the active one exactly when the active one would finish this round with
  * science to spare, so the overflow is carried (existing `processResearch` semantics) instead of discarded. The
- * choice is the planner's own next-best frontier, enqueued through the canonical `enqueueResearch`; nothing is
- * granted, no cost or overflow rule changes, and a civ whose science cannot finish its tech this round is untouched.
+ * choice is the planner's own next-best frontier — or, when the frontier is empty because the only selectable
+ * technology is the one just started, the planner's best successor to it (#1479 follow-up) — enqueued through the
+ * canonical `enqueueResearch`; nothing is granted, no cost or overflow rule changes, and a civ whose science cannot
+ * finish its tech this round is untouched.
  */
 function queueNextResearchIfScienceWouldBeDiscarded(
   result: ApplyAIResearchResult,
@@ -550,9 +563,16 @@ function queueNextResearchIfScienceWouldBeDiscarded(
   if (!civ?.techState.currentResearch || civ.techState.researchQueue.length > 0) return result;
   const sciencePerTurn = Math.max(1, calculateCivResearchOutput(result.state, civId).finalScience);
   if (!wouldDiscardResearchOverflow(civ.techState, sciencePerTurn)) return result;
-  const decision = planAIResearch(buildResearchPlanningContext(
+  const context = buildResearchPlanningContext(
     result.state, civId, civ.techState, prepared, personality, sciencePerTurn,
-  ));
+  );
+  // #1479 follow-up: the frontier can be empty even though more technology remains, because the only selectable
+  // one is the technology that was just started and will finish this round. Asking for "a successor to the
+  // current technology" answers the question the guard actually has; without it the surplus science is discarded
+  // (observed on `lh-veteran-large`: rounds 492/493/497 carried 0 progress into nothing while a replacement tech
+  // existed one layer down). The canonical `enqueueResearch` still re-validates queueability against the real state.
+  const decision = planAIResearch(context)
+    ?? planAIResearch({ ...context, assumeCompletedTechIds: [civ.techState.currentResearch] });
   if (!decision) return result;
   const techState = enqueueResearch(civ.techState, decision.frontierTechId);
   if (techState === civ.techState) return result;
