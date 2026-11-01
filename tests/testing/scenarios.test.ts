@@ -106,3 +106,13 @@ describe('every registered scenario is a legitimately reachable state', () => {
     });
   }
 });
+
+describe('strip-units-showcase scenario (#1627)', () => {
+  it('places a full-health spearman and a tier-2 archer beside an at-war enemy spearman', () => {
+    const state = buildScenario(SCENARIOS['strip-units-showcase']);
+    expect(state.units['showcase-spearman']).toMatchObject({ type: 'spearman', owner: 'player', health: 100 });
+    expect(state.units['showcase-archer']).toMatchObject({ type: 'archer', owner: 'player', health: 30 });
+    expect(state.units['showcase-enemy-spearman']).toMatchObject({ type: 'spearman', owner: 'ai-1' });
+    expect(state.civilizations.player.diplomacy.atWarWith).toContain('ai-1');
+  });
+});

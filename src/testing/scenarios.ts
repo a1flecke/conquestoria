@@ -250,6 +250,41 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     ],
   },
 
+  'strip-units-showcase': {
+    name: 'strip-units-showcase',
+    description:
+      'Visual-review harness for #1627 (painted strip units): a player Spearman at full health and a player Archer at '
+      + '30 HP (damage tier 2) side by side, an AI Spearman to fight, and a player city and an AI city so ending the turn '
+      + 'does not trigger an instant domination result. Select a unit and move it to see the walk, attack the AI unit to see '
+      + 'the attack, hit and defeat clips, and open the city panel to see the production icons.',
+    seed: 'scenario-strip-units-showcase',
+    base: {
+      kind: 'solo',
+      config: { civType: 'generic', mapSize: 'small', opponentCount: 1, gameTitle: 'Strip Units Showcase' },
+    },
+    steps: [
+      { kind: 'terrain', position: { q: 0, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 1, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 2, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 3, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 4, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 0, r: 1 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 1, r: 1 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 2, r: 1 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 3, r: 1 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 4, r: 1 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 0, r: 2 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 4, r: 2 }, terrain: 'plains' },
+      { kind: 'tech', civId: 'player', techIds: ['stone-weapons', 'bronze-working', 'archery'] },
+      { kind: 'city', civId: 'player', position: { q: 0, r: 2 } },
+      { kind: 'city', civId: 'ai-1', position: { q: 4, r: 2 } },
+      { kind: 'unit', civId: 'player', type: 'spearman', position: { q: 1, r: 1 }, overrides: { id: 'showcase-spearman' } },
+      { kind: 'unit', civId: 'player', type: 'archer', position: { q: 2, r: 1 }, overrides: { id: 'showcase-archer', health: 30 } },
+      { kind: 'unit', civId: 'ai-1', type: 'spearman', position: { q: 3, r: 1 }, overrides: { id: 'showcase-enemy-spearman' } },
+      { kind: 'diplomacy', civA: 'player', civB: 'ai-1', status: 'war' },
+    ],
+  },
+
   'fort-citadel-visuals-712': {
     name: 'fort-citadel-visuals-712',
     description:

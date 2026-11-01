@@ -10,6 +10,8 @@ import { manifest as pre_dreadnought } from './generated/pre_dreadnought.manifes
 import { manifest as rifleman } from './generated/rifleman.manifest';
 import { manifest as submarine } from './generated/submarine.manifest';
 import { manifest as tank } from './generated/tank.manifest';
+import { sprite as archer } from './generated/archer.manifest';
+import { sprite as spearman } from './generated/spearman.manifest';
 
 /**
  * Units drawn from PNG spritesheets instead of serialized SVG. This is the migration seam: a unit listed here is
@@ -34,9 +36,13 @@ const PUPPET_UNITS: Readonly<Record<string, PngSpriteManifest>> = {
   tank,
 };
 
-const PNG_UNIT_SPRITES: Readonly<Record<string, PngUnitSprite>> = Object.fromEntries(
-  Object.entries(PUPPET_UNITS).map(([id, manifest]) => [id, fromPuppetManifest(manifest)]),
-);
+/** Strip units: drawn strips exported by `strips.py export`, already in the player's shape. */
+const STRIP_UNITS: readonly PngUnitSprite[] = [archer, spearman];
+
+const PNG_UNIT_SPRITES: Readonly<Record<string, PngUnitSprite>> = Object.fromEntries([
+  ...Object.entries(PUPPET_UNITS).map(([id, manifest]) => [id, fromPuppetManifest(manifest)] as const),
+  ...STRIP_UNITS.map(sprite => [sprite.id, sprite] as const),
+]);
 
 export function getPngUnitManifest(unitType: string): PngUnitSprite | null {
   return PNG_UNIT_SPRITES[unitType] ?? null;

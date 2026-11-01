@@ -34,6 +34,10 @@ palettes.
 
 To **migrate a unit back**, delete its row from `PNG_UNIT_SPRITES`. Nothing else changes.
 
+**Drawn strips instead of a rig:** a unit drawn frame by frame (`strips.py`, see `STRIPS.md`) is exported with
+`strips.py export` and listed in `STRIP_UNITS` in the catalog instead of `PUPPET_UNITS`; its checks read
+`strip-rigs/<id>.json` and `design/png-sprites/previews/<id>/provenance.json`. Preview it with `/?scenario=strip-units-showcase`.
+
 ## Source image rules (what makes a good source)
 
 - One unit, **side view facing right**, full figure, transparent background, even lighting, ~1K square.

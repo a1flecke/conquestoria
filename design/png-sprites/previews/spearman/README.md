@@ -1,8 +1,10 @@
 # Spearman: image-generated animation strips (prototype)
 
+> **Shipped (#1627):** Spearman now plays these strips in the game; the gap table below is resolved and kept as history.
+
 A one-unit experiment: can an image generator draw **every frame** of a unit (walk, attack, hurt, death, work and four damage
 tiers), instead of the game animating one still with a rig (`scripts/sprite-puppet/puppet.py`)? Nothing here is wired into the
-game. It is a preview page plus the prototype tool that built its sheet.
+game (as written at the time; see the note above). It is a preview page plus the prototype tool that built its sheet.
 
 This is the second run. The first (single-row strips on a magenta field, 6-frame walk) had a stiff walk and a barely visible
 first damage tier; it was replaced by the set described here and is in this branch's git history.
@@ -73,7 +75,7 @@ What the tool does not do yet: tests, a rig-spec validator, palette quantisation
 
 ### Player and manifest: the real work (medium)
 
-The game's PNG player was built for one still rigged into three rows. These are the gaps, each checked against the source:
+The game's PNG player was built for one still rigged into three rows. These were the gaps (all resolved by #1634 and #1627), each checked against the source at the time:
 
 | Gap | Where | Size |
 |---|---|---|

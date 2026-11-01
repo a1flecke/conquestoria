@@ -82,8 +82,30 @@ Migrating a unit is one catalog row plus its generated manifest; migrating it ba
 - **Profiles:** `static`, `mounted` (horse + rider) and `firearm` (#621: shooters, vehicles, ships, aircraft, a balloon). A unit that attacks gets a visible attack
   cue (`attack_fx` muzzle / torpedo); a non-offensive unit (observation balloon) sets `attack_fx: none`. Never fabricate a weapon effect for it.
 - **Hard rules:** never put a free-form string in a PNG sprite style attribute (colours pass `resolvePngTint`'s hex check); no hardcoded
-  pixel size (the overlay's wrapper size still comes from `camera.hexSize`); `hurt`/`death`/`work` reuse the idle row (CSS filter) — do not
-  add a state without a manifest row; keep ~560 KB/unit in mind before migrating the whole roster (see the README's size note).
+  pixel size (the overlay's wrapper size still comes from `camera.hexSize`); a puppet unit's `hurt`/`death`/`work` reuse the idle row (the player's
+  flagged fallback) — a state only has its own art when the manifest has a clip for it; keep ~560 KB/unit in mind before migrating the whole roster (see the README's size note).
+
+### Strip units (drawn strips, #1627)
+
+A second producer writes PNG units: `python3 -I scripts/sprite-puppet/strips.py export scripts/sprite-puppet/strip-rigs/<id>.json`
+repacks an approved preview (`design/png-sprites/previews/<id>/`) into the game's sheet and writes
+`src/renderer/sprites/png/generated/<id>.manifest.ts` as a `PngUnitSprite` (exported as `sprite`, listed in `STRIP_UNITS` in the
+catalog). Operating procedure: `scripts/sprite-puppet/STRIPS.md` ("Export to the game").
+
+- **Layout.** Row 0 is the standing pose, one column per damage tier; then one walk row per tier (or one shared row), then the
+  `attack`, `hurt` and `death` one-shots. Cells are wide (not square) and scaled by `--scale` (default 0.75). Damage tier comes from
+  health (`toPngDamageTier`: 76-100 HP is tier 0, 51-75 tier 1, 26-50 tier 2, 0-25 tier 3).
+- **Placement.** `baseline` is the feet row inside the cell; `PNG_STRIP_FEET_LINE` (0.8) puts it at 80% of the hex tile, centred. The
+  strip's wrapper uses `overflow: visible` because a spear thrust is wider than its hex. Change the line or the scale only on the
+  owner's word after a screenshot review.
+- **One-shots play once** and hold their last frame (`attack` 1.5 s, `hurt` 0.7 s, `death` 1.2 s, mirrored from
+  `pirate-sprite-state.ts` by the exporter and pinned by tests). A state with no clip falls back to the idle clip. A unit whose sprite
+  has a `death` clip keeps its death pose on the map for its hold (`unitDeathSnapshots`), not only pirates.
+- **Budgets.** At most 640 KB on disk and 24 MiB decoded per sheet; the exporter refuses beyond that and names the cause. The sheet is a
+  256-colour palette PNG (watch smooth gradients for banding).
+- **Rollback.** Delete the unit's `STRIP_UNITS` entry (a puppet unit would keep its `PUPPET_UNITS` row). The SVG sprite stays either way.
+- **Provenance and ledger.** `design/png-sprites/previews/<id>/provenance.json` lists the originals' SHA-256s; strip units are counted in
+  the ledger family `ChatGPT image generation (unit strips)` (`tests/systems/asset-rights-ledger.test.ts`).
 
 ---
 

@@ -232,7 +232,7 @@ describe('sync() pool lifecycle', () => {
     overlay.sync(cam({ zoom: 1 }), [entity({ subtype: 'warrior' })], MAP, OPTS);
     const original = mount.querySelector('.cq-sprite-wrap');
 
-    overlay.sync(cam({ zoom: 1 }), [entity({ subtype: 'archer' })], MAP, OPTS);
+    overlay.sync(cam({ zoom: 1 }), [entity({ subtype: 'trebuchet' })], MAP, OPTS);
 
     const upgraded = mount.querySelector('.cq-sprite-wrap');
     expect(upgraded).not.toBe(original);

@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { listPngUnitManifests, getPngUnitManifest, isPngUnit } from '@/renderer/sprites/png/png-sprite-catalog';
 import { UNIT_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
 import type { PngPuppetState } from '@/renderer/sprites/png/png-sprite-types';
+import { ATTACK_STATE_MS, DEATH_STATE_MS, HURT_STATE_MS } from '@/renderer/pirate-sprite-state';
 
 const ROOT = resolve(__dirname, '../../../..');
 const STATES: PngPuppetState[] = ['idle', 'walk', 'attack'];
@@ -58,15 +59,52 @@ describe('PNG unit sprite catalog (#1040 spike)', () => {
   });
 
   it.each(manifests.map(m => [m.id, m] as const))('%s: stays regenerable and keeps its SVG fallback', (_id, m) => {
-    // the rig spec and the provenance record are what make the sheet reproducible and its licence auditable
-    const rig = resolve(ROOT, 'scripts/sprite-puppet/rigs', `${m.id}.json`);
-    expect(existsSync(rig), 'rig spec').toBe(true);
-    const spec = JSON.parse(readFileSync(rig, 'utf8')) as { id: string; source: string };
-    expect(spec.id).toBe(m.id);
-    expect(existsSync(resolve(ROOT, spec.source)), 'source png').toBe(true);
-    expect(existsSync(resolve(ROOT, spec.source.replace(/\.png$/, '.provenance.json'))), 'provenance').toBe(true);
+    if (m.baseline === null) {
+      // a puppet unit: the rig spec and the provenance record are what make the sheet reproducible and its licence auditable
+      const rig = resolve(ROOT, 'scripts/sprite-puppet/rigs', `${m.id}.json`);
+      expect(existsSync(rig), 'rig spec').toBe(true);
+      const spec = JSON.parse(readFileSync(rig, 'utf8')) as { id: string; source: string };
+      expect(spec.id).toBe(m.id);
+      expect(existsSync(resolve(ROOT, spec.source)), 'source png').toBe(true);
+      expect(existsSync(resolve(ROOT, spec.source.replace(/\.png$/, '.provenance.json'))), 'provenance').toBe(true);
+    } else {
+      // a strip unit: the strip spec, the approved preview sheets and the provenance record (with the originals' hashes)
+      const rig = resolve(ROOT, 'scripts/sprite-puppet/strip-rigs', `${m.id}.json`);
+      expect(existsSync(rig), 'strip spec').toBe(true);
+      expect((JSON.parse(readFileSync(rig, 'utf8')) as { id: string }).id).toBe(m.id);
+      for (const f of ['sheet.png', 'mask.png']) {
+        expect(existsSync(resolve(ROOT, 'design/png-sprites/previews', m.id, f)), `preview ${f}`).toBe(true);
+      }
+      const prov = JSON.parse(readFileSync(resolve(ROOT, 'design/png-sprites/previews', m.id, 'provenance.json'), 'utf8')) as {
+        originals: Array<{ sha256: string }>; licence_note: string; status: string;
+      };
+      expect(prov.originals.length, 'originals listed').toBeGreaterThan(0);
+      for (const o of prov.originals) expect(o.sha256).toMatch(/^[0-9a-f]{64}$/);
+      expect(prov.licence_note.length).toBeGreaterThan(40);
+      expect(prov.status, 'a shipped unit is not described as unshipped').not.toMatch(/not shipped|not registered/i);
+      // the shipped files meet the export budgets
+      const kb = readFileSync(resolve(ROOT, 'public', m.sheet)).length / 1024;
+      expect(kb, 'sheet disk size').toBeLessThanOrEqual(640);
+      expect((m.cols * m.cellWidth * m.rows * m.cellHeight * 4) / 1024 / 1024, 'decoded size').toBeLessThanOrEqual(24);
+    }
     // migration safety: the SVG sprite stays in the catalog so removing a PNG row (or a failed canvas bake) falls back cleanly
     expect(m.id in UNIT_SPRITE_CATALOG, `${m.id} must keep its SVG sprite while the PNG is migrating in`).toBe(true);
+  });
+});
+
+describe('strip units: Spearman and Archer (#1627)', () => {
+  it.each([['spearman'], ['archer']] as const)('%s is a strip unit with every clip, and each one-shot fits its hold', id => {
+    const m = getPngUnitManifest(id)!;
+    expect(m.baseline, 'a strip unit has a feet baseline').not.toBeNull();
+    expect(m.clips.hurt, 'hurt').toBeDefined();
+    expect(m.clips.death, 'death').toBeDefined();
+    const holds = { attack: ATTACK_STATE_MS, hurt: HURT_STATE_MS, death: DEATH_STATE_MS } as const;
+    for (const [state, ms] of Object.entries(holds) as Array<[keyof typeof holds, number]>) {
+      for (const clip of m.clips[state]!) {
+        expect(clip.loop, `${state} plays once`).toBe(false);
+        expect((clip.frames / clip.fps) * 1000, `${state} fits its hold`).toBeLessThanOrEqual(ms);
+      }
+    }
   });
 });
 
@@ -86,9 +124,11 @@ describe('military visual identity (#621)', () => {
   it('no two PNG units share a source image, sheet or tint mask (no duplicate art)', () => {
     const seen = new Map<string, string>();
     for (const m of listPngUnitManifests()) {
-      const spec = JSON.parse(readFileSync(resolve(ROOT, 'scripts/sprite-puppet/rigs', `${m.id}.json`), 'utf8')) as { source: string };
+      const source = m.baseline === null
+        ? resolve(ROOT, (JSON.parse(readFileSync(resolve(ROOT, 'scripts/sprite-puppet/rigs', `${m.id}.json`), 'utf8')) as { source: string }).source)
+        : resolve(ROOT, 'design/png-sprites/previews', m.id, 'sheet.png');
       for (const [kind, file] of [
-        ['source', resolve(ROOT, spec.source)],
+        ['source', source],
         ['sheet', resolve(ROOT, 'public', m.sheet)],
         ['mask', resolve(ROOT, 'public', m.mask)],
       ] as const) {
