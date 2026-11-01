@@ -9,6 +9,7 @@ import {
   buildUnitMapPresentations,
   applyUnitAnchorOffset,
   getUnitLayoutMetrics,
+  getDamage,
   type UnitMapPresentation,
 } from './unit-map-presentation';
 
@@ -63,7 +64,7 @@ export function drawUnitGlyph(
   const metrics = getUnitLayoutMetrics(size);
   const useSprites = options.useSprites ?? true;
   const sprite = useSprites
-    ? ('spriteOverride' in options ? options.spriteOverride ?? null : spriteCache.getUnit(unit.type, visual.spriteOwnerId))
+    ? ('spriteOverride' in options ? options.spriteOverride ?? null : spriteCache.getUnit(unit.type, visual.spriteOwnerId, getDamage(unit)))
     : null;
 
   if (useSprites && !sprite) {
