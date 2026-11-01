@@ -3,10 +3,10 @@
   "family": "mounted",
   "prompt": {
     "name": "Horseman",
-    "look": "A classical light cavalryman on a dapple-grey horse with a dark grey mane and tail and white socks. The rider has a short brown beard, a bronze open-faced helmet, a short-sleeved tunic and brown leather boots, and carries a long javelin. The horse wears a saddle cloth under a brown leather saddle and a brown bridle.",
+    "look": "A classical light cavalryman on a chestnut horse with a darker brown mane and tail. The rider has a short brown beard, a bronze open-faced helmet, a short-sleeved tunic and brown leather boots, and carries a long javelin. The horse wears a saddle cloth under a brown leather saddle and a brown bridle.",
     "team_area": "the rider's tunic and the saddle cloth",
-    "coat": "The horse is dapple-grey with a dark grey mane and tail: no chestnut, bay or orange-brown anywhere on it.",
-    "identity": "the same rider, helmet, beard, red tunic and javelin, and the same dapple-grey horse, saddle, red saddle cloth and bridle",
+    "coat": "The horse is a warm chestnut: an orange-brown coat the colour of a roasted chestnut or saddle leather (about #89542E), with a darker brown mane and tail (about #4A2E1A). It must lean orange, never red: no reddish, mahogany, rust or bay tones anywhere on the horse, because the game recolours red.",
+    "identity": "the same rider, helmet, beard, red tunic and javelin, and the same warm orange-brown chestnut horse with its darker brown mane and tail, saddle, red saddle cloth and bridle",
     "weapon_pose": "He holds the javelin upright in his right hand, its butt end above the horse's belly.",
     "attack_frames": 6,
     "attack": "(1) ready, javelin upright; (2) he raises the javelin to his shoulder, pointing right; (3) wind-up: arm drawn far back, body twisting; (4) the thrust: arm and javelin driving forward and down to the right; (5) full extension, the javelin still in his hand; (6) recover to ready.",
