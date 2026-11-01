@@ -108,9 +108,11 @@ describe('analyzeCampaign — healthy baseline', () => {
 
 describe('analyzeCampaign — detectors fire on injected stalls', () => {
   it('detects no-research-choice', () => {
+    // A real stall completes nothing: hold `completedTechs` flat from the round before the window, otherwise each
+    // completion legitimately explains an end-of-round `hasCurrentResearch: false` (#1479).
     const samples = series(120, round => [
-      healthyCiv('ai-1', round, round >= 20 && round <= 40
-        ? { hasCurrentResearch: false, availableTechCount: 15 }
+      healthyCiv('ai-1', round, round >= 19 && round <= 40
+        ? { hasCurrentResearch: round < 20, availableTechCount: 15, completedTechs: 20 }
         : {}),
     ]);
     const finding = analyzeCampaign(samples, CONFIG).findings.find(f => f.code === 'no-research-choice');
@@ -118,6 +120,46 @@ describe('analyzeCampaign — detectors fire on injected stalls', () => {
     expect(finding!.civId).toBe('ai-1');
     expect(finding!.firstRound).toBe(20);
     expect(finding!.lastRound).toBe(40);
+  });
+
+  describe('no-research-choice ignores rounds that completed a technology (#1479)', () => {
+    // The shape observed on `lh-veteran-large`: ai-3's science (~650/turn) finished a remaining technology every
+    // round while end-of-round `currentResearch` sampled as null. That is maximum research throughput, not a stall.
+    const inWindow = (round: number) => round >= 20 && round <= 40;
+    const stalled = (round: number, completedTechs: number): Partial<CampaignCivSample> => inWindow(round)
+      ? { hasCurrentResearch: false, availableTechCount: 3, completedTechs }
+      : { completedTechs };
+
+    it('does not fire when every no-research round completed a technology', () => {
+      // completedTechs rises by exactly one in each of rounds 20-40.
+      const samples = series(120, round => [
+        healthyCiv('ai-1', round, stalled(round, inWindow(round) ? 19 + (round - 19) : 19)),
+      ]);
+      expect(codes(samples)).not.toContain('no-research-choice');
+    });
+
+    it('still fires for a genuine stall that begins the round after a completion', () => {
+      // One completion at round 20, then nothing researched through round 40.
+      const samples = series(120, round => [
+        healthyCiv('ai-1', round, stalled(round, inWindow(round) ? 20 : 19)),
+      ]);
+      const finding = analyzeCampaign(samples, CONFIG).findings.find(f => f.code === 'no-research-choice');
+      expect(finding).toBeDefined();
+      expect(finding!.firstRound).toBe(21);
+      expect(finding!.lastRound).toBe(40);
+    });
+
+    it('a single completion cannot mask a long stall split by it', () => {
+      // Rounds 20-40 have no active research; round 30 also completes a technology. Each side is 10 rounds, so the
+      // first 10-round streak must still be reported — one completion does not explain the whole window.
+      const samples = series(120, round => [
+        healthyCiv('ai-1', round, stalled(round, inWindow(round) ? (round === 30 ? 21 : 20) : 20)),
+      ]);
+      const finding = analyzeCampaign(samples, CONFIG).findings.find(f => f.code === 'no-research-choice');
+      expect(finding).toBeDefined();
+      expect(finding!.firstRound).toBe(20);
+      expect(finding!.lastRound).toBe(29);
+    });
   });
 
   describe('production-idle (#1407: empty AND unconverted)', () => {

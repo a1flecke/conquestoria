@@ -68,8 +68,10 @@ export interface CampaignAnalysisConfig {
 }
 
 export const DEFAULT_CAMPAIGN_ANALYSIS_CONFIG: CampaignAnalysisConfig = {
-  // Measured on main: a healthy AI never sits >1 round without research once it
-  // has a city. 6 = generous (should be structurally impossible past turn ~3).
+  // Measured on main: a healthy AI never sits >1 round with no active research AND no technology completed
+  // that round, once it has a city. 6 = generous (should be structurally impossible past turn ~3). Rounds in
+  // which a technology completes do not count (#1479: late-game single-round completions sample as "no active
+  // research" and are the opposite of a stall).
   noResearchChoiceRounds: 6,
   // Measured over the full 9-scenario matrix on main: a plan-driven AI's
   // all-cities-idle streak stays in the low single digits; 12 = comfortable
@@ -188,6 +190,26 @@ function activeAiRow(row: CampaignCivSample): boolean {
   return !row.isHuman && row.living && !row.isEliminated;
 }
 
+/**
+ * `no-research-choice`: a living AI civ ends consecutive rounds with no active technology, a technology available,
+ * and **no technology completed in that round** (#1479).
+ *
+ * `hasCurrentResearch: false` is not by itself evidence that the AI chose nothing. The only writers of
+ * `TechState.currentResearch` are `processResearch` — which promotes the queued successor, or leaves `null` when it
+ * has just completed the active technology — and `createTechState`; nothing else clears it. A civ that starts a
+ * technology at the top of the round and finishes it in the same round therefore samples as `null` with techs still
+ * available, and `getAvailableTechs` is read AFTER the round (so it also counts whatever that completion unlocked).
+ * That is the normal late-game shape once science exceeds a remaining technology's cost: on deterministic
+ * `lh-veteran-large` (main `3962a5ff`), ai-3 was flagged for rounds 490-496 while completing ELEVEN technologies
+ * (246 -> 257). `applyAIResearch` started a new one in rounds 491-496, round 490 already had an active technology
+ * whose completion made the #1413 overflow guard queue its successor, and every one of those rounds finished at
+ * least one technology. The old predicate reported that as a 7-round stall.
+ *
+ * `completedTechs` is cumulative in the sample, so "rose since the previous round" is exactly "a technology completed
+ * in this round". A round with a completion proves the civ had research running — either chosen this round or carried
+ * in — so it cannot be a round in which the civ had a choice and made none. A round with no completion and no active
+ * research is the only shape this detector exists to catch.
+ */
 function detectNoResearchChoice(
   series: CivSeries[],
   config: CampaignAnalysisConfig,
@@ -195,8 +217,11 @@ function detectNoResearchChoice(
   const findings: CampaignFinding[] = [];
   for (const civ of series) {
     if (civ.isHuman) continue;
-    const run = longestRun(civ, config.noResearchChoiceRounds, row =>
-      activeAiRow(row) && row.cities > 0 && !row.hasCurrentResearch && row.availableTechCount > 0);
+    const run = longestRun(civ, config.noResearchChoiceRounds, (row, index) =>
+      // The first sample has no previous round to compare a cumulative count against; it can never anchor a run.
+      index > 0
+      && row.completedTechs === civ.rows[index - 1]!.completedTechs
+      && activeAiRow(row) && row.cities > 0 && !row.hasCurrentResearch && row.availableTechCount > 0);
     if (run) {
       findings.push({
         code: 'no-research-choice',

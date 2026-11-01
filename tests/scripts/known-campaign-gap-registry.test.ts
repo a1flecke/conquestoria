@@ -52,7 +52,10 @@ describe('known-gap registry integrity (#1454)', () => {
 
   it('the shipped register is well-formed, scoped, bounded and owned by OPEN issues', () => {
     const snapshot = JSON.parse(readFileSync(SNAPSHOT_PATH, 'utf8')) as Snapshot;
-    expect(KNOWN_CAMPAIGN_GAPS.length).toBeGreaterThan(0);
+    // #1479: the register may legitimately be EMPTY — that is what a matrix run with no findings leaves behind.
+    // Forcing a non-empty register would require keeping a stale accepted occurrence, which the ratchet's second
+    // direction rejects. The check below still proves every entry that does exist is well-formed and owned, and the
+    // snapshot-parser check proves an empty register and its snapshot agree on having no owners.
     expect(findRegistryIntegrityProblems({ scenarios: realScenarios, ownerStates: snapshot.owners })).toEqual([]);
   });
 
