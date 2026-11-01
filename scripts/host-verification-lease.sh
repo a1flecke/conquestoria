@@ -666,9 +666,29 @@ hvl_wait_cancel() {
   hvl_code="$2"
   [ -z "${hvl_waiting_file:-}" ] || rm -f "$hvl_waiting_file"
   [ -z "${hvl_budget_waiting_file:-}" ] || rm -f "$hvl_budget_waiting_file"
+  # A signal can land after the claim won but before the wait loop is left: the owner record is already published,
+  # so exiting here without releasing would leave a lease (or slot) that only a later reclaim ever clears. Release
+  # exactly what this process owns; both are owner-checked, so a wait that never won releases nothing.
+  hvl_release
+  hvl_wait_cancel_release_slot
   echo "Host verification lease wait cancelled ($hvl_sig)." >&2
   [ -n "${DURABLE_FAILURE_KIND_FILE:-}" ] && printf 'cancelled\n' > "$DURABLE_FAILURE_KIND_FILE"
   exit "$hvl_code"
+}
+
+# Remove the budget slot this process has already won, if any (see hvl_wait_cancel). Checked against the owner record,
+# never by name, for the same reason hvl_release_budget_slot is; the process is about to exit, so the reentrancy depth
+# counter is deliberately left alone.
+hvl_wait_cancel_release_slot() {
+  # hvl_budget_marker is assigned only after the claim returns, so a signal inside the claim itself sees it empty;
+  # hvl_budget_slot_dir is set before each attempt. Either way the owner record has to name this process.
+  hvl_slot_cancel_dir="${hvl_budget_marker:-${hvl_budget_slot_dir:-}}"
+  [ -n "$hvl_slot_cancel_dir" ] || return 0
+  hvl_slot_cancel_record="$(hvl_owner_read "$hvl_slot_cancel_dir/owner")"
+  [ "$(hvl_record_field "$hvl_slot_cancel_record" pid)" = "$$" ] || return 0
+  [ "$(hvl_record_field "$hvl_slot_cancel_record" start_marker)" = "${hvl_budget_self_marker:-}" ] || return 0
+  rm -f "$hvl_slot_cancel_dir/owner"
+  rmdir "$hvl_slot_cancel_dir" 2>/dev/null || true
 }
 
 # hvl_acquire <label>
@@ -756,7 +776,10 @@ hvl_acquire() {
   done
 
   [ -z "$hvl_waiting_file" ] || rm -f "$hvl_waiting_file"
-  trap - INT TERM
+  # Owned from here on. Never fall back to the default disposition: a signal in the gap before the caller installs its
+  # own traps would exit 130/143 with the lease still published. The caller's traps replace these.
+  trap 'hvl_cancel_and_release INT 130' INT
+  trap 'hvl_cancel_and_release TERM 143' TERM
   HVL_ACQUIRED_AT="$(hvl_now)"
   HVL_WAITED_SECONDS=$(( HVL_ACQUIRED_AT - hvl_start_wait ))
   if [ "$HVL_WAITED_SECONDS" -gt 0 ]; then
