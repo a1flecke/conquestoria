@@ -8,7 +8,15 @@ HOOK="$ROOT/.claude/hooks/block-commit-on-main.sh"
 before_head="$(git -C "$ROOT" rev-parse HEAD)"
 before_branch="$(git -C "$ROOT" branch --show-current)"
 before_status="$(git -C "$ROOT" status --porcelain=v1 --untracked-files=all)"
-before_refs="$(git -C "$ROOT" for-each-ref --format='%(refname) %(objectname)' refs/heads)"
+# `refs/heads` is SHARED by every worktree of this clone, and several agents work in it at once. A repo-wide
+# snapshot therefore fails whenever an unrelated agent creates, moves or rebases its own branch between our two
+# reads -- observed on the shared dev host as "hook test changed local refs" with this worktree completely
+# untouched. The only ref this run can legitimately move is the tip of the branch it is sitting on, so that is
+# the baseline; HEAD/branch/status above and the fixture-isolation check at the end cover the rest.
+before_tip=""
+if [ -n "$before_branch" ]; then
+  before_tip="$(git -C "$ROOT" rev-parse "refs/heads/$before_branch")"
+fi
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
@@ -64,4 +72,12 @@ grep -q 'rc=2' <<<"$out" || { echo "expected main-cwd commit block when hook run
 [ "$(git -C "$ROOT" rev-parse HEAD)" = "$before_head" ] || { echo "hook test changed HEAD" >&2; exit 1; }
 [ "$(git -C "$ROOT" branch --show-current)" = "$before_branch" ] || { echo "hook test changed branch" >&2; exit 1; }
 [ "$(git -C "$ROOT" status --porcelain=v1 --untracked-files=all)" = "$before_status" ] || { echo "hook test changed worktree state" >&2; exit 1; }
-[ "$(git -C "$ROOT" for-each-ref --format='%(refname) %(objectname)' refs/heads)" = "$before_refs" ] || { echo "hook test changed local refs" >&2; exit 1; }
+if [ -n "$before_branch" ]; then
+  [ "$(git -C "$ROOT" rev-parse "refs/heads/$before_branch")" = "$before_tip" ] \
+    || { echo "hook test moved this branch" >&2; exit 1; }
+fi
+# The fixture must be a different repository. Every fixture command uses `git -C "$fixture"`, but a harness that
+# exported GIT_DIR/GIT_WORK_TREE would make git ignore `-C` and act on this checkout instead; a repository identity
+# check catches that outright, which the old repo-wide refs comparison only did indirectly.
+[ "$(git -C "$fixture" rev-parse --absolute-git-dir)" != "$(git -C "$ROOT" rev-parse --absolute-git-dir)" ] \
+  || { echo "fixture git-dir resolved to this repository" >&2; exit 1; }
