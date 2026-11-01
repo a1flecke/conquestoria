@@ -1,15 +1,15 @@
 import type { PngSpriteManifest, PngUnitSprite } from './png-sprite-types';
 import { fromPuppetManifest } from './png-sprite-normalise';
 import { manifest as cavalry } from './generated/cavalry.manifest';
-import { manifest as biplane } from './generated/biplane.manifest';
+import { sprite as biplane } from './generated/biplane.manifest';
 import { manifest as horseman } from './generated/horseman.manifest';
-import { manifest as ironclad } from './generated/ironclad.manifest';
+import { sprite as ironclad } from './generated/ironclad.manifest';
 import { manifest as machine_gunner } from './generated/machine_gunner.manifest';
 import { manifest as observation_balloon } from './generated/observation_balloon.manifest';
 import { manifest as pre_dreadnought } from './generated/pre_dreadnought.manifest';
 import { manifest as rifleman } from './generated/rifleman.manifest';
 import { manifest as submarine } from './generated/submarine.manifest';
-import { manifest as tank } from './generated/tank.manifest';
+import { sprite as tank } from './generated/tank.manifest';
 import { sprite as archer } from './generated/archer.manifest';
 import { sprite as spearman } from './generated/spearman.manifest';
 
@@ -24,20 +24,17 @@ import { sprite as spearman } from './generated/spearman.manifest';
  * Recipe: scripts/sprite-puppet/README.md.
  */
 const PUPPET_UNITS: Readonly<Record<string, PngSpriteManifest>> = {
-  biplane,
   cavalry,
   horseman,
-  ironclad,
   machine_gunner,
   observation_balloon,
   pre_dreadnought,
   rifleman,
   submarine,
-  tank,
 };
 
 /** Strip units: drawn strips exported by `strips.py export`, already in the player's shape. */
-const STRIP_UNITS: readonly PngUnitSprite[] = [archer, spearman];
+const STRIP_UNITS: readonly PngUnitSprite[] = [archer, biplane, ironclad, spearman, tank];
 
 const PNG_UNIT_SPRITES: Readonly<Record<string, PngUnitSprite>> = Object.fromEntries([
   ...Object.entries(PUPPET_UNITS).map(([id, manifest]) => [id, fromPuppetManifest(manifest)] as const),

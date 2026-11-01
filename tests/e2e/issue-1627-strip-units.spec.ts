@@ -35,7 +35,16 @@ test.describe('strip units render with their tier and placement', () => {
     expect(await from(archer)).not.toBe('0%');
     expect(await archer.evaluate(el => (el as HTMLElement).style.getPropertyValue('--cols'))).toBe('8');
 
-    for (const unit of ['spearman', 'archer']) {
+    // The units switched in task 9 are strips too, and a damaged one stands on its tier-2 column; the Horseman is still a
+    // puppet (square cells: 4 columns of a three-row sheet), so it is not in this list.
+    for (const unit of ['tank', 'ironclad', 'biplane']) {
+      const roots = page.locator(`.cq-png[data-unit-type="${unit}"]`);
+      await expect(roots.first(), unit).toBeAttached();
+      expect(await roots.first().evaluate(el => (el as HTMLElement).style.getPropertyValue('--cols')), `${unit} sheet columns`).toBe('8');
+    }
+    await expect(page.locator('.cq-png[data-unit-type="horseman"]').first()).toBeAttached();
+
+    for (const unit of ['spearman', 'archer', 'tank', 'ironclad', 'biplane']) {
       for (const file of ['sheet.png', 'mask.png']) {
         // The game is served under a base path, so resolve against the page, not the origin.
         const response = await page.request.get(new URL(`images/units/${unit}/${file}`, page.url()).href);

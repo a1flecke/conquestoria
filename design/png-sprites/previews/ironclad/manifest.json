@@ -1,12 +1,12 @@
 {
   "id": "ironclad",
   "family": "naval",
-  "cellWidth": 144,
+  "cellWidth": 208,
   "cellHeight": 192,
   "cols": 8,
   "rows": 10,
   "baseline": 176,
-  "restHeight": 58.0,
+  "restHeight": 88.0,
   "states": {
     "idle": {
       "row": 0,

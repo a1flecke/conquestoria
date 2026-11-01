@@ -1,10 +1,10 @@
 {
   "id": "ironclad",
-  "status": "prototype preview, not shipped and not registered in PNG_UNIT_SPRITES",
+  "status": "shipped: registered in PNG_UNIT_SPRITES and exported with strips.py export (#1627)",
   "generator": "ChatGPT image generation (project owner, paid plan)",
   "generated_on": "2026-10-31",
   "prompts": "Generated from scripts/sprite-puppet/strip-rigs/ironclad.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/, family naval). Conversation A drew the master; conversation B, with the master attached, drew the damage sheet and the sinking row. The prompts ChatGPT actually ran were not captured.",
-  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). If this art is adopted for the game it needs a ledger family row and a provenance record under design/png-sprites/sources/ like the other generated units.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
   "originals_committed": false,
   "originals_note": "The three downloaded originals are not committed. Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
   "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all three passed (PNG magic bytes, nothing after the image stream, one frame, within the pixel limit). ClamAV was not installed, so only the structural checks ran.",
