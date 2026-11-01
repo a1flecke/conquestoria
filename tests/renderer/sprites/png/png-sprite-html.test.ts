@@ -34,7 +34,8 @@ describe('resolvePngTint', () => {
 describe('getPngSpriteCssVars', () => {
   it('maps each state to its row, last-frame offset, step count and loop time', () => {
     const v = getPngSpriteCssVars(horseman);
-    const { cols, rows, states } = horseman;
+    const { cols, rows, clips } = horseman;
+    const states = { idle: clips.idle[0], walk: clips.walk[0], attack: clips.attack[0] };
     expect(v['--cols']).toBe(String(cols));
     expect(v['--rows']).toBe(String(rows));
     // frame k of an N-column sheet sits at k / (N - 1) of the background-position range
@@ -46,9 +47,10 @@ describe('getPngSpriteCssVars', () => {
   });
 
   it('handles a single-row, single-column sheet without dividing by zero', () => {
+    const clip = { row: 0, firstCol: 0, frames: 2, fps: 4, loop: true };
     const v = getPngSpriteCssVars({
       ...horseman, cols: 1, rows: 1,
-      states: { idle: { row: 0, frames: 2, fps: 4 }, walk: { row: 0, frames: 2, fps: 4 }, attack: { row: 0, frames: 2, fps: 4 } },
+      clips: { idle: [clip, clip, clip, clip], walk: [clip, clip, clip, clip], attack: [clip, clip, clip, clip] },
     });
     expect(v['--idle-y']).toBe('0%');
     expect(v['--idle-end']).toBe('0%');
@@ -107,7 +109,7 @@ describe('getPngCanvasFrame', () => {
     expect(a.state).toBe('walk');
     expect(b.state).toBe('walk');
     expect(a.frame).not.toBe(b.frame); // the map alternates two distinct walk poses
-    expect(Math.max(a.frame, b.frame)).toBeLessThan(horseman.states.walk.frames);
+    expect(Math.max(a.frame, b.frame)).toBeLessThan(horseman.clips.walk[0].frames);
   });
 });
 

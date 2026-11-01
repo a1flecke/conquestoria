@@ -4,10 +4,10 @@ import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { listPngUnitManifests, getPngUnitManifest, isPngUnit } from '@/renderer/sprites/png/png-sprite-catalog';
 import { UNIT_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
-import type { PngSpriteState } from '@/renderer/sprites/png/png-sprite-types';
+import type { PngPuppetState } from '@/renderer/sprites/png/png-sprite-types';
 
 const ROOT = resolve(__dirname, '../../../..');
-const STATES: PngSpriteState[] = ['idle', 'walk', 'attack'];
+const STATES: PngPuppetState[] = ['idle', 'walk', 'attack'];
 
 /** Width/height from a PNG's IHDR chunk. */
 function pngSize(path: string): { width: number; height: number } {
@@ -27,17 +27,25 @@ describe('PNG unit sprite catalog (#1040 spike)', () => {
   });
 
   it.each(manifests.map(m => [m.id, m] as const))('%s: manifest is internally consistent', (_id, m) => {
-    expect(m.frameSize).toBeGreaterThan(0);
-    const rows = STATES.map(s => m.states[s].row);
-    expect(new Set(rows).size, 'each state owns its own row').toBe(STATES.length);
-    expect(Math.max(...rows)).toBeLessThan(m.rows);
-    expect(m.rows).toBe(STATES.length);
-    for (const s of STATES) {
-      const e = m.states[s];
-      // steps(n, jump-none) is only valid for n >= 2
-      expect(e.frames, `${s} frames`).toBeGreaterThanOrEqual(2);
-      expect(e.frames, `${s} frames fit the sheet`).toBeLessThanOrEqual(m.cols);
-      expect(e.fps).toBeGreaterThan(0);
+    expect(m.cellWidth).toBeGreaterThan(0);
+    expect(m.cellHeight).toBeGreaterThan(0);
+    // every clip of every state and tier lies inside the sheet
+    const clips = Object.values(m.clips).flatMap(tiers => [...tiers]);
+    for (const c of clips) {
+      expect(c.row, 'clip row').toBeLessThan(m.rows);
+      expect(c.firstCol + c.frames, 'clip frames fit the sheet').toBeLessThanOrEqual(m.cols);
+      expect(c.fps).toBeGreaterThan(0);
+    }
+    if (m.baseline === null) {
+      // a puppet sheet: square cells, one looping row per state (steps(n, jump-none) is only valid for n >= 2)
+      const rows = STATES.map(s => m.clips[s][0].row);
+      expect(new Set(rows).size, 'each state owns its own row').toBe(STATES.length);
+      expect(m.rows).toBe(STATES.length);
+      expect(m.cellWidth).toBe(m.cellHeight);
+      for (const s of STATES) {
+        expect(m.clips[s][0].frames, `${s} frames`).toBeGreaterThanOrEqual(2);
+        expect(m.clips[s][0].loop, `${s} loops`).toBe(true);
+      }
     }
   });
 
@@ -45,7 +53,7 @@ describe('PNG unit sprite catalog (#1040 spike)', () => {
     for (const which of ['sheet', 'mask'] as const) {
       const file = resolve(ROOT, 'public', m[which]);
       expect(existsSync(file), `${m[which]} is missing — re-run scripts/sprite-puppet/puppet.py`).toBe(true);
-      expect(pngSize(file)).toEqual({ width: m.cols * m.frameSize, height: m.rows * m.frameSize });
+      expect(pngSize(file)).toEqual({ width: m.cols * m.cellWidth, height: m.rows * m.cellHeight });
     }
   });
 
@@ -102,8 +110,8 @@ describe('military visual identity (#621)', () => {
 
   it.each(MILITARY_IDENTITY_UNITS.map(id => [id] as const))('%s: has a walk row and an attack row that differ from idle', id => {
     const m = getPngUnitManifest(id)!;
-    expect(m.states.walk.frames).toBeGreaterThanOrEqual(4);
-    expect(m.states.attack.frames).toBeGreaterThanOrEqual(4);
-    expect(m.states.idle.row).not.toBe(m.states.attack.row);
+    expect(m.clips.walk[0].frames).toBeGreaterThanOrEqual(4);
+    expect(m.clips.attack[0].frames).toBeGreaterThanOrEqual(4);
+    expect(m.clips.idle[0].row).not.toBe(m.clips.attack[0].row);
   });
 });

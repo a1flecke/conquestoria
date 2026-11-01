@@ -1,6 +1,6 @@
 import type { UnitSpriteMotion } from '../units';
 import { pngSpriteUrl } from './png-sprite-html';
-import type { PngSpriteManifest, PngSpriteState } from './png-sprite-types';
+import type { PngPuppetState, PngUnitSprite } from './png-sprite-types';
 
 /**
  * Canvas counterpart of the DOM player, for the low-zoom map layer (and anywhere an HTMLImageElement is needed).
@@ -9,9 +9,9 @@ import type { PngSpriteManifest, PngSpriteState } from './png-sprite-types';
  */
 
 /** Which sheet frame stands in for each static motion the Canvas layer asks for. */
-export function getPngCanvasFrame(manifest: PngSpriteManifest, motion: UnitSpriteMotion): { state: PngSpriteState; frame: number } {
-  if (motion === 'move-a') return { state: 'walk', frame: 1 % manifest.states.walk.frames };
-  if (motion === 'move-b') return { state: 'walk', frame: 5 % manifest.states.walk.frames };
+export function getPngCanvasFrame(manifest: PngUnitSprite, motion: UnitSpriteMotion): { state: PngPuppetState; frame: number } {
+  if (motion === 'move-a') return { state: 'walk', frame: 1 % manifest.clips.walk[0].frames };
+  if (motion === 'move-b') return { state: 'walk', frame: 5 % manifest.clips.walk[0].frames };
   return { state: 'idle', frame: 0 };
 }
 
@@ -40,7 +40,7 @@ function makeCanvas(size: number): HTMLCanvasElement {
 
 /** Bake one tinted frame to an image. Rejects when no 2D canvas or sheet is available; callers fall back to SVG. */
 export async function bakePngUnitImage(
-  manifest: PngSpriteManifest,
+  manifest: PngUnitSprite,
   tint: string,
   motion: UnitSpriteMotion,
 ): Promise<HTMLImageElement> {
@@ -49,9 +49,9 @@ export async function bakePngUnitImage(
     loadImage(pngSpriteUrl(manifest, 'mask')),
   ]);
   const { state, frame } = getPngCanvasFrame(manifest, motion);
-  const S = manifest.frameSize;
+  const S = manifest.cellHeight; // puppet cells are square; strip framing arrives with #1627 Task 6
   const sx = frame * S;
-  const sy = manifest.states[state].row * S;
+  const sy = manifest.clips[state][0].row * S;
 
   const out = makeCanvas(S);
   const ctx = out.getContext('2d');
