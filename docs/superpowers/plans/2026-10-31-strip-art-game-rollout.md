@@ -76,17 +76,17 @@ player was built for one still rigged into three rows") and `scripts/sprite-pupp
 
 ---
 
-### Task 1: Secure the originals
+### Task 1: Secure the originals ✅ done 2026-10-31 (26/26 copied to `~/conquestoria-art-originals/strips/<unit>/`, hashes verified, `INDEX.json` beside them)
 
 The six units' downloaded originals live only in a session scratchpad under `/private/tmp`, which the OS clears. Every rebuild
 (Task 9's biplane fix included) needs them.
 
 **Files:** none in the repo.
 
-- [ ] **Step 1:** Copy each unit's originals to `~/conquestoria-art-originals/strips/<unit>/` (`a.png`, `b.png`, …, the letters in its
+- [x] **Step 1:** Copy each unit's originals to `~/conquestoria-art-originals/strips/<unit>/` (`a.png`, `b.png`, …, the letters in its
   `strip-rigs/<unit>.json`). The tank's are in the scratchpad `tank-v2/`, the ironclad's in `ironclad-src/`, the biplane's in
   `biplane-src/`, the spearman's in `spearman-src/`. For the archer and horseman, use the folders whose hashes match.
-- [ ] **Step 2:** For each unit, `shasum -a 256` every file and compare it with `originals[].sha256` in
+- [x] **Step 2:** For each unit, `shasum -a 256` every file and compare it with `originals[].sha256` in
   `design/png-sprites/previews/<unit>/provenance.json`. Expected: every hash matches. If one has no match, stop and tell the owner
   which file is missing; the shipped preview stays exportable (Task 7 needs only the committed preview), only a rebuild is blocked.
 
