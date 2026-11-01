@@ -2,6 +2,7 @@
 """strips: PROTOTYPE intake for AI-generated animation strips (not wired into the game).
 
     python3 -I scripts/sprite-puppet/strips.py build scripts/sprite-puppet/strip-rigs/spearman.json --sources <dir>
+    python3 -I scripts/sprite-puppet/strips.py export scripts/sprite-puppet/strip-rigs/spearman.json
 
 puppet.py animates ONE painted still with a rig. This is the other way round: the art already contains the frames (an
 image generator drew a walk cycle, an attack, damage tiers ...), so the tool only has to *cut, normalise and pack* them:
@@ -15,8 +16,8 @@ image generator drew a walk cycle, an attack, damage tiers ...), so the tool onl
   4. split the red cloth into a civ-tint mask with the same keying puppet.py uses,
   5. pack frames into a sheet + mask sheet and write a manifest the preview page (or a future player) reads.
 
-Cells are W x H (not square): a spear thrust is wider than a standing figure is tall. The game's player and manifest type
-assume square cells today; see design/png-sprites/previews/spearman/README.md for what that means.
+Cells are W x H (not square): a spear thrust is wider than a standing figure is tall. The game's player takes such cells
+(PngUnitSprite, #1627); `export` (scripts/sprite-puppet/strips_export.py) repacks an approved preview into the files it plays.
 
 Dependencies: Python 3.11+, Pillow, numpy, scipy (dev-time only).
 """
@@ -46,6 +47,13 @@ def _load_puppet():
 
 
 puppet = _load_puppet()
+
+
+def _load_export():
+    spec = importlib.util.spec_from_file_location('strips_export', Path(__file__).resolve().with_name('strips_export.py'))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def field_mask(rgb: np.ndarray) -> np.ndarray:
@@ -1128,16 +1136,35 @@ def calibrate_command(spec: dict, sources: Path) -> int:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('cmd', choices=['build', 'probe', 'calibrate', 'prompt'])
+    ap.add_argument('cmd', choices=['build', 'probe', 'calibrate', 'prompt', 'export'])
     ap.add_argument('spec')
     ap.add_argument('--sources', help='directory with the generated images named in the spec (not needed for prompt)')
     ap.add_argument('--out', help='output directory (default design/png-sprites/previews/<id>)')
+    ap.add_argument('--preview', help='export: the built preview directory (default design/png-sprites/previews/<id>)')
+    ap.add_argument('--scale', type=float, default=0.75, help='export: scale of every cell (default 0.75)')
+    ap.add_argument('--public', help='export: where sheet.png and mask.png go (default public/images/units/<id>)')
+    ap.add_argument('--generated', help='export: where <id>.manifest.ts goes (default src/renderer/sprites/png/generated)')
+    ap.add_argument('--max-kb', type=float, help='export: disk budget for sheet and mask')
+    ap.add_argument('--max-mib', type=float, help='export: decoded-memory budget for sheet and mask')
     args = ap.parse_args()
     spec_path = Path(args.spec)
     spec_path = spec_path if spec_path.is_absolute() else REPO / spec_path
     spec = json.loads(spec_path.read_text())
     if args.cmd == 'prompt':
         return prompt_command(spec)
+    if args.cmd == 'export':
+        exporter = _load_export()
+        where = lambda given, default: Path(given) if given else default
+        exporter.export(
+            spec,
+            where(args.preview, REPO / 'design' / 'png-sprites' / 'previews' / spec['id']),
+            args.scale,
+            where(args.public, REPO / 'public' / 'images' / 'units' / spec['id']),
+            where(args.generated, REPO / 'src' / 'renderer' / 'sprites' / 'png' / 'generated'),
+            args.max_kb if args.max_kb is not None else exporter.MAX_DISK_KB,
+            args.max_mib if args.max_mib is not None else exporter.MAX_DECODED_MIB,
+        )
+        return 0
     if not args.sources:
         ap.error(f'{args.cmd} needs --sources')
     if args.cmd == 'probe':

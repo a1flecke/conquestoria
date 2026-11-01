@@ -45,6 +45,17 @@ player was built for one still rigged into three rows") and `scripts/sprite-pupp
 | Reduced motion | Loops hold their first frame (today's rule); one-shots hold their last frame | The outcome (fallen, recovered) is the information |
 | Death pose | Kept for any unit whose sprite has a real death clip, plus pirates (today) | An SVG unit with no death art would otherwise stand idle for 1.2 s after dying |
 
+## As built (where the code differs from the task text below)
+
+- **Tasks 2–6 (#1634):** `applyPngPlayback` is in `png-sprite-playback.ts` as planned. `getPngBakeGeometry(sprite, row, col)` takes a row and
+  column, not a clip. The tracker class is `PirateSpriteStateController` and its new reader `resolveTransientEpoch`. The snapshot's faction
+  comes from the existing `getFaction` (now exported from `unit-map-presentation.ts`) rather than a new `unitSpriteFaction`, and the pirate
+  snapshot map is renamed `unitDeathSnapshots`. Puppet units keep looping attack rows (`loop: true`) so nothing about them changed.
+- **Task 7:** the centre check is applied to the standing poses and the walk only (a thrust or a recoil legitimately moves the figure, so
+  one-shots are exempt), with a 12 px tolerance in exported pixels, plus a check that the idle pose is within 12 px of its cell's middle (it
+  names the Biplane's real fault). The export has two extra flags for experiments, `--max-kb` and `--max-mib`. The code is in
+  `scripts/sprite-puppet/strips_export.py`, loaded by `strips.py`.
+
 ## Review Focus
 
 1. A unit that attacks twice inside the 1.5 s hold must replay the attack (the transient is renewed; the CSS animation must restart).
@@ -90,7 +101,7 @@ The six units' downloaded originals live only in a session scratchpad under `/pr
   `design/png-sprites/previews/<unit>/provenance.json`. Expected: every hash matches. If one has no match, stop and tell the owner
   which file is missing; the shipped preview stays exportable (Task 7 needs only the committed preview), only a rebuild is blocked.
 
-### Task 2: One sprite type and a clip resolver
+### Task 2: One sprite type and a clip resolver ✅ merged (#1634)
 
 **Files:**
 - Modify: `src/renderer/sprites/png/png-sprite-types.ts`
@@ -140,7 +151,7 @@ The six units' downloaded originals live only in a session scratchpad under `/pr
 - [ ] **Step 4:** Run `./scripts/dev.sh test tests/renderer/sprites/png/`. Expected: PASS.
 - [ ] **Step 5:** Commit: `art: one PNG unit sprite type and a clip resolver per state and damage tier (#1627)`.
 
-### Task 3: The player plays clips (DOM overlay and CSS)
+### Task 3: The player plays clips (DOM overlay and CSS) ✅ merged (#1634)
 
 **Files:**
 - Create: `src/renderer/sprites/png/png-sprite-layout.ts`
@@ -186,7 +197,7 @@ under `[data-png-fallback]`. Reduced motion: loops hold `--from`, one-shots hold
 - [ ] **Step 4:** Run `./scripts/dev.sh test tests/renderer/` and `./scripts/check-src-rule-violations.sh src/renderer/sprite-overlay.ts src/renderer/sprites/png`. Expected: PASS, no violations.
 - [ ] **Step 5:** Commit: `art: the PNG player plays per-state, per-tier clips, once for one-shots (#1627)`.
 
-### Task 4: Transients record when they started
+### Task 4: Transients record when they started ✅ merged (#1634)
 
 **Files:**
 - Modify: `src/renderer/pirate-sprite-state.ts`, `src/renderer/render-loop.ts` (`buildUnitEntities`, `buildMovingUnitEntities`)
@@ -205,7 +216,7 @@ under `[data-png-fallback]`. Reduced motion: loops hold `--from`, one-shots hold
 - [ ] **Step 4:** Run both test files plus `tests/renderer/render-loop-invalidation-boundary.test.ts`. Expected: PASS.
 - [ ] **Step 5:** Commit: `art: sprite transients record when they began, so a renewed attack replays (#1627)`.
 
-### Task 5: A death pose for every unit that has one
+### Task 5: A death pose for every unit that has one ✅ merged (#1634)
 
 **Files:**
 - Modify: `src/renderer/render-loop.ts`, `src/renderer/sprites/png/png-sprite-catalog.ts`
@@ -232,7 +243,7 @@ of its hex is `'visible'` (the check that exists today).
 - [ ] **Step 4:** Run `./scripts/dev.sh test tests/renderer/`. Expected: PASS.
 - [ ] **Step 5:** Commit: `art: a fallen unit keeps its death pose when its sprite has one (#1627)`.
 
-### Task 6: Canvas bake and list icons use the same framing
+### Task 6: Canvas bake and list icons use the same framing ✅ merged (#1634)
 
 **Files:**
 - Modify: `src/renderer/sprites/png/png-sprite-canvas.ts`, `src/renderer/sprites/png/png-sprite-layout.ts`
@@ -257,7 +268,7 @@ of its hex is `'visible'` (the check that exists today).
   (`./scripts/dev-server.sh start`), load a game with a puppet unit (horseman) and confirm idle, walk and attack look as on
   `main` (screenshot), then `./scripts/dev-server.sh stop`.
 
-### Task 7: `strips.py export`
+### Task 7: `strips.py export` 🟡 in PR (see "As built")
 
 **Files:**
 - Modify: `scripts/sprite-puppet/strips.py`, `scripts/sprite-puppet/STRIPS.md` (new "Export to the game" section)
