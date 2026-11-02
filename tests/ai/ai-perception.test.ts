@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { GameState, LastSeenTilePresentation, UnitType } from '@/core/types';
 import { buildMajorCivPerception, refreshMajorCivIntel } from '@/ai/ai-perception';
+import { getUnitUnlockTech } from '@/systems/tech-unlock-index';
+import { TECH_TREE } from '@/systems/tech-definitions';
+import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { buildDiplomaticStrengthEstimates, estimatePerceivedCivStrength } from '@/systems/diplomatic-strength';
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -55,6 +58,25 @@ function addRivalUnit(state: GameState, type: UnitType, position = OBSERVED) {
   }
   return unit;
 }
+
+/**
+ * #1604 — `requiredEraForUnit` used `TECH_TREE.find(tech => tech.unlocksUnits?.includes(type))`, one 400-entry scan
+ * per observed unit type per contacted civilization, twice. The accessor it now calls is a memoized reverse index;
+ * this pins it to the expression it replaced for every trainable unit type.
+ */
+describe('unit unlock era lookup (#1604)', () => {
+  it('matches the linear scan it replaced, first match included', () => {
+    for (const unit of TRAINABLE_UNITS) {
+      const scanned = TECH_TREE.find(tech => tech.unlocksUnits?.includes(unit.type));
+      expect(getUnitUnlockTech(unit.type)?.id, unit.type).toBe(scanned?.id);
+    }
+  });
+
+  it('returns undefined for a type no technology unlocks', () => {
+    // `beast_wolf` is spawned by `beast-system.ts`, never unlocked by a technology (see `.claude/rules/game-systems.md`).
+    expect(getUnitUnlockTech('beast_wolf')).toBeUndefined();
+  });
+});
 
 describe('major-civilization perception', () => {
   it('does not expose live hidden coordinates through a remembered target', () => {

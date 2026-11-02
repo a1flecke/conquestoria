@@ -10,7 +10,7 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
-import { TECH_TREE } from '@/systems/tech-system';
+import { getUnitUnlockTech } from '@/systems/tech-unlock-index';
 import {
   collectPerceivedCities,
   collectPerceivedUnits,
@@ -61,8 +61,9 @@ function copyCoord(coord: HexCoord): HexCoord {
 }
 
 function requiredEraForUnit(type: UnitType): number {
-  const unlock = TECH_TREE.find(tech => tech.unlocksUnits?.includes(type));
-  return unlock?.era ?? 1;
+  // #1604: `TECH_TREE.find(tech => tech.unlocksUnits?.includes(type))` scanned all 400 technologies per perceived
+  // unit type. The memoized reverse index keeps `TECH_TREE`'s first-match order and costs one lookup.
+  return getUnitUnlockTech(type)?.era ?? 1;
 }
 
 export function refreshMajorCivIntel(state: GameState, civId: string): GameState {

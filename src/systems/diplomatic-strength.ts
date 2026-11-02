@@ -13,7 +13,7 @@
  */
 import type { Unit, UnitType } from '@/core/types';
 import { TRAINABLE_UNITS } from './city-system';
-import { TECH_TREE } from './tech-system';
+import { getTechById } from './tech-system';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { UNIT_CLASS_BY_TYPE, isMilitaryUnitType } from './unit-modifier-definitions';
 import { decayRememberedConfidence } from './actor-perception';
@@ -146,8 +146,10 @@ export function getMedianLandCombatantStrengthForEra(era: number): number {
   const boundedEra = Number.isFinite(era) ? Math.max(1, Math.floor(era)) : 1;
   const strengths = TRAINABLE_UNITS
     .filter(entry => {
+      // #1604: this ran inside a filter over all 91 trainable units, so `TECH_TREE.find` made one estimate
+      // (units x catalogue) on every call. `getTechById` is the Map-backed accessor.
       const requiredEra = entry.techRequired
-        ? TECH_TREE.find(tech => tech.id === entry.techRequired)?.era ?? 1
+        ? getTechById(entry.techRequired)?.era ?? 1
         : 1;
       const definition = UNIT_DEFINITIONS[entry.type];
       const attackKind = definition.attackProfile?.kind;
