@@ -1,5 +1,5 @@
 import type { City, CityMaturity } from '@/core/types';
-import { TECH_TREE } from './tech-system';
+import { getTechById } from './tech-system';
 
 export interface CityMaturityDefinition {
   id: CityMaturity;
@@ -42,7 +42,9 @@ export const INITIAL_CITY_MATURITY_TECH_IDS = new Set([
 ]);
 
 export function isCityMaturityTech(techId: string): boolean {
-  const tech = TECH_TREE.find(candidate => candidate.id === techId);
+  // #1604: this ran inside a loop over a civ's completed technologies (up to 400), so `TECH_TREE.find` made it
+  // (completed x catalogue) on every maturity resolution. `getTechById` is the Map-backed accessor.
+  const tech = getTechById(techId);
   return Boolean(tech?.countsForCityMaturity || INITIAL_CITY_MATURITY_TECH_IDS.has(techId));
 }
 
@@ -52,7 +54,7 @@ export function countCityMaturityTechs(completedTechs: string[]): number {
 
 function hasMaturityTechAtEra(completedTechs: string[], era: number): boolean {
   return completedTechs.some(techId => {
-    const tech = TECH_TREE.find(candidate => candidate.id === techId);
+    const tech = getTechById(techId);
     return tech?.era === era && isCityMaturityTech(techId);
   });
 }

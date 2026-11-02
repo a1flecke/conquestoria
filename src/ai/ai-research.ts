@@ -24,6 +24,7 @@ import {
 import type { AIForceDemand } from './ai-unit-assignment';
 import type { PreparedMajorCivPlan } from './ai-prepared-turn';
 import { evaluateAITechCapabilities, type AITechCapabilities } from './ai-tech-evaluation';
+import { buildTechUnlockIndex, type TechUnlockIndex } from '@/systems/tech-unlock-index';
 import { weightTechChoice } from './ai-personality';
 import { NATIONAL_INTENT_POSTURE, type NationalIntentPosture } from './ai-national-intent-posture';
 import { simulateResearchQueueTiming, wouldDiscardResearchOverflow } from '@/systems/tech-progression';
@@ -173,6 +174,7 @@ function descendantsWithinLimit(
   knownTechIds: ReadonlySet<string>,
   reliefCityIdsByBuildingId: Readonly<Record<string, readonly string[]>>,
   scienceDeficientCityCount: number,
+  unlockIndex: TechUnlockIndex,
 ): SearchTarget[] {
   const byId = new Map(techs.map(tech => [tech.id, tech]));
   const targets: SearchTarget[] = [];
@@ -191,7 +193,7 @@ function descendantsWithinLimit(
     if (previousDepth !== undefined && previousDepth <= current.depth) continue;
     bestDepth.set(current.tech.id, current.depth);
     const completedAfterPath = new Set([...completed, ...current.pathIds]);
-    const capabilities = evaluateAITechCapabilities(current.tech, completedAfterPath, knownTechIds);
+    const capabilities = evaluateAITechCapabilities(current.tech, completedAfterPath, knownTechIds, unlockIndex);
     const preliminary = capabilities.militaryPowerSpike
       + capabilities.economicSupport
       + capabilities.bespokeEffectValue
@@ -262,6 +264,7 @@ function convergentTargets(
   reliefCityIdsByBuildingId: Readonly<Record<string, readonly string[]>>,
   discovered: readonly SearchTarget[],
   scienceDeficientCityCount: number,
+  unlockIndex: TechUnlockIndex,
 ): SearchTarget[] {
   const bestById = new Map<string, SearchTarget>();
   for (const target of discovered) {
@@ -281,7 +284,7 @@ function convergentTargets(
     const combinedPathIds = new Set(sourceEntries.flatMap(entry => entry.pathTechIds));
     combinedPathIds.add(candidate.id);
     const completedAfterPath = new Set([...completed, ...combinedPathIds]);
-    const capabilities = evaluateAITechCapabilities(candidate, completedAfterPath, knownTechIds);
+    const capabilities = evaluateAITechCapabilities(candidate, completedAfterPath, knownTechIds, unlockIndex);
     const preliminary = capabilities.militaryPowerSpike
       + capabilities.economicSupport
       + capabilities.bespokeEffectValue
@@ -381,15 +384,18 @@ export function planAIResearch(
       Array.from({ length: context.pressuredReliefCityCount ?? 0 }, (_, index) => `legacy-${index}`),
     ]));
   const scienceDeficientCityCount = context.scienceDeficientCityCount ?? 0;
+  // #1604: one reverse-index build per plan, reused by every candidate evaluation below (and by the search helpers).
+  const unlockIndex = buildTechUnlockIndex();
 
   const directTargets = frontier
     .flatMap(tech => descendantsWithinLimit(
-      tech, techs, completed, knownTechIds, reliefCityIdsByBuildingId, scienceDeficientCityCount,
+      tech, techs, completed, knownTechIds, reliefCityIdsByBuildingId, scienceDeficientCityCount, unlockIndex,
     ));
   const searchTargets = [
     ...directTargets,
     ...convergentTargets(
       techs, completed, knownTechIds, reliefCityIdsByBuildingId, directTargets, scienceDeficientCityCount,
+      unlockIndex,
     ),
   ]
     .sort((left, right) =>
@@ -398,7 +404,9 @@ export function planAIResearch(
       || left.target.id.localeCompare(right.target.id))
     .slice(0, 24);
   const evaluated = searchTargets.map(entry => {
-    const capabilities = evaluateAITechCapabilities(entry.target, entry.completedAfterPath, knownTechIds);
+    const capabilities = evaluateAITechCapabilities(
+      entry.target, entry.completedAfterPath, knownTechIds, unlockIndex,
+    );
     const roleCount = Object.values(capabilities.rolesUnlocked)
       .reduce((sum, value) => sum + (value ?? 0), 0);
     const modernizationFit = context.modernizationDemand / 25
