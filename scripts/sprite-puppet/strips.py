@@ -954,15 +954,18 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
                 (s['state'] for s in spec['states'] if s.get('file') == ref.partition('#')[0]), None)
             if origin is None:
                 raise SystemExit(f'rig source "{ref}" of {st["state"]}: no drawn state uses that image')
+            scale = by_state[origin]['scale']
             try:
                 prepared = walk_frames(rig_source_image(spec, sources, ref), rig, st['cells'])
             except RigCutError as e:
                 if k == 0:
                     raise SystemExit(f'{ref}: {e}')
                 print(Finding('warn', ref, 'rig_cut', f'{e}; {name} walks like {group[-1]["state"]}').line())
-                prepared = group[-1]['prepared']
+                # the neighbour's frames are in the neighbour's pixels, so they keep the neighbour's scale (the drawing this
+                # tier came from may be a different size in pixels)
+                prepared, scale = group[-1]['prepared'], group[-1]['scale']
             group.append({'state': name, 'fps': st['fps'], 'loop': st.get('loop', True), 'prepared': prepared,
-                          'steel': 1.0, 'scale': by_state[origin]['scale'], 'note': st.get('note', ''),
+                          'steel': 1.0, 'scale': scale, 'note': st.get('note', ''),
                           'anchor': 'given' if rig.get('kind') in GIVEN_KINDS else st.get('anchor', 'feet'), 'match': None,
                           'tier_group': st['state']})
     rows = [r for group in slots for r in group]

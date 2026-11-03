@@ -6,7 +6,7 @@ import {
   toPngDamageTier,
 } from '@/renderer/sprites/png/png-sprite-playback';
 import { getPngUnitManifest, hasPngDeathClip } from '@/renderer/sprites/png/png-sprite-catalog';
-import { manifest as cavalryManifest } from '@/renderer/sprites/png/generated/cavalry.manifest';
+import { manifest as riflemanManifest } from '@/renderer/sprites/png/generated/rifleman.manifest';
 import type { PngClip, PngTierClips, PngUnitSprite } from '@/renderer/sprites/png/png-sprite-types';
 
 const clip = (over: Partial<PngClip> = {}): PngClip => ({ row: 0, firstCol: 0, frames: 4, fps: 4, loop: true, ...over });
@@ -28,14 +28,14 @@ function stripSprite(over: Partial<PngUnitSprite> = {}): PngUnitSprite {
 }
 
 describe('fromPuppetManifest', () => {
-  const sprite = fromPuppetManifest(cavalryManifest);
+  const sprite = fromPuppetManifest(riflemanManifest);
 
   it("keeps a puppet unit's behaviour: square cells, looping rows, the same clip at every tier", () => {
     expect(sprite.cellWidth).toBe(192);
     expect(sprite.cellHeight).toBe(192);
     expect(sprite.baseline).toBeNull();
     for (const state of ['idle', 'walk', 'attack'] as const) {
-      const entry = cavalryManifest.states[state];
+      const entry = riflemanManifest.states[state];
       const expected = { row: entry.row, firstCol: 0, frames: entry.frames, fps: entry.fps, loop: true };
       for (const tierClip of sprite.clips[state]) expect(tierClip, state).toEqual(expected);
     }
@@ -122,8 +122,8 @@ describe('getPngPlaybackCssVars', () => {
 
 describe('hasPngDeathClip', () => {
   it('is false for every shipped puppet unit and for a unit with no PNG row', () => {
-    expect(getPngUnitManifest('cavalry')).not.toBeNull();
-    expect(hasPngDeathClip('cavalry')).toBe(false);
+    expect(getPngUnitManifest('rifleman')).not.toBeNull();
+    expect(hasPngDeathClip('rifleman')).toBe(false);
     expect(hasPngDeathClip('warrior')).toBe(false);
     expect(hasPngDeathClip('__proto__')).toBe(false);
   });

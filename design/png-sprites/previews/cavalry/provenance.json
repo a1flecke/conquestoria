@@ -1,0 +1,19 @@
+{
+  "id": "cavalry",
+  "status": "shipped: registered in PNG_UNIT_SPRITES and exported with strips.py export (#1627)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-03",
+  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/cavalry.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/). Conversation A drew the master; later images were drawn with the master attached. The damage, attack and defeat sheets were each redrawn by the owner until they wore the master's shako (cream pom-pom, rope cord, oval plate); the prompts ChatGPT actually ran were not captured.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept by the owner under ~/conquestoria-art-originals/strips/cavalry). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all five passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "Several: earlier attack, hit and defeat sheets drifted from the master's hat or horse, and one damage sheet had three different hats and a missing sabre blade; each was redrawn by the owner. Only the accepted five are recorded below. `strips.py probe` reported 0 errors and 4 warnings: the horse's hooves touch in each damage drawing, so the four damaged tiers walk with the master's walk (the documented fallback).",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1448, 1086], "sha256": "5a685f838ba162a0f025ed6af6830e800b33d75c585d4cea01d83ebc03fa277a" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1312, 1199], "sha256": "f29316363cfe0cfa7d0a8430dbf6eb24fb42ea3d7f43f6b9647cdced7b4b1cc0" },
+    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1448, 1086], "sha256": "95517f7cfb94f5cd86670cb1540afbc465ceeb84f2c0cae60322a089566cdf83" },
+    { "role": "hit reaction, 4 frames (2 x 2 grid)", "file": "d", "size": [1254, 1254], "sha256": "1b7741ec1736637bd3d2b4b08b1e5ab6796ab1fed075bae711817bd81410cccf" },
+    { "role": "defeat, 4 frames (2 x 2 grid)", "file": "e", "size": [1312, 1199], "sha256": "73561e88bcaae0822791963baf9ca9b730b2e7efada1f6ea2a04e226904ec025" }
+  ]
+}
