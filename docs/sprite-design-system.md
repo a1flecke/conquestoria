@@ -57,7 +57,7 @@ sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you whi
 | axeman | ✅ sprite | melee |
 | spearman | ✅ painted strips (#1627) | melee |
 | horseman | ✅ sprite | animal |
-| cavalry | ✅ sprite | animal |
+| cavalry | ✅ sprite (strip) | animal |
 | knight | ✅ sprite | animal |
 | crossbowman | ✅ sprite | ranged |
 | catapult | ✅ sprite | naval |

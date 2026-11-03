@@ -1,0 +1,29 @@
+{
+  "id": "cavalry",
+  "family": "mounted",
+  "prompt": {
+    "name": "Cavalry",
+    "look": "A napoleonic-era cavalry trooper on a dark brown horse with a black mane and tail. The rider has dark side-whiskers and a moustache, a tall black shako hat with a brass plate, a red tunic with white crossed belts and brass buttons, cream breeches and tall black boots, and carries a curved steel sabre. The horse wears a black saddle cloth edged in cream under a brown leather saddle, with a rolled cloak behind the saddle, and a brown leather bridle with brass rings.",
+    "team_area": "the rider's tunic and the saddle cloth",
+    "coat": "The horse is a dark, cool brown (about #5A3E2B) with a black mane and tail (about #1E1A18) and dark legs. It must not look red: no reddish, mahogany, rust or bay tones anywhere on the horse, because the game recolours red.",
+    "identity": "the same rider, shako, whiskers, red tunic with white crossed belts, cream breeches, boots and sabre, and the same dark cool-brown horse with its black mane and tail, black saddle cloth, rolled cloak and bridle",
+    "weapon_pose": "He holds the sabre upright in his right hand, the blade pointing up and slightly forward.",
+    "attack_frames": 6,
+    "attack": "(1) ready, sabre upright; (2) he raises the sabre high above his head; (3) wind-up: arm drawn back behind the shoulder, body twisting; (4) the cut: arm and sabre sweeping forward and down to the right; (5) full extension, the blade low in front of the horse's head; (6) recover to ready.",
+    "damage_gear": "a dented shako",
+    "damage_gear_critical": "a snapped sabre blade and a torn bridle",
+    "defeat_prop": "the sabre lying beside him"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 150 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",    "file": "a", "cells": 1, "fps": 4, "anchor": "torso", "note": "anchored on the torso like the walk, so the unit does not jump when it starts to move" },
+    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "anchor": "torso", "note": "idle pose at damage tiers 0-3, anchored on the torso like the walk" },
+    { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the four legs alternate by construction",
+      "rig": { "kind": "mounted", "sources": ["a", "b#0", "b#1", "b#2", "b#3"] } },
+    { "state": "attack",  "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "restFrames": [0, 5] },
+    { "state": "hit",     "file": "d", "cells": 4, "grid": [2, 2], "fps": 8, "restFrames": [0, 3], "loop": false },
+    { "state": "defeat",  "file": "e", "cells": 4, "grid": [2, 2], "fps": 5, "restFrames": [0], "loop": false }
+  ]
+}
