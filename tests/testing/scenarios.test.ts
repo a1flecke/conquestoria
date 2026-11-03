@@ -115,4 +115,9 @@ describe('strip-units-showcase scenario (#1627)', () => {
     expect(state.units['showcase-enemy-spearman']).toMatchObject({ type: 'spearman', owner: 'ai-1' });
     expect(state.civilizations.player.diplomacy.atWarWith).toContain('ai-1');
   });
+
+  it('places a player cavalry so the strip e2e can find its root', () => {
+    const state = buildScenario(SCENARIOS['strip-units-showcase']);
+    expect(state.units['showcase-cavalry']).toMatchObject({ type: 'cavalry', owner: 'player', health: 100 });
+  });
 });
