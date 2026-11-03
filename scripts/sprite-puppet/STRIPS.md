@@ -103,7 +103,7 @@ What carried over to the next units:
   puppet's chestnut measured hue 0.050-0.090 (median 0.073, #89542E) and the second Horseman set 0.053-0.086, so only the red
   tunic and saddle cloth take a player's colour (10.7-12.9% of each image in the key). Ask for an *orange* chestnut in the
   prompt (the Horseman spec's `coat` gives the two hex values) and measure each image's coat hue before building.
-- **A damage drawing whose hooves touch makes its tier walk like the master.** The Cavalry damage sheet had each pair of hooves touching, so `check_rigs` warned for all four tiers and they walk with the master's walk (at the master's scale, which `build` keeps). Ask for a clear gap between all four legs in every damage frame if the wounded walk matters.
+- **A damage drawing whose hooves touch makes its tier walk like the master.** The first Cavalry damage sheet had each pair of hooves touching, so `check_rigs` warned for all four tiers and they walked with the master's walk (at the master's scale, which `build` keeps). The redraw asked for "four separate posts with visible background gaps between every pair, in every frame" and said mud must not join two legs; it probed clean, and every tier now walks its own drawing.
 - **Standing rows and the walk need one anchor.** When the standing pose (anchored on the hooves, `'feet'`) and the walk (on the torso)
   disagree by more than 12 px for a damage tier, `export` refuses the unit. The Horseman's standing rows are set to `"anchor": "torso"`
   to match its walk.
@@ -172,7 +172,7 @@ gradients for banding at the screenshot review), the mask is grey plus alpha.
 
 Results at 0.75 (Ironclad after its `restHeight` rise, Biplane after the anchor fix below): Spearman 158 KB and 12.1 MiB, Archer
 248 KB and 11.8 MiB, Horseman 265 KB and 12.7 MiB (the chestnut set), Tank 154 KB and 11.0 MiB, Ironclad 123 KB and 11.0 MiB, Biplane 224 KB and
-9.3 MiB, Cavalry 207 KB and 9.3 MiB.
+9.3 MiB, Cavalry 227 KB and 9.3 MiB.
 
 **The Biplane used to be refused** (#1627): its idle pose sat 29 px left of the middle of its cell while the rows built in code
 were centred. A drawn row was anchored on the mean x of its lowest 10% of rows (`anchor_x`, `'feet'`), which for an aircraft is
