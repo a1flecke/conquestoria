@@ -118,10 +118,10 @@ All numbers below are **provisional** and live in one table, `MINOR_CIV_GRADUATI
 | `minAgeTurns` | 200 | 150 | 120 |
 | `populationHeadroom` (pop ≥ ceiling − n) | 0 | 1 | 2 |
 | `minBuildings` | 6 | 5 | 4 |
-| `baseProbability` | 0.03 | 0.08 | 0.12 |
-| `maxProbability` | 0.06 | 0.15 | 0.22 |
+| `baseProbability` (score 0) | 0.03 | 0.08 | 0.12 |
+| `maxProbability` (score 1) | 0.06 | 0.15 | 0.22 |
 
-**Soft score** (`0..1`, eligible candidates only), from recorded facts: trade partners (distinct major civs with a `marketplace.tradeRoutes` entry whose `toCityId` or `fromCityId` is the minor's city, capped at 3) weight 0.4; allied patrons (`chainStatusByCiv` entries with `status: 'allied'`, capped at 2) weight 0.3; league membership weight 0.3. Probability `p = min(maxProbability, baseProbability × (0.5 + score))`.
+**Soft score** (`0..1`, eligible candidates only), from recorded facts: trade partners (distinct major civs with a `marketplace.tradeRoutes` entry whose `toCityId` or `fromCityId` is the minor's city, capped at 3) weight 0.4; allied patrons (`chainStatusByCiv` entries with `status: 'allied'`, capped at 2) weight 0.3; league membership weight 0.3. Probability `p = baseProbability + (maxProbability − baseProbability) × score`, so `baseProbability` is the chance at score 0 and `maxProbability` the chance at score 1. (A `base × (0.5 + score)` form was rejected: it tops out at `1.5 × base`, so the maximum could never bind.)
 
 **Roll and selection:** each eligible candidate, in id order, draws once from `createSimulationRng(state, { domain: 'minor-civ-graduation', actorId: mc.id })`; success iff `roll < p`. At most one graduation per cadence turn: among successes pick highest score, then lowest id. Same state ⇒ same plan, so save/reload and repeated calls cannot reroll.
 
@@ -252,7 +252,7 @@ If `save-migration-registries` reports the generated doc is stale, regenerate wi
 **Interfaces:**
 - Produces: `scoreGraduationSignals(signals: MinorCivGraduationSignals): number` (0..1) and `getGraduationProbability(state: GameState, score: number): number`.
 
-- [ ] **Step 1: Failing tests:** score 0 with no partners/patrons/league; score 1 at 3 partners + 2 patrons + league; partner count 5 scores like 3 (cap); probability equals `min(max, base × (0.5 + score))` for each difficulty; probability never exceeds `maxProbability`.
+- [ ] **Step 1: Failing tests:** score 0 with no partners/patrons/league; score 1 at 3 partners + 2 patrons + league; partner count 5 scores like 3 (cap); probability runs from `baseProbability` at score 0 to `maxProbability` at score 1 for each difficulty and never leaves that range for any input score.
 - [ ] **Step 2: Run — expect FAIL.**
 - [ ] **Step 3: Implement** with the Part D weights.
 - [ ] **Step 4: Run — expect PASS.**
