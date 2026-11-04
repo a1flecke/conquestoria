@@ -1,10 +1,16 @@
 import type { GameState, MinorCivState } from '@/core/types';
 import { resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { isMajorCivOwner } from '@/core/owner-kind';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { evaluateMinorCivEconomyPosture, getMinorCivPopulationCeiling } from '@/systems/minor-civ-economy-system';
 import { getMinorCivLeagueForMember } from '@/systems/minor-civ-league-system';
+import { createSimulationRng } from '@/systems/simulation-rng';
+import { resolveWorldAge } from '@/systems/tech-definitions';
+import { getDominationProgress } from '@/systems/victory-system';
 import {
+  GRADUATION_CADENCE_TURNS,
+  GRADUATION_MAX_LIVING_MAJORS,
   GRADUATION_SCORE,
   MINOR_CIV_GRADUATION_TUNING,
   type MinorCivGraduationEligibility,
@@ -136,4 +142,92 @@ export function scoreGraduationSignals(signals: MinorCivGraduationSignals): numb
 export function getGraduationProbability(state: GameState, score: number): number {
   const { baseProbability, maxProbability } = MINOR_CIV_GRADUATION_TUNING[resolveOpponentChallenge(state)];
   return baseProbability + (maxProbability - baseProbability) * clampUnit(score);
+}
+
+export type MinorCivGraduationSkipReason =
+  | 'game-over'
+  | 'off-cadence'
+  | 'world-too-young'
+  | 'living-major-cap'
+  | 'domination-imminent';
+
+/** One eligible candidate's draw. `roll` is the raw stream value, kept so a result can be audited. */
+export interface MinorCivGraduationRoll {
+  minorCivId: string;
+  score: number;
+  probability: number;
+  roll: number;
+  succeeded: boolean;
+}
+
+export type MinorCivGraduationPlan =
+  | { status: 'skipped'; turn: number; reason: MinorCivGraduationSkipReason }
+  | {
+    status: 'evaluated';
+    turn: number;
+    evaluations: MinorCivGraduationEligibility[];
+    rolls: MinorCivGraduationRoll[];
+    /** At most one city-state graduates per cadence turn. */
+    selectedMinorCivId: string | null;
+  };
+
+function compareIds(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * Of the rolls that succeeded, the strongest candidate (highest score, then lowest id, so the answer
+ * never depends on the order the rolls arrive in). Null when nothing succeeded.
+ */
+export function selectGraduationCandidate(rolls: readonly MinorCivGraduationRoll[]): string | null {
+  const winners = rolls.filter(entry => entry.succeeded);
+  if (winners.length === 0) return null;
+  winners.sort((a, b) => (b.score - a.score) || compareIds(a.minorCivId, b.minorCivId));
+  return winners[0]!.minorCivId;
+}
+
+/** A living major that is eligible to win by Domination and has at most one rival still unresolved. */
+function isDominationImminent(state: GameState, livingMajorIds: readonly string[]): boolean {
+  return livingMajorIds.some(civId => {
+    const progress = getDominationProgress(state, civId);
+    return progress.eligible && progress.unresolvedRivalIds.length <= 1;
+  });
+}
+
+/**
+ * The whole graduation decision for one round, as data. Pure and deterministic: the same state
+ * always yields the same plan, because every draw comes from `createSimulationRng`, which is keyed
+ * by campaign id, turn and the candidate's full id — so saving and reloading cannot reroll it, and
+ * no other system's randomness can move it. It writes nothing and emits nothing.
+ *
+ * World-level gates run cheapest first and short-circuit before any city-state is looked at.
+ */
+export function planMinorCivGraduations(state: GameState): MinorCivGraduationPlan {
+  const turn = state.turn;
+  const skipped = (reason: MinorCivGraduationSkipReason): MinorCivGraduationPlan => ({ status: 'skipped', turn, reason });
+
+  if (state.gameOver) return skipped('game-over');
+  if (turn <= 0 || turn % GRADUATION_CADENCE_TURNS !== 0) return skipped('off-cadence');
+
+  const tuning = MINOR_CIV_GRADUATION_TUNING[resolveOpponentChallenge(state)];
+  if (resolveWorldAge(state) < tuning.minWorldAge) return skipped('world-too-young');
+
+  const livingMajorIds = Object.keys(state.civilizations)
+    .filter(civId => getCivilizationLiveness(state, civId).living);
+  if (livingMajorIds.length >= GRADUATION_MAX_LIVING_MAJORS[state.settings?.mapSize ?? 'medium']) {
+    return skipped('living-major-cap');
+  }
+  if (isDominationImminent(state, livingMajorIds)) return skipped('domination-imminent');
+
+  const evaluations = Object.keys(state.minorCivs ?? {}).sort(compareIds)
+    .map(minorCivId => evaluateMinorCivGraduationEligibility(state, minorCivId));
+  const rolls: MinorCivGraduationRoll[] = [];
+  for (const evaluation of evaluations) {
+    if (!evaluation.eligible) continue;
+    const score = scoreGraduationSignals(evaluation.signals);
+    const probability = getGraduationProbability(state, score);
+    const roll = createSimulationRng(state, { domain: 'minor-civ-graduation', actorId: evaluation.minorCivId })();
+    rolls.push({ minorCivId: evaluation.minorCivId, score, probability, roll, succeeded: roll < probability });
+  }
+  return { status: 'evaluated', turn, evaluations, rolls, selectedMinorCivId: selectGraduationCandidate(rolls) };
 }
