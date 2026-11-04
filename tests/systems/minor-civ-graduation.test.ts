@@ -3,7 +3,12 @@ import type { GameState, MinorCivLeagueReadiness, OpponentChallenge } from '@/co
 import { createUnit } from '@/systems/unit-lifecycle';
 import { createDefaultMinorCivEconomyState, getMinorCivPopulationCeiling } from '@/systems/minor-civ-economy-system';
 import { MINOR_CIV_GRADUATION_TUNING } from '@/systems/minor-civ-graduation-rules';
-import { evaluateMinorCivGraduationEligibility } from '@/systems/minor-civ-graduation';
+import {
+  evaluateMinorCivGraduationEligibility,
+  getGraduationProbability,
+  scoreGraduationSignals,
+} from '@/systems/minor-civ-graduation';
+import type { MinorCivGraduationSignals } from '@/systems/minor-civ-graduation-rules';
 import { fixturePeacefulIsolated } from './helpers/minor-civ-scenario-fixtures';
 
 const BUILDING_IDS = ['barracks', 'marketplace', 'library', 'granary', 'walls', 'temple', 'workshop', 'harbor'];
@@ -269,5 +274,68 @@ describe('evaluateMinorCivGraduationEligibility (#497)', () => {
 
     expect(state).toEqual(before);
     expect(second).toEqual(first);
+  });
+});
+
+const NO_SIGNALS: MinorCivGraduationSignals = {
+  ageTurns: 200, population: 6, populationCeiling: 6, buildingCount: 6,
+  tradePartnerCount: 0, alliedPatronCount: 0, leagueMember: false,
+};
+
+describe('scoreGraduationSignals (#497)', () => {
+  it('scores 0 with no relationships and 1 with every one at its cap', () => {
+    expect(scoreGraduationSignals(NO_SIGNALS)).toBe(0);
+    expect(scoreGraduationSignals({ ...NO_SIGNALS, tradePartnerCount: 3, alliedPatronCount: 2, leagueMember: true }))
+      .toBeCloseTo(1, 10);
+  });
+
+  it('weights each recorded fact independently', () => {
+    expect(scoreGraduationSignals({ ...NO_SIGNALS, tradePartnerCount: 1 })).toBeCloseTo(0.4 / 3, 10);
+    expect(scoreGraduationSignals({ ...NO_SIGNALS, alliedPatronCount: 1 })).toBeCloseTo(0.3 / 2, 10);
+    expect(scoreGraduationSignals({ ...NO_SIGNALS, leagueMember: true })).toBeCloseTo(0.3, 10);
+  });
+
+  it('counts nothing beyond a fact’s cap', () => {
+    expect(scoreGraduationSignals({ ...NO_SIGNALS, tradePartnerCount: 5 }))
+      .toBe(scoreGraduationSignals({ ...NO_SIGNALS, tradePartnerCount: 3 }));
+    expect(scoreGraduationSignals({ ...NO_SIGNALS, alliedPatronCount: 9 }))
+      .toBe(scoreGraduationSignals({ ...NO_SIGNALS, alliedPatronCount: 2 }));
+  });
+
+  it('stays inside 0..1 even for impossible counts', () => {
+    const score = scoreGraduationSignals({ ...NO_SIGNALS, tradePartnerCount: -4, alliedPatronCount: Number.NaN });
+    expect(score).toBeGreaterThanOrEqual(0);
+    expect(score).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('getGraduationProbability (#497)', () => {
+  it('runs from the difficulty’s base probability at score 0 to its maximum at score 1', () => {
+    for (const challenge of ['explorer', 'standard', 'veteran'] as const) {
+      const { baseProbability, maxProbability } = MINOR_CIV_GRADUATION_TUNING[challenge];
+      const { state } = eligibleFixture(challenge);
+      expect(getGraduationProbability(state, 0)).toBeCloseTo(baseProbability, 10);
+      expect(getGraduationProbability(state, 1)).toBeCloseTo(maxProbability, 10);
+      expect(getGraduationProbability(state, 0.5)).toBeCloseTo((baseProbability + maxProbability) / 2, 10);
+    }
+  });
+
+  it('never leaves its tier’s range, whatever score it is given', () => {
+    const { state } = eligibleFixture('standard');
+    const { baseProbability, maxProbability } = MINOR_CIV_GRADUATION_TUNING.standard;
+    for (const score of [-5, Number.NaN, 2, Number.POSITIVE_INFINITY]) {
+      const probability = getGraduationProbability(state, score);
+      expect(probability).toBeGreaterThanOrEqual(baseProbability);
+      expect(probability).toBeLessThanOrEqual(maxProbability);
+    }
+  });
+
+  it('is rarer on Explorer than on Standard than on Veteran at every score', () => {
+    const at = (challenge: OpponentChallenge, score: number) =>
+      getGraduationProbability(eligibleFixture(challenge).state, score);
+    for (const score of [0, 0.5, 1]) {
+      expect(at('explorer', score)).toBeLessThan(at('standard', score));
+      expect(at('standard', score)).toBeLessThan(at('veteran', score));
+    }
   });
 });

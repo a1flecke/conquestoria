@@ -5,6 +5,7 @@ import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { evaluateMinorCivEconomyPosture, getMinorCivPopulationCeiling } from '@/systems/minor-civ-economy-system';
 import { getMinorCivLeagueForMember } from '@/systems/minor-civ-league-system';
 import {
+  GRADUATION_SCORE,
   MINOR_CIV_GRADUATION_TUNING,
   type MinorCivGraduationEligibility,
   type MinorCivGraduationIneligibleReason,
@@ -107,4 +108,32 @@ export function evaluateMinorCivGraduationEligibility(
     leagueMember: league !== null,
   };
   return { eligible: true, minorCivId, signals };
+}
+
+function clampUnit(value: number): number {
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
+}
+
+/**
+ * How strong an eligible candidate's recorded position is, 0..1. Trade partners, allied patrons and
+ * regional-compact membership each contribute up to their weight; a fact counts only up to its cap,
+ * so no single relationship, however many, can carry a candidate on its own.
+ */
+export function scoreGraduationSignals(signals: MinorCivGraduationSignals): number {
+  const share = (count: number, cap: number) => clampUnit(Math.min(count, cap) / cap);
+  return clampUnit(
+    GRADUATION_SCORE.tradePartnerWeight * share(signals.tradePartnerCount, GRADUATION_SCORE.tradePartnerCap)
+    + GRADUATION_SCORE.alliedPatronWeight * share(signals.alliedPatronCount, GRADUATION_SCORE.alliedPatronCap)
+    + (signals.leagueMember ? GRADUATION_SCORE.leagueMemberWeight : 0),
+  );
+}
+
+/**
+ * The chance an eligible candidate graduates on one cadence turn: the difficulty's base probability
+ * at score 0 rising linearly to its maximum at score 1. A score outside 0..1 is clamped, so the
+ * result never leaves the tier's range.
+ */
+export function getGraduationProbability(state: GameState, score: number): number {
+  const { baseProbability, maxProbability } = MINOR_CIV_GRADUATION_TUNING[resolveOpponentChallenge(state)];
+  return baseProbability + (maxProbability - baseProbability) * clampUnit(score);
 }

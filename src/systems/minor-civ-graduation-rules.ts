@@ -29,9 +29,9 @@ export interface MinorCivGraduationTuning {
   readonly populationHeadroom: number;
   /** The city must hold at least this many buildings. */
   readonly minBuildings: number;
-  /** Probability at a graduation score of 0.5. */
+  /** A candidate's chance per cadence turn at a graduation score of 0. */
   readonly baseProbability: number;
-  /** Hard ceiling on any one candidate's probability. */
+  /** A candidate's chance per cadence turn at a graduation score of 1; no candidate exceeds it. */
   readonly maxProbability: number;
 }
 
