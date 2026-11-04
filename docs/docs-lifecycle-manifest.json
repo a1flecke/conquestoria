@@ -18,6 +18,16 @@
     "428": "OPEN"
    }
   },
+  "docs/superpowers/plans/2026-11-03-issue-497-city-state-graduation.md": {
+   "category": "active",
+   "reason": "Design and PR sequence for city-state graduation, owned by open issue #497.",
+   "issues": [
+    497
+   ],
+   "issueStates": {
+    "497": "OPEN"
+   }
+  },
   "docs/superpowers/specs/2026-07-07-hidden-city-state-economy-design.md": {
    "category": "active",
    "reason": "Foundation design cited by the open minor-civ graduation issue #497.",
