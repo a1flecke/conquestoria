@@ -110,7 +110,7 @@ All numbers below are **provisional** and live in one table, `MINOR_CIV_GRADUATI
 5. `domination-imminent` — some contender has `eligible && unresolvedRivalIds.length <= 1` (`getDominationProgress`, a system-level read; the domination-authority rule bans only UI/AI importers).
 
 **Per-candidate hard gates**, in order (first failure is the reason):
-`missing-minor-civ` · `destroyed` · `unknown-definition` · `city-missing` · `city-not-owned` (city owner ≠ mc id) · `age-unknown` (no `foundedTurn`) · `too-young` (`turn - foundedTurn < tuning.minAgeTurns`) · `population-below-threshold` (`population < ceiling - tuning.populationHeadroom`) · `too-few-buildings` · `at-war` (`mc.diplomacy.atWarWith` non-empty) · `under-threat` (posture `mobilizing` or `recovering`) · `league-mobilized` (its league's readiness is `concern`) · `coalition-member` (member of a `forming`/`active` coalition).
+`missing-minor-civ` · `destroyed` · `unknown-definition` · `city-missing` · `city-not-owned` (city owner ≠ mc id) · `age-unknown` (no `foundedTurn`) · `too-young` (`turn - foundedTurn < tuning.minAgeTurns`) · `population-below-threshold` (`population < ceiling - tuning.populationHeadroom`) · `too-few-buildings` · `at-war` (`mc.diplomacy.atWarWith` non-empty) · `coalition-member` (member of a `forming`/`active` coalition; checked before `under-threat` because membership already makes the posture `mobilizing`, which would hide it) · `under-threat` (posture `mobilizing` or `recovering`) · `league-mobilized` (its league's readiness is `concern`).
 
 | Knob | explorer | standard | veteran |
 |---|---:|---:|---:|
