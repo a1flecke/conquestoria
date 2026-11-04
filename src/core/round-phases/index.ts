@@ -9,6 +9,7 @@ import { territoryFrontierPhase } from './territory-frontier';
 import { wondersMarketPhase } from './wonders-market';
 import { barbariansPhase } from './barbarians';
 import { minorCivsPhase } from './minor-civs';
+import { minorCivGraduationPhase } from './minor-civ-graduation';
 import { beastsPhase } from './beasts';
 import { threatSchedulingPhase } from './threat-scheduling';
 import { espionagePhase } from './espionage';
@@ -51,6 +52,7 @@ export const ROUND_PHASES: readonly RoundPhase[] = [
   wondersMarketPhase,
   barbariansPhase,
   minorCivsPhase,
+  minorCivGraduationPhase,
   beastsPhase,
   threatSchedulingPhase,
   espionagePhase,

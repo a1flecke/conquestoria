@@ -136,6 +136,7 @@ minor-civ:coalition-war
 minor-civ:destroyed
 minor-civ:era-upgrade
 minor-civ:evolved
+minor-civ:graduated
 minor-civ:guerrilla
 minor-civ:league-changed
 minor-civ:production-completed

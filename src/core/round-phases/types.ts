@@ -19,6 +19,7 @@ export type RoundPhaseId =
   | 'wonders-market'
   | 'barbarians'
   | 'minor-civs'
+  | 'minor-civ-graduation'
   | 'beasts'
   | 'threat-scheduling'
   | 'espionage'
