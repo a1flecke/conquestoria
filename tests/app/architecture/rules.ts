@@ -459,6 +459,14 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     why: 'The timed-effect queue is private to RenderLoop (#1439): enrolment goes through RenderLoop.playEffect, which wakes the scheduler. A second owner of an AnimationSystem would draw or complete effects the scheduler cannot see, so a frame could go idle with an effect still pending.',
   },
   {
+    id: 'minor-civ-graduation-is-test-only-until-497-pr3',
+    kind: 'only-imported-by',
+    target: [`${S}/minor-civ-graduation`, `${S}/minor-civ-graduation-rules`],
+    importers: ['tests/**'],
+    edges: 'all',
+    why: 'City-state graduation (#497) ships its read side first: a pure eligibility evaluator and planner with no conversion behind them. Nothing in src/ may call them until the atomic conversion and its invariants exist (#497 PR 2) and the round phase is added (PR 3) -- a live caller before then would pick a graduate it cannot convert. PR 3 replaces this importer list with the new round-phase module.',
+  },
+  {
     id: 'src-has-no-runtime-import-cycles',
     kind: 'acyclic-group',
     members: 'src/**',
