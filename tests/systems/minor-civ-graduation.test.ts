@@ -468,10 +468,33 @@ describe('planMinorCivGraduations (#497)', () => {
 
     it('holds back when one civilization is a single rival away from Domination', () => {
       const { state } = plannerFixture();
-      // Three living majors: every contender has two unresolved rivals. Eliminating one leaves
-      // each of the other two exactly one rival short of the win.
+      // Three living majors: every contender has two unresolved rivals and has secured none.
+      // Eliminating one secures it for both survivors, leaving each exactly one rival short of the win.
       state.civilizations['ai-2']!.isEliminated = true;
       delete state.cities['city-ai-2'];
+
+      expect(planMinorCivGraduations(state)).toEqual({ status: 'skipped', turn: 400, reason: 'domination-imminent' });
+    });
+
+    it('does not mistake an ordinary two-civilization game for a near-win', () => {
+      // With only two majors each is always exactly one rival from Domination, but has secured none.
+      const { state } = eligibleFixture('standard', { era: 4 });
+      expect(Object.keys(state.civilizations)).toHaveLength(2);
+
+      expect(planMinorCivGraduations(state).status).toBe('evaluated');
+    });
+
+    it('holds back when a rival is a vassal and the contender needs only the last one', () => {
+      const { state } = plannerFixture();
+      const { player } = state.civilizations;
+      const vassal = state.civilizations['ai-2']!;
+      player.diplomacy.vassalage.vassals = ['ai-2'];
+      vassal.diplomacy.vassalage.overlord = 'player';
+      const treaty = (selfId: string, otherId: string) => ({
+        type: 'vassalage' as const, civA: selfId, civB: otherId, turnsRemaining: -1,
+      });
+      player.diplomacy.treaties.push(treaty('player', 'ai-2') as never);
+      vassal.diplomacy.treaties.push(treaty('ai-2', 'player') as never);
 
       expect(planMinorCivGraduations(state)).toEqual({ status: 'skipped', turn: 400, reason: 'domination-imminent' });
     });

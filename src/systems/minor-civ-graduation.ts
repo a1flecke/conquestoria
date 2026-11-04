@@ -186,11 +186,16 @@ export function selectGraduationCandidate(rolls: readonly MinorCivGraduationRoll
   return winners[0]!.minorCivId;
 }
 
-/** A living major that is eligible to win by Domination and has at most one rival still unresolved. */
+/**
+ * A living major that could win by Domination and is close: it has already secured at least one
+ * rival (eliminated or made a vassal) and has at most one left to resolve. Requiring a secured
+ * rival matters -- in an ordinary two-civilization game each side is always exactly one rival from
+ * victory without being anywhere near it, and that must not freeze graduation for the whole game.
+ */
 function isDominationImminent(state: GameState, livingMajorIds: readonly string[]): boolean {
   return livingMajorIds.some(civId => {
     const progress = getDominationProgress(state, civId);
-    return progress.eligible && progress.unresolvedRivalIds.length <= 1;
+    return progress.eligible && progress.securedRivalCount >= 1 && progress.unresolvedRivalIds.length <= 1;
   });
 }
 
