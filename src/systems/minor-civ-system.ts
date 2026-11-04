@@ -160,6 +160,7 @@ export function placeMinorCivs(
       isDestroyed: false,
       garrisonCooldown: 0,
       lastEraUpgrade: 1,
+      foundedTurn: state.turn,
     };
 
     result.minorCivs[mcState.id] = mcState;
@@ -846,7 +847,7 @@ interface EvolutionResult {
 
 export function checkCampEvolution(
   state: GameState,
-  _currentTurn: number,
+  currentTurn: number,
 ): EvolutionResult | null {
   const activeMinorCivs = Object.values(state.minorCivs).filter(mc => !mc.isDestroyed);
   const usedDefs = new Set(activeMinorCivs.map(mc => mc.definitionId));
@@ -898,6 +899,7 @@ export function checkCampEvolution(
       isDestroyed: false,
       garrisonCooldown: 0,
       lastEraUpgrade: resolveNeutralPressureEra(state, camp.position) ?? 1,
+      foundedTurn: currentTurn,
     };
 
     return {

@@ -24,6 +24,7 @@ import { getEligibleStrategicLaunchPlatforms } from '@/systems/strategic-launch-
 import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
 import { getEffectiveTechCost, getTechById } from '@/systems/tech-system';
 import { PRE_V24_TECH_COST_BY_ID } from '@/storage/research-cost-migration-v24';
+import { migrateMinorCivFoundedTurn } from '@/storage/migrations/steps/minor-civ-founded-turn';
 
 describe('save migration registry integrity (#1004)', () => {
   // CURRENT_SAVE_SCHEMA_VERSION was extracted to the dependency-free leaf
@@ -1485,5 +1486,50 @@ describe('#974 phase 2 — migration 26: City.bombardment scrubbing', () => {
     expect(firstCityBombardment(migrateSaveToCurrent(saveWithBombardment({ turn: 1.5, hpLostThisTurn: 2 })))).toBeUndefined();
     expect(firstCityBombardment(migrateSaveToCurrent(saveWithBombardment('nope')))).toBeUndefined();
     expect(firstCityBombardment(migrateSaveToCurrent(saveWithBombardment(null)))).toBeUndefined();
+  });
+});
+
+describe('migration 38 — city-state founding turn (#497)', () => {
+  function saveWithFoundedTurns(turn: number, values: Record<string, unknown>): GameState {
+    const state = createNewGame(undefined, 'founded-turn-migration', 'small');
+    state.turn = turn;
+    const ids = Object.keys(state.minorCivs);
+    expect(ids.length).toBeGreaterThanOrEqual(Object.keys(values).length);
+    Object.keys(values).forEach((key, index) => {
+      const minorCiv = state.minorCivs[ids[index]!] as unknown as Record<string, unknown>;
+      if (values[key] === undefined) delete minorCiv.foundedTurn;
+      else minorCiv.foundedTurn = values[key];
+    });
+    return state;
+  }
+
+  it('backfills a missing foundedTurn with the load turn and keeps a valid one', () => {
+    const migrated = migrateMinorCivFoundedTurn(saveWithFoundedTurns(140, { a: undefined, b: 3 }));
+    const [first, second] = Object.values(migrated.minorCivs);
+    expect(first!.foundedTurn).toBe(140);
+    expect(second!.foundedTurn).toBe(3);
+  });
+
+  it('replaces negative, fractional, non-numeric and non-finite values', () => {
+    const migrated = migrateMinorCivFoundedTurn(saveWithFoundedTurns(90, { a: -4, b: 2.5 }));
+    for (const minorCiv of Object.values(migrated.minorCivs).slice(0, 2)) expect(minorCiv.foundedTurn).toBe(90);
+    const text = migrateMinorCivFoundedTurn(saveWithFoundedTurns(90, { a: 'old', b: Number.NaN }));
+    for (const minorCiv of Object.values(text.minorCivs).slice(0, 2)) expect(minorCiv.foundedTurn).toBe(90);
+  });
+
+  it('is idempotent and does not mutate its input', () => {
+    const input = saveWithFoundedTurns(60, { a: undefined });
+    const snapshot = structuredClone(input);
+    const once = migrateMinorCivFoundedTurn(input);
+    expect(input).toEqual(snapshot);
+    expect(migrateMinorCivFoundedTurn(once)).toEqual(once);
+  });
+
+  it('is registered as schema 38 and runs through migrateSaveToCurrent', () => {
+    expect(CURRENT_SAVE_SCHEMA_VERSION).toBeGreaterThanOrEqual(38);
+    const save = saveWithFoundedTurns(75, { a: undefined });
+    save.saveSchemaVersion = 37;
+    const migrated = migrateSaveToCurrent(save);
+    expect(Object.values(migrated.minorCivs)[0]!.foundedTurn).toBe(75);
   });
 });

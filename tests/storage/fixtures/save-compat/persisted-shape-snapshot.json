@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 37,
+  "schemaVersion": 38,
   "paths": [
     "autonomyByCiv",
     "autonomyByCiv.*.detections",
@@ -1241,6 +1241,7 @@
     "minorCivs.*.diplomacy.vassalage.protectionScore",
     "minorCivs.*.diplomacy.vassalage.protectionTimers",
     "minorCivs.*.diplomacy.vassalage.vassals",
+    "minorCivs.*.foundedTurn",
     "minorCivs.*.garrisonCooldown",
     "minorCivs.*.id",
     "minorCivs.*.isDestroyed",

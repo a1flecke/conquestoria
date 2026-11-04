@@ -1778,6 +1778,12 @@ export interface MinorCivState {
   isDestroyed: boolean;
   garrisonCooldown: number;
   lastEraUpgrade: number;
+  /**
+   * #497: the turn this city-state came into being (placement or camp evolution). The recorded
+   * survival-age fact graduation eligibility reads. Optional only because a save written before
+   * schema 38 has none until `migrateMinorCivFoundedTurn` stamps the load turn.
+   */
+  foundedTurn?: number;
 }
 
 // --- Combat ---

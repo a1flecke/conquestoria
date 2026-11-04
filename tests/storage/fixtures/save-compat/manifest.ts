@@ -116,6 +116,14 @@ const HISTORICAL_FIELDS: ReadonlyArray<{ introducedAt: number; strip: (raw: RawS
       for (const city of Object.values(raw.cities ?? {}) as RawState[]) delete city.productionMaterials;
     },
   },
+  // #497 (schema 38) — a city-state's founding turn. The ordered migration is the only writer for an
+  // existing save, so a pre-38 fixture must genuinely lack it.
+  {
+    introducedAt: 38,
+    strip: raw => {
+      for (const minorCiv of Object.values(raw.minorCivs ?? {}) as RawState[]) delete minorCiv.foundedTurn;
+    },
+  },
 ];
 
 /** Deep-clone the baseline, strip everything introduced after `version`, and stamp the schema. */
