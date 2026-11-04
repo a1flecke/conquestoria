@@ -1009,6 +1009,20 @@ describe('barbarian camp evolution', () => {
     expect(result?.newMinorCiv.lastEraUpgrade).toBe(1);
   });
 
+  it('stamps an evolved minor civilization with the evolution turn as foundedTurn (#497)', () => {
+    const state = createNewGame(undefined, 'evolve-founded-turn', 'medium');
+    state.units = {};
+    state.cities = {};
+    state.civilizations.player.cities = [];
+    state.barbarianCamps = {
+      'camp-evolve': { id: 'camp-evolve', position: { q: 25, r: 25 }, strength: 8, spawnCooldown: 0 },
+    };
+
+    const result = checkCampEvolution(state, 87);
+
+    expect(result?.newMinorCiv.foundedTurn).toBe(87);
+  });
+
   it('does not evolve camp below strength 8', () => {
     const state = createNewGame(undefined, 'no-evolve', 'medium');
     // Clear all existing camps so only the weak one is checked

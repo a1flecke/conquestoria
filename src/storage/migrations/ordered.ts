@@ -2,6 +2,7 @@ import { normalizeVassalage } from '@/storage/vassalage-normalization';
 import { migrateDominationIntel } from './steps/domination-intel';
 import { normalizeMinorCivLeagueState } from '@/storage/minor-civ-league-normalization';
 import type { OrderedMigration } from './types';
+import { migrateMinorCivFoundedTurn } from './steps/minor-civ-founded-turn';
 import { migrateToEra13Foundation } from './steps/tech-identity';
 import { migrateLateResources } from './steps/late-resources';
 import { migrateAutonomyNetwork, migrateAutonomyNetworkPostures } from './steps/autonomy-network';
@@ -276,6 +277,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'retired-market-access',
     reason: '#1516 MR19 retired the instant access market. A pre-containment save may still carry purchased access entries; schema 36 already funded any active work they entitled, so this step converts a live luxury entry into delivered service coverage at its recorded expiry, drops a strategic entry without fabricating stock, and clears the list so no runtime branch reads it again.',
     apply: migrateRetiredMarketAccess,
+  },
+  {
+    version: 38,
+    id: 'minor-civ-founded-turn',
+    reason: '#497 records when each city-state came into being so graduation eligibility can read a survival age. A city-state in an older save has no founding record, so it is stamped once with the load turn: it starts ageing from the upgrade rather than being treated as ancient, which keeps a legacy campaign from graduating anyone the moment the system exists.',
+    apply: migrateMinorCivFoundedTurn,
   },
 ];
 

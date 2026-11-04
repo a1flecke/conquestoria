@@ -65,6 +65,14 @@ describe('minor-civ relationship notification history', () => {
 });
 
 describe('minor civ placement', () => {
+  it('stamps foundedTurn with the creation turn on every placed city-state (#497)', () => {
+    const state = createNewGame(undefined, 'mc-founded-turn', 'small');
+    const result = placeMinorCivs(state, 'small');
+    const placed = Object.values(result.minorCivs);
+    expect(placed.length).toBeGreaterThan(0);
+    for (const minorCiv of placed) expect(minorCiv.foundedTurn).toBe(state.turn);
+  });
+
   it('places correct number for small map', () => {
     const state = createNewGame(undefined, 'mc-place-test', 'small');
     const result = placeMinorCivs(state, 'small');
