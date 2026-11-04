@@ -1,7 +1,7 @@
 {
   "e1": {
     "state": {
-      "__whole": "640599a11f2c",
+      "__whole": "a2868c6223f6",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "c9c75b490ac4",
@@ -37,7 +37,7 @@
       "minorCivCoalitions": "44136fa355b3",
       "minorCivLeagues": "7b10dbc42e48",
       "minorCivRegionalCooldowns": "44136fa355b3",
-      "minorCivs": "e55f54d34368",
+      "minorCivs": "34988fcaa4ee",
       "nationalProjectChoices": "44136fa355b3",
       "networkCivicPressureByCity": "44136fa355b3",
       "notificationLog": "44136fa355b3",
@@ -51,7 +51,7 @@
       "religions": "44136fa355b3",
       "resurgentCampCooldownByCivLandmass": "44136fa355b3",
       "rogueElephantHosts": "44136fa355b3",
-      "saveSchemaVersion": "7a61b53701be",
+      "saveSchemaVersion": "aea92132c4cb",
       "settings": "666ce98eb188",
       "stampedes": "44136fa355b3",
       "startPlacementMode": "61eb5aa337d3",
@@ -67,7 +67,7 @@
   },
   "e2": {
     "state": {
-      "__whole": "dc9136cbd208",
+      "__whole": "bf1933f29032",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "5148e5b9b58d",
@@ -103,7 +103,7 @@
       "minorCivCoalitions": "44136fa355b3",
       "minorCivLeagues": "7b10dbc42e48",
       "minorCivRegionalCooldowns": "44136fa355b3",
-      "minorCivs": "9dca7b6059a8",
+      "minorCivs": "f41a637b380d",
       "nationalProjectChoices": "44136fa355b3",
       "networkCivicPressureByCity": "44136fa355b3",
       "notificationLog": "44136fa355b3",
@@ -117,7 +117,7 @@
       "religions": "44136fa355b3",
       "resurgentCampCooldownByCivLandmass": "44136fa355b3",
       "rogueElephantHosts": "44136fa355b3",
-      "saveSchemaVersion": "7a61b53701be",
+      "saveSchemaVersion": "aea92132c4cb",
       "settings": "666ce98eb188",
       "stampedes": "44136fa355b3",
       "startPlacementMode": "61eb5aa337d3",

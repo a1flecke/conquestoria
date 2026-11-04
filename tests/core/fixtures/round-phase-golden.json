@@ -2,7 +2,7 @@
   "turns": [
     {
       "state": {
-        "__whole": "213a62b59adf",
+        "__whole": "bd0f8b8e526f",
         "activeEventChains": "e5c153358a49",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -40,7 +40,7 @@
         "minorCivCoalitions": "44136fa355b3",
         "minorCivLeagues": "7b10dbc42e48",
         "minorCivRegionalCooldowns": "44136fa355b3",
-        "minorCivs": "878b05852672",
+        "minorCivs": "d2dbae29a0ee",
         "nationalProjectChoices": "44136fa355b3",
         "networkCivicPressureByCity": "44136fa355b3",
         "notificationLog": "1a039b051086",
@@ -54,7 +54,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "e491b9ee988d",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "7a61b53701be",
+        "saveSchemaVersion": "aea92132c4cb",
         "settings": "666ce98eb188",
         "stampedes": "33c0cc6ad765",
         "startPlacementMode": "61eb5aa337d3",
@@ -68,12 +68,12 @@
         "wonderDiscoverers": "1679e898f916",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "2f83171d13eb",
+      "events": "ad27ea053b41",
       "trace": "c290a96984b0"
     },
     {
       "state": {
-        "__whole": "bbb5a3ddff08",
+        "__whole": "1e439b715d36",
         "activeEventChains": "4ce55a23983b",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -111,7 +111,7 @@
         "minorCivCoalitions": "44136fa355b3",
         "minorCivLeagues": "3753ee75ca95",
         "minorCivRegionalCooldowns": "44136fa355b3",
-        "minorCivs": "3e67d4e6e16e",
+        "minorCivs": "0eb5049e6346",
         "nationalProjectChoices": "44136fa355b3",
         "networkCivicPressureByCity": "44136fa355b3",
         "notificationLog": "1a039b051086",
@@ -125,7 +125,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "484c481134a1",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "7a61b53701be",
+        "saveSchemaVersion": "aea92132c4cb",
         "settings": "666ce98eb188",
         "stampedes": "2c87d14f7b1e",
         "startPlacementMode": "61eb5aa337d3",
@@ -139,12 +139,12 @@
         "wonderDiscoverers": "1679e898f916",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "c9dc3b58d78d",
+      "events": "84b7d2bb89e6",
       "trace": "20269e54cb36"
     },
     {
       "state": {
-        "__whole": "b22df542752c",
+        "__whole": "2ed7fa099654",
         "activeEventChains": "6e262c6d14d8",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -182,7 +182,7 @@
         "minorCivCoalitions": "44136fa355b3",
         "minorCivLeagues": "b1a7573c9241",
         "minorCivRegionalCooldowns": "44136fa355b3",
-        "minorCivs": "a5ab505f6452",
+        "minorCivs": "7e92c9c0ff09",
         "nationalProjectChoices": "44136fa355b3",
         "networkCivicPressureByCity": "44136fa355b3",
         "notificationLog": "1a039b051086",
@@ -196,7 +196,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "484c481134a1",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "7a61b53701be",
+        "saveSchemaVersion": "aea92132c4cb",
         "settings": "666ce98eb188",
         "stampedes": "90db5bca5180",
         "startPlacementMode": "61eb5aa337d3",
@@ -210,7 +210,7 @@
         "wonderDiscoverers": "655edbf58914",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "cc46a5df7aa8",
+      "events": "f13e2709f4b1",
       "trace": "20269e54cb36"
     }
   ]
