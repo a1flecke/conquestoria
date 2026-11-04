@@ -20,6 +20,12 @@ export const GRADUATION_MAX_LIVING_MAJORS: Readonly<Record<'small' | 'medium' | 
   large: 10,
 };
 
+/**
+ * At most this many city-states graduate in one campaign, however long it runs (provisional, owner decision D6).
+ * Counted from the permanent `Civilization.graduatedFrom` record, so it survives a graduate's later elimination.
+ */
+export const GRADUATION_MAX_PER_GAME = 3;
+
 export interface MinorCivGraduationTuning {
   /** The world must have reached at least this age. */
   readonly minWorldAge: number;

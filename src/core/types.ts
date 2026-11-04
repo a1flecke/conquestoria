@@ -1470,6 +1470,8 @@ export interface Civilization {
   researchPenaltyMultiplier?: number;
   satelliteSurveillanceTargets?: Record<string, number>;
   breakaway?: BreakawayMetadata;
+  /** #497: set on a civilization that began as a graduated city-state; the permanent record of where it came from. */
+  graduatedFrom?: { minorCivId: string; definitionId: string; turn: number };
   nearDefeat?: boolean;   // true when cities.length <= 1; used by audio system
   /** Terminal elimination transition; use getCivilizationLiveness for actor eligibility. */
   isEliminated?: boolean;
@@ -1784,6 +1786,12 @@ export interface MinorCivState {
    * schema 38 has none until `migrateMinorCivFoundedTurn` stamps the load turn.
    */
   foundedTurn?: number;
+  /**
+   * #497: set when this city-state graduated into the major civilization `civId`. A graduated record is
+   * also `isDestroyed` and is kept as history: it holds no units, quests or alliances, its city belongs to
+   * the new civilization, and camp evolution never reuses its definition. Absent on every ordinary record.
+   */
+  graduation?: { turn: number; civId: string };
 }
 
 // --- Combat ---

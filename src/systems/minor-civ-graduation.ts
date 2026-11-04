@@ -11,6 +11,7 @@ import { getDominationProgress } from '@/systems/victory-system';
 import {
   GRADUATION_CADENCE_TURNS,
   GRADUATION_MAX_LIVING_MAJORS,
+  GRADUATION_MAX_PER_GAME,
   GRADUATION_SCORE,
   MINOR_CIV_GRADUATION_TUNING,
   type MinorCivGraduationEligibility,
@@ -149,6 +150,7 @@ export type MinorCivGraduationSkipReason =
   | 'off-cadence'
   | 'world-too-young'
   | 'living-major-cap'
+  | 'graduation-cap'
   | 'domination-imminent';
 
 /** One eligible candidate's draw. `roll` is the raw stream value, kept so a result can be audited. */
@@ -184,6 +186,11 @@ export function selectGraduationCandidate(rolls: readonly MinorCivGraduationRoll
   if (winners.length === 0) return null;
   winners.sort((a, b) => (b.score - a.score) || compareIds(a.minorCivId, b.minorCivId));
   return winners[0]!.minorCivId;
+}
+
+/** Civilizations that began as graduated city-states, living or not: the per-game cap counts history. */
+export function countGraduatedCivilizations(state: GameState): number {
+  return Object.values(state.civilizations).filter(civ => civ.graduatedFrom !== undefined).length;
 }
 
 /**
@@ -222,6 +229,7 @@ export function planMinorCivGraduations(state: GameState): MinorCivGraduationPla
   if (livingMajorIds.length >= GRADUATION_MAX_LIVING_MAJORS[state.settings?.mapSize ?? 'medium']) {
     return skipped('living-major-cap');
   }
+  if (countGraduatedCivilizations(state) >= GRADUATION_MAX_PER_GAME) return skipped('graduation-cap');
   if (isDominationImminent(state, livingMajorIds)) return skipped('domination-imminent');
 
   const evaluations = Object.keys(state.minorCivs ?? {}).sort(compareIds)

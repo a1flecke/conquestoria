@@ -741,6 +741,15 @@ only** -- never what conversion does or what a graduated civilization receives (
   turn 200, and in 3 of 4 fixtures the tracked city-state was eligible then; 2 of 4 would have selected a graduate. The standard numbers are
   therefore not demonstrably "rare" and must be validated against real campaigns before anything goes live.
 
+- **Conversion (PR 2):** `graduateMinorCiv(state, minorCivId)` (`minor-civ-graduation-conversion.ts`) re-runs the evaluator and the per-game cap
+  (`GRADUATION_MAX_PER_GAME`, 3, counted from `Civilization.graduatedFrom` so a later elimination does not free a slot), then writes on a clone and
+  returns `{ ok, state, transition }` or a typed denial with copy (`GRADUATION_DENIAL_MESSAGES`); the input is never modified. The civilization is
+  `grad-<definitionId>` (unprefixed, so a major), `civType: 'generic'`, definition name and colour, no gold, no research, tech = exactly
+  `getMinorCivCompletedTechBand`. The city, its tiles and every living garrison unit change owner in place (nothing created, removed or moved);
+  quests, alliances, grievances, coalition and league membership and the economy record are dropped; every other civ gets a relationship entry
+  both ways. The record stays as `isDestroyed` + `graduation`, and camp evolution never reuses its definition. The `minor-civ-graduation-integrity`
+  assert (in `SAVE_STATE_INVARIANTS`) pins the record/civ pairing both ways. Contact, war carry-over, treaties, presentation: PRs 3-6.
+
 **Rule:** a new graduation knob goes in the rules leaf and in this table; a new gate is one reason in `MinorCivGraduationIneligibleReason`
 plus its test; nothing may call `planMinorCivGraduations` from `src/` until the conversion PR's acceptance criteria are met.
 

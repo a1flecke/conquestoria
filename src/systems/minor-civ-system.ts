@@ -849,7 +849,9 @@ export function checkCampEvolution(
   state: GameState,
   currentTurn: number,
 ): EvolutionResult | null {
-  const activeMinorCivs = Object.values(state.minorCivs).filter(mc => !mc.isDestroyed);
+  // A graduated city-state's definition is spent for the campaign (#497): reusing it would also overwrite its
+  // `mc-<definition>` history record, which the new civilization's `graduatedFrom` points back to.
+  const activeMinorCivs = Object.values(state.minorCivs).filter(mc => !mc.isDestroyed || mc.graduation !== undefined);
   const usedDefs = new Set(activeMinorCivs.map(mc => mc.definitionId));
   const unusedDefs = MINOR_CIV_DEFINITIONS.filter(d => !usedDefs.has(d.id));
   if (unusedDefs.length === 0) return null;

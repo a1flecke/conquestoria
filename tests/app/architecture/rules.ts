@@ -462,9 +462,17 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     id: 'minor-civ-graduation-is-test-only-until-497-pr3',
     kind: 'only-imported-by',
     target: [`${S}/minor-civ-graduation`, `${S}/minor-civ-graduation-rules`],
+    importers: ['tests/**', `${S}/minor-civ-graduation-conversion`],
+    edges: 'all',
+    why: 'City-state graduation (#497) ships its read side first: a pure eligibility evaluator and planner with no conversion behind them. Nothing in src/ except the conversion itself (#497 PR 2) may call them until the round phase is added (PR 3) -- a live caller before then would pick a graduate it cannot convert. PR 3 replaces this importer list with the new round-phase module.',
+  },
+  {
+    id: 'minor-civ-graduation-conversion-is-test-only-until-497-pr3',
+    kind: 'only-imported-by',
+    target: [`${S}/minor-civ-graduation-conversion`],
     importers: ['tests/**'],
     edges: 'all',
-    why: 'City-state graduation (#497) ships its read side first: a pure eligibility evaluator and planner with no conversion behind them. Nothing in src/ may call them until the atomic conversion and its invariants exist (#497 PR 2) and the round phase is added (PR 3) -- a live caller before then would pick a graduate it cannot convert. PR 3 replaces this importer list with the new round-phase module.',
+    why: 'The atomic city-state conversion (#497 PR 2) exists and is tested, but no round phase may call it until the phase, its flag and the AI first-turn proof land together (PR 3). A live caller before then would convert city-states in a game that has no contact, war or presentation handling for the new civilization yet.',
   },
   {
     id: 'src-has-no-runtime-import-cycles',

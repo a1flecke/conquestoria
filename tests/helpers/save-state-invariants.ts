@@ -775,6 +775,51 @@ export { assertEliminatedCivHasNoLiveEntities };
 /** Back-compat alias — same check, older name used by existing tests + `SAVE_STATE_INVARIANTS`. */
 export const assertNoEliminatedCivEntities = assertEliminatedCivHasNoLiveEntities;
 
+/**
+ * A graduated city-state (#497) is history, and the civilization it became is its only successor. The record
+ * is destroyed and holds nothing; its city belongs to the new civilization and appears in that civ's roster;
+ * the civilization points back at the record that points at it; and nothing live still names the old id as a
+ * league member, coalition member or war opponent. Pairs the two directions so neither can drift alone.
+ */
+export function assertMinorCivGraduationIntegrity(state: GameState): void {
+  const problems: string[] = [];
+  for (const [minorCivId, mc] of Object.entries(state.minorCivs ?? {})) {
+    if (!mc.graduation) continue;
+    const civ = state.civilizations[mc.graduation.civId];
+    if (!mc.isDestroyed) problems.push(`graduated ${minorCivId} is not marked destroyed`);
+    if (mc.units.length > 0) problems.push(`graduated ${minorCivId} still lists units`);
+    if (Object.keys(mc.activeQuests).length > 0) problems.push(`graduated ${minorCivId} still has active quests`);
+    if (Object.keys(mc.chainStatusByCiv).length > 0) problems.push(`graduated ${minorCivId} still holds quest-chain status`);
+    if (!civ) {
+      problems.push(`graduated ${minorCivId} points at missing civilization ${mc.graduation.civId}`);
+      continue;
+    }
+    if (civ.graduatedFrom?.minorCivId !== minorCivId) problems.push(`${civ.id} does not point back at ${minorCivId}`);
+    if (classifyOwner(civ.id) !== 'major') problems.push(`${civ.id} does not classify as a major civilization`);
+    const city = state.cities[mc.cityId];
+    if (!city) problems.push(`graduated ${minorCivId} lost its city ${mc.cityId}`);
+    else if (city.owner !== civ.id && civ.isEliminated !== true) {
+      problems.push(`${mc.cityId} is owned by ${city.owner}, not by its graduate ${civ.id}`);
+    }
+    for (const league of Object.values(state.minorCivLeagues?.leagues ?? {})) {
+      if (league.memberIds.includes(minorCivId)) problems.push(`league ${league.id} still lists graduated ${minorCivId}`);
+    }
+    for (const coalition of Object.values(state.minorCivCoalitions ?? {})) {
+      if (coalition.memberIds.includes(minorCivId)) problems.push(`coalition ${coalition.id} still lists graduated ${minorCivId}`);
+    }
+    for (const other of Object.values(state.civilizations)) {
+      if (other.diplomacy.atWarWith.includes(minorCivId)) problems.push(`${other.id} is still at war with graduated ${minorCivId}`);
+    }
+  }
+  for (const civ of Object.values(state.civilizations)) {
+    if (!civ.graduatedFrom) continue;
+    const mc = state.minorCivs?.[civ.graduatedFrom.minorCivId];
+    if (!mc) problems.push(`${civ.id} graduated from missing ${civ.graduatedFrom.minorCivId}`);
+    else if (mc.graduation?.civId !== civ.id) problems.push(`${civ.graduatedFrom.minorCivId} does not point at its graduate ${civ.id}`);
+  }
+  if (problems.length > 0) throw new InvariantError(`minor-civ-graduation-integrity invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
 /** Historical facts may outlive their actors. Unconcluded records, however,
  * must still describe living combatants with actual opposing war edges.
  * Legacy wars without a historical record are intentionally not backfilled. */
@@ -854,6 +899,7 @@ export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state:
   { name: 'opponent-ai-portfolio-integrity', check: assertOpponentAIPortfolioIntegrity },
   { name: 'no-eliminated-civ-entities', check: assertNoEliminatedCivEntities },
   { name: 'no-illegal-blocking-occupancy', check: assertNoIllegalBlockingOccupancy },
+  { name: 'minor-civ-graduation-integrity', check: assertMinorCivGraduationIntegrity },
 ];
 
 /**
