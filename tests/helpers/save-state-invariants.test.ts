@@ -1297,7 +1297,7 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
     expect(() => check(overCommitted.state)).toThrow(/reserved more native/);
   });
 
-  it('SAVE_STATE_INVARIANTS lists exactly the fifteen documented checks', () => {
+  it('SAVE_STATE_INVARIANTS lists exactly the sixteen documented checks', () => {
     expect(SAVE_STATE_INVARIANTS.map(inv => inv.name).sort()).toEqual([
       'active-war-history',
       'air-base-integrity',
@@ -1307,6 +1307,7 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
       'city-rosters',
       'marketplace-references',
       'material-reserves',
+      'minor-civ-graduation-integrity',
       'national-project-uniqueness',
       'no-eliminated-civ-entities',
       'no-illegal-blocking-occupancy',
