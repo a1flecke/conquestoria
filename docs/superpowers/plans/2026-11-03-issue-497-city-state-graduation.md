@@ -107,7 +107,7 @@ All numbers below are **provisional** and live in one table, `MINOR_CIV_GRADUATI
 2. `off-cadence` — not a cadence turn.
 3. `world-too-young` — `resolveWorldAge(state) < tuning.minWorldAge`.
 4. `living-major-cap` — living majors ≥ `GRADUATION_MAX_LIVING_MAJORS[settings.mapSize]` (small 6, medium 8, large 10). The per-game graduation count cap needs `graduatedFrom`, so it lands in PR 2.
-5. `domination-imminent` — some contender has `eligible && unresolvedRivalIds.length <= 1` (`getDominationProgress`, a system-level read; the domination-authority rule bans only UI/AI importers).
+5. `domination-imminent` — some living contender has `eligible && securedRivalCount >= 1 && unresolvedRivalIds.length <= 1` (`getDominationProgress`, a system-level read; the domination-authority rule bans only UI/AI importers). The secured-rival requirement is deliberate: in a plain two-civilization game each side is always one rival from victory and has secured none, so `unresolved <= 1` alone would block graduation in every 1v1 game.
 
 **Per-candidate hard gates**, in order (first failure is the reason):
 `missing-minor-civ` · `destroyed` · `unknown-definition` · `city-missing` · `city-not-owned` (city owner ≠ mc id) · `age-unknown` (no `foundedTurn`) · `too-young` (`turn - foundedTurn < tuning.minAgeTurns`) · `population-below-threshold` (`population < ceiling - tuning.populationHeadroom`) · `too-few-buildings` · `at-war` (`mc.diplomacy.atWarWith` non-empty) · `coalition-member` (member of a `forming`/`active` coalition; checked before `under-threat` because membership already makes the posture `mobilizing`, which would hide it) · `under-threat` (posture `mobilizing` or `recovering`) · `league-mobilized` (its league's readiness is `concern`).
