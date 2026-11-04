@@ -3,7 +3,7 @@
   "family": "mounted",
   "prompt": {
     "name": "Cavalry",
-    "look": "A napoleonic-era cavalry trooper on a dark brown horse with a black mane and tail. The rider has dark side-whiskers and a moustache, a tall black shako hat with a brass plate, a red tunic with white crossed belts and brass buttons, cream breeches and tall black boots, and carries a curved steel sabre. The horse wears a black saddle cloth edged in cream under a brown leather saddle, with a rolled cloak behind the saddle, and a brown leather bridle with brass rings.",
+    "look": "A napoleonic-era cavalry trooper on a dark brown horse with a black mane and tail. The rider has dark side-whiskers and a moustache, a tall black shako hat with a cream pom-pom on top, a cream rope cord looped across the front and an oval brass plate, a red tunic with white crossed belts and brass buttons, cream breeches and tall black boots, and carries a curved steel sabre. The horse wears a black saddle cloth edged in cream under a brown leather saddle, with a rolled cloak behind the saddle, and a brown leather bridle with brass rings.",
     "team_area": "the rider's tunic and the saddle cloth",
     "coat": "The horse is a dark, cool brown (about #5A3E2B) with a black mane and tail (about #1E1A18) and dark legs. It must not look red: no reddish, mahogany, rust or bay tones anywhere on the horse, because the game recolours red.",
     "identity": "the same rider, shako, whiskers, red tunic with white crossed belts, cream breeches, boots and sabre, and the same dark cool-brown horse with its black mane and tail, black saddle cloth, rolled cloak and bridle",

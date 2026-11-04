@@ -58,6 +58,26 @@ not a loop. Beasts use the mounted rig without a rider (boar, wolf) or the aircr
 5. **Review** in the preview viewer (`design/png-sprites/previews/viewer.html?unit=<id>`): every state at game speed and at
    quarter speed, all four damage tiers walking, six faction colours, and the size check at 36 to 150 px.
 6. **Iterate** with the failure playbook below. Record what happened in `design/png-sprites/previews/<id>/provenance.json`.
+7. **Wire** (the Cavalry, #1643, failed CI here): add a unit of the new type to the `strip-units-showcase` scenario
+   (`src/testing/scenarios.ts`, on a free hex, plus a line in `tests/testing/scenarios.test.ts`), put the id in both lists in
+   `tests/e2e/issue-1627-strip-units.spec.ts`, and swap it out of any test that used it as the puppet fixture. Playwright is
+   not installed on the dev host: check `.cq-png[data-unit-type="<id>"]` in the built-in browser on
+   `?scenario=strip-units-showcase` before pushing.
+
+### Order of work (what the Cavalry taught)
+
+- **Draw the damage image first, then probe it, before asking for the rest.** The walk is cut from the master and the four
+  damage drawings, and `probe` says at once whether each tier can be cut. A damage sheet whose legs touch cost the Cavalry a
+  whole redraw after everything else was built; the other sheets do not depend on it.
+- **Send the leg rule with the damage image** (the prompts now say it): separate legs with background gaps in every frame, and
+  nothing (mud, bandage, torn cloth) joins two legs.
+- **Drift is the other repeat failure** (hat, horse colour, a missing blade). The set prompt now makes headgear and held
+  items identical in every frame, and its check line asks for it. Have the owner compare each image with the master, not with
+  the previous image.
+- **Keep every rejected sheet** under `~/conquestoria-art-originals/strips/<unit>/` (`b-v1-<reason>.png`), and when the
+  accepted sheet changes, update the hash and size in `provenance.json`.
+- **Keep the spec's `look` in step with the approved master.** `cavalry.json` still described a plain brass-plate shako after
+  the master was drawn with a pom-pom and cord; a later redraw from that text would reintroduce drift.
 
 ## Failure playbook
 
