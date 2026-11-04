@@ -703,6 +703,47 @@ caller passed `allowDefenderSpawns: false`). `#951` consolidated these into one 
   `.lastMobilizedTurn`, `.conscriptCooldownUntilTurn`, and `.recoveryStrainedUntilTurn`. Old saves
   carrying any of these are tolerated (fields silently dropped on normalize) with no schema bump.
 
+## City-State Graduation (#497) -- provisional, not yet live
+
+A rare, deterministic path by which a city-state becomes a major civilization. **PR 1 of the arc ships only the read side**:
+`minor-civ-graduation.ts` (a pure eligibility evaluator, score, probability and round planner) over the
+`minor-civ-graduation-rules.ts` leaf (the numbers and the reason vocabulary). Nothing in `src/` calls them -- the architecture rule
+`minor-civ-graduation-is-test-only-until-497-pr3` enforces it -- because the atomic conversion does not exist yet. The design, the
+conversion contract, the invariant matrix and the PR sequence are in `docs/superpowers/plans/2026-11-03-issue-497-city-state-graduation.md`.
+
+**Every number below is provisional** until the arc's campaign validation (the last PR) and owner approval; they live only in
+`MINOR_CIV_GRADUATION_TUNING` / `GRADUATION_*` and must not be restated in logic. Difficulty changes **timing, probability and caps
+only** -- never what conversion does or what a graduated civilization receives (same split as the minor-civ economy's "Difficulty policy").
+
+| Knob | explorer | standard | veteran | Meaning |
+|---|---:|---:|---:|---|
+| `minWorldAge` | 5 | 4 | 3 | `resolveWorldAge(state)` must reach this |
+| `minAgeTurns` | 200 | 150 | 120 | turns since `MinorCivState.foundedTurn` |
+| `populationHeadroom` | 0 | 1 | 2 | population >= `getMinorCivPopulationCeiling - headroom` |
+| `minBuildings` | 6 | 5 | 4 | buildings in the city |
+| `baseProbability` | 0.03 | 0.08 | 0.12 | chance per cadence turn at score 0 |
+| `maxProbability` | 0.06 | 0.15 | 0.22 | chance per cadence turn at score 1 |
+
+- **Cadence:** only on a turn that is a positive multiple of `GRADUATION_CADENCE_TURNS` (50). **At most one** city-state per cadence turn.
+- **World gates** (planner, in order): game over; off-cadence; world too young; living majors at the cap (`GRADUATION_MAX_LIVING_MAJORS`:
+  small 6, medium 8, large 10; an eliminated civ does not count); a Domination near-win (a living contender that has secured at least one rival
+  and has at most one left -- a plain two-civ game is deliberately *not* a near-win).
+- **Per-candidate gates** (evaluator, first failure is the reason): missing / destroyed / unknown definition / city missing / city not owned /
+  age unknown (a founding turn that is absent, negative, fractional, non-numeric or in the future is never "old enough") / too young /
+  population / buildings / at war / member of a forming-or-active coalition / mobilizing-or-recovering posture / league preparing for a threat.
+- **Score and probability:** score is trade partners (weight 0.4, cap 3), allied patrons (0.3, cap 2) and regional-compact membership (0.3), each a
+  *recorded* fact; probability is linear from `baseProbability` (score 0) to `maxProbability` (score 1), clamped for any input.
+- **Determinism:** one draw per eligible candidate from `createSimulationRng(state, { domain: 'minor-civ-graduation', actorId: <full mc id> })`,
+  so the same state gives the same plan and a save/reload cannot reroll. No hand-rolled hash, no `Math.random()`.
+- **Survival age:** `MinorCivState.foundedTurn` is stamped at placement and camp evolution; schema migration 38 stamps a legacy city-state with the
+  load turn, so a campaign saved before this existed starts ageing at the upgrade rather than being treated as ancient.
+- **Measured (idle 220-round campaigns, `minor-civ-graduation-characterization.test.ts`):** the first cadence turn a city-state can qualify is
+  turn 200, and in 3 of 4 fixtures the tracked city-state was eligible then; 2 of 4 would have selected a graduate. The standard numbers are
+  therefore not demonstrably "rare" and must be validated against real campaigns before anything goes live.
+
+**Rule:** a new graduation knob goes in the rules leaf and in this table; a new gate is one reason in `MinorCivGraduationIneligibleReason`
+plus its test; nothing may call `planMinorCivGraduations` from `src/` until the conversion PR's acceptance criteria are met.
+
 ## Production Cost Context (#984)
 
 Every production cost in the game is one function of one input:
