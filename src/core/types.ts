@@ -2201,6 +2201,11 @@ export interface GameSettings {
   // never read this field directly, always go through
   // resolveSuperweaponsFlag/isSuperweaponsEnabled.
   superweapons?: 'off' | 'on';
+  /**
+   * #497: whether a mature city-state can graduate into a major civilization. Optional: absent on every
+   * existing save and resolves to 'off' -- never read this field directly, use isCityStateGraduationEnabled.
+   */
+  cityStateGraduation?: 'off' | 'on';
   advisorsEnabled: Record<AdvisorType, boolean>;
   councilTalkLevel: CouncilTalkLevel;
   customCivilizations?: CustomCivDefinition[];

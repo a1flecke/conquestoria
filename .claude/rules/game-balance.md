@@ -703,13 +703,14 @@ caller passed `allowDefenderSpawns: false`). `#951` consolidated these into one 
   `.lastMobilizedTurn`, `.conscriptCooldownUntilTurn`, and `.recoveryStrainedUntilTurn`. Old saves
   carrying any of these are tolerated (fields silently dropped on normalize) with no schema bump.
 
-## City-State Graduation (#497) -- provisional, not yet live
+## City-State Graduation (#497) -- provisional, live only behind an opt-in setting
 
 A rare, deterministic path by which a city-state becomes a major civilization. **PR 1 of the arc ships only the read side**:
 `minor-civ-graduation.ts` (a pure eligibility evaluator, score, probability and round planner) over the
-`minor-civ-graduation-rules.ts` leaf (the numbers and the reason vocabulary). Nothing in `src/` calls them -- the architecture rule
-`minor-civ-graduation-is-test-only-until-497-pr3` enforces it -- because the atomic conversion does not exist yet. The design, the
-conversion contract, the invariant matrix and the PR sequence are in `docs/superpowers/plans/2026-11-03-issue-497-city-state-graduation.md`.
+`minor-civ-graduation-rules.ts` leaf (the numbers and the reason vocabulary). Only the conversion and the `minor-civ-graduation` round phase
+(PR 3, behind `settings.cityStateGraduation`, off by default) call them -- the `minor-civ-graduation-has-one-live-caller` architecture rule
+enforces it. The design, the conversion contract, the invariant matrix and the PR sequence are in
+`docs/superpowers/plans/2026-11-03-issue-497-city-state-graduation.md`.
 
 **Every number below is provisional** until the arc's campaign validation (the last PR) and owner approval; they live only in
 `MINOR_CIV_GRADUATION_TUNING` / `GRADUATION_*` and must not be restated in logic. Difficulty changes **timing, probability and caps
@@ -750,8 +751,16 @@ only** -- never what conversion does or what a graduated civilization receives (
   both ways. The record stays as `isDestroyed` + `graduation`, and camp evolution never reuses its definition. The `minor-civ-graduation-integrity`
   assert (in `SAVE_STATE_INVARIANTS`) pins the record/civ pairing both ways. Contact, war carry-over, treaties, presentation: PRs 3-6.
 
+- **Round phase and flag (PR 3):** `minor-civ-graduation` (`src/core/round-phases/minor-civ-graduation.ts`) runs right after `minor-civs`: when
+  `isCityStateGraduationEnabled(state)` it asks `planMinorCivGraduations`, converts the one selected city-state with `graduateMinorCiv`, announces
+  `minor-civ:graduated` (and each ended alliance) from the returned transition, and returns the new state. `GameSettings.cityStateGraduation`
+  is absent on every existing save and on new games, and resolves to `'off'` (decision D7: the default at ship is still open, no UI toggles it yet).
+  With the flag off the phase returns the state untouched and enters no seam, so the round-order literals and goldens did not move. The new civ
+  is first visited by `per-civ` and the AI scheduler the *next* round, never twice in one; `tests/core/minor-civ-graduation-phase.test.ts` proves
+  that count and plays a graduate's first 50 AI rounds with every shared invariant checked each round.
+
 **Rule:** a new graduation knob goes in the rules leaf and in this table; a new gate is one reason in `MinorCivGraduationIneligibleReason`
-plus its test; nothing may call `planMinorCivGraduations` from `src/` until the conversion PR's acceptance criteria are met.
+plus its test; nothing but the round phase may call `planMinorCivGraduations` or `graduateMinorCiv` from `src/`.
 
 ## Production Cost Context (#984)
 

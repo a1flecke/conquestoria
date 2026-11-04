@@ -24,6 +24,7 @@ const EXPECTED_IDS: Record<RoundPhaseId, true> = {
   'wonders-market': true,
   barbarians: true,
   'minor-civs': true,
+  'minor-civ-graduation': true,
   beasts: true,
   'threat-scheduling': true,
   espionage: true,

@@ -5,6 +5,8 @@ import type { HexCoord } from './hex';
 import type { BeastHoardChoice, BeastId, CrisisOutcome, CrisisStage, RogueElephantHostOutcome, StampedeOutcome, VillageOutcomeType, WorldRaceKind } from './world';
 
 export interface WorldEvents {
+  /** #497: a city-state became a major civilization. Emitted once, from the conversion's returned transition. */
+  'minor-civ:graduated': { minorCivId: string; civId: string; definitionId: string; turn: number };
   'pirate:faction-spawned': {
     factionId: PirateFactionId;
     factionName: string;
