@@ -5,6 +5,7 @@
  * untouched.
  */
 import type { PresentationRegistrar } from '@/presentation/register-all';
+import { routeMinorCivGraduated } from '@/ui/notification-routes/world-routes';
 import { routeOpportunisticWar } from '@/ui/notification-routes/crisis-routes';
 import {
   routeWarDeclared,
@@ -99,6 +100,9 @@ export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) =
     }),
     bus.on('diplomacy:tribute-ended', event => {
       routeTributeEnded(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('minor-civ:graduated', event => {
+      routeMinorCivGraduated(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
     bus.on('minor-civ:league-changed', event => {
       ctx.notifier.withHappenedTurn(event.happenedTurn, () => {

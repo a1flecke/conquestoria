@@ -148,6 +148,8 @@ interface CivRowData {
   incomingTreatyProposals: Array<{ id: string; label: string; expiresInTurns: number }>;
   atWar: boolean;
   warSinceText: string | null;
+  /** #497: "Formerly a city-state" -- only for a viewer that had discovered the city-state (`graduatedFrom.knownBy`). */
+  formerCityStateText: string | null;
   worldPressureStatusText: string | null;
   // #526 MR7 Task 7.1: exploit_weakness intel (severity + infected cities), gated on
   // the viewer's own diplomatic-networks -- see world-pressure-presentation.ts.
@@ -410,6 +412,9 @@ export function createDiplomacyPanel(
       incomingTreatyProposals,
       atWar,
       warSinceText,
+      formerCityStateText: civ.graduatedFrom?.knownBy?.includes(state.currentPlayer)
+        ? `Formerly a city-state, independent since turn ${civ.graduatedFrom.turn}.`
+        : null,
       worldPressureStatusText: worldPressureLine?.text ?? null,
       worldPressureDetailText: worldPressureLine?.detail ?? null,
       sendAidCrisisId,
@@ -545,6 +550,10 @@ export function createDiplomacyPanel(
       ? `<div style="font-size:11px;color:#d94a4a;margin-bottom:8px;" data-text="war-since-${row.civIdx}"></div>`
       : '';
 
+    const formerCityStateHtml = row.formerCityStateText
+      ? `<div style="font-size:11px;opacity:0.7;margin-bottom:8px;" data-text="former-city-state-${row.civIdx}"></div>`
+      : '';
+
     const worldPressureHtml = row.worldPressureStatusText
       ? `<div style="font-size:11px;color:#e88;margin-bottom:8px;" data-text="world-pressure-${row.civIdx}"></div>`
       : '';
@@ -615,6 +624,7 @@ export function createDiplomacyPanel(
             <div style="font-weight:bold;font-size:14px;" data-text="civ-name-${row.civIdx}"></div>
             <div style="font-size:11px;opacity:0.6;"><span data-text="civ-bonus-${row.civIdx}"></span> · <span data-text="civ-status-${row.civIdx}"></span></div>
             ${warSinceHtml}
+            ${formerCityStateHtml}
             ${worldPressureHtml}
             ${worldPressureDetailHtml}
             ${strategicCautionNoteHtml}
@@ -726,6 +736,9 @@ export function createDiplomacyPanel(
     });
     if (row.warSinceText) {
       setText(`war-since-${row.civIdx}`, row.warSinceText);
+    }
+    if (row.formerCityStateText) {
+      setText(`former-city-state-${row.civIdx}`, row.formerCityStateText);
     }
     if (row.worldPressureStatusText) {
       setText(`world-pressure-${row.civIdx}`, row.worldPressureStatusText);

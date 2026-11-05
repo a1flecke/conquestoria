@@ -27,6 +27,7 @@ const runMinorCivGraduation: RoundPhase['run'] = (state, context: RoundPhaseCont
     civId: transition.civId,
     definitionId: transition.definitionId,
     turn: transition.turn,
+    discovererCivIds: transition.discovererCivIds,
   });
   return result.state;
 };

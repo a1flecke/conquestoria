@@ -1471,7 +1471,16 @@ export interface Civilization {
   satelliteSurveillanceTargets?: Record<string, number>;
   breakaway?: BreakawayMetadata;
   /** #497: set on a civilization that began as a graduated city-state; the permanent record of where it came from. */
-  graduatedFrom?: { minorCivId: string; definitionId: string; turn: number };
+  graduatedFrom?: {
+    minorCivId: string;
+    definitionId: string;
+    turn: number;
+    /**
+     * Majors that had discovered the city-state when it graduated: the only viewers who may be told where this
+     * civilization came from. Absent on a record written before this field existed (treated as nobody).
+     */
+    knownBy?: string[];
+  };
   nearDefeat?: boolean;   // true when cities.length <= 1; used by audio system
   /** Terminal elimination transition; use getCivilizationLiveness for actor eligibility. */
   isEliminated?: boolean;

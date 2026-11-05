@@ -775,6 +775,13 @@ only** -- never what conversion does or what a graduated civilization receives (
   including a graduated one the conversion had emptied on purpose; it now skips a record with `graduation`. The draw cannot be rerolled by a
   reload because it is keyed on the campaign id, the turn and the full city-state id.
 
+- **Who is told (PR 6):** only the majors that had discovered the city-state, judged once on the pre-conversion state. That list
+  (`MinorCivGraduationTransition.discovererCivIds`) records contact, rides on `minor-civ:graduated` (`discovererCivIds`), and is
+  persisted as `Civilization.graduatedFrom.knownBy` (optional; absent reads as nobody, so no migration). `routeMinorCivGraduated`
+  (`world-routes.ts`, registered in the diplomacy registrar) sends one log entry with a map target to each discoverer and nothing to
+  anyone else; the diplomacy panel shows "Formerly a city-state" only to a viewer in `knownBy`, so a civ that meets the graduate later
+  by sight learns neither. No art, audio or toast was added.
+
 **Rule:** a new graduation knob goes in the rules leaf and in this table; a new gate is one reason in `MinorCivGraduationIneligibleReason`
 plus its test; nothing but the round phase may call `planMinorCivGraduations` or `graduateMinorCiv` from `src/`.
 

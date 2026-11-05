@@ -58,6 +58,31 @@ export function routeLegendaryWonder(
   if (notification) sink(target, notification.message, notification.type);
 }
 
+/**
+ * #497: a city-state became a major civilization. Only the majors that had discovered the city-state (the same list
+ * the conversion used to record contact) are told; nobody else learns the new name from this event. The log entry is
+ * the historical record. The graduate itself is told nothing: it has no player.
+ */
+export function routeMinorCivGraduated(
+  state: GameState,
+  event: GameEvents['minor-civ:graduated'],
+  sink: NotificationSink,
+): void {
+  const civ = state.civilizations[event.civId];
+  // A new graduate owns exactly the one city it came from; find it by owner rather than by roster position.
+  const city = Object.values(state.cities).find(c => c.owner === event.civId);
+  if (!civ || !city) return;
+  for (const recipientId of event.discovererCivIds) {
+    if (recipientId === event.civId || !state.civilizations[recipientId]) continue;
+    sink(
+      recipientId,
+      `${civ.name}, a city-state you know, has grown into a full civilization. You can now treat with it in Diplomacy.`,
+      'info',
+      { kind: 'map', coord: city.position, label: civ.name },
+    );
+  }
+}
+
 function getLegendaryWonderNotificationName(wonderId: string): string {
   return wonderId.split('-').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
 }
