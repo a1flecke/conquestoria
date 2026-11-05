@@ -782,6 +782,15 @@ only** -- never what conversion does or what a graduated civilization receives (
   anyone else; the diplomacy panel shows "Formerly a city-state" only to a viewer in `knownBy`, so a civ that meets the graduate later
   by sight learns neither. No art, audio or toast was added.
 
+- **Campaign validation (PR 7, flag on):** `tests/simulation/minor-civ-graduation-campaign.test.ts` runs 260 rounds of the real `processTurn`
+  path with `cityStateGraduation: 'on'` for 6 seeds per tier (one ripe, peaceful, idle city-state in a mature world, so these are *upper
+  bounds*, not AI-economy outcomes). Measured: explorer 0 graduations in 6 campaigns; standard 3 in 6 (first at turn 200); veteran 8 in 6
+  (first at turn 150, up to the per-game cap in some). The test asserts only the tuning-independent invariants (<= 1 per cadence turn,
+  <= `GRADUATION_MAX_PER_GAME`, every state valid every round, same seed -> same result) and a Domination check with a graduate (it is a
+  living independent rival, nobody is handed a victory by its appearance). `GRADUATION_CAMPAIGN_REPORT=<file path>` writes the table.
+  **Finding for owner decision D6:** at standard and veteran a ripe city-state graduates far more often than "rare"; explorer never does
+  within 260 rounds. The numbers are NOT retuned here and the flag stays off (D7) until the owner approves final values.
+
 **Rule:** a new graduation knob goes in the rules leaf and in this table; a new gate is one reason in `MinorCivGraduationIneligibleReason`
 plus its test; nothing but the round phase may call `planMinorCivGraduations` or `graduateMinorCiv` from `src/`.
 
