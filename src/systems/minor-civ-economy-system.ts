@@ -295,6 +295,9 @@ function normalizeEconomyState(value: unknown, state: Pick<GameState, 'turn'>): 
 export function normalizeMinorCivEconomyState(state: GameState): GameState {
   const minorCivs = { ...state.minorCivs };
   for (const [minorCivId, minorCiv] of Object.entries(minorCivs)) {
+    // A graduated city-state (#497) is history: the conversion drops its economy on purpose, and a load must not
+    // rebuild the economy of something that is no longer a city-state.
+    if (minorCiv.graduation !== undefined) continue;
     minorCivs[minorCivId] = {
       ...minorCiv,
       economy: normalizeEconomyState(minorCiv.economy, state),

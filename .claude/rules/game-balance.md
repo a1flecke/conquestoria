@@ -767,6 +767,14 @@ only** -- never what conversion does or what a graduated civilization receives (
   is first visited by `per-civ` and the AI scheduler the *next* round, never twice in one; `tests/core/minor-civ-graduation-phase.test.ts` proves
   that count and plays a graduate's first 50 AI rounds with every shared invariant checked each round.
 
+- **Save and reload (PR 5):** the three new fields (`settings.cityStateGraduation`, `MinorCivState.graduation`, `Civilization.graduatedFrom`) are
+  optional and every reader tolerates their absence, so no migration and no `SAVE_VERSION` bump: `tests/storage/minor-civ-graduation-save.test.ts`
+  proves a save with none of them loads and plays on unchanged. The same file runs a campaign through a graduation turn with a save on either
+  side (run N, save, load, continue M equals the uninterrupted run through the real file path) and pins that the load path is a fixed point on a
+  graduated game. That test found the one load-time defect: `normalizeMinorCivEconomyState` rebuilt an economy record on every city-state,
+  including a graduated one the conversion had emptied on purpose; it now skips a record with `graduation`. The draw cannot be rerolled by a
+  reload because it is keyed on the campaign id, the turn and the full city-state id.
+
 **Rule:** a new graduation knob goes in the rules leaf and in this table; a new gate is one reason in `MinorCivGraduationIneligibleReason`
 plus its test; nothing but the round phase may call `planMinorCivGraduations` or `graduateMinorCiv` from `src/`.
 

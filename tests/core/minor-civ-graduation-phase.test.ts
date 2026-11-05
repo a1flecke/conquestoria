@@ -6,12 +6,10 @@ import type { GameState } from '@/core/types';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import * as diplomacyState from '@/systems/diplomacy-state';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
-import { getMinorCivPopulationCeiling } from '@/systems/minor-civ-economy-system';
-import { planMinorCivGraduations } from '@/systems/minor-civ-graduation';
-import { GRADUATION_MAX_PER_GAME, MINOR_CIV_GRADUATION_TUNING } from '@/systems/minor-civ-graduation-rules';
+import { GRADUATION_MAX_PER_GAME } from '@/systems/minor-civ-graduation-rules';
 import { getGraduateCivId } from '@/systems/minor-civ-graduation-conversion';
+import { GRADUATION_TURN, ripeAndSelectedGraduationState } from '../helpers/graduation-fixture';
 import { assertSaveStateInvariants } from '../helpers/save-state-invariants';
-import { advancePlayerCivToEra, fixturePeacefulIsolated } from '../systems/helpers/minor-civ-scenario-fixtures';
 
 /**
  * #497 PR 3 -- the `minor-civ-graduation` round phase and the graduated civilization's first AI turns.
@@ -20,36 +18,7 @@ import { advancePlayerCivToEra, fixturePeacefulIsolated } from '../systems/helpe
  * whose seeded draw succeeds, so the run is deterministic without leaning on a lucky default seed.
  */
 
-const TUNING = MINOR_CIV_GRADUATION_TUNING.standard;
-const BUILDING_IDS = ['barracks', 'marketplace', 'library', 'granary', 'walls', 'temple', 'workshop', 'harbor'];
-const GRADUATION_TURN = 400;
-
-function ripe(gameId: string): { state: GameState; minorCivId: string } {
-  const { state, minorCivId } = fixturePeacefulIsolated('graduation-phase');
-  state.gameId = gameId;
-  state.opponentChallenge = 'standard';
-  state.turn = GRADUATION_TURN;
-  advancePlayerCivToEra(state, TUNING.minWorldAge);
-  for (const civ of Object.values(state.civilizations)) civ.techState.completed = [...state.civilizations.player.techState.completed];
-  const minorCiv = state.minorCivs[minorCivId]!;
-  minorCiv.foundedTurn = state.turn - TUNING.minAgeTurns;
-  minorCiv.diplomacy.atWarWith = [];
-  const city = state.cities[minorCiv.cityId]!;
-  city.population = getMinorCivPopulationCeiling(state, minorCivId) - TUNING.populationHeadroom;
-  city.buildings = BUILDING_IDS.slice(0, TUNING.minBuildings);
-  return { state, minorCivId };
-}
-
-/** A ripe state whose planner picks the city-state, found by trying campaign ids in order. */
-function ripeAndSelected(enabled: boolean): { state: GameState; minorCivId: string } {
-  for (let attempt = 0; attempt < 300; attempt += 1) {
-    const candidate = ripe(`graduation-phase-${attempt}`);
-    candidate.state.settings.cityStateGraduation = enabled ? 'on' : 'off';
-    const plan = planMinorCivGraduations(candidate.state);
-    if (plan.status === 'evaluated' && plan.selectedMinorCivId === candidate.minorCivId) return candidate;
-  }
-  throw new Error('no campaign id produced a successful graduation draw');
-}
+const ripeAndSelected = ripeAndSelectedGraduationState;
 
 function graduateIds(state: GameState): string[] {
   return Object.keys(state.civilizations).filter(id => state.civilizations[id]!.graduatedFrom !== undefined);
