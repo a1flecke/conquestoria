@@ -120,7 +120,11 @@ def load_figures(path: Path, expected: int, grid: list[int] | None = None, findi
         fig = ndi.binary_opening(alpha >= 200, iterations=1)
     else:
         fig = ndi.binary_opening(~field_mask(rgb), iterations=2)
-    labels, n = ndi.label(fig)
+    # Pieces within a few pixels of each other are one figure: a muzzle flash drawn one pixel off the bayonet tip, or a thin
+    # tip lost by the opening above, still belongs to its figure. Labelling uses the closed mask; the figure keeps its pixels.
+    near = ndi.binary_dilation(fig, iterations=3)
+    group, n = ndi.label(near)
+    labels = np.where(fig, group, 0)
     if n == 0:
         raise FigureError('count', path.name, f'expected {expected} figures, found 0')
     areas = ndi.sum(fig, labels, range(1, n + 1))

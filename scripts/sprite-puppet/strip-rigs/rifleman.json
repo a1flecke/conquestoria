@@ -1,0 +1,28 @@
+{
+  "id": "rifleman",
+  "family": "biped",
+  "prompt": {
+    "name": "Rifleman",
+    "look": "A mid-19th-century line infantryman: a friendly adult man with a trimmed brown moustache and short side-whiskers, a dark blue kepi cap with a short peak and a small brass badge, a knee-length coat with brass buttons, a white cross-belt over the chest and a black leather belt with a brass buckle and a small cartridge pouch, light grey trousers tucked into black gaiters over black boots, a rolled grey blanket worn over one shoulder, and a long rifled musket with a dark wooden stock, a steel barrel and a slim bayonet fixed at the muzzle.",
+    "team_area": "his coat",
+    "identity": "the same face, moustache and whiskers, kepi, red coat, white cross-belt, black belt and pouch, trousers, gaiters, boots, blanket roll and rifle with its bayonet",
+    "weapon_pose": "He carries the rifle at the right shoulder (shoulder arms): the butt rests in his right hand at hip height, the barrel and bayonet rise past his right shoulder pointing up, and his left arm hangs at his side. The rifle is well above his knees and nowhere near his boots.",
+    "attack_frames": 6,
+    "attack": "(1) ready, rifle at the shoulder; (2) he swings the rifle down across his body, both hands on it; (3) he raises it to his shoulder, aiming right; (4) steady aim, cheek on the stock, the rifle pointing right; (5) the shot: a bright yellow-orange muzzle flash touching the end of the barrel, the rifle kicked up a little, his shoulder pushed back; (6) recover, lowering the rifle to the shoulder-arms stance.",
+    "damage_gear": "a cracked stock and a bent bayonet",
+    "damage_gear_critical": "a split stock bound with cord and a broken-off bayonet",
+    "defeat_prop": "the rifle planted muzzle-down in the ground in front of him, still in his hands"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 140 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",    "file": "a", "cells": 1, "fps": 4 },
+    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": { "sources": ["a", "b#0", "b#1", "b#2", "b#3"], "shafts": 0, "stride_deg": 24, "knee_bend": 14, "foot_level": 0.7 } },
+    { "state": "attack",  "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "restFrames": [0, 5] },
+    { "state": "hit",     "file": "d", "cells": 5, "grid": [3, 2], "fps": 8, "restFrames": [0, 4], "loop": false },
+    { "state": "defeat",  "file": "e", "cells": 5, "grid": [3, 2], "fps": 5, "restFrames": [0], "loop": false }
+  ]
+}

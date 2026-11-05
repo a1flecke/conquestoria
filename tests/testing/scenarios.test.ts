@@ -120,4 +120,9 @@ describe('strip-units-showcase scenario (#1627)', () => {
     const state = buildScenario(SCENARIOS['strip-units-showcase']);
     expect(state.units['showcase-cavalry']).toMatchObject({ type: 'cavalry', owner: 'player', health: 100 });
   });
+
+  it('places a player rifleman so the strip e2e can find its root', () => {
+    const state = buildScenario(SCENARIOS['strip-units-showcase']);
+    expect(state.units['showcase-rifleman']).toMatchObject({ type: 'rifleman', owner: 'player', health: 100 });
+  });
 });

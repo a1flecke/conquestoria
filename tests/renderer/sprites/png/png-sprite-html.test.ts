@@ -11,7 +11,7 @@ import { getPngCanvasFrame } from '@/renderer/sprites/png/png-sprite-canvas';
 import { getUnitSpriteV2, isV2NativeUnit } from '@/renderer/sprites/v2/index';
 import { FACTION_SPRITE_ACCENT, NEUTRAL_PNG_TINT } from '@/renderer/sprites/faction-accent-colors';
 
-const rifleman = getPngUnitManifest('rifleman')!;
+const machine_gunner = getPngUnitManifest('machine_gunner')!;
 const css = readFileSync(resolve(__dirname, '../../../../src/assets/png-sprite-animations.css'), 'utf8');
 
 describe('resolvePngTint', () => {
@@ -33,9 +33,9 @@ describe('resolvePngTint', () => {
 
 describe('getPngSpriteCssVars', () => {
   it('describes the sheet grid, the cell placement and the healthy idle clip', () => {
-    const v = getPngSpriteCssVars(rifleman);
-    const { cols, rows } = rifleman;
-    const idle = rifleman.clips.idle[0];
+    const v = getPngSpriteCssVars(machine_gunner);
+    const { cols, rows } = machine_gunner;
+    const idle = machine_gunner.clips.idle[0];
     expect(v['--cols']).toBe(String(cols));
     expect(v['--rows']).toBe(String(rows));
     // a puppet cell is the whole unit box
@@ -50,7 +50,7 @@ describe('getPngSpriteCssVars', () => {
   it('handles a single-row, single-column sheet without dividing by zero', () => {
     const clip = { row: 0, firstCol: 0, frames: 2, fps: 4, loop: true };
     const v = getPngSpriteCssVars({
-      ...rifleman, cols: 1, rows: 1,
+      ...machine_gunner, cols: 1, rows: 1,
       clips: { idle: [clip, clip, clip, clip], walk: [clip, clip, clip, clip], attack: [clip, clip, clip, clip] },
     });
     expect(v['--row']).toBe('0%');
@@ -59,7 +59,7 @@ describe('getPngSpriteCssVars', () => {
 });
 
 describe('buildPngUnitSpriteHtml', () => {
-  const html = buildPngUnitSpriteHtml(rifleman, '#1d4a8c');
+  const html = buildPngUnitSpriteHtml(machine_gunner, '#1d4a8c');
 
   it('keeps the overlay contract of the SVG sprites: a .cq-sprite-wrap root with data-state and --phase', () => {
     expect(html.startsWith('<div class="cq-sprite-wrap cq-png"')).toBe(true);
@@ -70,8 +70,8 @@ describe('buildPngUnitSpriteHtml', () => {
 
   it('draws the base sheet and the tint layer from the manifest paths, tinted with the given colour', () => {
     expect(html).toContain('--cq-tint:#1d4a8c');
-    expect(html).toContain(rifleman.sheet);
-    expect(html).toContain(rifleman.mask);
+    expect(html).toContain(machine_gunner.sheet);
+    expect(html).toContain(machine_gunner.mask);
     expect(html).toContain('cq-png-base');
     expect(html).toContain('cq-png-tint');
   });
@@ -112,28 +112,28 @@ describe('png-sprite-animations.css', () => {
 
 describe('getPngCanvasFrame', () => {
   it('maps the three static motions onto sheet frames inside their rows', () => {
-    expect(getPngCanvasFrame(rifleman, 'idle')).toEqual({ state: 'idle', frame: 0 });
-    const a = getPngCanvasFrame(rifleman, 'move-a');
-    const b = getPngCanvasFrame(rifleman, 'move-b');
+    expect(getPngCanvasFrame(machine_gunner, 'idle')).toEqual({ state: 'idle', frame: 0 });
+    const a = getPngCanvasFrame(machine_gunner, 'move-a');
+    const b = getPngCanvasFrame(machine_gunner, 'move-b');
     expect(a.state).toBe('walk');
     expect(b.state).toBe('walk');
     expect(a.frame).not.toBe(b.frame); // the map alternates two distinct walk poses
-    expect(Math.max(a.frame, b.frame)).toBeLessThan(rifleman.clips.walk[0].frames);
+    expect(Math.max(a.frame, b.frame)).toBeLessThan(machine_gunner.clips.walk[0].frames);
   });
 });
 
 describe('getUnitSpriteV2 dispatch (both renderers coexist)', () => {
   it('serves the PNG player for a registered unit, for any faction and for owners with no faction record', () => {
     for (const faction of ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate', 'some-minor-civ-id']) {
-      const out = getUnitSpriteV2('rifleman', faction)!;
+      const out = getUnitSpriteV2('machine_gunner', faction)!;
       expect(out, faction).toContain('cq-png');
       expect(out, faction).not.toContain('<svg');
     }
   });
 
   it('tints with the owner colour when one is supplied', () => {
-    expect(getUnitSpriteV2('rifleman', 'imperials', '#2d6a4f')).toContain('--cq-tint:#2d6a4f');
-    expect(getUnitSpriteV2('rifleman', 'khanate')).toContain(`--cq-tint:${FACTION_SPRITE_ACCENT.khanate}`);
+    expect(getUnitSpriteV2('machine_gunner', 'imperials', '#2d6a4f')).toContain('--cq-tint:#2d6a4f');
+    expect(getUnitSpriteV2('machine_gunner', 'khanate')).toContain(`--cq-tint:${FACTION_SPRITE_ACCENT.khanate}`);
   });
 
   it('leaves every other unit on its SVG sprite', () => {
