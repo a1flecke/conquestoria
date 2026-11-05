@@ -1,0 +1,19 @@
+{
+  "id": "rifleman",
+  "status": "shipped: registered in PNG_UNIT_SPRITES and exported with strips.py export (#1627)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-04",
+  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/rifleman.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/). Conversation A drew the master; the damage, attack, hit and defeat sheets were each drawn in one message of a second conversation with the master attached (the combined four-image prompt did not work well, so the owner sent one prompt per image). The prompts ChatGPT actually ran were adapted from the templates (the rifle is held upright in front of him, as the master drew it, not at the shoulder) and were not captured verbatim.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/rifleman). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all five passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "None: every sheet shipped is the first the owner drew. The damage sheet was asked for first and checked with `strips.py calibrate` (0 errors, 0 warnings, a clean cut at the hem for the master and all four tiers) before the other sheets were drawn. The attack sheet's muzzle flash sits one pixel off the bayonet tip, so `strips.py load_figures` now joins pieces within 3 px.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1448, 1086], "sha256": "437afff50e59fd21356c616036fb732699f73d4cf5e333313375886662f76fb9" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1312, 1199], "sha256": "d9b91af121a923e1c45cf4cd1dbf95b120534699f4ba05b0bc072efe51380c10" },
+    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1024, 1536], "sha256": "f61e57f52ac3d625bbf1bf196307136e0d574b721af1758c766eb15f3991d7d0" },
+    { "role": "hit reaction, 5 frames (3 + 2 grid)", "file": "d", "size": [1024, 1536], "sha256": "290044b007439bacebb6e2fb31e0b2ac6f9b4113707dd042b7b10110271fda24" },
+    { "role": "defeat, 5 frames (3 + 2 grid)", "file": "e", "size": [1024, 1536], "sha256": "8af24b5b18b8ac4a3053f04e0c8573f16e3bc077503d55872dd0def83f6629cf" }
+  ]
+}

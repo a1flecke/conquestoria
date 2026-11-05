@@ -192,7 +192,7 @@ gradients for banding at the screenshot review), the mask is grey plus alpha.
 
 Results at 0.75 (Ironclad after its `restHeight` rise, Biplane after the anchor fix below): Spearman 158 KB and 12.1 MiB, Archer
 248 KB and 11.8 MiB, Horseman 265 KB and 12.7 MiB (the chestnut set), Tank 154 KB and 11.0 MiB, Ironclad 123 KB and 11.0 MiB, Biplane 224 KB and
-9.3 MiB, Cavalry 227 KB and 9.3 MiB.
+9.3 MiB, Cavalry 227 KB and 9.3 MiB, Rifleman 206 KB and 14.3 MiB (a tall rifle: `restHeight` 140 so the bent-bayonet tier fits the unit box).
 
 **The Biplane used to be refused** (#1627): its idle pose sat 29 px left of the middle of its cell while the rows built in code
 were centred. A drawn row was anchored on the mean x of its lowest 10% of rows (`anchor_x`, `'feet'`), which for an aircraft is

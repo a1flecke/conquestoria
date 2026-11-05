@@ -25,8 +25,8 @@ RULES FOR EVERY IMAGE:
 - Nothing is detached from the figure: no flying arrows or projectiles, sparks, dust, debris, smoke puffs or motion lines
   floating in the air. Anything the unit holds stays in contact with it.
 - Headgear, hair, face and held items are exactly the master's in every frame of every image (same hat with the same cord,
-  plume and plate; same weapon). Only the damage frames may change them, and only as listed. The Cavalry's attack, hit and
-  defeat sheets each drifted to a different hat or horse and were redrawn several times.
+  plume and plate; same weapon). Only the damage frames may change them, and only as listed. Drifting to a different hat or
+  weapon between frames is the most common fault, so check it in every frame.
 - Transparent background (or, if impossible, one flat solid magenta #FF00FF with nothing magenta on the unit).
 - Paint {{team_area}} saturated pure red (#E01010), exactly as in the master; it is the only red anywhere. Wounds, stains,
   rust and fire are dark maroon, brown, grey, orange-yellow or black, never bright red. No blood and no gore.
@@ -47,7 +47,7 @@ image, separate legs with visible gaps in every frame. If any is false, redraw t
    feet EXACTLY where they are in the master in all four frames (the game builds the walk from each of these drawings); any
    slump shows only in the head, shoulders and arms. In every frame the two legs are separate posts with a visible gap of
    empty background between them from the boots up, both feet flat on one ground line; mud, bandages and torn cloth never
-   join the legs. Keep any planted spear or other prop a hand's width clear of the
+   join the legs. Keep any prop the unit holds a hand's width clear of the
    boots. Keep the same headgear in all four frames (frame 3 may dent it) and every prop whole in frames 1 to 3 (frame 4 may
    break it, still held). (1) healthy, identical to the master; (2) light: dirt on clothes and legs,
    one clear slash across the garment, a scuffed hem; (3) serious: torn garment and sleeve, {{damage_gear}}, a few dark-maroon

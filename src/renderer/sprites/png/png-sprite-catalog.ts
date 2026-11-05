@@ -7,7 +7,7 @@ import { sprite as ironclad } from './generated/ironclad.manifest';
 import { manifest as machine_gunner } from './generated/machine_gunner.manifest';
 import { manifest as observation_balloon } from './generated/observation_balloon.manifest';
 import { manifest as pre_dreadnought } from './generated/pre_dreadnought.manifest';
-import { manifest as rifleman } from './generated/rifleman.manifest';
+import { sprite as rifleman } from './generated/rifleman.manifest';
 import { manifest as submarine } from './generated/submarine.manifest';
 import { sprite as tank } from './generated/tank.manifest';
 import { sprite as archer } from './generated/archer.manifest';
@@ -27,12 +27,11 @@ const PUPPET_UNITS: Readonly<Record<string, PngSpriteManifest>> = {
   machine_gunner,
   observation_balloon,
   pre_dreadnought,
-  rifleman,
   submarine,
 };
 
 /** Strip units: drawn strips exported by `strips.py export`, already in the player's shape. */
-const STRIP_UNITS: readonly PngUnitSprite[] = [archer, biplane, cavalry, horseman, ironclad, spearman, tank];
+const STRIP_UNITS: readonly PngUnitSprite[] = [archer, biplane, cavalry, horseman, ironclad, rifleman, spearman, tank];
 
 const PNG_UNIT_SPRITES: Readonly<Record<string, PngUnitSprite>> = Object.fromEntries([
   ...Object.entries(PUPPET_UNITS).map(([id, manifest]) => [id, fromPuppetManifest(manifest)] as const),
