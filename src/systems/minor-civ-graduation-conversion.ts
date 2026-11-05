@@ -1,6 +1,7 @@
 import type { ChainTransition } from '@/systems/quest-chain-system';
 import type { Civilization, GameState } from '@/core/types';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
+import { hasDiscoveredMinorCiv, recordCivilizationContact } from '@/systems/discovery-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { getMinorCivCompletedTechBand } from '@/systems/minor-civ-economy-system';
 import { evaluateMinorCivGraduationEligibility, countGraduatedCivilizations } from '@/systems/minor-civ-graduation';
@@ -15,14 +16,16 @@ import { createTechState } from '@/systems/tech-system';
  * City-state graduation (#497), the conversion. One city-state becomes a major civilization in a single
  * step: either every write below happens on a clone and the new state is returned, or nothing changes and a
  * typed denial is returned. Nothing here decides *whether* a city-state should graduate (that is the
- * planner's call) or announces it (the caller emits events from the returned transition). Like the planner it
- * has no live caller yet; the architecture rule `minor-civ-graduation-is-test-only-until-497-pr3` pins that.
+ * planner's call) or announces it (the caller emits events from the returned transition). Its one caller is the
+ * `minor-civ-graduation` round phase, pinned by `minor-civ-graduation-conversion-has-one-live-caller`.
  *
  * What moves: the city (and its tiles), every living garrison unit (re-owned, never removed or recreated, so
  * no tile's occupancy changes). What is dropped: quests, alliances, regional grievances, coalition membership,
  * league membership, the minor-civ economy record. What the new civilization starts with: exactly the
  * technology the city-state already built with (no windfall), no gold, no research, and a relationship entry
- * with every other civilization. Wars, contact, treaties and presentation are later PRs of the arc.
+ * with every other civilization, and contact with exactly the majors that had discovered the city-state. A city-state
+ * at war never graduates (the evaluator's `at-war` gate), so no war needs carrying over; every stale reference to the
+ * old id in a war list is scrubbed anyway. Treaties (a city-state has none) and presentation are later PRs.
  */
 
 export type MinorCivGraduationDenial =
@@ -155,6 +158,16 @@ export function graduateMinorCiv(state: GameState, minorCivId: string): MinorCiv
     graduatedFrom: { minorCivId, definitionId: definition.id, turn: state.turn },
   };
   next.civilizations[civId] = civilization;
+
+  // First contact (#497 PR 4): a living major that had already discovered the city-state keeps knowing it under
+  // its new identity, in both directions, and nobody else gains contact from the change. Judged on the state
+  // BEFORE conversion, because discovery is defined for a living city-state; later contact comes from sight, as
+  // for any civilization. Recorded without a first-contact event: those civilizations already knew the place, and
+  // telling them who it became is the presentation PR's job.
+  for (const [otherId, other] of Object.entries(state.civilizations)) {
+    if (other.isEliminated) continue;
+    if (hasDiscoveredMinorCiv(state, otherId, minorCivId)) recordCivilizationContact(next, civId, otherId);
+  }
 
   return {
     ok: true,
