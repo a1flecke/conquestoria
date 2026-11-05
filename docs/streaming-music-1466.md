@@ -15,8 +15,33 @@ live PCM for music is a few seconds, not minutes. Short SFX are unchanged.
 
 `getLoop` falls back to the previous whole-buffer path for any file that cannot be streamed exactly, any parse or
 decode failure, any failed self-check, an HTTP error, or when `decodeAudioData` is missing. Each track is
-self-checked once on `prepare()`: an overlapping mid-file window must decode to the same samples as window 0.
-Loops that do not start at 0, or whose end exceeds the file, are refused (buffer path).
+self-checked once on `prepare()`: an overlapping mid-file window must decode to the same samples as window 0, **and
+every decode must return the frame count the plan promised (within one resampler frame)**. The frame-count half
+matters: Safari's engine decodes each standalone window one short block (128 native frames) shorter than the
+window's granule span, so its windows cannot tile the loop. Before that check existed the sample comparison passed,
+the track was accepted, and the final window of a loop that ends at the file end could not supply its core —
+playback stopped instead of falling back (reproduced in real WKWebView: `era2-war.ogg`, window 14, "decoded window is
+shorter than its core"). Loops that do not start at 0, or whose end exceeds the file, are refused (buffer path).
+
+### Cross-engine behaviour (measured)
+
+| Engine | Version | Windows decode to the planned frame count? | Result |
+|---|---|---|---|
+| Chromium (Playwright `chrome-headless-shell`) | 149.0.7827.55 | Yes (−1…0 frames) | streams |
+| Firefox (Playwright) | 151.0 | Yes (0…+1 frames) | streams |
+| WebKit (Playwright, macOS) | 26.5 | No: −128 to −140 frames per window | falls back |
+| WKWebView (real system WebKit, Tauri's macOS engine) | Safari 26.6.2 | No: −128 to −139 frames per window | falls back |
+
+`tests/e2e/issue-1466-decoder-compatibility.spec.ts` asserts the contract rather than the engine names: a track may
+only be accepted when every window decodes to the planned length and equals the whole-file decode, and every refused
+track must still arrive from `AudioLoader.getLoop` as a decoded buffer. Run it on all three Playwright engines with
+`./scripts/dev.sh web-smoke-cross-engine` (Chromium, WebKit and Firefox). Chromium's `src/audio` unit tests and
+`tests/e2e/issue-1466-streamed-music.spec.ts` remain the Chromium-only precision proof.
+
+On Windows/Linux Chromium the decoder is the same bundled one, and Chrome on iOS is WKWebView, so the table is
+expected to hold there — but neither was run. The fallback keeps audio correct everywhere; on WebKit it gives up the
+PCM saving, so a future slice could accept a track when every window has more unused tail than the decoder's
+measured shortfall. That relaxation needs its own listening and iOS evidence and is not implemented.
 
 ## Evidence
 
@@ -57,13 +82,32 @@ thread inside `decodeAudioData`. A pump tick every 500 ms checks the lookahead; 
 
 - Listening: nothing here was heard by a person. Sample-equality to the buffer path is the proxy. **NOT VERIFIED
   by ear.**
-- Safari, WKWebView (Tauri on macOS), iPad/iOS: **NOT VERIFIED.** `decodeAudioData` resampling behaviour may differ;
-  the per-track self-check falls back to the buffer path if a window disagrees, but that was not exercised there.
-- Windows/Linux Chromium and Firefox: not run.
+- Real Safari (desktop) was not scripted: `safaridriver` is not enabled on this host and Safari's "Allow JavaScript
+  from Apple Events" is off, so the real-browser evidence is a WKWebView harness (below), not Safari's UI.
+- iPad/iOS Safari: **NOT VERIFIED.** No device or simulator audio path was available; Chrome/Safari on iOS use the
+  same WebKit decoder that fell back above, but that is an inference, not a measurement.
+- Windows/Linux Chromium: not run. Firefox on macOS streams (see the cross-engine table).
 - Very slow devices where a window decode can exceed the lookahead: the player skips what has passed and stays on
   the clock grid (tested with a fake clock), at the cost of a short gap.
+- Renderer RSS growth across five campaign starts is still unattributed; it is not decoded PCM.
+
+## Cross-engine and lifecycle coverage in tests
+
+| Claim | Evidence |
+|---|---|
+| Windowed decode equals the whole-file decode on Chromium | `tests/e2e/issue-1466-streamed-music.spec.ts` (all windows of three assets, maxAbs < 1e-6) |
+| Windows tile the loop and render identically to the buffer loop | same spec, `OfflineAudioContext` render over ten-plus joins and two wraps (maxAbs < 1e-5) |
+| A decoder whose windows are not exact is refused and the buffer is served | `tests/audio/streamed-loop.test.ts` (trimmed-window and disagreeing-sample cases) and the cross-engine spec |
+| Unsupported plan, malformed bytes, failed request, superseded load | cross-engine spec (`refused plans… all yield a safe source`) and `tests/audio/audio-loader.test.ts` |
+| Player clock: lookahead, late decode, stop during decode, dispose, retry/failure | `tests/audio/streamed-loop.test.ts` (fake clock) |
+| Bus integration: crossfade, mute/volume, stinger duck/restore, stale discard | `tests/audio/audio-mixer.test.ts`, `tests/audio/music-director.test.ts`, `tests/audio/audio-system.integration.test.ts` |
+| WKWebView/Tauri engine falls back | WKWebView harness run against the dev server on this host (Safari 26.6.2 / macOS 26 arm64): `prepare()` false for all three assets; without the frame-count check `era2-war.ogg` window 14 threw |
 
 ## Reproduce
+
+```sh
+./scripts/dev.sh web-smoke-cross-engine   # Chromium + WebKit + Firefox decoder/fallback contract
+```
 
 ```sh
 ./scripts/dev.sh build   # then serve baseline (origin/main build) on :4189 and this build on :4190
