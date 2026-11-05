@@ -40,6 +40,12 @@ export const DEFAULT_STREAM_OPTIONS: StreamedLoopOptions = {
 
 /** Largest sample difference tolerated between two decodes of the same audio. Float rounding is ~6e-8. */
 const VERIFY_TOLERANCE = 1e-4;
+/**
+ * Largest decoded-length difference tolerated against the plan's frame count. A resampler rounds by at most one
+ * output frame, so anything bigger means the platform cut the window differently (WebKit, for example, trims one
+ * short block from the end of every standalone stream) and its windows cannot tile the loop exactly.
+ */
+const LENGTH_TOLERANCE = 1;
 const START_LEAD_SECONDS = 0.03;
 const SAFETY_SECONDS = 0.01;
 const PUMP_INTERVAL_MS = 500;
@@ -86,15 +92,24 @@ export class StreamedLoopTrack {
     return buffer;
   }
 
+  /** Whether a decode covers the packets `first..last` at the length the plan promised (see `LENGTH_TOLERANCE`). */
+  private hasExpectedLength(buffer: AudioBuffer, first: number, last: number): boolean {
+    const { p, q } = this.plan.ratio;
+    const frames = Math.round(((this.stream.granules[last]! - this.stream.granules[first]!) * p) / q);
+    return Math.abs(buffer.length - frames) <= LENGTH_TOLERANCE;
+  }
+
   /**
-   * Known-answer check: a small window that starts mid-file must reproduce window 0's samples where they overlap.
-   * Run once per track; a platform whose decoder disagrees makes the track fall back to a whole-file buffer.
+   * Known-answer check: a small window that starts mid-file must decode to the same samples as window 0's samples
+   * where they overlap, and every decode must return the frame count the plan promised. Run once per track; a
+   * platform whose decoder disagrees makes the track fall back to a whole-file buffer.
    */
   private async verify(ctx: StreamContext, first: AudioBuffer): Promise<boolean> {
     const { stream } = this;
     const { p, q } = this.plan.ratio;
     const rate = ctx.sampleRate;
     const firstWindow = this.plan.windows[0]!;
+    if (!this.hasExpectedLength(first, firstWindow.firstPacket, firstWindow.lastPacket)) return false;
     const lastFrame = firstWindow.startFrame + first.length;
     // A packet on the resampler grid between 1 s and the end of window 0 (minus room for the comparison).
     let probe = -1;
@@ -121,6 +136,7 @@ export class StreamedLoopTrack {
     const from = Math.round(0.3 * rate);
     const to = Math.min(Math.round(0.9 * rate), mini.length);
     if (to <= from || mini.numberOfChannels !== first.numberOfChannels) return false;
+    if (!this.hasExpectedLength(mini, probe, probeEnd)) return false;
     for (let channel = 0; channel < first.numberOfChannels; channel++) {
       const a = first.getChannelData(channel);
       const b = mini.getChannelData(channel);

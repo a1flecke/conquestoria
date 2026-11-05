@@ -45,6 +45,7 @@ tasks (output is saved to .verification/logs/<task>.log; the last 60 lines are p
   ai-long           yarn test:ai-long
   ai-long-status    yarn test:ai-long:status
   web-smoke         yarn test:web-smoke
+  web-smoke-cross-engine  yarn test:web-smoke:cross-engine (Chromium + WebKit + Firefox audio compatibility)
   docs-lifecycle    node scripts/docs-lifecycle.mjs check
   verify-impact     yarn verify:impact (read-only: lists the evidence the current change requires)
   yarn-parity       node scripts/check-yarn-version-parity.mjs (read-only Yarn version guard)
@@ -64,7 +65,7 @@ deny() {
 
 is_task() {
   case "$1" in
-    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-playability-status|ai-long|ai-long-status|web-smoke|docs-lifecycle|verify-impact|yarn-parity|known-gap-owners|known-gap-owners-refresh|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
+    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-playability-status|ai-long|ai-long-status|web-smoke|web-smoke-cross-engine|docs-lifecycle|verify-impact|yarn-parity|known-gap-owners|known-gap-owners-refresh|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -129,6 +130,7 @@ execute() {
     ai-long) bash "$MISE" yarn test:ai-long ;;
     ai-long-status) bash "$MISE" yarn test:ai-long:status ;;
     web-smoke) bash "$MISE" yarn test:web-smoke ;;
+    web-smoke-cross-engine) bash "$MISE" yarn test:web-smoke:cross-engine ;;
     docs-lifecycle) bash "$MISE" node scripts/docs-lifecycle.mjs check ;;
     verify-impact) bash "$MISE" yarn verify:impact ;;
     yarn-parity) bash "$MISE" node scripts/check-yarn-version-parity.mjs ;;

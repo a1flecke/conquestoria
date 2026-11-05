@@ -1,9 +1,29 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices, type PlaywrightTestConfig } from '@playwright/test';
 
 export function resolvePlaywrightDevCommand(ci = process.env.CI): string {
   return ci
     ? 'yarn dev --mode e2e --host 127.0.0.1'
     : './scripts/run-with-mise.sh yarn dev --mode e2e --host 127.0.0.1';
+}
+
+/**
+ * #1466: the default browser job stays Chromium-only (every spec assumes Chromium), but audio work needs
+ * evidence from other engines. `CONQUESTORIA_PLAYWRIGHT_CROSS_ENGINE=1` adds the WebKit and Firefox projects
+ * for the specs that were written to run on them; never enable it for the whole suite.
+ */
+export function resolvePlaywrightProjects(
+  crossEngine = process.env.CONQUESTORIA_PLAYWRIGHT_CROSS_ENGINE,
+): NonNullable<PlaywrightTestConfig['projects']> {
+  const projects: NonNullable<PlaywrightTestConfig['projects']> = [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+  ];
+  if (crossEngine === '1') {
+    projects.push(
+      { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+      { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    );
+  }
+  return projects;
 }
 
 export default defineConfig({
@@ -50,10 +70,5 @@ export default defineConfig({
         '**/issue-1439-idle-campaign.perf-diagnostic.spec.ts',
         '**/issue-1439-campaign-start.perf-diagnostic.spec.ts',
       ],
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-  ],
+  projects: resolvePlaywrightProjects(),
 });

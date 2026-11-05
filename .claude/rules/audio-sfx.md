@@ -21,5 +21,6 @@ Long looping tracks (era base, accent, adaptive layers) are played from small de
 
 - Ask the loader for a loop with `AudioLoader.getLoop(entry)`; it returns a `PreparedStreamedLoop` or the whole buffer. Hand the result to `AudioMixer.setBusSource` or, if the request went stale, to `discardLoopSource`. Never keep a long loop's decoded PCM in a cache.
 - The buffer path is the safety net: any parse, plan, self-check or decode failure falls back to it. Do not add a code path that streams a file the planner refused.
+- The self-check is two-part: overlapping samples *and* the planned frame count. A platform that decodes a window shorter or longer than its granule span (Safari's engine trims one short block) cannot tile the loop; only drop the frame-count half with new cross-engine evidence (`./scripts/dev.sh web-smoke-cross-engine`).
 - Windows are exact because they start at a resampler-aligned packet with a pre-roll packet. Changing `coreSeconds`/`marginSeconds` is safe; changing how a window is cut is not without re-running `tests/e2e/issue-1466-streamed-music.spec.ts`.
 - A new music bus consumer uses `getLoop` + `setBusSource`; it must not call `loader.get` for a track longer than a few seconds.

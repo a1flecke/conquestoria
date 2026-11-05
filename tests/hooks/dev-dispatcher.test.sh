@@ -78,6 +78,7 @@ ai-playability-status|yarn test:ai-playability:status
 ai-long|yarn test:ai-long
 ai-long-status|yarn test:ai-long:status
 web-smoke|yarn test:web-smoke
+web-smoke-cross-engine|yarn test:web-smoke:cross-engine
 docs-lifecycle|node scripts/docs-lifecycle.mjs check
 verify-impact|yarn verify:impact
 yarn-parity|node scripts/check-yarn-version-parity.mjs

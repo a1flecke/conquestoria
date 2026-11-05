@@ -94,6 +94,34 @@ describe('StreamedLoopTrack.prepare', () => {
     ctx.decodeFails = () => ++calls === 2;
     expect(await openTrack(ctx).prepare(ctx)).toBeNull();
   });
+
+  // #1466: WebKit (Safari/WKWebView) trims one short block from the end of every standalone window stream, so its
+  // windows are ~128 frames shorter than the granules say. The samples where windows overlap agree, so a
+  // sample-only known-answer check accepts the track; the final window of a loop that ends at the file end then
+  // cannot supply its core, and playback stops instead of falling back.
+  it('answers null when the platform trims the end of every window', async () => {
+    const ctx = new FakeStreamContext();
+    const decode = ctx.decodeAudioData.bind(ctx);
+    ctx.decodeAudioData = async (data: ArrayBuffer) => {
+      const buffer = await decode(data);
+      const length = buffer.length - 128;
+      return { ...buffer, length, getChannelData: () => new Float32Array(length) } as unknown as AudioBuffer;
+    };
+    expect(await openTrack(ctx).prepare(ctx)).toBeNull();
+  });
+
+  it('still accepts a platform whose decode length differs by resampler rounding (one frame)', async () => {
+    for (const delta of [-1, 1]) {
+      const ctx = new FakeStreamContext();
+      const decode = ctx.decodeAudioData.bind(ctx);
+      ctx.decodeAudioData = async (data: ArrayBuffer) => {
+        const buffer = await decode(data);
+        const length = buffer.length + delta;
+        return { ...buffer, length, getChannelData: () => new Float32Array(length) } as unknown as AudioBuffer;
+      };
+      expect(await openTrack(ctx).prepare(ctx), `delta ${delta}`).toBeInstanceOf(PreparedStreamedLoop);
+    }
+  });
 });
 
 describe('StreamedLoopPlayer', () => {
