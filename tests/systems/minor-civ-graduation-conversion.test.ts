@@ -125,6 +125,56 @@ describe('graduateMinorCiv (#497)', () => {
     assertMinorCivGraduationIntegrity(next);
   });
 
+  describe('first contact (#497 PR 4)', () => {
+    function withExploration(state: GameState, minorCivId: string, civId: string, kind: 'visible' | 'fog' | 'unexplored') {
+      const position = state.cities[state.minorCivs[minorCivId]!.cityId]!.position;
+      const key = `${position.q},${position.r}`;
+      if (kind === 'unexplored') delete state.civilizations[civId]!.visibility.tiles[key];
+      else state.civilizations[civId]!.visibility.tiles[key] = kind;
+    }
+
+    it('keeps contact, both ways, with exactly the majors that had discovered the city-state', () => {
+      const { state, minorCivId } = ripeFixture();
+      // `fog` is explored but not currently seen: the sight-based evidence alone would lose this contact.
+      withExploration(state, minorCivId, 'player', 'fog');
+      withExploration(state, minorCivId, 'ai-1', 'unexplored');
+      const civId = getGraduateCivId(state.minorCivs[minorCivId]!.definitionId);
+      const { state: next } = ok(graduateMinorCiv(state, minorCivId));
+
+      expect(next.civilizations[civId]!.knownCivilizations).toEqual(['player']);
+      expect(next.civilizations.player!.knownCivilizations).toContain(civId);
+      // A major that never discovered the city-state learns nothing from the conversion.
+      expect(next.civilizations['ai-1']!.knownCivilizations ?? []).not.toContain(civId);
+    });
+
+    it('gives contact to nobody when nobody had discovered the city-state', () => {
+      const { state, minorCivId } = ripeFixture();
+      for (const id of Object.keys(state.civilizations)) withExploration(state, minorCivId, id, 'unexplored');
+      const civId = getGraduateCivId(state.minorCivs[minorCivId]!.definitionId);
+      const { state: next } = ok(graduateMinorCiv(state, minorCivId));
+      expect(next.civilizations[civId]!.knownCivilizations ?? []).toEqual([]);
+      for (const id of Object.keys(state.civilizations)) expect(next.civilizations[id]!.knownCivilizations ?? []).not.toContain(civId);
+    });
+
+    it('does not contact an eliminated civilization, and fires no first-contact transition for existing knowledge', () => {
+      const { state, minorCivId } = ripeFixture();
+      withExploration(state, minorCivId, 'player', 'visible');
+      withExploration(state, minorCivId, 'ai-1', 'visible');
+      state.civilizations['ai-1']!.isEliminated = true;
+      const civId = getGraduateCivId(state.minorCivs[minorCivId]!.definitionId);
+      const { state: next } = ok(graduateMinorCiv(state, minorCivId));
+      expect(next.civilizations[civId]!.knownCivilizations).toEqual(['player']);
+    });
+
+    it('never leaves the old id in any war list, whatever was recorded', () => {
+      const { state, minorCivId } = ripeFixture();
+      for (const civ of Object.values(state.civilizations)) civ.diplomacy.atWarWith = [minorCivId];
+      const { state: next } = ok(graduateMinorCiv(state, minorCivId));
+      for (const civ of Object.values(next.civilizations)) expect(civ.diplomacy.atWarWith).not.toContain(minorCivId);
+      assertSaveStateInvariants(next, 'after graduation');
+    });
+  });
+
   it('never modifies the state it was given', () => {
     const { state, minorCivId } = ripeFixture();
     const before = structuredClone(state);

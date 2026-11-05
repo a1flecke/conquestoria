@@ -749,7 +749,15 @@ only** -- never what conversion does or what a graduated civilization receives (
   `getMinorCivCompletedTechBand`. The city, its tiles and every living garrison unit change owner in place (nothing created, removed or moved);
   quests, alliances, grievances, coalition and league membership and the economy record are dropped; every other civ gets a relationship entry
   both ways. The record stays as `isDestroyed` + `graduation`, and camp evolution never reuses its definition. The `minor-civ-graduation-integrity`
-  assert (in `SAVE_STATE_INVARIANTS`) pins the record/civ pairing both ways. Contact, war carry-over, treaties, presentation: PRs 3-6.
+  assert (in `SAVE_STATE_INVARIANTS`) pins the record/civ pairing both ways. Presentation: PR 6.
+- **Contact (PR 4):** the conversion records contact, both ways, between the new civilization and exactly the living majors that had
+  *discovered* the city-state (`hasDiscoveredMinorCiv`, judged on the state before conversion), with no first-contact event. Nobody else gains
+  contact from the change; they meet it through sight like any civilization. Wars and treaties count as contact evidence elsewhere, so
+  nothing may seed a war toward a major that had not discovered the city-state.
+- **War carry-over is deliberately absent (PR 4):** the evaluator refuses a city-state with any war (`at-war`), so a graduating city-state
+  never has one to carry over, and a `carryOverMinorWar` would be dead code. The conversion still scrubs the old id from every war list.
+  If a later decision lets a city-state at war graduate, the carry-over (bilateral, no treachery, vassals dragged, only toward majors that
+  had discovered it) is added then, in `diplomacy-war.ts`.
 
 - **Round phase and flag (PR 3):** `minor-civ-graduation` (`src/core/round-phases/minor-civ-graduation.ts`) runs right after `minor-civs`: when
   `isCityStateGraduationEnabled(state)` it asks `planMinorCivGraduations`, converts the one selected city-state with `graduateMinorCiv`, announces
