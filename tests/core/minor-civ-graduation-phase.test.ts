@@ -55,7 +55,7 @@ describe('minor-civ-graduation phase (#497)', () => {
     const civId = getGraduateCivId(definitionId);
     expect(graduateIds(next)).toEqual([civId]);
     expect(graduated).toHaveBeenCalledTimes(1);
-    expect(graduated).toHaveBeenCalledWith({ minorCivId, civId, definitionId, turn: GRADUATION_TURN });
+    expect(graduated).toHaveBeenCalledWith({ minorCivId, civId, definitionId, turn: GRADUATION_TURN, discovererCivIds: expect.any(Array) });
     expect(next.minorCivs[minorCivId]).toMatchObject({ isDestroyed: true, graduation: { civId } });
     assertSaveStateInvariants(next, 'after the graduation round');
   });

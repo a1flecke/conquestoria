@@ -42,6 +42,8 @@ export interface MinorCivGraduationTransition {
   allianceTransitions: ChainTransition[];
   /** The garrison and any other living units, by id, that changed owner. */
   transferredUnitIds: string[];
+  /** Living majors that had discovered the city-state before it graduated: the only civilizations told its name. */
+  discovererCivIds: string[];
 }
 
 export type MinorCivGraduationResult =
@@ -140,6 +142,12 @@ export function graduateMinorCiv(state: GameState, minorCivId: string): MinorCiv
     other.diplomacy.atWarWith = other.diplomacy.atWarWith.filter(id => id !== minorCivId);
   }
 
+  // Judged on the state BEFORE conversion (discovery is defined for a living city-state). The same list records
+  // contact below, tells the discoverers (presentation) and gates the diplomacy panel's "formerly a city-state" row.
+  const discovererCivIds = Object.entries(state.civilizations)
+    .filter(([otherId, other]) => !other.isEliminated && hasDiscoveredMinorCiv(state, otherId, minorCivId))
+    .map(([otherId]) => otherId);
+
   const techState = createTechState();
   techState.completed = getMinorCivCompletedTechBand(state, minorCivId);
   const civilization: Civilization = {
@@ -155,7 +163,7 @@ export function graduateMinorCiv(state: GameState, minorCivId: string): MinorCiv
     visibility: { tiles: {}, lastSeen: {} },
     score: 0,
     diplomacy,
-    graduatedFrom: { minorCivId, definitionId: definition.id, turn: state.turn },
+    graduatedFrom: { minorCivId, definitionId: definition.id, turn: state.turn, knownBy: [...discovererCivIds] },
   };
   next.civilizations[civId] = civilization;
 
@@ -164,10 +172,7 @@ export function graduateMinorCiv(state: GameState, minorCivId: string): MinorCiv
   // BEFORE conversion, because discovery is defined for a living city-state; later contact comes from sight, as
   // for any civilization. Recorded without a first-contact event: those civilizations already knew the place, and
   // telling them who it became is the presentation PR's job.
-  for (const [otherId, other] of Object.entries(state.civilizations)) {
-    if (other.isEliminated) continue;
-    if (hasDiscoveredMinorCiv(state, otherId, minorCivId)) recordCivilizationContact(next, civId, otherId);
-  }
+  for (const otherId of discovererCivIds) recordCivilizationContact(next, civId, otherId);
 
   return {
     ok: true,
@@ -179,6 +184,7 @@ export function graduateMinorCiv(state: GameState, minorCivId: string): MinorCiv
       turn: state.turn,
       allianceTransitions,
       transferredUnitIds,
+      discovererCivIds,
     },
   };
 }

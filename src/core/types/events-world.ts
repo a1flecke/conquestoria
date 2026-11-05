@@ -6,7 +6,7 @@ import type { BeastHoardChoice, BeastId, CrisisOutcome, CrisisStage, RogueElepha
 
 export interface WorldEvents {
   /** #497: a city-state became a major civilization. Emitted once, from the conversion's returned transition. */
-  'minor-civ:graduated': { minorCivId: string; civId: string; definitionId: string; turn: number };
+  'minor-civ:graduated': { minorCivId: string; civId: string; definitionId: string; turn: number; discovererCivIds: string[] };
   'pirate:faction-spawned': {
     factionId: PirateFactionId;
     factionName: string;
