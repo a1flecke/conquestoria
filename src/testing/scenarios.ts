@@ -255,7 +255,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     description:
       'Visual-review harness for #1627 (painted strip units): a player Spearman at full health and a player Archer at '
       + '30 HP (damage tier 2) side by side, an AI Spearman to fight, a Tank, Horseman, Biplane and Ironclad each at full '
-      + 'health and at 30 HP, a full-health Cavalry and Rifleman, and a player city and an AI city so ending the turn '
+      + 'health and at 30 HP, a full-health Cavalry, Rifleman and Machine Gunner, and a player city and an AI city so ending the turn '
       + 'does not trigger an instant domination result. Select a unit and move it to see the walk, attack the AI unit to see '
       + 'the attack, hit and defeat clips, and open the city panel to see the production icons.',
     seed: 'scenario-strip-units-showcase',
@@ -293,6 +293,8 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       { kind: 'unit', civId: 'player', type: 'cavalry', position: { q: 4, r: 1 }, overrides: { id: 'showcase-cavalry' } },
       { kind: 'terrain', position: { q: 1, r: 2 }, terrain: 'plains' },
       { kind: 'unit', civId: 'player', type: 'rifleman', position: { q: 1, r: 2 }, overrides: { id: 'showcase-rifleman' } },
+      { kind: 'terrain', position: { q: 2, r: 2 }, terrain: 'plains' },
+      { kind: 'unit', civId: 'player', type: 'machine_gunner', position: { q: 2, r: 2 }, overrides: { id: 'showcase-machine-gunner' } },
       { kind: 'unit', civId: 'player', type: 'biplane', position: { q: 4, r: 0 }, overrides: { id: 'showcase-biplane' } },
       { kind: 'unit', civId: 'player', type: 'biplane', position: { q: 0, r: 1 }, overrides: { id: 'showcase-biplane-hurt', health: 30 } },
       { kind: 'unit', civId: 'player', type: 'ironclad', position: { q: 0, r: 3 }, overrides: { id: 'showcase-ironclad' } },

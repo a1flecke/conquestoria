@@ -1,0 +1,28 @@
+{
+  "id": "machine_gunner",
+  "family": "biped",
+  "prompt": {
+    "name": "Machine Gunner",
+    "look": "An early-20th-century machine gunner: a friendly adult man with a short brown moustache, a soft peaked service cap with a small brass badge, a buttoned tunic with a standing collar and two chest pockets, a brown leather belt with a brass buckle and a leather ammunition satchel on his hip, khaki-tan breeches, brown puttees wrapped from ankle to knee and brown leather boots, and a light machine gun with a dark steel barrel with a perforated cooling jacket, a round flat ammunition drum on top, a wooden stock and a folded bipod under the barrel, carried on a leather sling.",
+    "team_area": "his tunic",
+    "identity": "the same face and moustache, cap, red tunic, belt and satchel, breeches, puttees, boots, and light machine gun with its drum, jacket and folded bipod",
+    "weapon_pose": "He holds the machine gun across the front of his body at the ready (port arms), the stock under his right arm and his left hand on the barrel jacket, the muzzle pointing up and to the right at about 45 degrees. The gun and the bipod stay well above his knees and nowhere near his boots.",
+    "attack_frames": 6,
+    "attack": "(1) ready, the gun across his body at port arms; (2) he swings the gun down to his hip, both hands on it; (3) he plants his feet wide and levels the gun, pointing right; (4) steady aim, stock tucked against his shoulder, the gun level and pointing right; (5) firing: a bright yellow-orange muzzle flash touching the end of the barrel, the gun jumping a little, his shoulder pushed back; (6) recover, bringing the gun back across his body to port arms.",
+    "damage_gear": "a dented cooling jacket and a cracked stock",
+    "damage_gear_critical": "a bent bipod, a split stock bound with cord and a dented drum",
+    "defeat_prop": "the machine gun held across his knees, its muzzle resting on the ground in front of him"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 140 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",    "file": "a", "cells": 1, "fps": 4 },
+    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": { "sources": ["a", "b#0", "b#1", "b#2", "b#3"], "shafts": 0, "stride_deg": 24, "knee_bend": 14, "foot_level": 0.7 } },
+    { "state": "attack",  "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "restFrames": [0, 5] },
+    { "state": "hit",     "file": "d", "cells": 5, "grid": [3, 2], "fps": 8, "restFrames": [0, 4], "loop": false },
+    { "state": "defeat",  "file": "e", "cells": 5, "grid": [3, 2], "fps": 5, "restFrames": [0], "loop": false }
+  ]
+}
