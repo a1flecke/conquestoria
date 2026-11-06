@@ -130,6 +130,36 @@ describe('campaign-setup', () => {
     }));
   });
 
+  function startSoloAndGetOverrides(chooseGraduation: 'off' | 'on' | null): Record<string, unknown> {
+    const onStartSolo = vi.fn();
+    const panel = showCampaignSetup(document.body, { onStartSolo, onCancel: vi.fn() });
+    if (chooseGraduation) {
+      panel.querySelector<HTMLButtonElement>(`[data-city-state-graduation="${chooseGraduation}"]`)!.click();
+    }
+    clickButtonWithText('Choose civilization');
+    (document.querySelector('.civ-card') as HTMLElement)
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    (document.querySelector('#civ-start') as HTMLButtonElement).click();
+    clickButtonWithText('Start Campaign');
+    return onStartSolo.mock.calls[0]![0].settingsOverrides;
+  }
+
+  it('offers city-state graduation off by default, explained, and sends the choice (#497)', () => {
+    const panel = showCampaignSetup(document.body, { onStartSolo: vi.fn(), onCancel: vi.fn() });
+    expect(panel.querySelector('[data-city-state-graduation="off"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel.textContent).toContain('City-states stay city-states for the whole game');
+    panel.querySelector<HTMLButtonElement>('[data-city-state-graduation="on"]')!.click();
+    expect(panel.querySelector('[data-city-state-graduation="on"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel.querySelector('[data-city-state-graduation="off"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(panel.textContent).toContain('becomes a new civilization');
+    panel.remove();
+    document.body.innerHTML = '';
+
+    expect(startSoloAndGetOverrides(null)).toMatchObject({ cityStateGraduation: 'off' });
+    document.body.innerHTML = '';
+    expect(startSoloAndGetOverrides('on')).toMatchObject({ cityStateGraduation: 'on' });
+  });
+
   it('updates the visible map-size and opponent cards together, preserving valid counts and snapping invalid ones', () => {
     showCampaignSetup(document.body, {
       onStartSolo: () => {},

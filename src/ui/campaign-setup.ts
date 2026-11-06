@@ -456,6 +456,42 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   }
   syncBeastsModeCards();
 
+  // City-state graduation (#497): a rare chance for a city-state to become a full civilization. Off unless chosen.
+  let graduationSelected: 'off' | 'on' = 'off';
+  const graduationSection = createSetupSection({
+    title: 'City-State Graduation',
+    description: 'City-states that thrive for a long time may rarely become full civilizations.',
+  });
+  hero.appendChild(graduationSection.section);
+  const graduationRow = document.createElement('div');
+  Object.assign(graduationRow.style, { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' });
+  graduationSection.content.appendChild(graduationRow);
+  const graduationHelp = document.createElement('p');
+  Object.assign(graduationHelp.style, { margin: '8px 0 0', fontSize: '12px', opacity: '0.72', lineHeight: '1.45' });
+  graduationSection.content.appendChild(graduationHelp);
+  const GRADUATION_DESCRIPTIONS: Record<'off' | 'on', string> = {
+    off: 'City-states stay city-states for the whole game.',
+    on: 'Rarely, an old, well-developed, peaceful city-state becomes a new civilization with its own turns. At most one at a time, and a few per game.',
+  };
+  const graduationCards = new Map<'off' | 'on', HTMLButtonElement>();
+  const syncGraduationCards = (): void => {
+    for (const [value, button] of graduationCards.entries()) {
+      syncChoiceButtonState(button, graduationSelected === value);
+    }
+    graduationHelp.textContent = GRADUATION_DESCRIPTIONS[graduationSelected];
+  };
+  for (const value of ['off', 'on'] as const) {
+    const button = createChoiceButton(value);
+    button.dataset.cityStateGraduation = value;
+    button.addEventListener('click', () => {
+      graduationSelected = value;
+      syncGraduationCards();
+    });
+    graduationCards.set(value, button);
+    graduationRow.appendChild(button);
+  }
+  syncGraduationCards();
+
   let selectedCivId: string | null = null;
   let customCivilizations: CustomCivDefinition[] = [...(options?.initialCustomCivilizations ?? [])];
   let civDefinitions = getPlayableCivDefinitions({ customCivilizations });
@@ -586,7 +622,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
         mapScript,
         startPlacementMode: selectedPlacementMode,
         opponentChallenge: selectedOpponentChallenge,
-        settingsOverrides: { beastsMode: beastsModeSelected },
+        settingsOverrides: { beastsMode: beastsModeSelected, cityStateGraduation: graduationSelected },
       }), () => panel.remove());
     } catch (error) {
       if (!(error instanceof GameCreationError)) throw error;

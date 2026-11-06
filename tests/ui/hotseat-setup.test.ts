@@ -150,7 +150,35 @@ describe('hotseat-setup', () => {
     click('#hs-review-start');
 
     const config = onComplete.mock.calls[0]![0];
-    expect(config.settingsOverrides).toEqual({ superweapons: 'off' });
+    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'off' });
+  });
+
+  it('offers city-state graduation off by default and threads an On choice into settingsOverrides (#497)', () => {
+    const onComplete = vi.fn();
+    showHotSeatSetup(document.body, { onComplete, onCancel: vi.fn() });
+
+    click('[data-size="medium"]');
+    advanceThroughMapType();
+    click('[data-count="2"]');
+    click('[data-ai-count="2"]');
+    click('#hs-names-next');
+    chooseCiv('england');
+    click('#hs-civ-ready');
+    click('.civ-card[data-civ-id="germany"]');
+    click('#civ-start');
+    click('#hs-personal-challenge-next');
+
+    expect(document.querySelector('[data-graduation-option="off"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.body.textContent).toContain('City-states stay city-states for the whole game');
+    click('[data-graduation-option="on"]');
+    expect(document.querySelector('[data-graduation-option="on"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.body.textContent).toContain('becomes a new civilization');
+    // The superweapons card rewrites the whole override object; it must keep the graduation choice.
+    click('[data-superweapons-option="off"]');
+    click('#hs-review-start');
+
+    const config = onComplete.mock.calls[0]![0];
+    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'on' });
   });
 
   it('reserves capacity for an explicitly chosen AI instead of offering every seat to humans', () => {
