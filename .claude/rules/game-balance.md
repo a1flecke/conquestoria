@@ -709,8 +709,8 @@ A rare, deterministic path by which a city-state becomes a major civilization. *
 `minor-civ-graduation.ts` (a pure eligibility evaluator, score, probability and round planner) over the
 `minor-civ-graduation-rules.ts` leaf (the numbers and the reason vocabulary). Only the conversion and the `minor-civ-graduation` round phase
 (PR 3, behind `settings.cityStateGraduation`, off by default) call them -- the `minor-civ-graduation-has-one-live-caller` architecture rule
-enforces it. The design, the conversion contract, the invariant matrix and the PR sequence are in
-`docs/superpowers/plans/2026-11-03-issue-497-city-state-graduation.md`.
+enforces it. The delivered design is this section, the code and its tests (the planning document was deleted when the
+last PR landed; git history has it).
 
 **Every number below is provisional** until the arc's campaign validation (the last PR) and owner approval; they live only in
 `MINOR_CIV_GRADUATION_TUNING` / `GRADUATION_*` and must not be restated in logic. Difficulty changes **timing, probability and caps
@@ -794,7 +794,12 @@ only** -- never what conversion does or what a graduated civilization receives (
   probability 0.08-0.15 -> 0.04-0.08; veteran 0.12-0.22 -> 0.06-0.12. **Measured after (medium map, all 4-6 city-states ripe, 6 seeds,
   260 rounds): graduations per game explorer 0,0,0,0,0,1 (mean 0.17); standard 1,1,1,0,0,1 (mean 0.67); veteran 0,2,2,2,0,0 (mean 1.0);
   never more than 2.** Ordering is preserved (veteran > standard > explorer). Difficulty still changes timing, probability and caps only.
-- **The flag stays off (D7).** No UI toggles `settings.cityStateGraduation`; a new-game option is a separate, later decision.
+- **Opt-in at new game (D7).** The default is still **off** (absent reads as off, saves and unchanged flows play as before). The solo
+  setup screen (`campaign-setup.ts`, "City-State Graduation" card, `data-city-state-graduation`) and the hot seat review screen
+  (`hotseat-setup.ts`, `data-graduation-option`) send `settingsOverrides.cityStateGraduation`, and creation carries it into
+  `settings` (`tests/core/city-state-graduation-new-game.test.ts`). It is chosen once at creation; there is no pause-menu toggle,
+  because switching it on mid-campaign changes who the other civilizations are. The hot seat card rewrites the whole override
+  object, so a new hot seat override must be added to both of its writers.
 
 **Rule:** a new graduation knob goes in the rules leaf and in this table; a new gate is one reason in `MinorCivGraduationIneligibleReason`
 plus its test; nothing but the round phase may call `planMinorCivGraduations` or `graduateMinorCiv` from `src/`.

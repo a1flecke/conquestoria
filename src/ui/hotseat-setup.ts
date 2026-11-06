@@ -51,6 +51,7 @@ export function showHotSeatSetup(
   let selectedPlacementMode: StartPlacementMode = 'balanced';
   let selectedOpponentChallenge: OpponentChallenge = 'standard';
   let superweaponsSelected: 'off' | 'on' = 'on';
+  let graduationSelected: 'off' | 'on' = 'off';
   let playerCount = 0;
   let aiCount = 1;
   const players: HotSeatPlayer[] = [];
@@ -639,7 +640,7 @@ export function showHotSeatSetup(
       startPlacementMode: selectedPlacementMode,
       players: [...humanPlayers, ...aiPlayers],
       customCivilizations,
-      settingsOverrides: { superweapons: superweaponsSelected },
+      settingsOverrides: { superweapons: superweaponsSelected, cityStateGraduation: graduationSelected },
       },
       minimumHistoricalDistance: selection.minimumHistoricalDistance,
       fallbackCivilizationTypeIds: selection.fallbackCivilizationTypeIds,
@@ -729,7 +730,7 @@ export function showHotSeatSetup(
         // review.config was already built by the time this card renders --
         // mutate it directly so a later click on Start picks up the change,
         // rather than the value frozen at buildFinalConfig() time.
-        review.config.settingsOverrides = { superweapons: superweaponsSelected };
+        review.config.settingsOverrides = { superweapons: superweaponsSelected, cityStateGraduation: graduationSelected };
       });
       superweaponsButtons.set(option.value, button);
       superweaponsRow.appendChild(button);
@@ -738,6 +739,44 @@ export function showHotSeatSetup(
     superweaponsSection.appendChild(superweaponsRow);
     superweaponsSection.appendChild(superweaponsHelpText);
     panel.appendChild(superweaponsSection);
+
+    const graduationSection = document.createElement('div');
+    graduationSection.style.cssText = 'max-width:520px;width:100%;margin-top:12px;';
+    const graduationLabel = document.createElement('p');
+    graduationLabel.textContent = 'City-State Graduation';
+    graduationLabel.style.cssText = 'margin:0 0 6px;font-size:12px;opacity:0.7;';
+    graduationSection.appendChild(graduationLabel);
+    const graduationRow = document.createElement('div');
+    graduationRow.style.cssText = 'display:flex;gap:6px;';
+    const GRADUATION_DESCRIPTIONS: Record<'off' | 'on', string> = {
+      off: 'City-states stay city-states for the whole game.',
+      on: 'Rarely, an old, well-developed, peaceful city-state becomes a new civilization with its own turns. At most one at a time, and a few per game.',
+    };
+    const graduationHelpText = document.createElement('p');
+    Object.assign(graduationHelpText.style, { margin: '6px 0 0', fontSize: '11px', opacity: '0.65', lineHeight: '1.4' });
+    const graduationButtons = new Map<'off' | 'on', HTMLButtonElement>();
+    const refreshGraduationButtons = (): void => {
+      for (const [value, button] of graduationButtons) {
+        Object.assign(button.style, value === graduationSelected ? VARIANT_STYLES.primary : VARIANT_STYLES.secondary);
+        button.setAttribute('aria-pressed', String(value === graduationSelected));
+      }
+      graduationHelpText.textContent = GRADUATION_DESCRIPTIONS[graduationSelected];
+    };
+    for (const value of ['off', 'on'] as const) {
+      const button = createGameButton(value === 'on' ? 'On' : 'Off', value === graduationSelected ? 'primary' : 'secondary');
+      button.dataset.graduationOption = value;
+      button.addEventListener('click', () => {
+        graduationSelected = value;
+        refreshGraduationButtons();
+        review.config.settingsOverrides = { superweapons: superweaponsSelected, cityStateGraduation: graduationSelected };
+      });
+      graduationButtons.set(value, button);
+      graduationRow.appendChild(button);
+    }
+    refreshGraduationButtons();
+    graduationSection.appendChild(graduationRow);
+    graduationSection.appendChild(graduationHelpText);
+    panel.appendChild(graduationSection);
 
     const start = createGameButton(
       crowded ? 'Review Crowding Risk' : 'Start Game',
