@@ -6,12 +6,17 @@ import {
   destroyCamp,
   applyCampDestruction,
 } from '@/systems/barbarian-system';
-import type { GameMap, BarbarianCamp, UnitType } from '@/core/types';
+import type { GameMap, BarbarianCamp, UnitType, HexCoord, MinorCivState } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
-import { hexKey, hexDistance } from '@/systems/hex-utils';
-import { checkCampEvolution } from '@/systems/minor-civ-system';
+import { hexKey, hexDistance, mapDistance } from '@/systems/hex-utils';
+import { checkCampEvolution, conquestMinorCiv } from '@/systems/minor-civ-system';
 import { createNewGame } from '@/core/game-state';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+import { minorCivsPhase } from '@/core/round-phases/minor-civs';
+import { createRoundPhaseContext } from '@/core/round-phases';
+import { EventBus } from '@/core/event-bus';
+import { normalizeLoadedStateForTest } from '@/storage/save-manager';
+import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { applyPillageToState } from '@/systems/pillage-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
@@ -1094,6 +1099,206 @@ describe('barbarian camp evolution', () => {
 
     const result = checkCampEvolution(state, 10);
     expect(result).toBeNull();
+  });
+});
+
+describe('barbarian camp evolution — definition reservation (#1647)', () => {
+  const DEFINITION_INDEX = new Map(MINOR_CIV_DEFINITIONS.map((definition, index) => [definition.id, index]));
+
+  function definitionIndex(id: string): number {
+    return DEFINITION_INDEX.get(id) ?? -1;
+  }
+
+  function findEligibleCampPosition(state: ReturnType<typeof createNewGame>): HexCoord {
+    const cityPositions = Object.values(state.cities).map(city => city.position);
+    const settlerPositions = Object.values(state.units).filter(unit => unit.type === 'settler').map(unit => unit.position);
+    const tile = Object.values(state.map.tiles).find(({ coord }) =>
+      cityPositions.every(position => mapDistance(state.map, coord, position) >= 6)
+      && settlerPositions.every(position => mapDistance(state.map, coord, position) >= 6));
+    if (!tile) throw new Error('fixture: no camp position is far enough from every city and settler');
+    return tile.coord;
+  }
+
+  /** A real city-state conquered through the canonical path, with only its definition still represented before it. */
+  function conqueredStateWithEarlierDefinitionsReserved(seed: string) {
+    const state = createNewGame(undefined, seed, 'small');
+    const placed = Object.values(state.minorCivs)
+      .map(minorCiv => ({ minorCiv, index: definitionIndex(minorCiv.definitionId) }))
+      .filter(({ index }) => index >= 0 && index < MINOR_CIV_DEFINITIONS.length - 1)
+      .sort((left, right) => left.index - right.index);
+    if (placed.length === 0) throw new Error('fixture: no city-state definition below the last slot was placed');
+
+    const target = placed[0].minorCiv;
+    state.civilizations.player.diplomacy.atWarWith = [target.id];
+    const conquest = conquestMinorCiv(state, target.id, 'player');
+    if (!conquest.conquered) throw new Error('fixture: canonical conquest failed');
+
+    const conqueredState = conquest.state;
+    const historical = conqueredState.minorCivs[target.id]!;
+    const conqueredIndex = definitionIndex(historical.definitionId);
+
+    // Only the conquered record is real. Every earlier definition is a graduated historical record, which the old
+    // "living or graduated" reservation already counted, so it cannot mask the conquered definition's collision.
+    conqueredState.minorCivs = { [target.id]: historical };
+    for (const definition of MINOR_CIV_DEFINITIONS.slice(0, conqueredIndex)) {
+      conqueredState.minorCivs[`mc-${definition.id}`] = {
+        ...structuredClone(historical),
+        id: `mc-${definition.id}`,
+        definitionId: definition.id,
+        cityId: `retired-city-${definition.id}`,
+        units: [],
+        activeQuests: {},
+        chainStatusByCiv: {},
+        questCooldownUntilByCiv: {},
+        lastNotifiedStatusByCiv: {},
+        regionalGrievanceByCiv: {},
+        economy: undefined,
+        isDestroyed: true,
+        graduation: { turn: 1, civId: `grad-${definition.id}` },
+        foundedTurn: 1,
+      };
+    }
+
+    conqueredState.barbarianCamps = {
+      camp: { id: 'camp', position: findEligibleCampPosition(conqueredState), strength: 10, spawnCooldown: 0 } as BarbarianCamp,
+    };
+    return { state: conqueredState, conqueredId: target.id, historical };
+  }
+
+  function emptyStateWithTemplate(seed: string) {
+    const state = createNewGame(undefined, seed, 'small');
+    const template = structuredClone(Object.values(state.minorCivs)[0]!);
+    state.minorCivs = {};
+    state.cities = {};
+    state.units = {};
+    for (const civ of Object.values(state.civilizations)) civ.cities = [];
+    state.barbarianCamps = {};
+    return { state, template };
+  }
+
+  function historicalRecord(template: MinorCivState, definitionId: string, destroyed: boolean): MinorCivState {
+    return {
+      ...structuredClone(template),
+      id: `mc-${definitionId}`,
+      definitionId,
+      cityId: `retired-city-${definitionId}`,
+      units: [],
+      activeQuests: {},
+      chainStatusByCiv: {},
+      questCooldownUntilByCiv: {},
+      lastNotifiedStatusByCiv: {},
+      regionalGrievanceByCiv: {},
+      economy: undefined,
+      isDestroyed: destroyed,
+      graduation: undefined,
+      foundedTurn: 1,
+    };
+  }
+
+  function oneEligibleCamp(): Record<string, BarbarianCamp> {
+    return { camp: { id: 'camp', position: { q: 15, r: 15 }, strength: 10, spawnCooldown: 0 } as BarbarianCamp };
+  }
+
+  it('cannot reuse a conquered city-state definition or overwrite its record', () => {
+    const { state, conqueredId, historical } = conqueredStateWithEarlierDefinitionsReserved('evolve-conquered-def');
+    const before = structuredClone(state.minorCivs[conqueredId]!);
+
+    const result = checkCampEvolution(state, state.turn);
+
+    expect(result).not.toBeNull();
+    expect(result!.newMinorCiv.id).not.toBe(conqueredId);
+    expect(result!.newMinorCiv.definitionId).not.toBe(historical.definitionId);
+    expect(state.minorCivs[conqueredId]).toEqual(before);
+    expect(state.cities[historical.cityId]!.owner).toBe('player');
+    expect(state.civilizations.player.cities).toContain(historical.cityId);
+  });
+
+  it('lets the real round phase evolve a camp without touching the conquered record, its city or its units', () => {
+    const { state, conqueredId, historical } = conqueredStateWithEarlierDefinitionsReserved('evolve-conquered-round-phase');
+    const before = structuredClone(state.minorCivs[conqueredId]!);
+    const cityOwner = state.cities[historical.cityId]!.owner;
+    const unitIds = Object.keys(state.units).sort();
+
+    const next = minorCivsPhase.run(state, createRoundPhaseContext(state, new EventBus()));
+
+    expect(next.minorCivs[conqueredId]).toEqual(before);
+    expect(next.minorCivs[conqueredId]!.id).toBe(conqueredId);
+    expect(next.cities[historical.cityId]!.owner).toBe(cityOwner);
+    expect(next.civilizations.player.cities.filter(id => id === historical.cityId)).toHaveLength(1);
+    expect(Object.values(next.minorCivs).filter(minorCiv => minorCiv.definitionId === historical.definitionId)).toHaveLength(1);
+    for (const unitId of unitIds) expect(next.units[unitId]).toBeDefined();
+  });
+
+  it('keeps every living city-state definition reserved', () => {
+    const { state, template } = emptyStateWithTemplate('evolve-active-definitions');
+    const availableId = 'delphi';
+    for (const definition of MINOR_CIV_DEFINITIONS) {
+      if (definition.id === availableId) continue;
+      state.minorCivs[`mc-${definition.id}`] = historicalRecord(template, definition.id, false);
+    }
+    state.barbarianCamps = oneEligibleCamp();
+
+    const result = checkCampEvolution(state, 10);
+
+    expect(result?.newMinorCiv.definitionId).toBe(availableId);
+  });
+
+  it('uses a genuinely unused definition when one remains', () => {
+    const { state, conqueredId, historical } = conqueredStateWithEarlierDefinitionsReserved('evolve-unused-definition');
+    const usedDefinitionIds = new Set(Object.values(state.minorCivs).map(minorCiv => minorCiv.definitionId));
+
+    const result = checkCampEvolution(state, state.turn);
+
+    expect(result).not.toBeNull();
+    expect(result!.newMinorCiv.definitionId).not.toBe(historical.definitionId);
+    expect(usedDefinitionIds.has(result!.newMinorCiv.definitionId)).toBe(false);
+    expect(result!.newMinorCiv.id).not.toBe(conqueredId);
+  });
+
+  it('does not evolve or disturb state when every definition has a record', () => {
+    const { state, template } = emptyStateWithTemplate('evolve-definitions-exhausted');
+    for (const definition of MINOR_CIV_DEFINITIONS) {
+      state.minorCivs[`mc-${definition.id}`] = historicalRecord(template, definition.id, true);
+    }
+    state.barbarianCamps = oneEligibleCamp();
+    const before = structuredClone(state);
+
+    expect(checkCampEvolution(state, 10)).toBeNull();
+    expect(state).toEqual(before);
+    expect(state.barbarianCamps.camp).toBeDefined();
+  });
+
+  it('keeps a conquered record through save and reload, then still refuses its definition', () => {
+    const { state, conqueredId, historical } = conqueredStateWithEarlierDefinitionsReserved('evolve-conquered-save');
+    const before = structuredClone(state.minorCivs[conqueredId]!);
+
+    const parsed = parseSaveFile(serializeSaveFile(state));
+    if (parsed.status !== 'success') throw new Error(parsed.message);
+    const reloaded = normalizeLoadedStateForTest(parsed.state);
+
+    expect(reloaded.minorCivs[conqueredId]).toMatchObject(before);
+    expect(reloaded.minorCivs[conqueredId]!.isDestroyed).toBe(true);
+    expect(reloaded.minorCivs[conqueredId]!.units).toEqual([]);
+    expect(reloaded.cities[historical.cityId]!.owner).toBe('player');
+    const beforeEvolution = checkCampEvolution(state, state.turn);
+    const afterEvolution = checkCampEvolution(reloaded, reloaded.turn);
+    expect(afterEvolution?.newMinorCiv.definitionId).toBe(beforeEvolution?.newMinorCiv.definitionId);
+    expect(afterEvolution?.newMinorCiv.definitionId).not.toBe(historical.definitionId);
+  });
+
+  it('does not treat a major civilization id as a minor-civ definition reservation', () => {
+    const { state, template } = emptyStateWithTemplate('evolve-avalon-namespace');
+    for (const definition of MINOR_CIV_DEFINITIONS) {
+      if (definition.id === 'avalon') continue;
+      state.minorCivs[`mc-${definition.id}`] = historicalRecord(template, definition.id, true);
+    }
+    state.civilizations.avalon = { ...structuredClone(state.civilizations.player), id: 'avalon', civType: 'avalon', name: 'Avalon' };
+    state.barbarianCamps = oneEligibleCamp();
+
+    const result = checkCampEvolution(state, 10);
+
+    expect(result?.newMinorCiv.definitionId).toBe('avalon');
+    expect(result?.newMinorCiv.id).toBe('mc-avalon');
   });
 });
 
