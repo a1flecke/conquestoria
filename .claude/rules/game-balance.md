@@ -718,12 +718,12 @@ only** -- never what conversion does or what a graduated civilization receives (
 
 | Knob | explorer | standard | veteran | Meaning |
 |---|---:|---:|---:|---|
-| `minWorldAge` | 5 | 4 | 3 | `resolveWorldAge(state)` must reach this |
-| `minAgeTurns` | 200 | 150 | 120 | turns since `MinorCivState.foundedTurn` |
+| `minWorldAge` | 4 | 4 | 3 | `resolveWorldAge(state)` must reach this |
+| `minAgeTurns` | 150 | 150 | 120 | turns since `MinorCivState.foundedTurn` |
 | `populationHeadroom` | 0 | 1 | 2 | population >= `getMinorCivPopulationCeiling - headroom` |
 | `minBuildings` | 6 | 5 | 4 | buildings in the city |
-| `baseProbability` | 0.03 | 0.08 | 0.12 | chance per cadence turn at score 0 |
-| `maxProbability` | 0.06 | 0.15 | 0.22 | chance per cadence turn at score 1 |
+| `baseProbability` | 0.03 | 0.04 | 0.06 | chance per cadence turn at score 0 |
+| `maxProbability` | 0.06 | 0.08 | 0.12 | chance per cadence turn at score 1 |
 
 - **Cadence:** only on a turn that is a positive multiple of `GRADUATION_CADENCE_TURNS` (50). **At most one** city-state per cadence turn.
 - **World gates** (planner, in order): game over; off-cadence; world too young; living majors at the cap (`GRADUATION_MAX_LIVING_MAJORS`:
@@ -783,13 +783,18 @@ only** -- never what conversion does or what a graduated civilization receives (
   by sight learns neither. No art, audio or toast was added.
 
 - **Campaign validation (PR 7, flag on):** `tests/simulation/minor-civ-graduation-campaign.test.ts` runs 260 rounds of the real `processTurn`
-  path with `cityStateGraduation: 'on'` for 6 seeds per tier (one ripe, peaceful, idle city-state in a mature world, so these are *upper
-  bounds*, not AI-economy outcomes). Measured: explorer 0 graduations in 6 campaigns; standard 3 in 6 (first at turn 200); veteran 8 in 6
-  (first at turn 150, up to the per-game cap in some). The test asserts only the tuning-independent invariants (<= 1 per cadence turn,
-  <= `GRADUATION_MAX_PER_GAME`, every state valid every round, same seed -> same result) and a Domination check with a graduate (it is a
-  living independent rival, nobody is handed a victory by its appearance). `GRADUATION_CAMPAIGN_REPORT=<file path>` writes the table.
-  **Finding for owner decision D6:** at standard and veteran a ripe city-state graduates far more often than "rare"; explorer never does
-  within 260 rounds. The numbers are NOT retuned here and the flag stays off (D7) until the owner approves final values.
+  path with `cityStateGraduation: 'on'` for 6 seeds per tier, in two worlds that are *upper bounds* (idle, peaceful, mature world, every
+  city-state ripe), not AI-economy outcomes. The test asserts only the tuning-independent invariants (<= 1 per cadence turn, only on
+  cadence turns, <= `GRADUATION_MAX_PER_GAME`, every state valid every round, same seed -> same result) and a Domination check with a
+  graduate (it is a living independent rival, nobody is handed a victory by its appearance). `GRADUATION_CAMPAIGN_REPORT=<file path>`
+  writes the table.
+- **Final tuning (PR 7b, owner-approved numbers above).** The first measurement (before retuning) showed a ripe city-state graduating in
+  3 of 6 standard and 5-8 of 6 veteran campaigns while explorer never did (its first draw was turn 250). The owner approved: explorer
+  `minWorldAge` 5 -> 4 and `minAgeTurns` 200 -> 150 (a first draw at turn 200, so there is some risk on every tier); standard
+  probability 0.08-0.15 -> 0.04-0.08; veteran 0.12-0.22 -> 0.06-0.12. **Measured after (medium map, all 4-6 city-states ripe, 6 seeds,
+  260 rounds): graduations per game explorer 0,0,0,0,0,1 (mean 0.17); standard 1,1,1,0,0,1 (mean 0.67); veteran 0,2,2,2,0,0 (mean 1.0);
+  never more than 2.** Ordering is preserved (veteran > standard > explorer). Difficulty still changes timing, probability and caps only.
+- **The flag stays off (D7).** No UI toggles `settings.cityStateGraduation`; a new-game option is a separate, later decision.
 
 **Rule:** a new graduation knob goes in the rules leaf and in this table; a new gate is one reason in `MinorCivGraduationIneligibleReason`
 plus its test; nothing but the round phase may call `planMinorCivGraduations` or `graduateMinorCiv` from `src/`.

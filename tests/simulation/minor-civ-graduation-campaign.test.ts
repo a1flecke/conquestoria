@@ -1,6 +1,8 @@
 import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/event-bus';
+import { createNewGame } from '@/core/game-state';
+import { getMinorCivPopulationCeiling } from '@/systems/minor-civ-economy-system';
 import { processTurn } from '@/core/turn-manager';
 import type { GameState, OpponentChallenge } from '@/core/types';
 import { getDominationProgress, checkDominationVictory } from '@/systems/victory-system';
@@ -36,6 +38,9 @@ const TURNS = 260;
 const MATURE_ERA = 5;
 // Solo: ~1.5 s per 260-turn seed x 18 seeds, plus a determinism rerun of one; simTimeout applies the shared loaded-host factor.
 const CAMPAIGN_TIMEOUT_MS = simTimeout(45_000);
+const MEDIUM_SEEDS_PER_TIER = 6;
+// A medium world is heavier per round than the single-city-state fixture; sized from the first measured run.
+const MEDIUM_TIMEOUT_MS = simTimeout(60_000);
 
 interface CampaignResult {
   graduationTurns: number[];
@@ -59,6 +64,32 @@ function runCampaign(tier: OpponentChallenge, seed: number): CampaignResult {
   for (const civ of Object.values(state.civilizations)) civ.techState.completed = [...state.civilizations.player.techState.completed];
   expect(resolveCivilizationEra(state.civilizations.player.techState.completed)).toBeGreaterThanOrEqual(tuning.minWorldAge);
 
+  return playRounds(state, tier, seed);
+}
+
+/** A medium world in which EVERY city-state is ripe at the tier's own thresholds: the realistic upper bound per game. */
+function runMediumCampaign(tier: OpponentChallenge, seed: number): CampaignResult {
+  const state = createNewGame({
+    civType: 'rome', mapSize: 'medium', opponentCount: 1, gameTitle: 'Graduation envelope', seed: `graduation-medium-${tier}-${seed}`,
+  });
+  state.opponentChallenge = tier;
+  state.settings.cityStateGraduation = 'on';
+  state.turn = 1;
+  const tuning = MINOR_CIV_GRADUATION_TUNING[tier];
+  advancePlayerCivToEra(state, Math.max(MATURE_ERA, tuning.minWorldAge));
+  for (const civ of Object.values(state.civilizations)) civ.techState.completed = [...state.civilizations.player.techState.completed];
+  for (const minorCiv of Object.values(state.minorCivs)) {
+    minorCiv.foundedTurn = 1;
+    minorCiv.diplomacy.atWarWith = [];
+    const city = state.cities[minorCiv.cityId]!;
+    city.population = getMinorCivPopulationCeiling(state, minorCiv.id) - tuning.populationHeadroom;
+    city.buildings = ['barracks', 'marketplace', 'library', 'granary', 'walls', 'temple', 'workshop', 'harbor'].slice(0, tuning.minBuildings);
+  }
+  return playRounds(state, tier, seed);
+}
+
+function playRounds(initial: GameState, tier: OpponentChallenge, seed: number): CampaignResult {
+  let state = initial;
   const bus = new EventBus();
   const graduationTurns: number[] = [];
   for (let round = 0; round < TURNS; round += 1) {
@@ -97,6 +128,25 @@ describe('#497 PR 7 -- graduation over many campaigns with the flag on', () => {
     }, CAMPAIGN_TIMEOUT_MS);
   }
 
+  // A realistic map holds several city-states. Every one is ripe here, so this is the upper bound a player can meet:
+  // the planner still picks at most one per cadence turn and the per-game cap still applies.
+  const mediumMeasured: Record<string, { campaigns: number; cityStates: number; perGame: number[] }> = {};
+  for (const tier of TIERS) {
+    it(`${tier}: a medium map with every city-state ripe stays within the cap`, () => {
+      const results = Array.from({ length: MEDIUM_SEEDS_PER_TIER }, (_, seed) => runMediumCampaign(tier, seed));
+      for (const result of results) {
+        expect(result.graduateIds.length).toBeLessThanOrEqual(GRADUATION_MAX_PER_GAME);
+      }
+      mediumMeasured[tier] = {
+        campaigns: results.length,
+        cityStates: Object.keys(createNewGame({
+          civType: 'rome', mapSize: 'medium', opponentCount: 1, gameTitle: 'Graduation envelope', seed: `graduation-medium-${tier}-0`,
+        }).minorCivs).length,
+        perGame: results.map(result => result.graduateIds.length),
+      };
+    }, MEDIUM_TIMEOUT_MS);
+  }
+
   it('is deterministic: the same seed graduates the same city-state on the same turn', () => {
     const first = runCampaign('standard', 0);
     const second = runCampaign('standard', 0);
@@ -105,8 +155,9 @@ describe('#497 PR 7 -- graduation over many campaigns with the flag on', () => {
 
   it('reports the measured graduation rate per tier (set GRADUATION_CAMPAIGN_REPORT=<file path> to write it)', () => {
     const reportPath = process.env.GRADUATION_CAMPAIGN_REPORT;
-    if (reportPath) writeFileSync(reportPath, `${JSON.stringify(measured, null, 1)}\n`);
+    if (reportPath) writeFileSync(reportPath, `${JSON.stringify({ single: measured, medium: mediumMeasured }, null, 1)}\n`);
     expect(Object.keys(measured).sort()).toEqual([...TIERS].sort());
+    expect(Object.keys(mediumMeasured).sort()).toEqual([...TIERS].sort());
   });
 });
 

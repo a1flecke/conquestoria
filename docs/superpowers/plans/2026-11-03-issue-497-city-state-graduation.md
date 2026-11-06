@@ -137,7 +137,7 @@ All numbers below are **provisional** and live in one table, `MINOR_CIV_GRADUATI
 | **4** (✅ merged #1652) | Contact for discoverers only (relationships and quest cancellation already landed in PR 2); war carry-over is not built, see row 9 | behind flag | `knownCivilizations` ⊆ discoverers; no `mc-X` left in any `atWarWith` |
 | **5** ✅ merged (#1654) | Load no longer rebuilds a graduated record's economy; additive proofs for the three new optional fields (a pre-graduation save plays on unchanged); save/reload through a graduation turn. No new compat-matrix fixture: no old save can carry these fields, so the dedicated test is the proof | behind flag | Save-compat matrix green; run N → save → reload → M equals uninterrupted run through a graduation turn |
 | **6** ✅ merged (#1655) | Viewer-safe notification route (discoverers only, log entry with a map target), diplomacy-panel "Formerly a city-state" row gated on `graduatedFrom.knownBy`. No HUD row: nothing on the HUD is per-civilization, and the log entry is the history | behind flag | Hot-seat differential: non-discoverer sees nothing; discoverer sees name; no art/audio files added |
-| **7** (🟡 7a in review: measurement and invariants only; tuning, flag default and plan deletion wait on owner decisions D6/D7) | Campaign + victory + balance validation; final tuning; flag default decision | flag default per D7 | Representative campaigns report graduation counts within an owner-approved envelope; Domination/Science tests with a graduated civ; plan file deleted, issue closable |
+| **7** (✅ 7a merged #1656; 🟡 7b in review) | Campaign + victory + balance validation; owner-approved final tuning (D6, done in 7b); flag stays off (D7: no UI toggle yet) | off | Measured envelope per game: explorer mean 0.17, standard 0.67, veteran 1.0, max 2; Domination test with a graduate. **Plan stays until a new-game option exists to turn the setting on** (then delete it and close #497) |
 
 ---
 
@@ -335,6 +335,6 @@ Run in order, sequentially (never two durable runs in one worktree):
 | D3 | Starting gold stipend? | 0 |
 | D4 | Allied chains: lost, or converted to a relationship bonus? | Lost (conquest precedent) |
 | D5 | Block graduation when a civ is one rival from Domination? | Block |
-| D6 | Final tuning numbers (Part D) | Provisional until PR 7 |
-| D7 | Ship the live phase on or off by default; is there a new-game setting? | Off until PR 7 validation |
+| D6 | Final tuning numbers (Part D) | **Decided in PR 7b** (owner approved the proposed table) |
+| D7 | Ship the live phase on or off by default; is there a new-game setting? | **Off.** A new-game option is a separate later change |
 | D8 | Can the player encourage/sponsor/prevent graduation (issue's open question)? | Out of scope for this arc; follow-up issue |
