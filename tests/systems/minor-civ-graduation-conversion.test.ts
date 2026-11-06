@@ -236,7 +236,7 @@ describe('graduateMinorCiv (#497)', () => {
     if (plan.status === 'evaluated') expect(plan.selectedMinorCivId).not.toBe(minorCivId);
   });
 
-  it('keeps camp evolution from reusing a graduated definition (which would overwrite its record)', () => {
+  it('keeps camp evolution from reusing a graduated or conquered definition (which would overwrite its record)', () => {
     const { state, minorCivId, minorCiv } = ripeFixture();
     const { state: next } = ok(graduateMinorCiv(state, minorCivId));
     // Every other definition is taken, so the graduated one is the only candidate left.
@@ -249,10 +249,16 @@ describe('graduateMinorCiv (#497)', () => {
     next.units = {};
     expect(checkCampEvolution(next, next.turn)).toBeNull();
 
-    // Earned control: the same world with a merely conquered (not graduated) record does offer the definition.
+    // A merely conquered (not graduated) historical record reserves its definition just as firmly (#1647).
     const conquered = structuredClone(next);
     conquered.minorCivs[minorCivId] = { ...conquered.minorCivs[minorCivId]!, graduation: undefined };
-    expect(checkCampEvolution(conquered, conquered.turn)?.newMinorCiv.definitionId).toBe(minorCiv.definitionId);
+    expect(checkCampEvolution(conquered, conquered.turn)).toBeNull();
+
+    // Earned control: an actually unused definition is still offered to an eligible camp.
+    const unused = MINOR_CIV_DEFINITIONS.find(definition => definition.id !== minorCiv.definitionId);
+    if (!unused) throw new Error('expected an unused definition');
+    delete conquered.minorCivs[`mc-${unused.id}`];
+    expect(checkCampEvolution(conquered, conquered.turn)?.newMinorCiv.definitionId).toBe(unused.id);
   });
 });
 
