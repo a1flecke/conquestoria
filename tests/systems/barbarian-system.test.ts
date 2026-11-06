@@ -1268,6 +1268,24 @@ describe('barbarian camp evolution — definition reservation (#1647)', () => {
     expect(state.barbarianCamps.camp).toBeDefined();
   });
 
+  it('leaves an eligible camp in place through the round phase when every definition is used', () => {
+    const { state, template } = emptyStateWithTemplate('evolve-definitions-exhausted-phase');
+    for (const definition of MINOR_CIV_DEFINITIONS) {
+      state.minorCivs[`mc-${definition.id}`] = historicalRecord(template, definition.id, true);
+    }
+    state.barbarianCamps = oneEligibleCamp();
+    const minorCivsBefore = structuredClone(state.minorCivs);
+    const bus = new EventBus();
+    const evolved: string[] = [];
+    bus.on('minor-civ:evolved', event => evolved.push(event.minorCivId));
+
+    const next = minorCivsPhase.run(state, createRoundPhaseContext(state, bus));
+
+    expect(next.barbarianCamps.camp).toBeDefined();
+    expect(next.minorCivs).toEqual(minorCivsBefore);
+    expect(evolved).toEqual([]);
+  });
+
   it('keeps a conquered record through save and reload, then still refuses its definition', () => {
     const { state, conqueredId, historical } = conqueredStateWithEarlierDefinitionsReserved('evolve-conquered-save');
     const before = structuredClone(state.minorCivs[conqueredId]!);
