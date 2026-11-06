@@ -1223,9 +1223,13 @@ describe('barbarian camp evolution — definition reservation (#1647)', () => {
 
     expect(next.minorCivs[conqueredId]).toEqual(before);
     expect(next.minorCivs[conqueredId]!.id).toBe(conqueredId);
+    expect(next.minorCivs[conqueredId]!.units).toEqual([]);
     expect(next.cities[historical.cityId]!.owner).toBe(cityOwner);
     expect(next.civilizations.player.cities.filter(id => id === historical.cityId)).toHaveLength(1);
     expect(Object.values(next.minorCivs).filter(minorCiv => minorCiv.definitionId === historical.definitionId)).toHaveLength(1);
+    expect(Object.keys(next.minorCivs)).toHaveLength(Object.keys(state.minorCivs).length + 1);
+    const rosters = Object.values(next.minorCivs).flatMap(minorCiv => minorCiv.units);
+    expect(new Set(rosters).size).toBe(rosters.length);
     for (const unitId of unitIds) expect(next.units[unitId]).toBeDefined();
   });
 
@@ -1300,6 +1304,8 @@ describe('barbarian camp evolution — definition reservation (#1647)', () => {
     expect(reloaded.cities[historical.cityId]!.owner).toBe('player');
     const beforeEvolution = checkCampEvolution(state, state.turn);
     const afterEvolution = checkCampEvolution(reloaded, reloaded.turn);
+    expect(beforeEvolution).not.toBeNull();
+    expect(afterEvolution).not.toBeNull();
     expect(afterEvolution?.newMinorCiv.definitionId).toBe(beforeEvolution?.newMinorCiv.definitionId);
     expect(afterEvolution?.newMinorCiv.definitionId).not.toBe(historical.definitionId);
   });
