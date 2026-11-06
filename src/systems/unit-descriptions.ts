@@ -66,7 +66,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   rocket_artillery: 'Long-range rocket siege unit. Bombards one target and damages up to two nearby visible enemy soldiers.',
   frigate:         'Fast broadside warship. Ranged attack (range 2) vs units and cities. Requires Frigate Construction and a coastal city. Replaces the trireme; upgrades into the ironclad.',
   ironclad:        'Armored steam warship. Strongest naval unit of the industrial era. High strength, replaces frigate in fleet roles.',
-  machine_gunner:  'Tripod-mounted machine gun crew. Suppressive fire from entrenched positions. High ranged strength; beats the rifleman it replaces. Upgrades into modern infantry.',
+  machine_gunner:  'Light machine gunner carrying an automatic gun. Suppressive fire from entrenched positions. High ranged strength; beats the rifleman it replaces. Upgrades into modern infantry.',
   infantry: 'Modern line infantry. Ranged attack (range 1) vs units and cities; beats the machine gunner it replaces. Upgrades into Mechanized Infantry.',
   mechanized_infantry: 'Mobile line infantry. Captures and holds ground faster than Infantry; upgrades into Exosuit Infantry.',
   paratrooper: 'Airborne infantry. Paradrops from a friendly Airfield city onto any visible tile within range, but lands with no movement and cannot act again that turn. Weaker in a stand-up fight than Infantry — its value is repositioning, not raw combat strength. Does not upgrade further.',

@@ -32,7 +32,7 @@ drawn, and which rig builds the loops.
 
 | Family | Units (examples) | ChatGPT draws | Code builds | The master must have |
 |---|---|---|---|---|
-| **Biped** | spearman, archer, warrior, swordsman, axeman, pikeman, musketeer, rifleman, infantry, marine | master, damage x4, attack, hit, defeat | idle, walk (`LegRig`, two-bone legs), per tier | two separate legs below the garment hem with a gap between the feet; nothing below the hem but at most one straight thin shaft |
+| **Biped** | spearman, archer, warrior, swordsman, axeman, pikeman, musketeer, rifleman, machine gunner, infantry, marine | master, damage x4, attack, hit, defeat | idle, walk (`LegRig`, two-bone legs), per tier | two separate legs below the garment hem with a gap between the feet; nothing below the hem but at most one straight thin shaft |
 | **Mounted** | horseman, knight, cavalry, cuirassier, war_elephant | master, damage x4, attack, hit, defeat | idle, walk (`QuadRig`, `"kind": "mounted"`: four two-bone legs, lateral-sequence gait), per tier | the animal standing square; below the knees four separate legs with gaps (they may merge into the body above); the tail ending well above the hooves; coat not red-brown |
 | **Vehicle** | tank, main_battle_tank, armored_car, mobile_aa, artillery, cannon, catapult, wagons | master, damage x4, wreck (3 frames) | idle engine shake, move (bob, vibration, wheel spin or tread scroll, exhaust), fire (recoil, flash, smoke), hit (shake) | level on one ground line; wheels as full circles with spokes or bolts, or a clear track band; barrel horizontal and free |
 | **Aircraft** | biplane, wwii_fighter, jet_fighter, bomber, attack_helicopter | master, damage x4, going down (3 frames) | idle and move (bob, bank roll, propeller blur, rotor, jet flicker), fire (flash or bomb release) | flat side view in level flight; propeller stopped and edge-on; no ground |
@@ -192,7 +192,7 @@ gradients for banding at the screenshot review), the mask is grey plus alpha.
 
 Results at 0.75 (Ironclad after its `restHeight` rise, Biplane after the anchor fix below): Spearman 158 KB and 12.1 MiB, Archer
 248 KB and 11.8 MiB, Horseman 265 KB and 12.7 MiB (the chestnut set), Tank 154 KB and 11.0 MiB, Ironclad 123 KB and 11.0 MiB, Biplane 224 KB and
-9.3 MiB, Cavalry 227 KB and 9.3 MiB, Rifleman 206 KB and 14.3 MiB (a tall rifle: `restHeight` 140 so the bent-bayonet tier fits the unit box).
+9.3 MiB, Cavalry 227 KB and 9.3 MiB, Rifleman 206 KB and 14.3 MiB (a tall rifle: `restHeight` 140 so the bent-bayonet tier fits the unit box), Machine Gunner 236 KB and 10.1 MiB (`restHeight` 140 for the gun held up at port arms).
 
 **The Biplane used to be refused** (#1627): its idle pose sat 29 px left of the middle of its cell while the rows built in code
 were centred. A drawn row was anchored on the mean x of its lowest 10% of rows (`anchor_x`, `'feet'`), which for an aircraft is

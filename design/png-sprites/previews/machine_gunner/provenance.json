@@ -1,0 +1,19 @@
+{
+  "id": "machine_gunner",
+  "status": "shipped: registered in PNG_UNIT_SPRITES and exported with strips.py export (#1627)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-06",
+  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/machine_gunner.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/). One conversation drew the master; the damage, attack, hit and defeat sheets were each drawn in one message of a second conversation with the master attached (one prompt per image). The prompts ChatGPT actually ran were adapted from the templates (the gun is carried at port arms across the body, as the master drew it; the defeat frames kneel with the gun across his knees) and were not captured verbatim.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/machine_gunner). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all five passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "One: the first attack sheet came back on a dark vignette with a red glow behind each figure and a soft halo round the muzzle flash, so it was redrawn on flat magenta with a crisp flash; the redraw is the one shipped. The damage sheet was asked for first and checked with `strips.py calibrate` (a clean cut at the hem for the master and all four tiers) before the other sheets were drawn.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1086, 1448], "sha256": "4029b8187335d0a2a4ac79c1ceb762ece31d73dda1e4fa5f4c7ea68df6f325d8" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1218, 1291], "sha256": "1c1424ce301c72858c84f99b1e57f608e5f021e3f3b13e6fb75442ad38e94a6d" },
+    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1536, 1024], "sha256": "e7a6f15e2521b7603e9ca7fc78568093553b16c6424ece85673deb95e758f019" },
+    { "role": "hit reaction, 5 frames (3 + 2 grid)", "file": "d", "size": [1448, 1086], "sha256": "d0d28ab35d59fb0f77d41c65af2273839cb5f8dbdd984355a763856323dedaf6" },
+    { "role": "defeat, 5 frames (3 + 2 grid)", "file": "e", "size": [1448, 1086], "sha256": "210363325ab024eef43200ab1f3335c9f2b3d76ec45179f31be0802deeb21ac1" }
+  ]
+}
