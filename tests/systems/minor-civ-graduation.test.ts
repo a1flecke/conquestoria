@@ -127,7 +127,9 @@ describe('evaluateMinorCivGraduationEligibility (#497)', () => {
       // Strong enough for any tier on every axis except age.
       city.population = getMinorCivPopulationCeiling(state, minorCivId);
       city.buildings = BUILDING_IDS.slice(0, MINOR_CIV_GRADUATION_TUNING.explorer.minBuildings);
-      minorCiv.foundedTurn = state.turn - 150;
+      // Exactly Veteran's minimum age, one short of Explorer's.
+      minorCiv.foundedTurn = state.turn - MINOR_CIV_GRADUATION_TUNING.veteran.minAgeTurns;
+      expect(MINOR_CIV_GRADUATION_TUNING.veteran.minAgeTurns).toBeLessThan(MINOR_CIV_GRADUATION_TUNING.explorer.minAgeTurns);
 
       state.opponentChallenge = 'veteran';
       expect(reasonOf(state, minorCivId)).toBeNull();

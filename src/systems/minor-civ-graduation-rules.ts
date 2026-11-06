@@ -43,8 +43,8 @@ export interface MinorCivGraduationTuning {
 
 export const MINOR_CIV_GRADUATION_TUNING: Readonly<Record<OpponentChallenge, MinorCivGraduationTuning>> = {
   explorer: {
-    minWorldAge: 5,
-    minAgeTurns: 200,
+    minWorldAge: 4,
+    minAgeTurns: 150,
     populationHeadroom: 0,
     minBuildings: 6,
     baseProbability: 0.03,
@@ -55,16 +55,16 @@ export const MINOR_CIV_GRADUATION_TUNING: Readonly<Record<OpponentChallenge, Min
     minAgeTurns: 150,
     populationHeadroom: 1,
     minBuildings: 5,
-    baseProbability: 0.08,
-    maxProbability: 0.15,
+    baseProbability: 0.04,
+    maxProbability: 0.08,
   },
   veteran: {
     minWorldAge: 3,
     minAgeTurns: 120,
     populationHeadroom: 2,
     minBuildings: 4,
-    baseProbability: 0.12,
-    maxProbability: 0.22,
+    baseProbability: 0.06,
+    maxProbability: 0.12,
   },
 };
 
