@@ -16,10 +16,14 @@ const STRIP: PngUnitSprite = {
   sheet: 'images/units/stripunit/sheet.png', mask: 'images/units/stripunit/mask.png', facing: 'right',
 };
 
-// A catalog with one extra strip unit; everything else is the real catalog.
+// A catalog with one extra strip unit and one puppet-shaped unit (no shipped unit is a puppet since #1627); everything else is the real catalog.
 vi.mock('@/renderer/sprites/png/png-sprite-catalog', async importOriginal => {
   const real = await importOriginal<typeof import('@/renderer/sprites/png/png-sprite-catalog')>();
-  return { ...real, getPngUnitManifest: (type: string) => (type === 'stripunit' ? STRIP : real.getPngUnitManifest(type)) };
+  const { PUPPET_SPRITE } = await import('./helpers/puppet-fixture');
+  return {
+    ...real,
+    getPngUnitManifest: (type: string) => (type === 'stripunit' ? STRIP : type === 'puppetunit' ? PUPPET_SPRITE : real.getPngUnitManifest(type)),
+  };
 });
 
 const { SpriteOverlay } = await import('@/renderer/sprite-overlay');
@@ -105,7 +109,7 @@ describe('SpriteOverlay with a strip unit', () => {
 
   it('lets a strip cell draw outside the unit box, and keeps a puppet unit clipped', () => {
     const { overlay, mount } = mountOverlay();
-    overlay.sync(cam(), [entity(), entity({ id: 'u2', subtype: 'observation_balloon', coord: { q: 1, r: 0 } })], MAP, OPTS);
+    overlay.sync(cam(), [entity(), entity({ id: 'u2', subtype: 'puppetunit', coord: { q: 1, r: 0 } })], MAP, OPTS);
     const wrappers = mount.querySelectorAll('#unit-sprites > div');
     expect((wrappers[0] as HTMLElement).style.overflow).toBe('visible');
     expect((wrappers[1] as HTMLElement).style.overflow).toBe('hidden');
@@ -115,7 +119,7 @@ describe('SpriteOverlay with a strip unit', () => {
     const { overlay, mount } = mountOverlay();
     overlay.sync(cam(), [
       entity({ selected: true }),
-      entity({ id: 'u2', subtype: 'observation_balloon', coord: { q: 1, r: 0 }, selected: true }),
+      entity({ id: 'u2', subtype: 'puppetunit', coord: { q: 1, r: 0 }, selected: true }),
     ], MAP, OPTS);
     const rings = mount.querySelectorAll<HTMLElement>('.cq-unit-selected');
     expect(rings[0].style.inset).toBe('-22%');

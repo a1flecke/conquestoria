@@ -1,0 +1,94 @@
+{
+  "id": "observation_balloon",
+  "family": "aircraft",
+  "cellWidth": 160,
+  "cellHeight": 192,
+  "cols": 8,
+  "rows": 10,
+  "baseline": 176,
+  "restHeight": 150.0,
+  "states": {
+    "idle": {
+      "row": 0,
+      "frames": 1,
+      "fps": 4,
+      "loop": true,
+      "note": ""
+    },
+    "damage": {
+      "row": 1,
+      "frames": 4,
+      "fps": 1,
+      "loop": false,
+      "note": "idle pose at damage tiers 0-3"
+    },
+    "move": {
+      "row": 2,
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "note": "a gentle sway and bob built in code from the master and from each damage drawing; no propeller"
+    },
+    "move@1": {
+      "row": 3,
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "note": "a gentle sway and bob built in code from the master and from each damage drawing; no propeller"
+    },
+    "move@2": {
+      "row": 4,
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "note": "a gentle sway and bob built in code from the master and from each damage drawing; no propeller"
+    },
+    "move@3": {
+      "row": 5,
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "note": "a gentle sway and bob built in code from the master and from each damage drawing; no propeller"
+    },
+    "move@4": {
+      "row": 6,
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "note": "a gentle sway and bob built in code from the master and from each damage drawing; no propeller"
+    },
+    "fire": {
+      "row": 7,
+      "frames": 8,
+      "fps": 8,
+      "loop": false,
+      "note": "the balloon is not a weapon: its attack row is a plain jolt (the hit rig), never a muzzle flash"
+    },
+    "hit": {
+      "row": 8,
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "note": "the envelope jolted and swinging, built in code"
+    },
+    "down": {
+      "row": 9,
+      "frames": 3,
+      "fps": 4,
+      "loop": false,
+      "note": ""
+    }
+  },
+  "sheet": "sheet.png",
+  "mask": "mask.png",
+  "facing": "right",
+  "tiers": {
+    "move": [
+      "move",
+      "move@1",
+      "move@2",
+      "move@3",
+      "move@4"
+    ]
+  }
+}

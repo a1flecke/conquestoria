@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PNG_STRIP_FEET_LINE, getPngBakeGeometry, getPngCellPlacement } from '@/renderer/sprites/png/png-sprite-layout';
 import { getPngCanvasDamageTiers, getPngCanvasFrame, pngCanvasCacheKey } from '@/renderer/sprites/png/png-sprite-canvas';
 import { buildPngUnitSpriteHtml } from '@/renderer/sprites/png/png-sprite-html';
-import { getPngUnitManifest } from '@/renderer/sprites/png/png-sprite-catalog';
+import { PUPPET_SPRITE } from './helpers/puppet-fixture';
 import type { PngUnitSprite } from '@/renderer/sprites/png/png-sprite-types';
 
 const strip = (over: Partial<PngUnitSprite> = {}): PngUnitSprite => {
@@ -33,7 +33,7 @@ describe('getPngCellPlacement', () => {
   });
 
   it('a puppet cell fills the box exactly as it always did', () => {
-    const puppet = getPngUnitManifest('observation_balloon')!;
+    const puppet = PUPPET_SPRITE;
     expect(getPngCellPlacement(puppet)).toEqual({ widthPct: 100, leftPct: 0, topPct: 0 });
   });
 });
@@ -47,7 +47,7 @@ describe('getPngBakeGeometry', () => {
   });
 
   it('a puppet cell fills the baked square exactly as it always did', () => {
-    const submarine = getPngUnitManifest('observation_balloon')!;
+    const submarine = PUPPET_SPRITE;
     expect(getPngBakeGeometry(submarine, 1, 4)).toEqual({ side: 192, sx: 4 * 192, sy: 192, dx: 0, dy: 0 });
   });
 });

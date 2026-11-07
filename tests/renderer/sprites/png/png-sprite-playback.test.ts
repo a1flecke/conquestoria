@@ -6,7 +6,7 @@ import {
   toPngDamageTier,
 } from '@/renderer/sprites/png/png-sprite-playback';
 import { getPngUnitManifest, hasPngDeathClip } from '@/renderer/sprites/png/png-sprite-catalog';
-import { manifest as balloonManifest } from '@/renderer/sprites/png/generated/observation_balloon.manifest';
+import { PUPPET_MANIFEST as balloonManifest } from './helpers/puppet-fixture';
 import type { PngClip, PngTierClips, PngUnitSprite } from '@/renderer/sprites/png/png-sprite-types';
 
 const clip = (over: Partial<PngClip> = {}): PngClip => ({ row: 0, firstCol: 0, frames: 4, fps: 4, loop: true, ...over });
@@ -121,9 +121,10 @@ describe('getPngPlaybackCssVars', () => {
 });
 
 describe('hasPngDeathClip', () => {
-  it('is false for every shipped puppet unit and for a unit with no PNG row', () => {
+  it('is true for a shipped strip unit, false for a puppet-shaped sprite and for a unit with no PNG row', () => {
     expect(getPngUnitManifest('observation_balloon')).not.toBeNull();
-    expect(hasPngDeathClip('observation_balloon')).toBe(false);
+    expect(hasPngDeathClip('observation_balloon')).toBe(true);
+    expect(fromPuppetManifest(balloonManifest).clips.death).toBeUndefined();
     expect(hasPngDeathClip('warrior')).toBe(false);
     expect(hasPngDeathClip('__proto__')).toBe(false);
   });

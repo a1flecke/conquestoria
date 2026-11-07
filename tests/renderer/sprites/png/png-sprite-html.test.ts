@@ -7,11 +7,13 @@ import {
   resolvePngTint,
 } from '@/renderer/sprites/png/png-sprite-html';
 import { getPngUnitManifest } from '@/renderer/sprites/png/png-sprite-catalog';
+import { PUPPET_SPRITE } from './helpers/puppet-fixture';
 import { getPngCanvasFrame } from '@/renderer/sprites/png/png-sprite-canvas';
 import { getUnitSpriteV2, isV2NativeUnit } from '@/renderer/sprites/v2/index';
 import { FACTION_SPRITE_ACCENT, NEUTRAL_PNG_TINT } from '@/renderer/sprites/faction-accent-colors';
 
 const submarine = getPngUnitManifest('observation_balloon')!;
+const puppet = PUPPET_SPRITE;
 const css = readFileSync(resolve(__dirname, '../../../../src/assets/png-sprite-animations.css'), 'utf8');
 
 describe('resolvePngTint', () => {
@@ -33,9 +35,9 @@ describe('resolvePngTint', () => {
 
 describe('getPngSpriteCssVars', () => {
   it('describes the sheet grid, the cell placement and the healthy idle clip', () => {
-    const v = getPngSpriteCssVars(submarine);
-    const { cols, rows } = submarine;
-    const idle = submarine.clips.idle[0];
+    const v = getPngSpriteCssVars(puppet);
+    const { cols, rows } = puppet;
+    const idle = puppet.clips.idle[0];
     expect(v['--cols']).toBe(String(cols));
     expect(v['--rows']).toBe(String(rows));
     // a puppet cell is the whole unit box

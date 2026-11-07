@@ -77,7 +77,7 @@ sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you whi
 | pre_dreadnought | ✅ painted strips (#1627) | naval |
 | tank | ✅ painted strips (#621 puppet, #1627 strips) | melee |
 | submarine | ✅ painted strips (#1627) | naval |
-| observation_balloon | ✅ painted PNG (#621) | air |
+| observation_balloon | ✅ painted strips (#1627) | air |
 | biplane | ✅ painted strips (#621 puppet, #1627 strips) | air |
 
 **#621 military visual identity.** These eight units (the last `TODO(art)` placeholders) ship as painted PNG spritesheets through the

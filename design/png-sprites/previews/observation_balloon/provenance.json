@@ -1,0 +1,17 @@
+{
+  "id": "observation_balloon",
+  "status": "shipped: registered in PNG_UNIT_SPRITES and exported with strips.py export (#1627)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-07",
+  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/observation_balloon.json (aircraft family). One conversation drew the master; the damage and shot-down sheets were each drawn in one message of the same conversation (one prompt per image). The prompts ChatGPT actually ran were adapted from the templates (flat magenta background, no propeller or gear checks for a balloon) and were not captured verbatim.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/observation_balloon). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all three passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "The first damage sheet redrew the rigging (a smaller basket with sandbags and a different net) and was replaced by a second, which copies the master; the first original is not shipped. The shot-down sheet had several attempts in the conversation; the final one was shipped (an earlier one had magenta bleeding into the ropes). The balloon is not a weapon, so its attack row is the plain jolt (hit rig), never a muzzle flash. The tint key is narrower than the other units (min_sat 0.8, min_val 0.4, hue up to 0.02) so only the bright red envelope takes team colour: the maroon bedroll and the flames do not.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1122, 1402], "sha256": "77c81905f3d355d3a7c7a71648860866edde535d47112576d2883a0cb7e7fa87" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1199, 1312], "sha256": "c852d1710ffdaed9cb257ae8ec0a0fabf848b14e1c8715f24e7fc5262b0cbd6b" },
+    { "role": "shot down, 3 frames in one row", "file": "c", "size": [2172, 724], "sha256": "72c31f1818d4ff7d75b1c88c61490b666585b8ea40ad0ccb1f42ee807b72ddeb" }
+  ]
+}
