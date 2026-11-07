@@ -11,7 +11,7 @@ import { GRADUATION_MAX_PER_GAME, MINOR_CIV_GRADUATION_TUNING } from '@/systems/
 import { getMinorCivCompletedTechBand, getMinorCivPopulationCeiling } from '@/systems/minor-civ-economy-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { checkCampEvolution } from '@/systems/minor-civ-system';
-import { assertSaveStateInvariants, assertMinorCivGraduationIntegrity, SAVE_STATE_INVARIANTS } from '../helpers/save-state-invariants';
+import { assertSaveStateInvariants, assertMinorCivGraduationIntegrity } from '../helpers/save-state-invariants';
 import {
   advancePlayerCivToEra, fixtureAlliedWithMajor, fixtureCoastal, fixtureEarlyGameNearYoungPlayer, fixtureLateEra,
   fixtureMilitaristic, fixturePeacefulIsolated, fixtureProsperousMercantile, fixtureThreatenedNoWar,
@@ -34,10 +34,6 @@ function ripeFixture() {
   city.population = getMinorCivPopulationCeiling(state, minorCivId) - TUNING.populationHeadroom;
   city.buildings = BUILDING_IDS.slice(0, TUNING.minBuildings);
   return { state, minorCivId, minorCiv, city };
-}
-
-function collectInvariantFailures(state: GameState): string[] {
-  return SAVE_STATE_INVARIANTS.filter(({ check }) => { try { check(state); return false; } catch { return true; } }).map(({ name }) => name);
 }
 
 function ok(result: ReturnType<typeof graduateMinorCiv>) {
@@ -306,14 +302,13 @@ describe('conversion across the long-run fixtures (#497)', () => {
       const city = state.cities[mc.cityId]!;
       city.population = getMinorCivPopulationCeiling(state, minorCivId);
       city.buildings = BUILDING_IDS.slice(0, TUNING.minBuildings);
-      // A fixture that already breaks a shared invariant before conversion (fixtureAlliedWithMajor parks a garrison on a
-      // camp tile) would blame the conversion for the fixture's own state: only new violations count.
-      const failuresBefore = collectInvariantFailures(state);
+      // The starting world must be fully valid (#1648), so a violation afterwards is the conversion's own.
+      assertSaveStateInvariants(state, `${build.name} before graduation`);
       const unitIds = Object.keys(state.units).sort();
       const result = graduateMinorCiv(state, minorCivId);
       if (!result.ok) throw new Error(`${build.name}: ${result.reason}`);
       expect(Object.keys(result.state.units).sort()).toEqual(unitIds);
-      expect(collectInvariantFailures(result.state).filter(name => !failuresBefore.includes(name)), build.name).toEqual([]);
+      assertSaveStateInvariants(result.state, `${build.name} after graduation`);
     });
   }
 

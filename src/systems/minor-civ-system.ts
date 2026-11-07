@@ -98,6 +98,9 @@ export function placeMinorCivs(
     .filter(u => u.type === 'settler')
     .map(u => u.position);
   const cityPositions = Object.values(state.cities).map(c => c.position);
+  // Camps are placed before city-states at game creation, and the city (and its garrison) must not
+  // land on one: a unit on a camp tile is an illegal blocking occupancy (#1648).
+  const campPositions = Object.values(state.barbarianCamps ?? {}).map(camp => camp.position);
 
   // Get passable tiles
   const candidates = Object.values(state.map.tiles)
@@ -120,6 +123,7 @@ export function placeMinorCivs(
       startPositions,
       cityPositions,
       placedPositions,
+      campPositions,
     );
     if (!pos) continue;
 
@@ -175,8 +179,12 @@ function findValidPosition(
   startPositions: HexCoord[],
   cityPositions: HexCoord[],
   placedPositions: HexCoord[],
+  campPositions: HexCoord[],
 ): HexCoord | null {
+  // Applied while walking the already-shuffled candidates (not by pre-filtering them), so the random
+  // stream and every placement that never touched a camp are exactly what they were.
   for (const pos of candidates) {
+    if (campPositions.some(c => mapDistance(map, pos, c) === 0)) continue;
     if (startPositions.some(s => mapDistance(map, pos, s) < 8)) continue;
     if (cityPositions.some(c => mapDistance(map, pos, c) < 6)) continue;
     if (placedPositions.some(p => mapDistance(map, pos, p) < 10)) continue;
