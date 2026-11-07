@@ -11,7 +11,7 @@ import { getPngCanvasFrame } from '@/renderer/sprites/png/png-sprite-canvas';
 import { getUnitSpriteV2, isV2NativeUnit } from '@/renderer/sprites/v2/index';
 import { FACTION_SPRITE_ACCENT, NEUTRAL_PNG_TINT } from '@/renderer/sprites/faction-accent-colors';
 
-const submarine = getPngUnitManifest('submarine')!;
+const submarine = getPngUnitManifest('observation_balloon')!;
 const css = readFileSync(resolve(__dirname, '../../../../src/assets/png-sprite-animations.css'), 'utf8');
 
 describe('resolvePngTint', () => {
@@ -125,15 +125,15 @@ describe('getPngCanvasFrame', () => {
 describe('getUnitSpriteV2 dispatch (both renderers coexist)', () => {
   it('serves the PNG player for a registered unit, for any faction and for owners with no faction record', () => {
     for (const faction of ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate', 'some-minor-civ-id']) {
-      const out = getUnitSpriteV2('submarine', faction)!;
+      const out = getUnitSpriteV2('observation_balloon', faction)!;
       expect(out, faction).toContain('cq-png');
       expect(out, faction).not.toContain('<svg');
     }
   });
 
   it('tints with the owner colour when one is supplied', () => {
-    expect(getUnitSpriteV2('submarine', 'imperials', '#2d6a4f')).toContain('--cq-tint:#2d6a4f');
-    expect(getUnitSpriteV2('submarine', 'khanate')).toContain(`--cq-tint:${FACTION_SPRITE_ACCENT.khanate}`);
+    expect(getUnitSpriteV2('observation_balloon', 'imperials', '#2d6a4f')).toContain('--cq-tint:#2d6a4f');
+    expect(getUnitSpriteV2('observation_balloon', 'khanate')).toContain(`--cq-tint:${FACTION_SPRITE_ACCENT.khanate}`);
   });
 
   it('leaves every other unit on its SVG sprite', () => {
