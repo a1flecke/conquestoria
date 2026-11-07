@@ -27,6 +27,17 @@ date list (34 units as of 2026-08-01, after #759 batch 1 migrated `combat_drone`
 `autonomous_frigate`, `exosuit_infantry`, `propagandist`, and `drone_controller` — was 39 before
 that, 24 when #759 was originally filed) rather than trusting a pasted snapshot.
 
+**#759 batch 2 (native-v2 art, not painted strips).** `cannon` and `grenadier` are now original code-authored native-v2 sprites
+(`CannonV2Sprite`, `GrenadierV2Sprite` in `units-v2.jsx`, serialized to `src/renderer/sprites/v2/{cannon,grenadier}.svg.ts`, hooks and
+timelines in the "#759: CANNON AND GRENADIER" block of `src/assets/sprite-animations-v2.css`, all scoped by `data-kind-variant`).
+Cannon: bronze field gun on a spoked-wheel carriage, linstock and shot pile; wheels roll on walk, barrel and carriage recoil with flash and
+smoke on attack, four damage tiers. Grenadier: bearskin cap, crossbelts, grenade bandolier; alternating leg/arm gait on walk, an overhand
+throw with the grenade leaving the hand, flying and bursting on attack, four damage tiers via `HumanoidWounds`. Both keep their
+`UNIT_SPRITE_CATALOG` SVG as the safe fallback for the Canvas layer and for load failure. They are **not** painted-strip units: the
+painted-strip count stays 12 (`isPngUnit`), they carry no PNG provenance, and a painted strip would still take precedence over them.
+This migrates 2 of the remaining backlog; #759 stays open. Three tiers exist and should not be conflated: painted strip (PNG, 12 units),
+native-v2 SVG (hand-authored silhouette with animation hooks), and live-fallback-only SVG (everything else).
+
 **Third path — PNG spritesheet units.** A unit with a row in `PNG_UNIT_SPRITES`
 (`src/renderer/sprites/png/png-sprite-catalog.ts`) is drawn from a painted PNG (sheet + tint mask, built by
 `scripts/sprite-puppet/strips.py` from drawn strips) and tinted with the owner's colour at runtime;
@@ -69,8 +80,8 @@ sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you whi
 | spy_hacker | ✅ sprite | spy |
 | caravan | ✅ sprite | civilian |
 | expedition | ✅ sprite | civilian |
-| cannon | ✅ sprite | siege |
-| grenadier | ✅ sprite | melee |
+| cannon | ✅ native v2 (#759) | ranged · variant `cannon` |
+| grenadier | ✅ native v2 (#759) | ranged · variant `grenadier` |
 | rifleman | ✅ painted strips (#1627) | ranged |
 | ironclad | ✅ painted strips (#621 puppet, #1627 strips) | naval |
 | machine_gunner | ✅ painted strips (#1627) | ranged |
