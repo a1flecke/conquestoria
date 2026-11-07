@@ -5,7 +5,9 @@ import { createNewGame } from '@/core/game-state';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { foundCity, TRAINABLE_UNITS } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
+import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import { enqueueResearch } from '@/systems/planning-system';
+import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { getEffectiveTechCost, getTechById, startResearch, TECH_TREE } from '@/systems/tech-system';
 import { createTechPanel, formatTechNodeEta } from '@/ui/tech-panel';
 
@@ -164,6 +166,144 @@ describe('tech-panel', () => {
     });
 
     expect(panel.textContent).toContain('Turns remaining');
+  });
+
+  describe('research penalty explanation (#419)', () => {
+    function canonicalTurns(state: ReturnType<typeof createNewGame>): number {
+      const civ = state.civilizations[state.currentPlayer];
+      const tech = getTechById('bronze-working')!;
+      return estimateTurnsToComplete({
+        cost: Math.max(0, getEffectiveTechCost(tech, civ.techState.completed) - civ.techState.researchProgress),
+        outputPerTurn: Math.max(1, calculateCivResearchOutput(state, civ.id).finalScience),
+      });
+    }
+
+    function render(state: ReturnType<typeof createNewGame>) {
+      return createTechPanel(document.body, state, {
+        onQueueResearch: () => {},
+        onMoveQueuedResearch: () => {},
+        onRemoveQueuedResearch: () => {},
+        onClose: () => {},
+      });
+    }
+
+    it('explains an active penalty with its canonical percentage, remaining turns, and reduced ETA', () => {
+      const state = makeBronzeWorkingPanelState('idle-science');
+      const civ = state.civilizations.player;
+      civ.researchPenaltyTurns = 6;
+      civ.researchPenaltyMultiplier = 0.2;
+
+      const reducedTurns = canonicalTurns(state);
+      const control = structuredClone(state);
+      control.civilizations.player.researchPenaltyTurns = 0;
+      control.civilizations.player.researchPenaltyMultiplier = 0;
+
+      expect(reducedTurns).toBeGreaterThan(canonicalTurns(control));
+
+      const panel = render(state);
+      const notice = panel.querySelector('[data-role="research-penalty-notice"]');
+
+      expect(notice?.textContent).toBe(
+        'Temporary research setback: 20% slower for 6 more turns. Completion estimates include this setback.',
+      );
+      expect(panel.textContent).toContain(`Turns remaining: ${reducedTurns}`);
+    });
+
+    it('does not show a disruption explanation when no research penalty is active', () => {
+      const state = makeBronzeWorkingPanelState('idle-science');
+
+      const panel = render(state);
+
+      expect(panel.querySelector('[data-role="research-penalty-notice"]')).toBeNull();
+      expect(panel.textContent).not.toContain('Temporary research setback');
+    });
+
+    it('hides the explanation and restores the normal ETA when the penalty counter is zero', () => {
+      const state = makeBronzeWorkingPanelState('idle-science');
+      const civ = state.civilizations.player;
+      civ.researchPenaltyTurns = 0;
+      civ.researchPenaltyMultiplier = 0.2;
+
+      const panel = render(state);
+
+      expect(panel.querySelector('[data-role="research-penalty-notice"]')).toBeNull();
+      expect(panel.textContent).toContain(`Turns remaining: ${canonicalTurns(state)}`);
+    });
+
+    it('uses the state multiplier instead of hardcoding the misinformation campaign value', () => {
+      const state = makeBronzeWorkingPanelState('idle-science');
+      const civ = state.civilizations.player;
+      civ.researchPenaltyTurns = 4;
+
+      for (const [multiplier, percent] of [[0.25, 25], [0.35, 35]] as const) {
+        civ.researchPenaltyMultiplier = multiplier;
+        const panel = render(state);
+
+        expect(panel.querySelector('[data-role="research-penalty-notice"]')?.textContent).toContain(
+          `${percent}% slower for 4 more turns`,
+        );
+        expect(panel.textContent).not.toContain('20% slower');
+        panel.remove();
+      }
+    });
+
+    it('shows only the current hot-seat player\'s research penalty', () => {
+      const state = createNewGame(undefined, 'tech-panel-penalty-hot-seat', 'small');
+      state.civilizations.player.techState.currentResearch = 'fire';
+      state.civilizations['player-2'] = {
+        ...structuredClone(state.civilizations.player),
+        id: 'player-2',
+        name: 'Bob',
+        isHuman: true,
+        techState: { ...state.civilizations.player.techState, currentResearch: 'writing' },
+        researchPenaltyTurns: 10,
+        researchPenaltyMultiplier: 0.2,
+      };
+
+      state.currentPlayer = 'player';
+      let panel = render(state);
+      expect(panel.querySelector('[data-role="research-penalty-notice"]')).toBeNull();
+
+      panel.remove();
+      state.currentPlayer = 'player-2';
+      panel = render(state);
+      expect(panel.querySelector('[data-role="research-penalty-notice"]')?.textContent).toContain(
+        '20% slower for 10 more turns',
+      );
+    });
+
+    it('reopening after a state change shows the current penalty rather than stale values', () => {
+      const state = makeBronzeWorkingPanelState('idle-science');
+      const civ = state.civilizations.player;
+      civ.researchPenaltyTurns = 10;
+      civ.researchPenaltyMultiplier = 0.2;
+
+      let panel = render(state);
+      expect(panel.querySelector('[data-role="research-penalty-notice"]')?.textContent).toContain(
+        '20% slower for 10 more turns',
+      );
+
+      panel.remove();
+      civ.researchPenaltyTurns = 3;
+      civ.researchPenaltyMultiplier = 0.35;
+      panel = render(state);
+
+      expect(panel.querySelector('[data-role="research-penalty-notice"]')?.textContent).toContain(
+        '35% slower for 3 more turns',
+      );
+      expect(panel.textContent).not.toContain('20% slower for 10 more turns');
+    });
+
+    it('does not mutate GameState while rendering', () => {
+      const state = makeBronzeWorkingPanelState('idle-science');
+      state.civilizations.player.researchPenaltyTurns = 6;
+      state.civilizations.player.researchPenaltyMultiplier = 0.2;
+      const before = structuredClone(state);
+
+      render(state).remove();
+
+      expect(state).toEqual(before);
+    });
   });
 
   it('shows the research frontier only after every authored technology is completed', () => {

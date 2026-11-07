@@ -1,6 +1,6 @@
 import type { GameState, Tech, TechTrack } from '@/core/types';
 import { BUILDINGS, getTrainableUnit } from '@/systems/city-system';
-import { calculateCivResearchOutput } from '@/systems/research-output-system';
+import { calculateCivResearchOutput, type ResearchOutputBreakdown } from '@/systems/research-output-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import {
   buildTechProgressionView,
@@ -161,6 +161,22 @@ function buildCurrentResearchSummary(currentTech: Tech | undefined, progress: nu
   wrapper.appendChild(progressBar);
 
   return wrapper;
+}
+
+function buildResearchPenaltyNotice(
+  researchOutput: ResearchOutputBreakdown,
+  turnsRemaining: number,
+): HTMLDivElement | null {
+  if (researchOutput.penaltyMultiplier <= 0 || turnsRemaining <= 0) {
+    return null;
+  }
+
+  const percent = Math.round(researchOutput.penaltyMultiplier * 100);
+  const notice = document.createElement('div');
+  notice.dataset.role = 'research-penalty-notice';
+  notice.textContent = `Temporary research setback: ${percent}% slower for ${turnsRemaining} more ${turnsRemaining === 1 ? 'turn' : 'turns'}. Completion estimates include this setback.`;
+  notice.style.cssText = 'background:rgba(232,193,112,0.12);border:1px solid rgba(232,193,112,0.42);border-radius:8px;padding:8px 10px;margin-bottom:16px;color:#f8d28a;font-size:12px;line-height:1.35;';
+  return notice;
 }
 
 function createTechNode(
@@ -390,7 +406,8 @@ export function createTechPanel(
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;color:white;';
 
   const civ = state.civilizations[state.currentPlayer];
-  const sciencePerTurn = Math.max(1, calculateCivResearchOutput(state, civ.id).finalScience);
+  const researchOutput = calculateCivResearchOutput(state, civ.id);
+  const sciencePerTurn = Math.max(1, researchOutput.finalScience);
   const queueTiming = simulateResearchQueueTiming(civ.techState, sciencePerTurn);
 
   let zoom: TechTreeZoom = 'focus';
@@ -458,6 +475,14 @@ export function createTechPanel(
   const summary = buildCurrentResearchSummary(currentTech, currentProgress, turnsRemaining);
   if (summary) {
     panel.appendChild(summary);
+  }
+
+  const researchPenaltyNotice = buildResearchPenaltyNotice(
+    researchOutput,
+    civ.researchPenaltyTurns ?? 0,
+  );
+  if (researchPenaltyNotice) {
+    panel.appendChild(researchPenaltyNotice);
   }
 
   if (hasReachedResearchFrontier(civ.techState)) {
