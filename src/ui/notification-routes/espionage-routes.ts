@@ -221,6 +221,35 @@ export function routeOperationLanded(
   }
 }
 
+// Caught in the Act (#419 PR 2). Reveal: delivered to the victim only, after the evidence exists. The actor is named
+// here because the victim has just earned confirmation (the incident is only traced when attribution is 'confirmed').
+export function routeIncidentTraced(
+  state: GameState,
+  event: GameEvents['espionage:incident-traced'],
+  sink: NotificationSink,
+): void {
+  const actorName = state.civilizations[event.actorCivId]?.name ?? 'A rival';
+  const cityName = (event.cityId ? state.cities[event.cityId]?.name : undefined) ?? 'your empire';
+  for (const { civId } of getEspionageNotificationAudience(state, { type: 'espionage:incident-traced', ...event })) {
+    sink(civId, `Your agents traced the attack on ${cityName} to ${actorName}. Open Espionage and Go public while the story is fresh.`, 'warning');
+  }
+}
+
+// Go public: the victim names the culprit. The partners hear it too -- it is public by definition.
+export function routeWentPublic(
+  state: GameState,
+  event: GameEvents['espionage:went-public'],
+  sink: NotificationSink,
+): void {
+  const victimName = state.civilizations[event.civId]?.name ?? 'A civilization';
+  const culpritName = state.civilizations[event.culpritCivId]?.name ?? 'a rival';
+  for (const { civId, role } of getEspionageNotificationAudience(state, { type: 'espionage:went-public', ...event })) {
+    if (role === 'actor') sink(civId, `You told the world ${culpritName} was behind the attack. ${event.partnerCivIds.length} of their partners now trust them less.`, 'success');
+    else if (role === 'target') sink(civId, `${victimName} has gone public: your hostile operation is exposed and your partners trust you less.`, 'warning');
+    else sink(civId, `${victimName} revealed that ${culpritName} ran a hostile operation against them -- your relationship with ${culpritName} has soured.`, 'warning');
+  }
+}
+
 /**
  * The exhaustive espionage notification route table (#1201). Typed over
  * `EspionageNotificationEventType`, so adding a new notification event without a route
@@ -242,4 +271,6 @@ export const ESPIONAGE_NOTIFICATION_ROUTES: {
   'espionage:scandal-exposed': routeScandalExposed,
   'espionage:intel-report-acquired': routeIntelReportAcquired,
   'espionage:operation-landed': routeOperationLanded,
+  'espionage:incident-traced': routeIncidentTraced,
+  'espionage:went-public': routeWentPublic,
 };

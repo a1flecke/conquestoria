@@ -11,7 +11,9 @@ import {
   routeOfficialBribed,
   routeScandalExposed,
   routeIntelReportAcquired,
+  routeIncidentTraced,
   routeOperationLanded,
+  routeWentPublic,
 } from '@/ui/notification-routes/espionage-routes';
 import type { PresentationRegistrar } from '@/presentation/register-all';
 
@@ -86,6 +88,12 @@ export const registerEspionagePresentation: PresentationRegistrar = (bus, ctx) =
     }),
     bus.on('espionage:operation-landed', event => {
       routeOperationLanded(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('espionage:incident-traced', event => {
+      routeIncidentTraced(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('espionage:went-public', event => {
+      routeWentPublic(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
   ];
 

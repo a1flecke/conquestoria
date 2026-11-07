@@ -62,8 +62,11 @@ export {
   expelSpy,
   getSpyCaptureRelationshipPenalty,
   handleSpyCaptured,
+  goPublicAboutIncident,
   handleSpyExpelled,
+  recordOperationIncident,
   setCounterIntelligence,
+  traceOperationIncidents,
   turnCapturedSpy,
 } from './espionage-counterintel';
 export type { TurnCapturedSpyCommand } from './espionage-counterintel';

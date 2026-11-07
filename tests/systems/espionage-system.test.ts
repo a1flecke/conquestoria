@@ -36,8 +36,10 @@ import { foundCity } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import type { OperationLandedEvent } from '@/core/types/espionage-incident';
 import { buildOperationEffect, isOperationMission } from '@/systems/espionage-missions';
-import { getOperationAttribution } from '@/systems/espionage-counterintel';
-import { routeOperationLanded } from '@/ui/notification-routes/espionage-routes';
+import { EXPOSE_SCANDAL_PENALTY } from '@/systems/espionage-scandal';
+import { getGoPublicDenial, getOperationAttribution, goPublicAboutIncident, traceOperationIncidents } from '@/systems/espionage-counterintel';
+import { getEspionagePanelData } from '@/ui/espionage-panel';
+import { routeIncidentTraced, routeOperationLanded, routeWentPublic } from '@/ui/notification-routes/espionage-routes';
 import { assertSimulationEquivalent } from '../helpers/deterministic-state';
 
 
@@ -2397,5 +2399,150 @@ describe('notice viewer safety (#419)', () => {
         },
       }],
     });
+  });
+});
+
+describe('Caught in the Act: reveal and Go public (#419 PR 2)', () => {
+  function withPartners(state: GameState, culpritId: string, count: number): { state: GameState; partnerIds: string[] } {
+    const partnerIds = Array.from({ length: count }, (_, i) => `partner-${i}`);
+    const civilizations = { ...state.civilizations };
+    for (const id of partnerIds) {
+      civilizations[id] = { ...state.civilizations[culpritId], id, name: id, diplomacy: createDiplomacyState([culpritId, id], id) };
+    }
+    civilizations[culpritId] = {
+      ...civilizations[culpritId],
+      diplomacy: {
+        ...civilizations[culpritId].diplomacy,
+        treaties: partnerIds.map(id => ({ type: 'trade_agreement' as const, civA: culpritId, civB: id, turnsRemaining: -1 })),
+      },
+    };
+    return { state: { ...state, civilizations }, partnerIds };
+  }
+
+  /** A world where the attacker's cyber attack has landed and been recorded on the victim, with no evidence yet. */
+  function landedWorld(seed: string, partners = 2) {
+    const fixture = makeFixture(seed);
+    const outcome = runUntilLanded(fixture, 'cyber_attack')!;
+    const { state, partnerIds } = withPartners(outcome.state, fixture.attackerId, partners);
+    return { ...fixture, state, partnerIds, landedTurn: outcome.turn };
+  }
+
+  function capturedSpyEvidence(w: ReturnType<typeof landedWorld>): GameState {
+    return {
+      ...w.state,
+      espionage: {
+        ...w.state.espionage,
+        [w.attackerId]: {
+          ...w.state.espionage![w.attackerId],
+          spies: { 'spy-9': makeTestSpy('spy-9', w.attackerId, { status: 'captured', targetCivId: w.targetId, targetCityId: w.cityId }) },
+        },
+      },
+    };
+  }
+
+  function incidentIdOf(state: GameState, victimId: string): string {
+    return Object.keys(state.espionage![victimId].attributedIncidents!)[0];
+  }
+
+  it('records a landed operation on the victim only, unconfirmed and unused', () => {
+    const w = landedWorld('go-public-record');
+    const incidents = Object.values(w.state.espionage![w.targetId].attributedIncidents ?? {});
+    expect(incidents).toHaveLength(1);
+    expect(incidents[0]).toMatchObject({ actorCivId: w.attackerId, targetCivId: w.targetId, cityId: w.cityId, missionType: 'cyber_attack' });
+    expect(incidents[0].tracedTurn).toBeUndefined();
+    expect(w.state.espionage![w.attackerId].attributedIncidents).toBeUndefined();
+  });
+
+  it('the panel data never names the actor until evidence exists, then offers Go public', () => {
+    const w = landedWorld('go-public-panel');
+    const asVictim = (s: GameState): GameState => ({ ...s, currentPlayer: w.targetId });
+    expect(getEspionagePanelData(asVictim(w.state)).tracedIncidents).toEqual([]);
+    const traced = traceOperationIncidents(capturedSpyEvidence(w), w.targetId);
+    const rows = getEspionagePanelData(asVictim(traced.state)).tracedIncidents;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].actorName).toBe(w.state.civilizations[w.attackerId].name);
+    expect(rows[0].denial).toBeNull();
+  });
+
+  it('reveals once: the trace fires when evidence first arrives and never again', () => {
+    const w = landedWorld('go-public-trace-once');
+    expect(traceOperationIncidents(w.state, w.targetId).traced).toEqual([]);
+    const first = traceOperationIncidents(capturedSpyEvidence(w), w.targetId);
+    expect(first.traced).toHaveLength(1);
+    expect(first.traced[0]).toMatchObject({ civId: w.targetId, actorCivId: w.attackerId, missionType: 'cyber_attack' });
+    expect(traceOperationIncidents(first.state, w.targetId).traced).toEqual([]);
+  });
+
+  it('refuses before proof, for a third civ, and for an unknown incident', () => {
+    const w = landedWorld('go-public-denials');
+    const id = incidentIdOf(w.state, w.targetId);
+    expect(getGoPublicDenial(w.state, w.targetId, id)).toBe('not-confirmed');
+    const proven = traceOperationIncidents(capturedSpyEvidence(w), w.targetId).state;
+    expect(getGoPublicDenial(proven, w.attackerId, id)).toBe('not-found');
+    expect(getGoPublicDenial(proven, w.targetId, 'nope')).toBe('not-found');
+    expect(goPublicAboutIncident(w.state, w.targetId, id)).toEqual({ ok: false, reason: 'not-confirmed' });
+  });
+
+  it('fires once, applies expose_scandal\'s exact penalty both ways, and never twice', () => {
+    const w = landedWorld('go-public-fire');
+    const proven = traceOperationIncidents(capturedSpyEvidence(w), w.targetId).state;
+    const id = incidentIdOf(proven, w.targetId);
+    const rel = (s: GameState, a: string, b: string) => s.civilizations[a].diplomacy.relationships[b] ?? 0;
+    const beforeCulprit = rel(proven, w.attackerId, w.partnerIds[0]);
+    const beforePartner = rel(proven, w.partnerIds[0], w.attackerId);
+    const result = goPublicAboutIncident(proven, w.targetId, id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.partnerCivIds).toEqual(w.partnerIds);
+    expect(rel(result.state, w.attackerId, w.partnerIds[0])).toBe(beforeCulprit + EXPOSE_SCANDAL_PENALTY);
+    expect(rel(result.state, w.partnerIds[0], w.attackerId)).toBe(beforePartner + EXPOSE_SCANDAL_PENALTY);
+    expect(goPublicAboutIncident(result.state, w.targetId, id)).toEqual({ ok: false, reason: 'already-used' });
+    // The input state was not modified.
+    expect(rel(proven, w.attackerId, w.partnerIds[0])).toBe(beforeCulprit);
+  });
+
+  it('caps the affected partners at four, like the mission', () => {
+    const w = landedWorld('go-public-cap', 6);
+    const proven = traceOperationIncidents(capturedSpyEvidence(w), w.targetId).state;
+    const result = goPublicAboutIncident(proven, w.targetId, incidentIdOf(proven, w.targetId));
+    expect(result.ok && result.partnerCivIds).toEqual(w.partnerIds.slice(0, 4));
+  });
+
+  it('is a decision, not a stockpile: available through the next turn, then expired', () => {
+    const w = landedWorld('go-public-expiry');
+    const traced = traceOperationIncidents(capturedSpyEvidence(w), w.targetId).state;
+    const id = incidentIdOf(traced, w.targetId);
+    expect(getGoPublicDenial({ ...traced, turn: traced.turn + 1 }, w.targetId, id)).toBeNull();
+    expect(getGoPublicDenial({ ...traced, turn: traced.turn + 2 }, w.targetId, id)).toBe('expired');
+  });
+
+  it('offers nothing when the culprit has no partners to turn (no dead button)', () => {
+    const w = landedWorld('go-public-no-partners', 0);
+    const traced = traceOperationIncidents(capturedSpyEvidence(w), w.targetId).state;
+    expect(getGoPublicDenial(traced, w.targetId, incidentIdOf(traced, w.targetId))).toBe('no-partners');
+  });
+
+  it('a hot-seat viewer who is not the victim sees none of the incidents', () => {
+    const w = landedWorld('go-public-hotseat');
+    const traced = traceOperationIncidents(capturedSpyEvidence(w), w.targetId).state;
+    expect(getEspionagePanelData({ ...traced, currentPlayer: w.attackerId }).tracedIncidents).toEqual([]);
+  });
+
+  it('the notices reach only the intended parties', () => {
+    const w = landedWorld('go-public-notices');
+    const calls: Array<{ civId: string; message: string }> = [];
+    const sink = (civId: string, message: string) => { calls.push({ civId, message }); };
+    routeIncidentTraced(w.state, { civId: w.targetId, incidentId: 'x', actorCivId: w.attackerId, missionType: 'cyber_attack', cityId: w.cityId }, sink);
+    expect(calls.map(c => c.civId)).toEqual([w.targetId]);
+    calls.length = 0;
+    routeWentPublic(w.state, { civId: w.targetId, culpritCivId: w.attackerId, partnerCivIds: w.partnerIds, missionType: 'cyber_attack' }, sink);
+    expect(calls.map(c => c.civId).sort()).toEqual([w.targetId, w.attackerId, ...w.partnerIds].sort());
+  });
+
+  it('a save from before the field loads and plays a turn unchanged (additive, no migration)', () => {
+    const fixture = makeFixture('go-public-old-save');
+    expect(fixture.base.espionage![fixture.targetId].attributedIncidents).toBeUndefined();
+    const next = processEspionageTurn({ ...fixture.base, turn: 3 }, new EventBus());
+    expect(next.espionage![fixture.targetId].attributedIncidents).toBeUndefined();
   });
 });

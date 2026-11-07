@@ -21,7 +21,9 @@ export type EspionageNotificationEventType =
   | 'espionage:official-bribed'
   | 'espionage:scandal-exposed'
   | 'espionage:intel-report-acquired'
-  | 'espionage:operation-landed';
+  | 'espionage:operation-landed'
+  | 'espionage:incident-traced'
+  | 'espionage:went-public';
 
 export type EspionageNotificationEvent =
   | (GameEvents['espionage:sabotage-relief-discovered'] & { type: 'espionage:sabotage-relief-discovered' })
@@ -30,7 +32,9 @@ export type EspionageNotificationEvent =
   | (GameEvents['espionage:official-bribed'] & { type: 'espionage:official-bribed' })
   | (GameEvents['espionage:scandal-exposed'] & { type: 'espionage:scandal-exposed' })
   | (GameEvents['espionage:intel-report-acquired'] & { type: 'espionage:intel-report-acquired' })
-  | (GameEvents['espionage:operation-landed'] & { type: 'espionage:operation-landed' });
+  | (GameEvents['espionage:operation-landed'] & { type: 'espionage:operation-landed' })
+  | (GameEvents['espionage:incident-traced'] & { type: 'espionage:incident-traced' })
+  | (GameEvents['espionage:went-public'] & { type: 'espionage:went-public' });
 
 /**
  * The part a recipient plays in an event. The router maps this to copy; it is never
@@ -52,6 +56,8 @@ export const ESPIONAGE_NOTIFICATION_EVENT_TYPES = [
   'espionage:scandal-exposed',
   'espionage:intel-report-acquired',
   'espionage:operation-landed',
+  'espionage:incident-traced',
+  'espionage:went-public',
 ] as const satisfies readonly EspionageNotificationEventType[];
 
 /**
@@ -97,6 +103,14 @@ export function getEspionageNotificationAudience(
       return dedupe([
         { civId: event.civId, role: 'actor' },
         { civId: event.targetCivId, role: 'target' },
+      ]);
+    case 'espionage:incident-traced':
+      return [{ civId: event.civId, role: 'target' }];
+    case 'espionage:went-public':
+      return dedupe([
+        { civId: event.civId, role: 'actor' },
+        { civId: event.culpritCivId, role: 'target' },
+        ...event.partnerCivIds.map((civId): EspionageRecipient => ({ civId, role: 'partner' })),
       ]);
   }
 }

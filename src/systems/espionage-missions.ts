@@ -15,6 +15,7 @@ import { hexDistance } from './hex-utils';
 import { getCapitalCityId } from './capital-system';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
 import { getActiveCrisisForCiv } from './crisis-interaction-definitions';
+import { getScandalPartnerIds } from './espionage-scandal';
 import { getMissionDuration, missionRequiresPlacedSpy } from './espionage-catalog';
 
 /**
@@ -192,11 +193,8 @@ const TROOP_MONITOR_RADIUS = 4;
 // cripple a city/civ from one successful spy action").
 const BRIBE_GOLD_FRACTION = 0.15;
 const BRIBE_GOLD_CAP = 200;
-// #442 MR2 expose_scandal: bounded per-partner penalty and a cap on affected partners so
-// a maximally-connected civ can't be devastated in one mission (game-balance.md "never
-// permanently cripple a city/civ from one successful spy action").
-export const EXPOSE_SCANDAL_PENALTY = -10;
-const EXPOSE_SCANDAL_MAX_PARTNERS = 4;
+// expose_scandal's penalty, partner cap and partner selection live in espionage-scandal (shared with Go public, #419).
+export { EXPOSE_SCANDAL_PENALTY } from './espionage-scandal';
 
 export function resolveMissionResult(
   missionType: SpyMissionType,
@@ -391,18 +389,8 @@ export function resolveMissionResult(
     // "not always optimal" shape as fund_rebels' unrestLevel guard. Deterministic partner
     // selection (sorted, capped) keeps the advertised "up to 4 partners" bound honest.
     case 'expose_scandal': {
-      const targetCiv = gameState.civilizations[targetCivId];
-      if (!targetCiv) return {};
-      const partners = new Set<string>();
-      for (const treaty of targetCiv.diplomacy.treaties) {
-        const partner = treaty.civA === targetCivId ? treaty.civB : treaty.civA;
-        if (partner === targetCivId || partner === spyingCivId) continue;
-        if (!gameState.civilizations[partner]) continue; // major civs only
-        partners.add(partner);
-      }
-      if (partners.size === 0) return {};
-      const exposedPartnerCivIds = [...partners].sort().slice(0, EXPOSE_SCANDAL_MAX_PARTNERS);
-      return { exposedPartnerCivIds };
+      const exposedPartnerCivIds = getScandalPartnerIds(gameState, targetCivId, spyingCivId);
+      return exposedPartnerCivIds.length === 0 ? {} : { exposedPartnerCivIds };
     }
 
     // signals_intercept (#442 MR2): generalizes monitor_troops from a single city's

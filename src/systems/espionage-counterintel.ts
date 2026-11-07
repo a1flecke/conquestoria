@@ -1,7 +1,8 @@
 import type { DetectedSpyThreat, EspionageCivState, EspionageState, GameState } from '@/core/types';
 import type { DiplomacyState } from '@/core/types/diplomacy';
-import type { OperationLandedEvent } from '@/core/types/espionage-incident';
+import type { IncidentTracedEvent, OperationIncident, OperationLandedEvent } from '@/core/types/espionage-incident';
 import { modifyRelationship } from './diplomacy-state';
+import { EXPOSE_SCANDAL_PENALTY, getScandalPartnerIds } from './espionage-scandal';
 import { createRng } from './map-generator';
 
 /**
@@ -243,4 +244,138 @@ export function getOperationAttribution(
   if (actorSpies.some(s => s.status === 'captured' && s.targetCivId === viewerId && s.targetCityId === event.cityId)) return 'confirmed';
   if (Object.values(viewerEsp?.spies ?? {}).some(s => s.status === 'embedded' && s.targetCityId === event.cityId)) return 'suspected';
   return 'unknown';
+}
+
+// --- Caught in the Act: incident ledger and "Go public" (#419, PR 2) ---
+
+/** At most this many incidents are kept per victim; the oldest are dropped first. */
+const MAX_INCIDENTS_PER_CIV = 8;
+
+export function getIncidentId(event: Pick<OperationLandedEvent, 'civId' | 'cityId' | 'missionType'>, turn: number): string {
+  return `${turn}:${event.civId}:${event.cityId ?? 'empire'}:${event.missionType}`;
+}
+
+/**
+ * Remember a landed operation on the VICTIM's own record so evidence that arrives later can still be matched to it.
+ * The actor is stored but never surfaced until `tracedTurn` is set. Returns a new state; idempotent per incident id.
+ */
+export function recordOperationIncident(state: GameState, event: OperationLandedEvent): GameState {
+  const id = getIncidentId(event, state.turn);
+  const victim = state.espionage?.[event.targetCivId] ?? { spies: {}, maxSpies: 0, counterIntelligence: {} };
+  if (victim.attributedIncidents?.[id]) return state;
+  const confirmedNow = getOperationAttribution(state, event.targetCivId, event) === 'confirmed';
+  const incident: OperationIncident = {
+    id, actorCivId: event.civId, targetCivId: event.targetCivId, cityId: event.cityId,
+    missionType: event.missionType, landedTurn: state.turn,
+    ...(confirmedNow ? { tracedTurn: state.turn } : {}),
+  };
+  const kept = Object.values({ ...(victim.attributedIncidents ?? {}), [id]: incident })
+    .sort((a, b) => b.landedTurn - a.landedTurn || a.id.localeCompare(b.id))
+    .slice(0, MAX_INCIDENTS_PER_CIV);
+  return {
+    ...state,
+    espionage: {
+      ...(state.espionage ?? {}),
+      [event.targetCivId]: { ...victim, attributedIncidents: Object.fromEntries(kept.map(i => [i.id, i])) },
+    },
+  };
+}
+
+/**
+ * Transition-owned reveal: any incident of `victimId` that has just become confirmed (a spy was caught, a threat
+ * detected) is stamped with this turn and returned once. Steady-state calls return no events.
+ */
+export function traceOperationIncidents(
+  state: GameState,
+  victimId: string,
+): { state: GameState; traced: IncidentTracedEvent[] } {
+  const victim = state.espionage?.[victimId];
+  const incidents = victim?.attributedIncidents;
+  if (!victim || !incidents) return { state, traced: [] };
+  const traced: IncidentTracedEvent[] = [];
+  const next: Record<string, OperationIncident> = {};
+  for (const incident of Object.values(incidents)) {
+    const evidence = { civId: incident.actorCivId, targetCivId: victimId, cityId: incident.cityId ?? '' };
+    if (incident.tracedTurn === undefined && getOperationAttribution(state, victimId, evidence) === 'confirmed') {
+      next[incident.id] = { ...incident, tracedTurn: state.turn };
+      traced.push({ civId: victimId, incidentId: incident.id, actorCivId: incident.actorCivId, missionType: incident.missionType, cityId: incident.cityId });
+    } else {
+      next[incident.id] = incident;
+    }
+  }
+  if (traced.length === 0) return { state, traced };
+  return { state: { ...state, espionage: { ...state.espionage, [victimId]: { ...victim, attributedIncidents: next } } }, traced };
+}
+
+/** Go public is available through the end of the victim's next turn after the evidence arrived. */
+export function getGoPublicExpiryTurn(incident: OperationIncident): number | null {
+  return incident.tracedTurn === undefined ? null : incident.tracedTurn + 1;
+}
+
+export type GoPublicDenialReason = 'not-found' | 'not-owner' | 'not-confirmed' | 'already-used' | 'expired' | 'no-partners';
+
+export const GO_PUBLIC_DENIAL_MESSAGES: Record<GoPublicDenialReason, string> = {
+  'not-found': 'There is no such incident on your record.',
+  'not-owner': 'That incident was not committed against you.',
+  'not-confirmed': 'You do not have proof of who was behind it yet.',
+  'already-used': 'You have already gone public about this incident.',
+  'expired': 'The moment has passed; the story is old news.',
+  'no-partners': 'They have no treaty partners whose opinion this could change.',
+};
+
+/** The one eligibility source for Go public; the panel's offer and the executor both ask it. */
+export function getGoPublicDenial(state: GameState, victimId: string, incidentId: string): GoPublicDenialReason | null {
+  const incident = state.espionage?.[victimId]?.attributedIncidents?.[incidentId];
+  if (!incident) return 'not-found';
+  if (incident.targetCivId !== victimId) return 'not-owner';
+  if (incident.usedTurn !== undefined) return 'already-used';
+  const expiry = getGoPublicExpiryTurn(incident);
+  if (expiry === null) return 'not-confirmed';
+  if (state.turn > expiry) return 'expired';
+  if (getScandalPartnerIds(state, incident.actorCivId, victimId).length === 0) return 'no-partners';
+  return null;
+}
+
+export type GoPublicResult =
+  | { ok: true; state: GameState; culpritCivId: string; partnerCivIds: string[]; missionType: OperationIncident['missionType'] }
+  | { ok: false; reason: GoPublicDenialReason };
+
+/**
+ * Tell the world who struck you. Reuses expose_scandal's penalty and partner cap exactly (no new numbers), once per
+ * confirmed incident. Re-checks `getGoPublicDenial` before its first write. Human and AI use this same function.
+ */
+export function goPublicAboutIncident(state: GameState, victimId: string, incidentId: string): GoPublicResult {
+  const denial = getGoPublicDenial(state, victimId, incidentId);
+  if (denial) return { ok: false, reason: denial };
+  const victim = state.espionage![victimId];
+  const incident = victim.attributedIncidents![incidentId];
+  const partnerCivIds = getScandalPartnerIds(state, incident.actorCivId, victimId);
+  const civilizations = { ...state.civilizations };
+  for (const partnerId of partnerCivIds) {
+    civilizations[incident.actorCivId] = {
+      ...civilizations[incident.actorCivId],
+      diplomacy: modifyRelationship(civilizations[incident.actorCivId].diplomacy, partnerId, EXPOSE_SCANDAL_PENALTY),
+    };
+    civilizations[partnerId] = {
+      ...civilizations[partnerId],
+      diplomacy: modifyRelationship(civilizations[partnerId].diplomacy, incident.actorCivId, EXPOSE_SCANDAL_PENALTY),
+    };
+  }
+  return {
+    ok: true,
+    culpritCivId: incident.actorCivId,
+    partnerCivIds,
+    missionType: incident.missionType,
+    state: {
+      ...state,
+      civilizations,
+      espionage: {
+        ...state.espionage,
+        [victimId]: {
+          ...victim,
+          attributedIncidents: { ...victim.attributedIncidents, [incidentId]: { ...incident, usedTurn: state.turn } },
+        },
+      },
+    },
+  };
 }
