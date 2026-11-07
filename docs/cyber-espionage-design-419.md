@@ -6,12 +6,14 @@ carries this file. Everything below was read from source on that commit; test fi
 ## 1. Verdict
 
 1. Almost everything in #419 is already shipped, shipped under another name, or duplicates a shipped mechanic.
-2. The real weakness is not a missing attack. It is **counterplay and information**: the victim of most hostile spy operations
-   is never told, never told by whom, and the AI picks its operations without regard to the situation.
-3. Recommended first slice: an **Incident Report** (a victim-visible, attributed notice for hostile operations, with the AI choosing operations by
-   situation). It adds no new yield penalty and no new state.
-4. The strongest *mechanic* I could construct (a paid "Restore Services" defence) is **redundant with rush-buy** and is rejected (section 5).
-5. Park the rest of the brainstorm. Hold two defence ideas in reserve until the Incident Report exists, because both need its attribution.
+2. The real weakness is not a missing attack. It is **counterplay, information and payoff**: the victim of most hostile spy operations
+   is never told, never told by whom, the attacker gets no "it worked" moment, and the AI picks its operations without regard to the situation.
+3. Recommended arc, revised after a fun review (section 12): **Caught in the Act**. PR 1 gives both sides a moment (the attacker's confirmation, the
+   victim's alert with its existing counter), PR 2 turns attribution into a reveal plus one response, PR 3 gives the AI grudges. PR 1 adds no new rule
+   and no new state; PR 2 adds one rule and needs owner approval.
+4. The strongest *new defence* I could construct (a paid "Restore Services") is **redundant with rush-buy** and is rejected (section 5). Its fun
+   (the "pay up or wait it out" moment) is kept by surfacing rush-buy in the alert instead.
+5. Park the rest of the brainstorm. New cyber attacks would mostly reach late-game players (eras 10-13); the fixes here reach earlier missions too.
 
 ## 2. Current implementation inventory
 
@@ -54,7 +56,10 @@ Production is locked through `isCityProductionLocked`, read by `city-production.
    Wonders and unfunded items cannot be bought. So a lockout is already answerable at a steep, intended price.
 5. **Two disruption timers are single-slot and refresh, not stack.** `productionDisabledTurns` is assigned (not added) and
    `researchPenaltyTurns` is assigned. A second success refreshes to the full duration. There is no stacking risk, but there is no cap on refresh frequency beyond the 45%/55% success roll, the spy's risk and the mission duration.
-6. **The Cyber Defense Center is described as blocking only cyber-unit drain** (`city-building-catalog.ts`) while it also carries spy-mission
+6. **The attacker gets no payoff moment either.** A grep of `src/ui`, `src/presentation` and `src/app` finds nothing that reacts to a
+   successful mission, so a player who spends a spy for two turns on `cyber_attack` sees no "it worked" notice. (Grep only; the spy panel may
+   still show the spy returning to idle. PR 1 starts by pinning what the attacker currently sees.)
+7. **The Cyber Defense Center is described as blocking only cyber-unit drain** (`city-building-catalog.ts`) while it also carries spy-mission
    modifiers. Player-facing text under-describes the shipped behaviour (a `content-description-honesty.md` item, out of scope here).
 
 ## 4. Classification of every #419 proposal
@@ -158,9 +163,9 @@ Information leaks: the only new read of hidden data (the actor id) is confined t
 
 ## 8. Implementation roadmap
 
-Two reviewable PRs (the five candidate phases collapse because nothing here needs a new resolution engine).
+Three reviewable PRs (the five candidate phases collapse because nothing here needs a new resolution engine). Each is playable on its own.
 
-**PR 1: Incident Report (information).**
+**PR 1: Caught in the Act notices (information; no new rule).**
 Likely files: `src/core/types.ts` (event), `src/systems/espionage-notification-audience.ts`, `src/systems/espionage-turn.ts` (emit from the existing consequence),
 `src/systems/espionage-attribution.ts` (new, pure), `src/presentation/register-espionage-presentation.ts`, `src/ui/city-panel.ts`, the research readout, `src/systems/strategic-assessment.ts`,
 `docs/action-contract-inventory.md`.
@@ -173,27 +178,77 @@ Assertions:
 - negative: no war requirement is added (characterization pin of finding 2).
 Acceptance: no change to any state byte for an unattended strike; `round-phase-order` literals unchanged; build, regular tests, and `verify-impact` evidence green.
 
-**PR 2: AI mission choice (decision quality).** Route the infiltrated-spy block through `chooseAiMission`; add the target filter. Assertions: deterministic choice per seed; no read of foreign
-hidden state (a differential test with fog); `ai-espionage.test.ts` extended; `ai-long` and `ai-playability` evidence because behaviour changes.
+PR 1 also carries the two fun pieces from section 12: the attacker's confirmation (actor role, same event) and, in the victim's lockout alert, the
+existing counter with its live price ("Rush-buy to break the lock: N gold", from `getRushBuyQuote`, or "Wonders cannot be bought" from its own reason).
+Extra assertions: the attacker is told exactly once, with the real effect; the quoted price equals `getRushBuyQuote` for the same state; a wonder city
+shows the refusal reason instead of a price.
+
+**PR 2: Caught in the Act (reveal and response; needs owner decision 3).** A *confirmed* attribution becomes its own reveal notice ("Your agents traced
+the attack on <city> to <civ>") the moment the evidence exists (a captured spy), not only at strike time. The victim then gets **one** response per
+confirmed incident: **Go public**. It reuses `expose_scandal`'s consequence shape and bounds exactly (`EXPOSE_SCANDAL_PENALTY`, at most four of the
+culprit's treaty partners, deterministic order), so no new number is invented. It is a paired query and executor (`getGoPublicDenial` /
+`goPublicAboutIncident`) with typed denials (`not-confirmed`, `already-used`, `expired`, `not-owner`), listed in `docs/action-contract-inventory.md`.
+Availability window: until the end of the victim's next turn, so it is a decision, not a stockpile. State: one optional per-civ incident record
+(`attributedIncidents`) needed to know "confirmed, unused, not expired"; additive and absent on old saves, so no migration (proof test required).
+Assertions: an unconfirmed or third-party civ cannot use it; it fires once; human and AI use the same pair; hot-seat differential.
+
+**PR 3: AI with grudges (needs owner decision 4).** Route the infiltrated-spy block through `chooseAiMission`, and give the target filter a memory:
+an AI prefers to target the civ that most recently hit it (from its own confirmed incidents) or that it is at war with, and it uses Go public when it holds
+a confirmed incident. All inputs are the AI's own knowledge. Assertions: deterministic per seed; no read of foreign hidden state (fog differential);
+`ai-espionage.test.ts` extended; `ai-long` and `ai-playability` evidence because behaviour changes.
 
 Not planned: any new attack, any new defence building, any change to a lockout, drain or penalty number.
 
 ## 9. Risks and alternatives
 
-- Notification volume at era 12+ (many hostile missions): coalesce per `(actor, target, mission)` per round; reuse the existing log cap.
+- Notification volume is a fun risk, not a footnote: a wall of alerts in the late game is worse than silence. Coalesce per `(actor, target)` per round
+  into one notice listing the effects, and keep the reveal (PR 2) as the only notice that interrupts. Reuse the existing log cap.
+- Go public could become a free kill switch on a civ with many treaties. Bounded by reusing `expose_scandal`'s cap and penalty, once per confirmed
+  incident, and only with real evidence (a captured spy).
 - Attribution accuracy: the `suspected` tier can be wrong only in the sense of being incomplete; it must never name a wrong civ. Tested.
 - Alternative: skip PR 1 and ship only the AI fix. Cheaper, but leaves the trust defect.
 - Alternative: close #419 now. Defensible; the reserve ideas are low-value without attribution.
 
 ## 10. Owner decisions (maximum five)
 
-1. Park and close the speculative brainstorm in #419 once PR 1 merges, or keep it open for the reserve ideas?
-2. Should disruption spy missions require war or a hostile relationship, or stay open-season and instead cost relationship when attributed? (Rule change; not assumed here.)
-3. Attribution policy: are the two evidence tiers acceptable, or should a hit always name its actor?
-4. Approve PR 2's change to the AI mission selection (it moves long-horizon baselines)?
-5. After PR 1 is played, which reserve idea, if any: air-gap isolation or retaliation by attribution?
+1. Park and close the speculative brainstorm in #419 once PR 1 merges, or keep it open for air-gap isolation?
+2. Should disruption spy missions require war or a hostile relationship, or stay open-season (with Go public as the diplomatic cost when caught)? (Rule change; not assumed here.)
+3. Approve PR 2: the confirmed-attribution reveal and the single Go public response, reusing `expose_scandal`'s bounds?
+4. Approve PR 3: AI grudges and the AI's use of Go public (moves long-horizon baselines)?
+5. Attribution policy: are the unknown / suspected / confirmed tiers right, or should a hit always name its actor?
 
 ## 11. Status of the rules used
 
 Existing approved rules relied on: `action-contracts.md` (one legality source, typed denials), `caller-discipline.md` (audience contract), `end-to-end-wiring.md` (compute-must-render and
-informational-mission persistence), `ui-panels.md` viewer safety, `game-systems.md` determinism and save classification. The recommendations in sections 6-8 are proposals and need owner authorization.
+informational-mission persistence), `ui-panels.md` viewer safety, `game-systems.md` determinism and save classification. The recommendations in sections 6-8 and 12 are proposals and need owner authorization.
+
+## 12. Fun review (revision, 2026-11-07)
+
+The first draft fixed the plumbing and pushed the fun into reserve. Judged for fun, lovability and excitement:
+
+- **Right priority, wrong framing.** For a family audience, a city that silently stops building feels like a bug. Explaining it is the biggest
+  lovability gain available, but on its own it is hygiene, not excitement.
+- **Espionage is fun as a loop: suspicion, reveal, response.** The first draft delivered only the notice. The revised arc delivers the loop:
+  PR 1 the notice (and a moment for the attacker), PR 2 the reveal and one response, PR 3 an AI that remembers.
+- **Landing a hit should feel good.** Finding 6: the attacker gets no confirmation. "Their factories are dark for 3 turns" is the cheapest fun in this report.
+- **Ransomware's fun was the hostage moment, not the mechanic.** Rush-buy already is "pay up or wait it out"; the alert names it with its live price,
+  so the drama comes back with no new rule.
+- **Suspicion is a feature.** In hot-seat, "a hostile operator" between siblings or partners becomes a who-did-it game; catching the spy pays off with the reveal.
+- **Reach matters.** Cyber missions start at eras 10-13, which few family campaigns reach. The arc covers earlier missions (sabotage, tech theft,
+  unrest) too, so most players feel it. New cyber-only attacks would delight few players and are not recommended.
+- **The AI should be a nemesis, not noise.** Random mission picks are invisible; an AI that targets whoever hit it, and gets named when caught, has a personality.
+
+Revised sequence: PR 1 Caught in the Act notices (no new rule), PR 2 reveal + Go public (one rule, owner decision 3), PR 3 AI grudges (owner decision 4).
+
+### Copyable first implementation prompt (PR 1 only; do not start PR 2 or 3 without approval)
+
+> In conquestoria, implement PR 1 of `docs/cyber-espionage-design-419.md` (#419) in a fresh worktree. Scope: notifications only, no new rule, no new
+> persisted state, no change to any effect or number. (1) Characterization tests first: which successful hostile missions currently notify nobody
+> (`cyber_attack`, `misinformation_campaign`, `sabotage_production`, `steal_tech`, `incite_unrest`, `forge_documents`), what the attacker sees today,
+> and that hostile missions need no war. (2) Add `espionage:operation-landed` from the existing `mission_succeeded` consequence in `espionage-turn.ts`,
+> registered in the #1201 audience contract with actor and target roles, coalesced per (actor, target) per round. (3) A pure viewer-safe
+> `getOperationAttribution` (unknown / suspected / confirmed from captured spies and embedded counter-spies), tested with `expectViewerSafety` and
+> `expectHotSeatDifferential`. (4) Copy: the attacker's confirmation with the real effect; the victim's alert with the real effect and, for a lockout, the
+> live `getRushBuyQuote` price or its refusal reason; cause lines in the city panel, research readout and strategic assessment. `textContent` only.
+> (5) Prove a pre-change save loads and plays unchanged; `round-phase-order` literals unchanged. Run `./scripts/dev.sh verify-impact`, build and tests;
+> open one PR, do not merge.
