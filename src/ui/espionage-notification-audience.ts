@@ -20,7 +20,8 @@ export type EspionageNotificationEventType =
   | 'espionage:courier-intercepted'
   | 'espionage:official-bribed'
   | 'espionage:scandal-exposed'
-  | 'espionage:intel-report-acquired';
+  | 'espionage:intel-report-acquired'
+  | 'espionage:operation-landed';
 
 export type EspionageNotificationEvent =
   | (GameEvents['espionage:sabotage-relief-discovered'] & { type: 'espionage:sabotage-relief-discovered' })
@@ -28,7 +29,8 @@ export type EspionageNotificationEvent =
   | (GameEvents['espionage:courier-intercepted'] & { type: 'espionage:courier-intercepted' })
   | (GameEvents['espionage:official-bribed'] & { type: 'espionage:official-bribed' })
   | (GameEvents['espionage:scandal-exposed'] & { type: 'espionage:scandal-exposed' })
-  | (GameEvents['espionage:intel-report-acquired'] & { type: 'espionage:intel-report-acquired' });
+  | (GameEvents['espionage:intel-report-acquired'] & { type: 'espionage:intel-report-acquired' })
+  | (GameEvents['espionage:operation-landed'] & { type: 'espionage:operation-landed' });
 
 /**
  * The part a recipient plays in an event. The router maps this to copy; it is never
@@ -49,6 +51,7 @@ export const ESPIONAGE_NOTIFICATION_EVENT_TYPES = [
   'espionage:official-bribed',
   'espionage:scandal-exposed',
   'espionage:intel-report-acquired',
+  'espionage:operation-landed',
 ] as const satisfies readonly EspionageNotificationEventType[];
 
 /**
@@ -90,6 +93,11 @@ export function getEspionageNotificationAudience(
       ]);
     case 'espionage:intel-report-acquired':
       return [{ civId: event.civId, role: 'actor' }];
+    case 'espionage:operation-landed':
+      return dedupe([
+        { civId: event.civId, role: 'actor' },
+        { civId: event.targetCivId, role: 'target' },
+      ]);
   }
 }
 

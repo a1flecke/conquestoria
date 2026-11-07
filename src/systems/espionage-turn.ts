@@ -23,7 +23,7 @@ import { applyInteractionReputation, getCrisisInteractionDefinition } from './cr
 import { EXPULSION_COOLDOWN, ESPIONAGE_TECH_MAX_SPIES, getMissionXp } from './espionage-catalog';
 import { getEspionageModifierBreakdown, getSpySuccessChance } from './espionage-probability';
 import { handleSpyCaptured, handleSpyExpelled, turnCapturedSpy } from './espionage-counterintel';
-import { EXPOSE_SCANDAL_PENALTY, resolveMissionResult } from './espionage-missions';
+import { EXPOSE_SCANDAL_PENALTY, buildOperationEffect, isOperationMission, resolveMissionResult } from './espionage-missions';
 import { checkAndApplyPromotion } from './espionage-spy-lifecycle';
 
 /**
@@ -668,6 +668,21 @@ function applySpyTurnEvents(
             state.espionage![civId] = updatedEsp;
             bus.emit('espionage:intel-report-acquired', {
               civId, spyId: evt.spyId, missionType: evt.missionType, targetCivId,
+            });
+          }
+        }
+
+        // Hostile operations (#419): announce a disruption that actually changed something, once, after its effect is applied
+        // above. The effect text is built from the mission's own result; an operation that changed nothing announces nothing.
+        if (isOperationMission(evt.missionType!)) {
+          const originalSpy = civEspBefore.spies[evt.spyId];
+          const targetCivId = originalSpy?.targetCivId;
+          const cityId = originalSpy?.targetCityId ?? null;
+          const effect = buildOperationEffect(evt.missionType, result);
+          const cityScoped = evt.missionType !== 'misinformation_campaign' && evt.missionType !== 'steal_tech';
+          if (effect && targetCivId && state.civilizations[targetCivId] && (!cityScoped || (cityId && state.cities[cityId]))) {
+            bus.emit('espionage:operation-landed', {
+              civId, targetCivId, missionType: evt.missionType, cityId: cityScoped ? cityId : null, effect,
             });
           }
         }

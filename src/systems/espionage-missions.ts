@@ -9,6 +9,7 @@ import type {
 } from '@/core/types';
 import type { AdvisorType } from '@/core/types/council';
 import type { Treaty } from '@/core/types/diplomacy';
+import type { OperationEffect, OperationMissionType } from '@/core/types/espionage-incident';
 import { createRng } from './map-generator';
 import { hexDistance } from './hex-utils';
 import { getCapitalCityId } from './capital-system';
@@ -473,5 +474,33 @@ export function resolveMissionResult(
 
     default:
       return {};
+  }
+}
+
+// --- Hostile-operation notices (#419, PR 1) ---
+// Pure reads: the notice text is built from the mission's own result, so it can never drift from the mechanic.
+const OPERATION_MISSIONS: ReadonlySet<SpyMissionType> = new Set<OperationMissionType>([
+  'cyber_attack', 'misinformation_campaign', 'sabotage_production', 'steal_tech', 'incite_unrest',
+]);
+
+export function isOperationMission(type: SpyMissionType): type is OperationMissionType {
+  return OPERATION_MISSIONS.has(type);
+}
+
+/** Null when the mission changed nothing (for example no stealable tech, or nothing queued to sabotage): nothing to announce. */
+export function buildOperationEffect(type: OperationMissionType, result: MissionResult): OperationEffect | null {
+  switch (type) {
+    case 'cyber_attack':
+      return result.productionDisabledTurns ? { kind: 'production-lockout', turns: result.productionDisabledTurns } : null;
+    case 'misinformation_campaign':
+      return result.researchPenaltyTurns && result.researchPenaltyMultiplier !== undefined
+        ? { kind: 'research-penalty', turns: result.researchPenaltyTurns, percent: Math.round(result.researchPenaltyMultiplier * 100) }
+        : null;
+    case 'sabotage_production':
+      return result.productionLost ? { kind: 'progress-lost', amount: result.productionLost } : null;
+    case 'steal_tech':
+      return result.stolenTechId ? { kind: 'tech-stolen', techId: result.stolenTechId } : null;
+    case 'incite_unrest':
+      return result.unrestInjected ? { kind: 'unrest-injected', amount: result.unrestInjected } : null;
   }
 }

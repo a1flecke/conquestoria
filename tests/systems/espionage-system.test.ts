@@ -30,10 +30,16 @@ import {
 import type { EspionageModifierQuery, TurnCapturedSpyCommand } from '@/systems/espionage-system';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { startMissionState } from '../helpers/espionage-mission';
-import { expectViewerSafety, type ViewerSurface } from '../helpers/viewer-safety';
+import { expectHotSeatDifferential, expectViewerSafety, type ViewerSurface } from '../helpers/viewer-safety';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
+import type { OperationLandedEvent } from '@/core/types/espionage-incident';
+import { buildOperationEffect, isOperationMission } from '@/systems/espionage-missions';
+import { getOperationAttribution } from '@/systems/espionage-counterintel';
+import { routeOperationLanded } from '@/ui/notification-routes/espionage-routes';
+import { assertSimulationEquivalent } from '../helpers/deterministic-state';
+
 
 // MR1: legacy fixture helper for tests that need a spy in state without going through city production
 function makeTestSpy(id: string, owner: string, overrides: Partial<Spy> = {}): Spy {
@@ -2112,5 +2118,284 @@ describe('spy unit definitions', () => {
     const types = visible.map(u => u.type);
     expect(types).not.toContain('spy_scout');
     expect(types).toContain('spy_informant');
+  });
+});
+
+interface Fixture { base: GameState; attackerId: string; targetId: string; cityId: string }
+
+/** A stationed spy of `player` inside a city of another civ. Nobody is at war: that is the point of the characterization test. */
+function makeFixture(seed: string, queue: string[] = ['warrior']): Fixture {
+  let state = createNewGame(undefined, seed, 'small');
+  const attackerId = 'player';
+  const targetId = Object.keys(state.civilizations).find(id => id !== attackerId)!;
+  const startPos = state.units[state.civilizations[targetId].units[0]].position;
+  const city = { ...foundCity(targetId, startPos, state.map, state.idCounters), productionQueue: queue };
+  state = {
+    ...state,
+    cities: { ...state.cities, [city.id]: city },
+    civilizations: {
+      ...state.civilizations,
+      [targetId]: { ...state.civilizations[targetId], cities: [city.id], gold: 200 },
+    },
+    espionage: {
+      ...state.espionage,
+      [attackerId]: {
+        ...createEspionageCivState(),
+        spies: { 'spy-1': makeTestSpy('spy-1', attackerId, { status: 'stationed', targetCivId: targetId, targetCityId: city.id, position: city.position }) },
+      },
+      [targetId]: createEspionageCivState(),
+    },
+  };
+  return { base: state, attackerId, targetId, cityId: city.id };
+}
+
+function withMission(fixture: Fixture, mission: SpyMissionType, turn: number): GameState {
+  const esp = startMissionState(fixture.base.espionage![fixture.attackerId], 'spy-1', mission);
+  esp.spies['spy-1'].currentMission!.turnsRemaining = 1;
+  return { ...fixture.base, turn, espionage: { ...fixture.base.espionage, [fixture.attackerId]: esp } };
+}
+
+/** Runs the real espionage turn across seeds until the mission lands; returns the result and every operation event it emitted. */
+function runUntilLanded(fixture: Fixture, mission: SpyMissionType) {
+  for (let turn = 1; turn <= 300; turn++) {
+    const bus = new EventBus();
+    const landed: OperationLandedEvent[] = [];
+    bus.on('espionage:operation-landed', e => landed.push(e));
+    const state = processEspionageTurn(withMission(fixture, mission, turn), bus);
+    if (landed.length > 0) return { state, landed, turn };
+  }
+  return null;
+}
+
+describe('hostile operation notices (#419)', () => {
+  it('characterization: a hostile mission lands with no war and no relationship requirement', () => {
+    const fixture = makeFixture('incident-no-war');
+    expect(fixture.base.civilizations[fixture.attackerId].diplomacy.atWarWith).toEqual([]);
+    const outcome = runUntilLanded(fixture, 'cyber_attack');
+    expect(outcome).not.toBeNull();
+    expect(outcome!.state.cities[fixture.cityId].productionDisabledTurns).toBe(3);
+  });
+
+  it('cyber_attack announces the real lockout exactly once and only after it is applied', () => {
+    const fixture = makeFixture('incident-cyber');
+    const outcome = runUntilLanded(fixture, 'cyber_attack')!;
+    expect(outcome.landed).toHaveLength(1);
+    expect(outcome.landed[0]).toEqual({
+      civId: fixture.attackerId, targetCivId: fixture.targetId, missionType: 'cyber_attack',
+      cityId: fixture.cityId, effect: { kind: 'production-lockout', turns: 3 },
+    });
+    expect(outcome.state.cities[fixture.cityId].productionDisabledTurns).toBe(3);
+  });
+
+  it('misinformation_campaign states the real research penalty and is not city-scoped', () => {
+    const fixture = makeFixture('incident-misinfo');
+    const outcome = runUntilLanded(fixture, 'misinformation_campaign')!;
+    expect(outcome.landed[0]!.cityId).toBeNull();
+    expect(outcome.landed[0]!.effect).toEqual({ kind: 'research-penalty', turns: 10, percent: 20 });
+    expect(outcome.state.civilizations[fixture.targetId].researchPenaltyTurns).toBe(10);
+  });
+
+  it('announces nothing when the operation changed nothing (sabotage on an empty queue)', () => {
+    const fixture = makeFixture('incident-empty', []);
+    const bus = new EventBus();
+    const landed: unknown[] = [];
+    bus.on('espionage:operation-landed', e => landed.push(e));
+    for (let turn = 1; turn <= 120; turn++) processEspionageTurn(withMission(fixture, 'sabotage_production', turn), bus);
+    expect(landed).toEqual([]);
+  });
+
+  it('does not announce a failed attempt', () => {
+    const fixture = makeFixture('incident-fail');
+    let sawFailure = false;
+    for (let turn = 1; turn <= 300; turn++) {
+      const bus = new EventBus();
+      const landed: unknown[] = [];
+      bus.on('espionage:operation-landed', e => landed.push(e));
+      const result = processEspionageTurn(withMission(fixture, 'cyber_attack', turn), bus);
+      // A failed mission ends in capture or expulsion; the spy is no longer simply 'stationed'.
+      const status = result.espionage![fixture.attackerId].spies['spy-1']?.status;
+      if (status === 'captured' || status === 'cooldown') { sawFailure = true; expect(landed).toEqual([]); }
+    }
+    expect(sawFailure).toBe(true);
+  });
+
+  it('adds no state: the notice is an event only, so the resulting game state is identical with or without a listener (no save change)', () => {
+    const fixture = makeFixture('incident-no-state');
+    for (let turn = 1; turn <= 60; turn++) {
+      const quiet = processEspionageTurn(withMission(fixture, 'cyber_attack', turn), new EventBus());
+      const heard = new EventBus();
+      heard.on('espionage:operation-landed', () => {});
+      const listened = processEspionageTurn(withMission(fixture, 'cyber_attack', turn), heard);
+      assertSimulationEquivalent(listened, quiet);
+    }
+  });
+
+  it('only the five disruption missions are announced; intel missions are not', () => {
+    expect(['cyber_attack', 'misinformation_campaign', 'sabotage_production', 'steal_tech', 'incite_unrest'].every(m => isOperationMission(m as SpyMissionType))).toBe(true);
+    expect(isOperationMission('gather_intel')).toBe(false);
+    expect(isOperationMission('expose_scandal')).toBe(false);
+    expect(buildOperationEffect('steal_tech', {})).toBeNull();
+    expect(buildOperationEffect('cyber_attack', {})).toBeNull();
+  });
+});
+
+describe('attribution tiers (#419)', () => {
+  function attrFixture() {
+    const fixture = makeFixture('incident-attr');
+    const event = { civId: fixture.attackerId, targetCivId: fixture.targetId, cityId: fixture.cityId };
+    return { ...fixture, event };
+  }
+
+  it('is unknown with no evidence', () => {
+    const { base, event, targetId } = attrFixture();
+    expect(getOperationAttribution(base, targetId, event)).toBe('unknown');
+  });
+
+  it('is suspected with an embedded counter-spy in the struck city', () => {
+    const { base, event, targetId, cityId } = attrFixture();
+    const state: GameState = {
+      ...base,
+      espionage: { ...base.espionage, [targetId]: { ...createEspionageCivState(), spies: { 'cs-1': makeTestSpy('cs-1', targetId, { status: 'embedded', targetCityId: cityId }) } } },
+    };
+    expect(getOperationAttribution(state, targetId, event)).toBe('suspected');
+  });
+
+  it('is confirmed by a detected threat, and by a captured spy, but not by an expired threat or another city', () => {
+    const { base, event, targetId, attackerId, cityId } = attrFixture();
+    const withThreat = (cid: string, expires: number): GameState => ({
+      ...base,
+      espionage: { ...base.espionage, [targetId]: { ...createEspionageCivState(), detectedThreats: { t1: { cityId: cid, foreignCivId: attackerId, detectedTurn: 1, expiresOnTurn: expires } } } },
+    });
+    expect(getOperationAttribution(withThreat(cityId, base.turn + 5), targetId, event)).toBe('confirmed');
+    expect(getOperationAttribution(withThreat(cityId, base.turn - 1), targetId, event)).toBe('unknown');
+    expect(getOperationAttribution(withThreat('some-other-city', base.turn + 5), targetId, event)).toBe('unknown');
+    const captured: GameState = {
+      ...base,
+      espionage: { ...base.espionage, [attackerId]: { ...base.espionage![attackerId], spies: { 'spy-1': makeTestSpy('spy-1', attackerId, { status: 'captured', targetCivId: targetId, targetCityId: cityId }) } } },
+    };
+    expect(getOperationAttribution(captured, targetId, event)).toBe('confirmed');
+  });
+
+  it('a third civ and the attacker itself earn nothing', () => {
+    const { base, event, targetId, attackerId } = attrFixture();
+    const state: GameState = {
+      ...base,
+      espionage: { ...base.espionage, [targetId]: { ...createEspionageCivState(), detectedThreats: { t1: { cityId: event.cityId, foreignCivId: attackerId, detectedTurn: 1, expiresOnTurn: base.turn + 5 } } } },
+    };
+    const third = Object.keys(state.civilizations).find(id => id !== attackerId && id !== targetId) ?? 'third-civ';
+    expect(getOperationAttribution(state, third, event)).toBe('unknown');
+    expect(getOperationAttribution(state, attackerId, event)).toBe('unknown');
+  });
+});
+
+describe('notices as delivered (#419)', () => {
+  function deliver(state: GameState, event: OperationLandedEvent) {
+    const calls: Array<{ civId: string; message: string; type: string }> = [];
+    routeOperationLanded(state, event, (civId, message, type) => { calls.push({ civId, message, type }); });
+    return calls;
+  }
+
+  it('tells the attacker it worked and the victim what happened, each exactly once', () => {
+    const { base, attackerId, targetId, cityId } = makeFixture('incident-copy');
+    const event: OperationLandedEvent = { civId: attackerId, targetCivId: targetId, missionType: 'cyber_attack', cityId, effect: { kind: 'production-lockout', turns: 3 } };
+    const calls = deliver(base, event);
+    expect(calls.map(c => c.civId).sort()).toEqual([attackerId, targetId].sort());
+    const actor = calls.find(c => c.civId === attackerId)!;
+    const victim = calls.find(c => c.civId === targetId)!;
+    expect(actor.type).toBe('success');
+    expect(actor.message).toMatch(/cannot build for 3 turns/);
+    expect(victim.type).toBe('warning');
+    expect(victim.message).toMatch(/cannot build for 3 turns/);
+  });
+
+  it('the victim is not told who it was without evidence, and is with it', () => {
+    const { base, attackerId, targetId, cityId } = makeFixture('incident-who');
+    const attackerName = base.civilizations[attackerId].name;
+    const event: OperationLandedEvent = { civId: attackerId, targetCivId: targetId, missionType: 'misinformation_campaign', cityId: null, effect: { kind: 'research-penalty', turns: 10, percent: 20 } };
+    const blind = deliver(base, event).find(c => c.civId === targetId)!.message;
+    expect(blind).toMatch(/^A hostile operator struck\./);
+    expect(blind).not.toContain(attackerName);
+    const proven: GameState = {
+      ...base,
+      espionage: { ...base.espionage, [targetId]: { ...createEspionageCivState(), detectedThreats: { t1: { cityId, foreignCivId: attackerId, detectedTurn: 1, expiresOnTurn: base.turn + 5 } } } },
+    };
+    const named = deliver(proven, { ...event, cityId }).find(c => c.civId === targetId)!.message;
+    expect(named).toContain(attackerName);
+    expect(named).toMatch(/caught red-handed/);
+  });
+
+  it('a lockout alert quotes the live rush-buy price, equal to getRushBuyQuote', async () => {
+    const { getRushBuyQuote } = await import('@/systems/economy-system');
+    const { base, attackerId, targetId, cityId } = makeFixture('incident-hint');
+    const state: GameState = { ...base, cities: { ...base.cities, [cityId]: { ...base.cities[cityId], productionDisabledTurns: 3 } } };
+    const event: OperationLandedEvent = { civId: attackerId, targetCivId: targetId, missionType: 'cyber_attack', cityId, effect: { kind: 'production-lockout', turns: 3 } };
+    const quote = getRushBuyQuote(state, targetId, cityId);
+    const message = deliver(state, event).find(c => c.civId === targetId)!.message;
+    if (quote.available) expect(message).toContain(`${quote.cost} gold`);
+    else expect(message).toContain(`Rush-buy is not available: ${quote.message}`);
+    expect(message).toMatch(/rush-buy/i);
+  });
+
+  it('a wonder in progress gets the refusal, not a price', () => {
+    const { base, attackerId, targetId, cityId } = makeFixture('incident-wonder', ['legendary:some-wonder']);
+    const event: OperationLandedEvent = { civId: attackerId, targetCivId: targetId, missionType: 'cyber_attack', cityId, effect: { kind: 'production-lockout', turns: 3 } };
+    expect(deliver(base, event).find(c => c.civId === targetId)!.message).toMatch(/Wonders cannot be bought/);
+  });
+
+  it('no counter hint for effects that have none', () => {
+    const { base, attackerId, targetId, cityId } = makeFixture('incident-nohint');
+    const event: OperationLandedEvent = { civId: attackerId, targetCivId: targetId, missionType: 'misinformation_campaign', cityId, effect: { kind: 'research-penalty', turns: 10, percent: 20 } };
+    expect(deliver(base, event).find(c => c.civId === targetId)!.message).not.toMatch(/rush-buy/i);
+  });
+});
+
+const noticeSurface = (event: OperationLandedEvent): ViewerSurface<GameState, unknown> => ({
+  name: 'operation notice as delivered to the victim',
+  project: (world, viewerId) => {
+    const calls: string[] = [];
+    routeOperationLanded(world, event, (civId, message) => { if (civId === viewerId) calls.push(message); });
+    return calls;
+  },
+});
+
+describe('notice viewer safety (#419)', () => {
+  it('hot seat: evidence only the victim earned reaches the victim and never the attacker seat', () => {
+    const { base, attackerId, targetId, cityId } = makeFixture('incident-hotseat');
+    const event: OperationLandedEvent = { civId: attackerId, targetCivId: targetId, missionType: 'cyber_attack', cityId, effect: { kind: 'production-lockout', turns: 3 } };
+    expectHotSeatDifferential(noticeSurface(event), {
+      world: base,
+      viewers: [targetId, attackerId],
+      knownOnlyTo: targetId,
+      mutation: {
+        label: 'the victim detects the attacker\'s spy in the struck city',
+        apply: (w) => {
+          w.espionage![targetId].detectedThreats = { t1: { cityId, foreignCivId: attackerId, detectedTurn: w.turn, expiresOnTurn: w.turn + 5 } };
+        },
+      },
+    });
+  });
+
+  it('the victim cannot read attacker-only facts, and does read its own earned evidence', () => {
+    const { base, attackerId, targetId, cityId } = makeFixture('incident-safety');
+    const event: OperationLandedEvent = { civId: attackerId, targetCivId: targetId, missionType: 'misinformation_campaign', cityId: null, effect: { kind: 'research-penalty', turns: 10, percent: 20 } };
+    expectViewerSafety(noticeSurface({ ...event, cityId }), {
+      world: base,
+      viewerId: targetId,
+      hidden: [{
+        label: 'the attacker renames its spy and gains experience (unearned by the victim)',
+        apply: (w) => {
+          const spy = w.espionage![attackerId].spies['spy-1']!;
+          spy.name = 'Renamed';
+          spy.experience = 90;
+        },
+      }],
+      earned: [{
+        label: 'the victim detects a spy of the attacker in the struck city',
+        apply: (w) => {
+          const esp: EspionageCivState = w.espionage![targetId];
+          esp.detectedThreats = { t1: { cityId, foreignCivId: attackerId, detectedTurn: w.turn, expiresOnTurn: w.turn + 5 } };
+        },
+      }],
+    });
   });
 });

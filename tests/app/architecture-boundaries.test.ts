@@ -872,10 +872,14 @@ describe('#1009 — espionage-system decomposition boundaries', () => {
     expect(imports).not.toContain('espionage-state');
   });
 
-  it('presentation re-exports only the read surface (catalog + probability)', () => {
+  it('presentation re-exports only the read surface (catalog + probability + the one attribution query)', () => {
+    // #419: `getOperationAttribution` is a pure, viewer-scoped read (it returns a tier, never the actor). It is the single
+    // counterintelligence export the UI may reach; every mutation below stays out.
     expect([...new Set(siblingsOnly('espionage-presentation.ts'))].sort())
-      .toEqual(['espionage-catalog', 'espionage-probability']);
+      .toEqual(['espionage-catalog', 'espionage-counterintel', 'espionage-probability']);
     const src = readSys('espionage-presentation.ts');
+    expect(src.match(/export (?:type )?\{[^}]*\} from '\.\/espionage-counterintel'/g)?.join(' ').replace(/\s+/g, ' '))
+      .toBe("export { getOperationAttribution } from './espionage-counterintel' export type { OperationAttribution } from './espionage-counterintel'");
     for (const mutation of [
       'processEspionageTurn', 'resolveMissionResult', 'startMission',
       'turnCapturedSpy', 'executeSpy', 'attemptInfiltration',

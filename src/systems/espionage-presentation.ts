@@ -30,3 +30,7 @@ export type {
   EspionageModifierBreakdown,
   EspionageModifierBreakdownPart,
 } from './espionage-probability';
+// #419: what a viewer has earned about who ran a hostile operation. Takes the viewer id and returns only a tier
+// (unknown / suspected / confirmed); the actor is named only by the caller, and only at "confirmed".
+export { getOperationAttribution } from './espionage-counterintel';
+export type { OperationAttribution } from './espionage-counterintel';
