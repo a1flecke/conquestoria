@@ -29,10 +29,10 @@ that, 24 when #759 was originally filed) rather than trusting a pasted snapshot.
 
 **Third path — PNG spritesheet units.** A unit with a row in `PNG_UNIT_SPRITES`
 (`src/renderer/sprites/png/png-sprite-catalog.ts`) is drawn from a painted PNG (sheet + tint mask, built by
-`scripts/sprite-puppet/puppet.py` from one source image) and tinted with the owner's colour at runtime;
+`scripts/sprite-puppet/strips.py` from drawn strips) and tinted with the owner's colour at runtime;
 `getUnitSpriteV2()` returns it before consulting the SVG tables, and the Canvas layer bakes the same frame. Its SVG
 sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you which units have migrated. See
-`.claude/rules/sprites.md` "PNG Spritesheet Units" and `scripts/sprite-puppet/README.md`. First unit: `horseman` (#1040).
+`.claude/rules/sprites.md` "PNG Spritesheet Units" and `scripts/sprite-puppet/STRIPS.md`. Every PNG unit is a strip unit (#1627).
 
 | Unit | Status | data-kind |
 |------|--------|-----------|
@@ -80,15 +80,9 @@ sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you whi
 | observation_balloon | ✅ painted strips (#1627) | air |
 | biplane | ✅ painted strips (#621 puppet, #1627 strips) | air |
 
-**#621 military visual identity.** These eight units (the last `TODO(art)` placeholders) ship as painted PNG spritesheets through the
-PNG pipeline above; their SVG functions in `units.tsx` stay as the fallback and say so in a comment. Sources: Sprite-AI
-(rifleman, machine gunner, tank, ironclad, pre-dreadnought, submarine, biplane) and SpriteCook (observation balloon); each has a
-`design/png-sprites/sources/<id>.provenance.json`. They use the `firearm` puppet profile (stride, recoil, muzzle flash; submarine
-torpedo; balloon sway; biplane propeller blur). Known gaps against the original briefs, all accepted by the owner when approving each
-image: the tank is a mid-century turreted tank, not a WWI rhomboid; the machine gun is a tripod light gun, not a water-cooled Maxim; the
-ironclad shows no gun ports and tints its lower hull; the pre-dreadnought's turrets are not clearly legible and its funnel bands tint with
-the hull; the biplane has no wing roundel; the balloon is a three-quarter view with a spyglass, not binoculars. A regeneration is one
-Sprite-AI token (or ~16 SpriteCook credits with a style reference). Review them with `?scenario=png-sprite-spike`.
+**#621 military visual identity.** The eight units that were the last `TODO(art)` placeholders now ship as painted strips (#1627);
+their SVG functions in `units.tsx` stay as the fallback and say so in a comment. Each unit's provenance is
+`design/png-sprites/previews/<id>/provenance.json`. Review them with `?scenario=strip-units-showcase`.
 
 ### Legendary Beasts — `src/renderer/sprites/beasts.tsx`
 Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.

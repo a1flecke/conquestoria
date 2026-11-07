@@ -15,7 +15,6 @@ function records(dir: string): Array<Record<string, unknown>> {
     .map(f => JSON.parse(readFileSync(resolve(ROOT, dir, f), 'utf8')) as Record<string, unknown>);
 }
 
-const units = records('design/png-sprites/sources');
 const wonders = records('design/wonder-art');
 const portraits = records('design/general-portraits');
 const codexImages = records('design/wonder-codex-images');
@@ -29,8 +28,7 @@ const generator = (r: Record<string, unknown>) => String(r.generator ?? '');
 const portraitTitle = (r: Record<string, unknown>) => String(r.title ?? '');
 
 const counts = {
-  'Sprite-AI (units + wonder art)': [...units, ...wonders].filter(r => generator(r).startsWith('Sprite-AI')).length,
-  'SpriteCook (units)': units.filter(r => generator(r).startsWith('SpriteCook')).length,
+  'Sprite-AI (wonder art)': wonders.filter(r => generator(r).startsWith('Sprite-AI')).length,
   'DeepAI (General portraits)': portraits.filter(r => portraitTitle(r).startsWith('DeepAI')).length,
   'ChatGPT image generation (General portrait)': portraits.filter(r => portraitTitle(r).startsWith('ChatGPT')).length,
   'ChatGPT image generation (codex illustrations)': codexImages.filter(r => String(r.generator ?? '').startsWith('ChatGPT')).length,
@@ -48,7 +46,7 @@ describe('asset rights ledger', () => {
 
   it('every provenance record belongs to a ledger family (nothing generated is unaccounted for)', () => {
     const accounted = Object.values(counts).reduce((a, b) => a + b, 0);
-    expect(accounted).toBe(units.length + wonders.length + portraits.length + codexImages.length + buildingArt.length + stripUnits.length);
+    expect(accounted).toBe(wonders.length + portraits.length + codexImages.length + buildingArt.length + stripUnits.length);
   });
 
   it('states the release posture and the commercial-release gate, and makes no clearance claim', () => {

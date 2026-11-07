@@ -11,8 +11,7 @@ purchased and no vendor was contacted.
 
 **Conquestoria is a non-commercial hobby game.** On that basis the owner accepted the current state of the records below.
 
-- Ownership of AI output is, per the terms read, with the user (Sprite-AI) or the user may "use, reproduce, and distribute" it
-  (SpriteCook), or the output has no copyright owner (DeepAI). None of that is a problem for a non-commercial game.
+- Ownership of AI output is, per the terms read, with the user (Sprite-AI), or the output has no copyright owner (DeepAI). None of that is a problem for a non-commercial game.
 - The paid-plan commercial licences (Sprite-AI) and the commercial-use statements (DeepAI, OpenAI) only matter **if the game is ever
   sold, monetised, or released as a commercial product**. They were not verified here.
 - **This posture is a hold on commercial release, not a clearance for it.** Before any commercial release, work through the
@@ -25,8 +24,7 @@ changes.
 
 | Family | Count | Where recorded | Determination |
 |---|---|---|---|
-| Sprite-AI (units + wonder art) | 20 | `design/png-sprites/sources/*.provenance.json`, `design/wonder-art/*.provenance.json` | Owner-approved restriction (free plan; non-commercial use only) |
-| SpriteCook (units) | 3 | `design/png-sprites/sources/*.provenance.json` | Sufficient evidence recorded |
+| Sprite-AI (wonder art) | 13 | `design/wonder-art/*.provenance.json` | Owner-approved restriction (free plan; non-commercial use only) |
 | DeepAI (General portraits) | 25 | `design/general-portraits/*.provenance.json` | Permission unresolved |
 | ChatGPT image generation (General portrait) | 1 | `design/general-portraits/gen_oreius.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
 | ChatGPT image generation (codex illustrations) | 42 | `design/wonder-codex-images/*.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
@@ -42,28 +40,21 @@ Determinations used: *sufficient evidence recorded*, *missing documentation*, *p
 
 ## Family notes
 
-### Sprite-AI (20 assets: 7 unit sprites, 13 wonder illustrations)
+### Sprite-AI (13 wonder illustrations)
+
+The earlier Sprite-AI and SpriteCook unit sprites (#621, #1040) were replaced by the strip art (#1627); their records were removed with them and remain in the repository history.
 
 - Terms: https://www.sprite-ai.art/terms (read 2026-10-16). "You retain ownership of the sprites you generate." Paid plans include a
   commercial licence; the terms do not say what free-tier output receives. The licence is tied to generating on a paid plan and
   survives cancellation, so a later upgrade is **not** assumed to cover earlier output. No licence from the user to Sprite-AI is
   described. The operator is identified only as "Sprite AI" with no entity or address.
 - Recorded: generation id, prompt, settings, date, owner approval. The wonder records note that the owner said their plan allows use;
-  the unit records say the terms text was not reviewed.
+  the terms text was not reviewed for the retired unit sprites (see below).
 - **Plan (owner statement, 2026-10-16): the free plan.** Recorded in every Sprite-AI provenance record. The terms say the user retains
-  ownership of generated sprites but state nothing about what free-tier output may be used for commercially, so these 20 assets are
+  ownership of generated sprites but state nothing about what free-tier output may be used for commercially, so these 13 assets are
   an **owner-approved restriction: non-commercial use only**.
 - **Not recorded:** a snapshot of the terms as they stood on the generation dates (2026-10-14).
 - Non-commercial use: ownership is retained either way.
-
-### SpriteCook (3 unit sprites)
-
-- Terms: https://spritecook.ai/terms (read 2026-10-16). Users "may use, reproduce, and distribute outputs you generate", subject to
-  the terms and applicable law. The terms do not assign ownership and do not distinguish commercial from non-commercial use or tie
-  rights to a plan. Outputs may be similar to others'. Users grant SpriteCook a licence to process and store their content. The
-  operator is a Dutch sole proprietorship.
-- Recorded: asset id, model, prompt, settings, date, owner confirmation.
-- A saved copy of the terms would strengthen the record; not required for non-commercial use.
 
 ### DeepAI (25 General portraits)
 
@@ -107,7 +98,7 @@ Determinations used: *sufficient evidence recorded*, *missing documentation*, *p
   were **not** reviewed. Each unit's record under `design/png-sprites/previews/<unit>/` keeps the SHA-256 of every original; the originals
   are never committed, and `strips.py build` and `export` re-encode from decoded pixels, which drops any generator metadata (for example
   C2PA). Counted here: Spearman, Archer, Tank, Ironclad, Biplane, Horseman, Cavalry, Rifleman, Machine Gunner, Pre-dreadnought, Submarine and Observation Balloon (shipped as strips in #1627; the Horseman is the second, chestnut-coated set, the first dapple-grey set having been replaced). Puppet units keep their records under
-  `design/png-sprites/sources/` and the families above.
+  the families above.
 - Same re-check gate before any commercial release.
 
 ### Public-domain portraits (8 General portraits)
@@ -126,8 +117,8 @@ Determinations used: *sufficient evidence recorded*, *missing documentation*, *p
 
 A checklist, not a clearance. Do all of it, in order:
 
-1. Re-read the **current** terms for every AI generator above (Sprite-AI, SpriteCook, DeepAI, OpenAI) and save a dated copy.
-2. The 20 Sprite-AI assets were generated on the **free plan**. Decide: regenerate under a paid plan, replace, or obtain written
+1. Re-read the **current** terms for every AI generator above (Sprite-AI, DeepAI, OpenAI) and save a dated copy.
+2. The 13 Sprite-AI assets were generated on the **free plan**. Decide: regenerate under a paid plan, replace, or obtain written
    confirmation from the vendor. Do not assume a later subscription covers earlier output.
 3. Decide how to treat DeepAI output, which carries no exclusivity: keep, or replace the portraits that matter most.
 4. Review the roster names taken from copyrighted works and decide whether to keep, rename or replace them.

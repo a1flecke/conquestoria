@@ -65,10 +65,10 @@ A unit may be drawn from a **painted PNG** instead of serialized SVG. Both rende
 has a row in `PNG_UNIT_SPRITES` (`src/renderer/sprites/png/png-sprite-catalog.ts`); every other unit keeps its SVG sprite.
 Migrating a unit is one catalog row plus its generated manifest; migrating it back is deleting the row.
 
-- **Pipeline:** `scripts/sprite-puppet/puppet.py build <rig.json>` turns one source PNG into `public/images/units/<id>/{sheet,mask}.png`
-  plus `src/renderer/sprites/png/generated/<id>.manifest.ts`. Recipe, rig-spec reference and limits:
-  `scripts/sprite-puppet/README.md`; operating procedure (incl. SpriteCook spending rules): `.claude/skills/png-unit-sprite.md`.
-  Never hand-edit a generated manifest or sheet.
+- **Pipeline:** every shipped PNG unit is a strip unit (see "Strip units" below): `scripts/sprite-puppet/strips.py` builds and exports
+  `public/images/units/<id>/{sheet,mask}.png` plus `src/renderer/sprites/png/generated/<id>.manifest.ts`. Recipe and limits:
+  `scripts/sprite-puppet/STRIPS.md`. The original one-image puppet rigs were retired in #1627; `puppet.py` stays only as the
+  animation library `strips.py` imports. Never hand-edit a generated manifest or sheet.
 - **Civ colour is runtime, not baked.** The sheet keeps the tinted region as a grey ramp and `mask.png` says how much of each pixel
   takes the owner's colour. The DOM overlay tints with a CSS mask + `mix-blend-mode: multiply`
   (`src/assets/png-sprite-animations.css`); the Canvas layer bakes the same result (`png-sprite-canvas.ts`). So a PNG unit works for
@@ -76,14 +76,13 @@ Migrating a unit is one catalog row plus its generated manifest; migrating it ba
 - **Same overlay contract as SVG sprites:** root `.cq-sprite-wrap.cq-png`, state via `data-state`, phase via `--phase`. The PNG player
   is deliberately **not** `.cq-v2`, so SVG animation selectors can never touch it. `getUnitSpriteV2` is the single dispatch point.
 - **The SVG sprite stays.** A PNG unit keeps its `UNIT_SPRITE_CATALOG` entry: it is the fallback when the Canvas bake fails (no 2D
-  canvas, sheet missing) and what a rollback returns to. `tests/renderer/sprites/png/` enforces this, plus manifest/file/rig-spec/provenance.
-- **Provenance is mandatory:** every source image has `design/png-sprites/sources/<id>.provenance.json` (tool, model, prompt, asset id, date,
-  licence note). A generated source is never committed without it.
-- **Profiles:** `static`, `mounted` (horse + rider) and `firearm` (#621: shooters, vehicles, ships, aircraft, a balloon). A unit that attacks gets a visible attack
-  cue (`attack_fx` muzzle / torpedo); a non-offensive unit (observation balloon) sets `attack_fx: none`. Never fabricate a weapon effect for it.
+  canvas, sheet missing) and what a rollback returns to. `tests/renderer/sprites/png/` enforces this, plus manifest/file/strip-spec/provenance.
+- **Provenance is mandatory:** every strip unit has `design/png-sprites/previews/<id>/provenance.json` (generator, prompts, originals' SHA-256,
+  licence note). Generated art is never shipped without it.
+- **No weapon effect on a non-weapon.** A non-offensive unit (observation balloon) gets a plain jolt for its attack row, never a muzzle flash.
 - **Hard rules:** never put a free-form string in a PNG sprite style attribute (colours pass `resolvePngTint`'s hex check); no hardcoded
-  pixel size (the overlay's wrapper size still comes from `camera.hexSize`); a puppet unit's `hurt`/`death`/`work` reuse the idle row (the player's
-  flagged fallback) — a state only has its own art when the manifest has a clip for it; keep ~560 KB/unit in mind before migrating the whole roster (see the README's size note).
+  pixel size (the overlay's wrapper size still comes from `camera.hexSize`); a state with no clip falls back to the idle row (the player's
+  flagged fallback) — a state only has its own art when the manifest has a clip for it.
 
 ### Strip units (drawn strips, #1627)
 
@@ -103,7 +102,7 @@ catalog). Operating procedure: `scripts/sprite-puppet/STRIPS.md` ("Export to the
   has a `death` clip keeps its death pose on the map for its hold (`unitDeathSnapshots`), not only pirates.
 - **Budgets.** At most 640 KB on disk and 24 MiB decoded per sheet; the exporter refuses beyond that and names the cause. The sheet is a
   256-colour palette PNG (watch smooth gradients for banding).
-- **Rollback.** Delete the unit's `STRIP_UNITS` entry (a puppet unit would keep its `PUPPET_UNITS` row). The SVG sprite stays either way.
+- **Rollback.** Delete the unit's `STRIP_UNITS` entry. The SVG sprite stays either way.
 - **Provenance and ledger.** `design/png-sprites/previews/<id>/provenance.json` lists the originals' SHA-256s; strip units are counted in
   the ledger family `ChatGPT image generation (unit strips)` (`tests/systems/asset-rights-ledger.test.ts`).
 
