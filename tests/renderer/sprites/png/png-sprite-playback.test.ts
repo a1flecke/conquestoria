@@ -6,7 +6,7 @@ import {
   toPngDamageTier,
 } from '@/renderer/sprites/png/png-sprite-playback';
 import { getPngUnitManifest, hasPngDeathClip } from '@/renderer/sprites/png/png-sprite-catalog';
-import { manifest as submarineManifest } from '@/renderer/sprites/png/generated/submarine.manifest';
+import { manifest as balloonManifest } from '@/renderer/sprites/png/generated/observation_balloon.manifest';
 import type { PngClip, PngTierClips, PngUnitSprite } from '@/renderer/sprites/png/png-sprite-types';
 
 const clip = (over: Partial<PngClip> = {}): PngClip => ({ row: 0, firstCol: 0, frames: 4, fps: 4, loop: true, ...over });
@@ -28,14 +28,14 @@ function stripSprite(over: Partial<PngUnitSprite> = {}): PngUnitSprite {
 }
 
 describe('fromPuppetManifest', () => {
-  const sprite = fromPuppetManifest(submarineManifest);
+  const sprite = fromPuppetManifest(balloonManifest);
 
   it("keeps a puppet unit's behaviour: square cells, looping rows, the same clip at every tier", () => {
     expect(sprite.cellWidth).toBe(192);
     expect(sprite.cellHeight).toBe(192);
     expect(sprite.baseline).toBeNull();
     for (const state of ['idle', 'walk', 'attack'] as const) {
-      const entry = submarineManifest.states[state];
+      const entry = balloonManifest.states[state];
       const expected = { row: entry.row, firstCol: 0, frames: entry.frames, fps: entry.fps, loop: true };
       for (const tierClip of sprite.clips[state]) expect(tierClip, state).toEqual(expected);
     }
@@ -122,8 +122,8 @@ describe('getPngPlaybackCssVars', () => {
 
 describe('hasPngDeathClip', () => {
   it('is false for every shipped puppet unit and for a unit with no PNG row', () => {
-    expect(getPngUnitManifest('submarine')).not.toBeNull();
-    expect(hasPngDeathClip('submarine')).toBe(false);
+    expect(getPngUnitManifest('observation_balloon')).not.toBeNull();
+    expect(hasPngDeathClip('observation_balloon')).toBe(false);
     expect(hasPngDeathClip('warrior')).toBe(false);
     expect(hasPngDeathClip('__proto__')).toBe(false);
   });

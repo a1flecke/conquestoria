@@ -1,0 +1,17 @@
+{
+  "id": "submarine",
+  "status": "shipped: registered in PNG_UNIT_SPRITES and exported with strips.py export (#1627)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-07",
+  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/submarine.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/). One conversation drew the master; the damage and sinking sheets were each drawn in one message of a conversation with the master attached (one prompt per image). The prompts ChatGPT actually ran were adapted from the templates (flat magenta background, no leg or headgear checks for a ship) and were not captured verbatim.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/submarine). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all three passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "The sinking sheet was drawn twice in one message and the owner sent both; the one shipped has the flag in cream and brown, the other drew it pink and white, which would have taken the team colour. The firing muzzle point is set by hand to the deck gun (0.98, 0.8) and `restHeight` 46 keeps the long hull inside the unit box width.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1536, 1024], "sha256": "5eb6e6505ce391a24bb7b7f2ac278933593477aac2b71ae15fca5ce011e01507" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1672, 941], "sha256": "b396b7ec72efdd7b081bf8ac65b78381ffd13ef684871de3c4804cad77d2accd" },
+    { "role": "sinking, 3 frames in one row", "file": "c", "size": [2172, 724], "sha256": "51d54281e591d08c7e54ad681f5399cf8dafca20238d9b2493b4ce944d917d6b" }
+  ]
+}

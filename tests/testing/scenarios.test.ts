@@ -131,6 +131,11 @@ describe('strip-units-showcase scenario (#1627)', () => {
     expect(state.units['showcase-pre-dreadnought']).toMatchObject({ type: 'pre_dreadnought', owner: 'player', health: 100 });
   });
 
+  it('places a player submarine on water so the strip e2e can find its root', () => {
+    const state = buildScenario(SCENARIOS['strip-units-showcase']);
+    expect(state.units['showcase-submarine']).toMatchObject({ type: 'submarine', owner: 'player', health: 100 });
+  });
+
   it('places a player machine gunner so the strip e2e can find its root', () => {
     const state = buildScenario(SCENARIOS['strip-units-showcase']);
     expect(state.units['showcase-machine-gunner']).toMatchObject({ type: 'machine_gunner', owner: 'player', health: 100 });

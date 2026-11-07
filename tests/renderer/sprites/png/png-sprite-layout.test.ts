@@ -33,7 +33,7 @@ describe('getPngCellPlacement', () => {
   });
 
   it('a puppet cell fills the box exactly as it always did', () => {
-    const puppet = getPngUnitManifest('submarine')!;
+    const puppet = getPngUnitManifest('observation_balloon')!;
     expect(getPngCellPlacement(puppet)).toEqual({ widthPct: 100, leftPct: 0, topPct: 0 });
   });
 });
@@ -47,7 +47,7 @@ describe('getPngBakeGeometry', () => {
   });
 
   it('a puppet cell fills the baked square exactly as it always did', () => {
-    const submarine = getPngUnitManifest('submarine')!;
+    const submarine = getPngUnitManifest('observation_balloon')!;
     expect(getPngBakeGeometry(submarine, 1, 4)).toEqual({ side: 192, sx: 4 * 192, sy: 192, dx: 0, dy: 0 });
   });
 });
