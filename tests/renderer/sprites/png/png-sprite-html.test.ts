@@ -11,7 +11,7 @@ import { getPngCanvasFrame } from '@/renderer/sprites/png/png-sprite-canvas';
 import { getUnitSpriteV2, isV2NativeUnit } from '@/renderer/sprites/v2/index';
 import { FACTION_SPRITE_ACCENT, NEUTRAL_PNG_TINT } from '@/renderer/sprites/faction-accent-colors';
 
-const pre_dreadnought = getPngUnitManifest('pre_dreadnought')!;
+const submarine = getPngUnitManifest('submarine')!;
 const css = readFileSync(resolve(__dirname, '../../../../src/assets/png-sprite-animations.css'), 'utf8');
 
 describe('resolvePngTint', () => {
@@ -33,9 +33,9 @@ describe('resolvePngTint', () => {
 
 describe('getPngSpriteCssVars', () => {
   it('describes the sheet grid, the cell placement and the healthy idle clip', () => {
-    const v = getPngSpriteCssVars(pre_dreadnought);
-    const { cols, rows } = pre_dreadnought;
-    const idle = pre_dreadnought.clips.idle[0];
+    const v = getPngSpriteCssVars(submarine);
+    const { cols, rows } = submarine;
+    const idle = submarine.clips.idle[0];
     expect(v['--cols']).toBe(String(cols));
     expect(v['--rows']).toBe(String(rows));
     // a puppet cell is the whole unit box
@@ -50,7 +50,7 @@ describe('getPngSpriteCssVars', () => {
   it('handles a single-row, single-column sheet without dividing by zero', () => {
     const clip = { row: 0, firstCol: 0, frames: 2, fps: 4, loop: true };
     const v = getPngSpriteCssVars({
-      ...pre_dreadnought, cols: 1, rows: 1,
+      ...submarine, cols: 1, rows: 1,
       clips: { idle: [clip, clip, clip, clip], walk: [clip, clip, clip, clip], attack: [clip, clip, clip, clip] },
     });
     expect(v['--row']).toBe('0%');
@@ -59,7 +59,7 @@ describe('getPngSpriteCssVars', () => {
 });
 
 describe('buildPngUnitSpriteHtml', () => {
-  const html = buildPngUnitSpriteHtml(pre_dreadnought, '#1d4a8c');
+  const html = buildPngUnitSpriteHtml(submarine, '#1d4a8c');
 
   it('keeps the overlay contract of the SVG sprites: a .cq-sprite-wrap root with data-state and --phase', () => {
     expect(html.startsWith('<div class="cq-sprite-wrap cq-png"')).toBe(true);
@@ -70,8 +70,8 @@ describe('buildPngUnitSpriteHtml', () => {
 
   it('draws the base sheet and the tint layer from the manifest paths, tinted with the given colour', () => {
     expect(html).toContain('--cq-tint:#1d4a8c');
-    expect(html).toContain(pre_dreadnought.sheet);
-    expect(html).toContain(pre_dreadnought.mask);
+    expect(html).toContain(submarine.sheet);
+    expect(html).toContain(submarine.mask);
     expect(html).toContain('cq-png-base');
     expect(html).toContain('cq-png-tint');
   });
@@ -112,28 +112,28 @@ describe('png-sprite-animations.css', () => {
 
 describe('getPngCanvasFrame', () => {
   it('maps the three static motions onto sheet frames inside their rows', () => {
-    expect(getPngCanvasFrame(pre_dreadnought, 'idle')).toEqual({ state: 'idle', frame: 0 });
-    const a = getPngCanvasFrame(pre_dreadnought, 'move-a');
-    const b = getPngCanvasFrame(pre_dreadnought, 'move-b');
+    expect(getPngCanvasFrame(submarine, 'idle')).toEqual({ state: 'idle', frame: 0 });
+    const a = getPngCanvasFrame(submarine, 'move-a');
+    const b = getPngCanvasFrame(submarine, 'move-b');
     expect(a.state).toBe('walk');
     expect(b.state).toBe('walk');
     expect(a.frame).not.toBe(b.frame); // the map alternates two distinct walk poses
-    expect(Math.max(a.frame, b.frame)).toBeLessThan(pre_dreadnought.clips.walk[0].frames);
+    expect(Math.max(a.frame, b.frame)).toBeLessThan(submarine.clips.walk[0].frames);
   });
 });
 
 describe('getUnitSpriteV2 dispatch (both renderers coexist)', () => {
   it('serves the PNG player for a registered unit, for any faction and for owners with no faction record', () => {
     for (const faction of ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate', 'some-minor-civ-id']) {
-      const out = getUnitSpriteV2('pre_dreadnought', faction)!;
+      const out = getUnitSpriteV2('submarine', faction)!;
       expect(out, faction).toContain('cq-png');
       expect(out, faction).not.toContain('<svg');
     }
   });
 
   it('tints with the owner colour when one is supplied', () => {
-    expect(getUnitSpriteV2('pre_dreadnought', 'imperials', '#2d6a4f')).toContain('--cq-tint:#2d6a4f');
-    expect(getUnitSpriteV2('pre_dreadnought', 'khanate')).toContain(`--cq-tint:${FACTION_SPRITE_ACCENT.khanate}`);
+    expect(getUnitSpriteV2('submarine', 'imperials', '#2d6a4f')).toContain('--cq-tint:#2d6a4f');
+    expect(getUnitSpriteV2('submarine', 'khanate')).toContain(`--cq-tint:${FACTION_SPRITE_ACCENT.khanate}`);
   });
 
   it('leaves every other unit on its SVG sprite', () => {

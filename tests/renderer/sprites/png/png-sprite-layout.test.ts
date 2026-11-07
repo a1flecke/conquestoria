@@ -33,7 +33,7 @@ describe('getPngCellPlacement', () => {
   });
 
   it('a puppet cell fills the box exactly as it always did', () => {
-    const puppet = getPngUnitManifest('pre_dreadnought')!;
+    const puppet = getPngUnitManifest('submarine')!;
     expect(getPngCellPlacement(puppet)).toEqual({ widthPct: 100, leftPct: 0, topPct: 0 });
   });
 });
@@ -47,8 +47,8 @@ describe('getPngBakeGeometry', () => {
   });
 
   it('a puppet cell fills the baked square exactly as it always did', () => {
-    const pre_dreadnought = getPngUnitManifest('pre_dreadnought')!;
-    expect(getPngBakeGeometry(pre_dreadnought, 1, 4)).toEqual({ side: 192, sx: 4 * 192, sy: 192, dx: 0, dy: 0 });
+    const submarine = getPngUnitManifest('submarine')!;
+    expect(getPngBakeGeometry(submarine, 1, 4)).toEqual({ side: 192, sx: 4 * 192, sy: 192, dx: 0, dy: 0 });
   });
 });
 
