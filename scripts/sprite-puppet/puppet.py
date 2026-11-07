@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """sprite-puppet: turn ONE painted PNG of a unit into an animated, civ-tintable spritesheet.
 
-    python3 -I scripts/sprite-puppet/puppet.py build scripts/sprite-puppet/rigs/horseman.json
+    python3 -I scripts/sprite-puppet/puppet.py build <rig.json>
+
+(No rig specs ship any more: since #1627 every unit uses strip art, and `strips.py` imports this file as a library.)
 
 Reads a rig spec (JSON) that names the source image, the rig profile and its cut coordinates, then writes
 

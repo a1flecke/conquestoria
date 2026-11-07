@@ -4,11 +4,9 @@ import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { listPngUnitManifests, getPngUnitManifest, isPngUnit } from '@/renderer/sprites/png/png-sprite-catalog';
 import { UNIT_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
-import type { PngPuppetState } from '@/renderer/sprites/png/png-sprite-types';
 import { ATTACK_STATE_MS, DEATH_STATE_MS, HURT_STATE_MS } from '@/renderer/pirate-sprite-state';
 
 const ROOT = resolve(__dirname, '../../../..');
-const STATES: PngPuppetState[] = ['idle', 'walk', 'attack'];
 
 /** Width/height from a PNG's IHDR chunk. */
 function pngSize(path: string): { width: number; height: number } {
@@ -37,38 +35,21 @@ describe('PNG unit sprite catalog (#1040 spike)', () => {
       expect(c.firstCol + c.frames, 'clip frames fit the sheet').toBeLessThanOrEqual(m.cols);
       expect(c.fps).toBeGreaterThan(0);
     }
-    if (m.baseline === null) {
-      // a puppet sheet: square cells, one looping row per state (steps(n, jump-none) is only valid for n >= 2)
-      const rows = STATES.map(s => m.clips[s][0].row);
-      expect(new Set(rows).size, 'each state owns its own row').toBe(STATES.length);
-      expect(m.rows).toBe(STATES.length);
-      expect(m.cellWidth).toBe(m.cellHeight);
-      for (const s of STATES) {
-        expect(m.clips[s][0].frames, `${s} frames`).toBeGreaterThanOrEqual(2);
-        expect(m.clips[s][0].loop, `${s} loops`).toBe(true);
-      }
-    }
+    // every shipped unit is a strip unit (#1627): a feet baseline inside the cell
+    expect(m.baseline, 'a strip unit has a feet baseline').not.toBeNull();
   });
 
   it.each(manifests.map(m => [m.id, m] as const))('%s: shipped sheet and mask exist and match the manifest grid', (_id, m) => {
     for (const which of ['sheet', 'mask'] as const) {
       const file = resolve(ROOT, 'public', m[which]);
-      expect(existsSync(file), `${m[which]} is missing — re-run scripts/sprite-puppet/puppet.py`).toBe(true);
+      expect(existsSync(file), `${m[which]} is missing — re-run scripts/sprite-puppet/strips.py export`).toBe(true);
       expect(pngSize(file)).toEqual({ width: m.cols * m.cellWidth, height: m.rows * m.cellHeight });
     }
   });
 
   it.each(manifests.map(m => [m.id, m] as const))('%s: stays regenerable and keeps its SVG fallback', (_id, m) => {
-    if (m.baseline === null) {
-      // a puppet unit: the rig spec and the provenance record are what make the sheet reproducible and its licence auditable
-      const rig = resolve(ROOT, 'scripts/sprite-puppet/rigs', `${m.id}.json`);
-      expect(existsSync(rig), 'rig spec').toBe(true);
-      const spec = JSON.parse(readFileSync(rig, 'utf8')) as { id: string; source: string };
-      expect(spec.id).toBe(m.id);
-      expect(existsSync(resolve(ROOT, spec.source)), 'source png').toBe(true);
-      expect(existsSync(resolve(ROOT, spec.source.replace(/\.png$/, '.provenance.json'))), 'provenance').toBe(true);
-    } else {
-      // a strip unit: the strip spec, the approved preview sheets and the provenance record (with the originals' hashes)
+    {
+      // the strip spec, the approved preview sheets and the provenance record (with the originals' hashes)
       const rig = resolve(ROOT, 'scripts/sprite-puppet/strip-rigs', `${m.id}.json`);
       expect(existsSync(rig), 'strip spec').toBe(true);
       expect((JSON.parse(readFileSync(rig, 'utf8')) as { id: string }).id).toBe(m.id);
@@ -124,9 +105,7 @@ describe('military visual identity (#621)', () => {
   it('no two PNG units share a source image, sheet or tint mask (no duplicate art)', () => {
     const seen = new Map<string, string>();
     for (const m of listPngUnitManifests()) {
-      const source = m.baseline === null
-        ? resolve(ROOT, (JSON.parse(readFileSync(resolve(ROOT, 'scripts/sprite-puppet/rigs', `${m.id}.json`), 'utf8')) as { source: string }).source)
-        : resolve(ROOT, 'design/png-sprites/previews', m.id, 'sheet.png');
+      const source = resolve(ROOT, 'design/png-sprites/previews', m.id, 'sheet.png');
       for (const [kind, file] of [
         ['source', source],
         ['sheet', resolve(ROOT, 'public', m.sheet)],
@@ -137,15 +116,6 @@ describe('military visual identity (#621)', () => {
         seen.set(key, m.id);
       }
     }
-  });
-
-  it.each(MILITARY_IDENTITY_UNITS.map(id => [id] as const))('%s: provenance names a generator, an asset id and what it cost', id => {
-    const prov = JSON.parse(readFileSync(resolve(ROOT, 'design/png-sprites/sources', `${id}.provenance.json`), 'utf8')) as Record<string, unknown>;
-    expect(typeof prov.generator).toBe('string');
-    expect(prov.sprite_ai_generation_id ?? prov.spritecook_asset_id, 'generator asset id').toBeTruthy();
-    expect(prov.tokens_used ?? prov.credits_used, 'cost').toBeGreaterThan(0);
-    expect(String(prov.licence_note).length).toBeGreaterThan(40);
-    expect(String(prov.prompt)).toMatch(/red/i); // the tint contract: faction cloth is saturated red
   });
 
   it.each(MILITARY_IDENTITY_UNITS.map(id => [id] as const))('%s: has a walk row and an attack row that differ from idle', id => {
