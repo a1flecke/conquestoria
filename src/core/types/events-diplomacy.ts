@@ -1,11 +1,15 @@
 // DiplomacyEvents: the diplomacy slice of the GameEvents map (#1361). GameEvents in core/types.ts extends this interface; keys, payloads and
 // emit/listen behavior are unchanged. Leaf: type-only imports of other leaves, never the barrel.
 import type { TreatyDeclineReason, TreatyType } from './diplomacy';
-import type { OperationLandedEvent } from './espionage-incident';
+import type { IncidentTracedEvent, OperationLandedEvent, WentPublicEvent } from './espionage-incident';
 
 export interface DiplomacyEvents {
   // #419: a hostile spy operation landed. Fired once per successful disruption by the espionage turn, after its effect is applied.
   'espionage:operation-landed': OperationLandedEvent;
+  // #419 PR 2: evidence naming the actor of an earlier operation arrived. Victim only.
+  'espionage:incident-traced': IncidentTracedEvent;
+  // #419 PR 2: a victim went public about a confirmed incident (Go public).
+  'espionage:went-public': WentPublicEvent;
   'diplomacy:vassalage-offered': { fromCivId: string; toCivId: string };
   'diplomacy:vassalage-accepted': { vassalId: string; overlordId: string };
   'diplomacy:vassalage-ended': { vassalId: string; overlordId: string; reason: 'independence' | 'war' | 'auto_breakaway' | 'overlord_eliminated' | 'released' };

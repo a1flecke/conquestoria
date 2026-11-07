@@ -1651,6 +1651,8 @@ describe('espionage notification audience contract (#1201)', () => {
     'espionage:scandal-exposed': { civId: 'rome', targetCivId: 'carthage', partnerCivIds: ['egypt'] },
     'espionage:intel-report-acquired': { civId: 'rome', spyId: 'spy-1', missionType: 'gather_intel', targetCivId: 'carthage' },
     'espionage:operation-landed': { civId: 'rome', targetCivId: 'carthage', missionType: 'cyber_attack', cityId: 'city-2', effect: { kind: 'production-lockout', turns: 3 } },
+    'espionage:incident-traced': { civId: 'carthage', incidentId: 'i-1', actorCivId: 'rome', missionType: 'cyber_attack', cityId: 'city-2' },
+    'espionage:went-public': { civId: 'carthage', culpritCivId: 'rome', partnerCivIds: ['egypt'], missionType: 'cyber_attack' },
   };
 
   for (const type of ESPIONAGE_NOTIFICATION_EVENT_TYPES) {

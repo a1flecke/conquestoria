@@ -1,7 +1,7 @@
 // src/ui/espionage-panel.ts
 import type { GameState, Spy, SpyMissionType, SpyPromotion, InterrogationIntel } from '../core/types';
 import type { AdvisorType } from '@/core/types/council';
-import { getAvailableMissions, getEspionageModifierBreakdown, getMissionDuration, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-presentation';
+import { GO_PUBLIC_DENIAL_MESSAGES, getAvailableMissions, getEspionageModifierBreakdown, getGoPublicDenial, getGoPublicExpiryTurn, getMissionDuration, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-presentation';
 import { getProductionLabel } from '../systems/economy-system';
 
 export interface MissionCatalogEntry {
@@ -44,6 +44,9 @@ export interface EspionagePanelData {
   missionSuccessChances?: Partial<Record<SpyMissionType, number>>;
   missionSuccessBreakdown?: Partial<Record<SpyMissionType, string>>;
   currentTurn: number;
+  // #419 PR 2: hostile operations the viewer has traced to a named civ. Only incidents with proof (tracedTurn) appear, so the
+  // actor's name is always earned. `denial` is the Go public refusal copy, or null when the button is offered.
+  tracedIncidents: Array<{ incidentId: string; actorName: string; missionLabel: string; cityName: string; landedTurn: number; lastChanceTurn: number | null; used: boolean; denial: string | null }>;
   // #442 MR2 signals_intercept: the latest empire-wide troop snapshot per target civ this
   // player has intercepted. Without this, the computed data would never be rendered
   // (end-to-end-wiring.md "dead computed data is a bug").
@@ -80,6 +83,7 @@ export interface EspionagePanelCallbacks {
   onToggleCooldownMode?: (spyId: string) => void;
   onUnembed?: (spyId: string) => void;
   onSweep?: (spyId: string) => void;
+  onGoPublic?: (incidentId: string) => void;
 }
 
 const MISSION_LABELS: Record<SpyMissionType, string> = {
@@ -449,6 +453,35 @@ function appendThreatBoard(
   parent.appendChild(threatBlock);
 }
 
+function appendTracedIncidents(
+  parent: HTMLElement,
+  incidents: EspionagePanelData['tracedIncidents'],
+  callbacks: EspionagePanelCallbacks,
+): void {
+  if (incidents.length === 0) return;
+  const block = createEl('section');
+  block.dataset.section = 'traced-incidents';
+  appendSectionHeader(block, 'Caught in the Act', 'Attacks your agents traced to a named civilization. Go public to sour its partners on it, once per incident, before the story goes stale.');
+  for (const incident of incidents) {
+    const row = createEl('div');
+    row.dataset.incident = incident.incidentId;
+    row.style.cssText = 'display:flex;flex-direction:column;gap:6px;padding:6px 0;font-size:11px;';
+    row.appendChild(createEl('div', `${incident.actorName} · ${incident.missionLabel} · ${incident.cityName} · turn ${incident.landedTurn}`));
+    if (incident.used) {
+      row.appendChild(createEl('div', 'You went public about this.'));
+    } else if (incident.denial === null && callbacks.onGoPublic) {
+      const when = incident.lastChanceTurn === null ? '' : ` (last chance: turn ${incident.lastChanceTurn})`;
+      appendActionButton(row, `Go public${when}`, 'go-public', () => callbacks.onGoPublic?.(incident.incidentId));
+    } else if (incident.denial) {
+      const note = createEl('div', incident.denial);
+      note.style.cssText = 'opacity:0.6;';
+      row.appendChild(note);
+    }
+    block.appendChild(row);
+  }
+  parent.appendChild(block);
+}
+
 function appendRecentDetections(
   parent: HTMLElement,
   detections: Array<{ position: { q: number; r: number }; turn: number; wasDisguised: boolean }>,
@@ -810,6 +843,7 @@ export function createEspionagePanel(
   appendBulletList(advisorBlock, data.disabledAdvisors, 'No advisors are disabled.');
   panel.appendChild(advisorBlock);
 
+  appendTracedIncidents(panel, data.tracedIncidents, callbacks);
   appendThreatBoard(panel, data.threatBoard);
   appendRecentDetections(panel, data.recentDetections);
   appendIntelligenceReportsGroup(panel, data);
@@ -833,6 +867,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
       threatBoard: [],
       recentDetections: [],
       currentTurn: state.turn,
+      tracedIncidents: [],
       signalsIntelligence: [],
       troopReports: [],
       intelReports: [],
@@ -995,6 +1030,22 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     threatBoard,
     recentDetections: civEsp.recentDetections ?? [],
     currentTurn: state.turn,
+    tracedIncidents: Object.values(civEsp.attributedIncidents ?? {})
+      .filter(incident => incident.tracedTurn !== undefined)
+      .sort((a, b) => b.landedTurn - a.landedTurn || a.id.localeCompare(b.id))
+      .map(incident => {
+        const denial = getGoPublicDenial(state, state.currentPlayer, incident.id);
+        return {
+          incidentId: incident.id,
+          actorName: state.civilizations[incident.actorCivId]?.name ?? incident.actorCivId,
+          missionLabel: MISSION_LABELS[incident.missionType] ?? incident.missionType,
+          cityName: (incident.cityId ? state.cities[incident.cityId]?.name : undefined) ?? 'your empire',
+          landedTurn: incident.landedTurn,
+          lastChanceTurn: getGoPublicExpiryTurn(incident),
+          used: incident.usedTurn !== undefined,
+          denial: denial ? GO_PUBLIC_DENIAL_MESSAGES[denial] : null,
+        };
+      }),
     signalsIntelligence,
     troopReports,
     intelReports,

@@ -85,6 +85,7 @@ espionage:advisor-assassinated
 espionage:city-flipped
 espionage:courier-intercepted
 espionage:documents-forged
+espionage:incident-traced
 espionage:intel-extracted
 espionage:intel-report-acquired
 espionage:mission-failed
@@ -108,6 +109,7 @@ espionage:spy-infiltrated
 espionage:spy-promoted
 espionage:spy-recalled
 espionage:spy-recruited
+espionage:went-public
 eventchain:choice-made
 eventchain:resolved
 eventchain:started

@@ -19,6 +19,7 @@ import type {
 } from './types/diplomacy';
 import type { AdvisorType, CouncilGameState, CouncilTalkLevel } from './types/council';
 import type { CombatExchangeSummary, CombatModifierFact, CombatRewardNotification, CaptureKind } from './types/combat';
+import type { OperationIncident } from './types/espionage-incident';
 import type { DiplomacyEvents } from './types/events-diplomacy';
 export type { DiplomacyEvents } from './types/events-diplomacy';
 import type { CivilizationEvents } from './types/events-civilization';
@@ -1335,6 +1336,8 @@ export interface EspionageCivState {
   maxSpies: number;                // scales with espionage tech
   counterIntelligence: Record<string, number>; // cityId -> detection score (0-100)
   detectedThreats?: Record<string, DetectedSpyThreat>;
+  // #419 PR 2: hostile operations that landed on this civ, with the evidence state. Optional and additive (absent = none).
+  attributedIncidents?: Record<string, OperationIncident>;
   activeInterrogations?: Record<string, InterrogationRecord>;
   recentDetections?: Array<{ position: HexCoord; turn: number; wasDisguised: boolean }>;
   // #442 MR2 signals_intercept: latest empire-wide troop snapshot per target civ. A

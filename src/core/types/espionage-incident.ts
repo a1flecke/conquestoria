@@ -25,3 +25,40 @@ export interface OperationLandedEvent {
   cityId: string | null;
   effect: OperationEffect;
 }
+
+/**
+ * A hostile operation that landed on a civ, kept on the VICTIM's own espionage record (#419 PR 2).
+ * `tracedTurn` is set once the victim holds evidence naming the actor (a detected threat or a captured spy);
+ * until then the actor is stored but never surfaced. `usedTurn` is set when the victim has gone public about it.
+ */
+export interface OperationIncident {
+  id: string;
+  actorCivId: string;
+  targetCivId: string;
+  cityId: string | null;
+  missionType: OperationMissionType;
+  landedTurn: number;
+  tracedTurn?: number;
+  usedTurn?: number;
+}
+
+/** A victim told the world who struck them (Go public). */
+export interface WentPublicEvent {
+  /** The victim who went public. */
+  civId: string;
+  /** The civ they named. */
+  culpritCivId: string;
+  /** Treaty partners of the culprit whose relationship soured (capped by expose_scandal's rule). */
+  partnerCivIds: string[];
+  missionType: OperationMissionType;
+}
+
+/** Evidence arrived (after the strike) that names who ran an operation. Delivered to the victim only. */
+export interface IncidentTracedEvent {
+  /** The victim, who now holds the evidence. */
+  civId: string;
+  incidentId: string;
+  actorCivId: string;
+  missionType: OperationMissionType;
+  cityId: string | null;
+}

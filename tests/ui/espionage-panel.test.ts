@@ -936,3 +936,44 @@ describe('espionage panel accessible name (#1459)', () => {
     expect(panel.attributes['aria-label']).toBe('Espionage');
   });
 });
+
+describe('espionage-panel: Caught in the Act (#419 PR 2)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function tracedState(withPartner: boolean): GameState {
+    const state = makeEspUiState();
+    state.civilizations['ai-third'] = { ...state.civilizations['ai-egypt'], id: 'ai-third', name: 'Third' };
+    if (withPartner) {
+      state.civilizations['ai-egypt'].diplomacy.treaties = [{ type: 'trade_agreement', civA: 'ai-egypt', civB: 'ai-third', turnsRemaining: -1 }];
+    }
+    state.espionage!.player.attributedIncidents = {
+      'i-1': { id: 'i-1', actorCivId: 'ai-egypt', targetCivId: 'player', cityId: 'city-player-1', missionType: 'cyber_attack', landedTurn: 9, tracedTurn: 10 },
+      'i-2': { id: 'i-2', actorCivId: 'ai-third', targetCivId: 'player', cityId: null, missionType: 'misinformation_campaign', landedTurn: 9 },
+    };
+    return state;
+  }
+
+  it('lists only traced incidents, names the actor, and a click on Go public reports the incident id', () => {
+    const clicked: string[] = [];
+    const panel = createEspionagePanel(tracedState(true), { onClose: () => {}, onGoPublic: id => { clicked.push(id); } });
+    const text = collectText(panel);
+    expect(text).toContain('Egypt');
+    expect(text).not.toContain('Third');
+    const buttons = findAll(panel, el => el.dataset?.action === 'go-public') as Array<{ click(): void }>;
+    expect(buttons).toHaveLength(1);
+    buttons[0].click();
+    expect(clicked).toEqual(['i-1']);
+  });
+
+  it('explains instead of offering a dead button when the culprit has no partners', () => {
+    const panel = createEspionagePanel(tracedState(false), { onClose: () => {}, onGoPublic: () => {} });
+    expect(findAll(panel, el => el.dataset?.action === 'go-public')).toHaveLength(0);
+    expect(collectText(panel)).toContain('no treaty partners');
+  });
+
+  it('shows no section at all when nothing has been traced', () => {
+    const panel = createEspionagePanel(makeEspUiState(), { onClose: () => {}, onGoPublic: () => {} });
+    expect(findAll(panel, el => el.dataset?.section === 'traced-incidents')).toHaveLength(0);
+  });
+});

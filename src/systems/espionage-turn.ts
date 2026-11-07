@@ -22,7 +22,7 @@ import { recordDominationPoliticalReport } from './domination-intel';
 import { applyInteractionReputation, getCrisisInteractionDefinition } from './crisis-interaction-definitions';
 import { EXPULSION_COOLDOWN, ESPIONAGE_TECH_MAX_SPIES, getMissionXp } from './espionage-catalog';
 import { getEspionageModifierBreakdown, getSpySuccessChance } from './espionage-probability';
-import { handleSpyCaptured, handleSpyExpelled, turnCapturedSpy } from './espionage-counterintel';
+import { handleSpyCaptured, handleSpyExpelled, recordOperationIncident, traceOperationIncidents, turnCapturedSpy } from './espionage-counterintel';
 import { EXPOSE_SCANDAL_PENALTY, buildOperationEffect, isOperationMission, resolveMissionResult } from './espionage-missions';
 import { checkAndApplyPromotion } from './espionage-spy-lifecycle';
 
@@ -681,9 +681,12 @@ function applySpyTurnEvents(
           const effect = buildOperationEffect(evt.missionType, result);
           const cityScoped = evt.missionType !== 'misinformation_campaign' && evt.missionType !== 'steal_tech';
           if (effect && targetCivId && state.civilizations[targetCivId] && (!cityScoped || (cityId && state.cities[cityId]))) {
-            bus.emit('espionage:operation-landed', {
+            const landed = {
               civId, targetCivId, missionType: evt.missionType, cityId: cityScoped ? cityId : null, effect,
-            });
+            };
+            // #419 PR 2: the victim's own ledger remembers it, so later evidence can reveal the actor.
+            state = recordOperationIncident(state, landed);
+            bus.emit('espionage:operation-landed', landed);
           }
         }
 
@@ -1041,5 +1044,14 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
   }
 
   state = decaySpyUnrest(state);
-  return applyEspionageConsequences(state, consequences, bus);
+  state = applyEspionageConsequences(state, consequences, bus);
+
+  // #419 PR 2: evidence that arrived this turn (a captured spy, a detected threat) reveals the actor of an earlier
+  // operation exactly once. The notice goes to the victim only.
+  for (const victimId of Object.keys(state.espionage ?? {})) {
+    const outcome = traceOperationIncidents(state, victimId);
+    state = outcome.state;
+    for (const traced of outcome.traced) bus.emit('espionage:incident-traced', traced);
+  }
+  return state;
 }
