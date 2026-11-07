@@ -91,6 +91,7 @@ espionage:mission-failed
 espionage:mission-started
 espionage:mission-succeeded
 espionage:official-bribed
+espionage:operation-landed
 espionage:sabotage-relief-discovered
 espionage:scandal-exposed
 espionage:spy-arrived

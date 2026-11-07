@@ -7,6 +7,10 @@ import {
   type EspionageNotificationEvent,
   type EspionageNotificationEventType,
 } from '@/ui/espionage-notification-audience';
+import { TECH_TREE } from '@/systems/tech-definitions';
+import { getOperationAttribution } from '@/systems/espionage-presentation';
+import { getRushBuyQuote } from '@/systems/economy-system';
+import type { OperationEffect } from '@/core/types/espionage-incident';
 import type { NotificationSink } from './notification-sink';
 
 // Sabotage relief (#526 MR7 Task 7.2): fires only when the covert sabotage is discovered
@@ -146,6 +150,77 @@ export function routeCityFlipped(
   }
 }
 
+// Hostile operations (#419): the attacker is told it worked, with the real effect; the victim is told what happened and, when the
+// effect has one, the counter they already hold. The victim learns WHO only as far as getOperationAttribution says they have
+// earned (confirmed: named; suspected or unknown: "a hostile operator"). The actor id on the event is omniscient and is never
+// printed unfiltered.
+function describeOperationEffect(effect: OperationEffect, cityName: string): { actor: string; target: string } {
+  switch (effect.kind) {
+    case 'production-lockout':
+      return {
+        actor: `${cityName} cannot build for ${effect.turns} turns.`,
+        target: `${cityName} cannot build for ${effect.turns} turns.`,
+      };
+    case 'research-penalty':
+      return {
+        actor: `Their research is cut by ${effect.percent}% for ${effect.turns} turns.`,
+        target: `Your research is cut by ${effect.percent}% for ${effect.turns} turns.`,
+      };
+    case 'progress-lost':
+      return {
+        actor: `${cityName} lost ${effect.amount} production progress.`,
+        target: `${cityName} lost ${effect.amount} production progress.`,
+      };
+    case 'tech-stolen': {
+      const name = TECH_TREE.find(tech => tech.id === effect.techId)?.name ?? 'a technology';
+      return { actor: `You learned ${name}.`, target: `They copied ${name}.` };
+    }
+    case 'unrest-injected':
+      return {
+        actor: `${cityName} is unsettled.`,
+        target: `${cityName} is more unsettled (+${effect.amount} unrest pressure).`,
+      };
+  }
+}
+
+/**
+ * The counter the victim already has, with its live price, for a production lockout. Rush-buy is quoted by the one canonical
+ * `getRushBuyQuote`, so the alert can never disagree with the Buy button; a refusal is passed through as its own message.
+ */
+function getLockoutCounterHint(
+  state: GameState,
+  event: GameEvents['espionage:operation-landed'],
+): string | null {
+  if (event.effect.kind !== 'production-lockout' || !event.cityId) return null;
+  const city = state.cities[event.cityId];
+  if (!city || city.owner !== event.targetCivId || !city.productionQueue?.length) return null;
+  const quote = getRushBuyQuote(state, event.targetCivId, event.cityId);
+  if (quote.available) return `You can break the lock now by rush-buying the current item for ${quote.cost} gold.`;
+  return quote.message ? `Rush-buy is not available: ${quote.message}` : null;
+}
+
+export function routeOperationLanded(
+  state: GameState,
+  event: GameEvents['espionage:operation-landed'],
+  sink: NotificationSink,
+): void {
+  const cityName = (event.cityId ? state.cities[event.cityId]?.name : undefined) ?? 'A city';
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'a rival';
+  const text = describeOperationEffect(event.effect, cityName);
+  for (const { civId, role } of getEspionageNotificationAudience(state, { type: 'espionage:operation-landed', ...event })) {
+    if (role === 'actor') {
+      sink(civId, `Operation succeeded against ${targetName}. ${text.actor}`, 'success');
+      continue;
+    }
+    const attribution = getOperationAttribution(state, civId, event);
+    const who = attribution === 'confirmed'
+      ? `${state.civilizations[event.civId]?.name ?? 'A rival'} (caught red-handed)`
+      : attribution === 'suspected' ? 'A hostile operator (your counter-spy suspects a rival)' : 'A hostile operator';
+    const hint = getLockoutCounterHint(state, event);
+    sink(civId, `${who} struck. ${text.target}${hint ? ` ${hint}` : ''}`, 'warning');
+  }
+}
+
 /**
  * The exhaustive espionage notification route table (#1201). Typed over
  * `EspionageNotificationEventType`, so adding a new notification event without a route
@@ -166,4 +241,5 @@ export const ESPIONAGE_NOTIFICATION_ROUTES: {
   'espionage:official-bribed': routeOfficialBribed,
   'espionage:scandal-exposed': routeScandalExposed,
   'espionage:intel-report-acquired': routeIntelReportAcquired,
+  'espionage:operation-landed': routeOperationLanded,
 };

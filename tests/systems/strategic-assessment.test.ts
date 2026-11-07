@@ -124,6 +124,7 @@ describe('buildStrategicAssessment (#1236)', () => {
 
     const paused = buildStrategicAssessment(state, HUMAN_A).constraints.find(c => c.kind === 'production');
     expect(paused?.focusCityId).toBe('city-b-second');
+    expect(paused?.why).toMatch(/a cyber attack has paused its production for 3 more turns/); // #419: the cause is named
 
     // A city in revolt is production-locked too, but that is the unrest constraint's story.
     state.cities['city-b-second'].productionDisabledTurns = 0;

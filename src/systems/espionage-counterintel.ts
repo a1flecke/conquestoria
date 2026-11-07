@@ -1,5 +1,6 @@
 import type { DetectedSpyThreat, EspionageCivState, EspionageState, GameState } from '@/core/types';
 import type { DiplomacyState } from '@/core/types/diplomacy';
+import type { OperationLandedEvent } from '@/core/types/espionage-incident';
 import { modifyRelationship } from './diplomacy-state';
 import { createRng } from './map-generator';
 
@@ -216,4 +217,30 @@ export function turnCapturedSpy(
       }
       : {}),
   };
+}
+
+// --- Hostile-operation attribution (#419, PR 1) ---
+export type OperationAttribution = 'unknown' | 'suspected' | 'confirmed';
+
+/**
+ * What the viewer has earned about who did this, from evidence that already exists in `GameState`:
+ *  - confirmed: the viewer has an unexpired detected threat naming the actor in that city, or holds a captured spy of the
+ *    actor's who was working that city;
+ *  - suspected: the viewer has an embedded counter-spy in the struck city;
+ *  - unknown: neither.
+ * Only the target can have earned anything; never names a wrong civ.
+ */
+export function getOperationAttribution(
+  state: GameState,
+  viewerId: string,
+  event: Pick<OperationLandedEvent, 'civId' | 'targetCivId' | 'cityId'>,
+): OperationAttribution {
+  if (viewerId !== event.targetCivId) return 'unknown';
+  const viewerEsp = state.espionage?.[viewerId];
+  const threats = Object.values(viewerEsp?.detectedThreats ?? {});
+  if (threats.some(t => t.foreignCivId === event.civId && t.cityId === event.cityId && t.expiresOnTurn >= state.turn)) return 'confirmed';
+  const actorSpies = Object.values(state.espionage?.[event.civId]?.spies ?? {});
+  if (actorSpies.some(s => s.status === 'captured' && s.targetCivId === viewerId && s.targetCityId === event.cityId)) return 'confirmed';
+  if (Object.values(viewerEsp?.spies ?? {}).some(s => s.status === 'embedded' && s.targetCityId === event.cityId)) return 'suspected';
+  return 'unknown';
 }

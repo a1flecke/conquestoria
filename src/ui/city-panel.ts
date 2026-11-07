@@ -428,6 +428,13 @@ export function createCityPanelView(
   const fallbackRecsHtml = unrestRecommendations
     .map((rec, ri) => (rec.rowLabel === '' ? recSubHtml(ri) : ''))
     .join('');
+  // #419: a cyber attack locks production with no unrest involved; say so, with the real turns left (a number, never game text).
+  const lockoutTurns = city.productionDisabledTurns ?? 0;
+  const lockoutSectionHtml = lockoutTurns > 0 && city.unrestLevel === 0 ? `
+    <div data-cyber-lockout="${city.id}" style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:bold;color:#e88;margin-bottom:4px;">⚠️ Cyber attack — production locked for ${lockoutTurns} more turn${lockoutTurns === 1 ? '' : 's'}</div>
+      <div>Rush-buy the current item to break the lock, or wait it out. A Cyber Defense Center makes these attacks fail more often.</div>
+    </div>` : '';
   const unrestSectionHtml = city.unrestLevel > 0 ? `
     <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#e88;margin-bottom:4px;">
@@ -1277,6 +1284,7 @@ export function createCityPanelView(
     ${showTradeRoutes ? '<div data-section="trade-routes" style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;margin-bottom:16px;"></div>' : ''}
     ${immunitySectionHtml}
     ${spreadWarningHtml}
+    ${lockoutSectionHtml}
     ${unrestSectionHtml}
     ${levySectionHtml}
     ${crisisSectionHtml}

@@ -544,6 +544,21 @@ describe('city-panel unrest section — #436', () => {
     expect(onAppeaseFaction).toHaveBeenCalledWith(city.id);
   });
 
+  it('explains a cyber-attack production lock (no unrest) with the real turns left, and shows nothing without a lock (#419)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 0;
+    city.productionDisabledTurns = 2;
+    const options = { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} };
+    const locked = createCityPanel(container, city, state, options);
+    const banner = locked.querySelector(`[data-cyber-lockout="${city.id}"]`);
+    expect(banner).not.toBeNull();
+    expect(collectText(banner as HTMLElement)).toContain('production locked for 2 more turns');
+
+    city.productionDisabledTurns = 0;
+    const clear = createCityPanel(container, city, state, options);
+    expect(clear.querySelector('[data-cyber-lockout]')).toBeNull();
+  });
+
   it('disables the button and shows a gold-specific reason when unaffordable', () => {
     const { container, city, state } = makeWonderPanelFixture();
     city.unrestLevel = 1;

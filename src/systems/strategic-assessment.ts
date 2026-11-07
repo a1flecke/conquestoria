@@ -149,7 +149,7 @@ function buildConstraints(state: GameState, viewerCivId: string): StrategicConst
       kind: 'production',
       severity: clampSeverity(30 + 5 * Math.min(4, production.city.productionQueue.length) + Math.min(10, turns)),
       title: `${production.city.name} cannot build`,
-      why: `${production.city.name} has ${production.city.productionQueue.length} item${production.city.productionQueue.length === 1 ? '' : 's'} queued, but its production is paused for ${turns} more turn${turns === 1 ? '' : 's'}.`,
+      why: `${production.city.name} has ${production.city.productionQueue.length} item${production.city.productionQueue.length === 1 ? '' : 's'} queued, but a cyber attack has paused its production for ${turns} more turn${turns === 1 ? '' : 's'}.`,
       focusCityId: production.city.id,
       destination: { kind: 'open-city', cityId: production.city.id },
     });
