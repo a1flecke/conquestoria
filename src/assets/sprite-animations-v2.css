@@ -1849,6 +1849,121 @@
   animation-delay: calc(var(--phase, 0) * -1.55s);
 }
 
+/* ─────────────────────────── #759: CANNON AND GRENADIER ─────────────────────────── */
+
+/* Every rule below is scoped to its own data-kind-variant, so no other unit is touched.
+   The cannon is a wheeled carriage: it rolls and recoils, it does not march or lunge. */
+.cq-v2[data-kind="ranged"][data-kind-variant="cannon"][data-state="walk"] .cq-sprite-figure,
+.cq-v2[data-kind="ranged"][data-kind-variant="cannon"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="ranged"][data-kind-variant="cannon"] .cq-cannon-wheel,
+.cq-v2[data-kind="ranged"][data-kind-variant="cannon"] .cq-cannon-smoke {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="cannon"] .cq-cannon-smoke { opacity: 0; }
+
+@keyframes cq759-cannon-settle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(.5px); }
+}
+@keyframes cq759-cannon-jolt {
+  0%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-.8px); }
+  75% { transform: translateY(.4px); }
+}
+@keyframes cq759-cannon-body-recoil {
+  0%, 26%, 100% { transform: translateX(0); }
+  34% { transform: translateX(-3px); }
+  52% { transform: translateX(-2px); }
+  78% { transform: translateX(0); }
+}
+@keyframes cq759-cannon-barrel-recoil {
+  0%, 26%, 100% { transform: translateX(0); }
+  34% { transform: translateX(-9px); }
+  54% { transform: translateX(-7px); }
+  80% { transform: translateX(0); }
+}
+@keyframes cq759-cannon-smoke {
+  0%, 30% { opacity: 0; transform: translate(0, 0) scale(.4); }
+  38% { opacity: .92; transform: translate(1px, -1px) scale(.8); }
+  70% { opacity: .55; transform: translate(1px, -9px) scale(1.15); }
+  88%, 100% { opacity: 0; transform: translate(2px, -14px) scale(1.35); }
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="cannon"][data-state="idle"] .cq-cannon-body {
+  animation: cq759-cannon-settle 3.4s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -3.4s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="cannon"][data-state="walk"] .cq-cannon-body {
+  animation: cq759-cannon-jolt .5s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.5s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="cannon"][data-state="walk"] .cq-cannon-wheel {
+  animation: cq711-wheel-roll .9s linear infinite;
+  animation-delay: calc(var(--phase, 0) * -.9s);
+}
+/* Same 1.4s timeline as the shared muzzle flash (it peaks 32-44%), so flash, recoil and smoke agree. */
+.cq-v2[data-kind="ranged"][data-kind-variant="cannon"][data-state="attack"] .cq-cannon-body {
+  animation: cq759-cannon-body-recoil 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="cannon"][data-state="attack"] .cq-cannon-barrel {
+  animation: cq759-cannon-barrel-recoil 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="cannon"][data-state="attack"] .cq-cannon-smoke {
+  animation: cq759-cannon-smoke 1.4s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+
+/* Grenadier: walking uses the shared cq-leg / cq-arm gait; only the throw is its own. The arm swings
+   overhand (wind-up behind, over the top, follow-through) and the held grenade is released at the top. */
+.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"] .cq-grenade-flight,
+.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"] .cq-grenade-burst {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes cq759-grenadier-throw {
+  0%, 100% { transform: rotate(8deg); }
+  20% { transform: rotate(150deg); }
+  30% { transform: rotate(262deg); }
+  55% { transform: rotate(300deg); }
+  80% { transform: rotate(350deg); }
+}
+@keyframes cq759-grenade-held {
+  0%, 29% { opacity: 1; }
+  30%, 74% { opacity: 0; }
+  75%, 100% { opacity: 1; }
+}
+@keyframes cq759-grenade-flight {
+  0%, 29% { opacity: 0; transform: translate(0, 0) scale(.9); }
+  31% { opacity: 1; transform: translate(0, 0) scale(1); }
+  45% { opacity: 1; transform: translate(10px, -13px) scale(1); }
+  58% { opacity: 1; transform: translate(20px, -14px) scale(.95); }
+  60%, 100% { opacity: 0; transform: translate(21px, -13px) scale(.8); }
+}
+@keyframes cq759-grenade-burst {
+  0%, 58%, 76%, 100% { opacity: 0; transform: scale(.4); }
+  62%, 68% { opacity: 1; transform: scale(1.25); }
+  72% { opacity: .6; transform: scale(1.05); }
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"][data-state="attack"] .cq-arm-r {
+  animation: cq759-grenadier-throw 1.4s cubic-bezier(.4,0,.3,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"][data-state="attack"] .cq-grenade-held {
+  animation: cq759-grenade-held 1.4s step-end infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"][data-state="attack"] .cq-grenade-flight {
+  animation: cq759-grenade-flight 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"][data-state="attack"] .cq-grenade-burst {
+  animation: cq759-grenade-burst 1.4s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+
 /* Pause everything when prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .cq-sprite-figure, .cq-weapon, .cq-tool, .cq-smoke, .cq-dust, .cq-work-dust,
