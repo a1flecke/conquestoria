@@ -74,7 +74,7 @@ sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you whi
 | rifleman | ✅ painted strips (#1627) | ranged |
 | ironclad | ✅ painted strips (#621 puppet, #1627 strips) | naval |
 | machine_gunner | ✅ painted strips (#1627) | ranged |
-| pre_dreadnought | ✅ painted PNG (#621) | naval |
+| pre_dreadnought | ✅ painted strips (#1627) | naval |
 | tank | ✅ painted strips (#621 puppet, #1627 strips) | melee |
 | submarine | ✅ painted PNG (#621) | naval |
 | observation_balloon | ✅ painted PNG (#621) | air |
