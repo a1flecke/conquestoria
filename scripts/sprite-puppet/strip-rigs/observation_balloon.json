@@ -1,0 +1,43 @@
+{
+  "id": "observation_balloon",
+  "family": "aircraft",
+  "prompt": {
+    "name": "Observation Balloon (First World War)",
+    "look": "A tethered First World War observation balloon: a large oval gas envelope with a few tan seams and a small tail fin at the back, a rope net holding a wicker gondola basket below it, an observer in a leather cap leaning out of the basket with binoculars, and a short tether rope hanging down from the basket.",
+    "team_area": "the whole gas envelope",
+    "gear": "The envelope hangs level above the basket, the rope net and tether hang straight down, and nothing touches the edges of the image.",
+    "identity": "the same oval envelope, tail fin, rope net, wicker basket, observer, binoculars and tether, and the same red envelope",
+    "damage_gear": "a patched seam and a sagging rope",
+    "damage_gear_critical": "a torn envelope, a frayed net and a split basket"
+  },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 150
+  },
+  "tint": {
+    "hue_ranges": [[0, 0.02], [0.975, 1]],
+    "min_sat": 0.8,
+    "min_val": 0.4
+  },
+  "states": [
+    { "state": "idle", "file": "a", "cells": 1, "fps": 4 },
+    { "state": "damage", "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "restFrames": [0, 1], "note": "idle pose at damage tiers 0-3" },
+    {
+      "state": "move", "cells": 8, "fps": 12,
+      "note": "a gentle sway and bob built in code from the master and from each damage drawing; no propeller",
+      "rig": { "kind": "flight", "action": "move", "prop": false, "bob": 0.02, "pitch": 2.4, "sources": ["a", "b#0", "b#1", "b#2", "b#3"] }
+    },
+    {
+      "state": "fire", "cells": 8, "fps": 8, "loop": false,
+      "note": "the balloon is not a weapon: its attack row is a plain jolt (the hit rig), never a muzzle flash",
+      "rig": { "kind": "flight", "action": "hit", "prop": false, "source": "a" }
+    },
+    {
+      "state": "hit", "cells": 4, "fps": 8, "loop": false,
+      "note": "the envelope jolted and swinging, built in code",
+      "rig": { "kind": "flight", "action": "hit", "prop": false, "source": "a" }
+    },
+    { "state": "down", "file": "c", "cells": 3, "fps": 4, "loop": false, "restFrames": [0] }
+  ]
+}

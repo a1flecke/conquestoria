@@ -303,6 +303,8 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       { kind: 'unit', civId: 'player', type: 'pre_dreadnought', position: { q: 2, r: 3 }, overrides: { id: 'showcase-pre-dreadnought' } },
       { kind: 'terrain', position: { q: 3, r: 3 }, terrain: 'ocean' },
       { kind: 'unit', civId: 'player', type: 'submarine', position: { q: 3, r: 3 }, overrides: { id: 'showcase-submarine' } },
+      { kind: 'terrain', position: { q: 3, r: 2 }, terrain: 'plains' },
+      { kind: 'unit', civId: 'player', type: 'observation_balloon', position: { q: 3, r: 2 }, overrides: { id: 'showcase-observation-balloon' } },
       { kind: 'diplomacy', civA: 'player', civB: 'ai-1', status: 'war' },
     ],
   },

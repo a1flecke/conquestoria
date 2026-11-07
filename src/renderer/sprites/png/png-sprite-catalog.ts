@@ -5,7 +5,7 @@ import { sprite as biplane } from './generated/biplane.manifest';
 import { sprite as horseman } from './generated/horseman.manifest';
 import { sprite as ironclad } from './generated/ironclad.manifest';
 import { sprite as machine_gunner } from './generated/machine_gunner.manifest';
-import { manifest as observation_balloon } from './generated/observation_balloon.manifest';
+import { sprite as observation_balloon } from './generated/observation_balloon.manifest';
 import { sprite as pre_dreadnought } from './generated/pre_dreadnought.manifest';
 import { sprite as rifleman } from './generated/rifleman.manifest';
 import { sprite as submarine } from './generated/submarine.manifest';
@@ -24,11 +24,11 @@ import { sprite as spearman } from './generated/spearman.manifest';
  * Recipe: scripts/sprite-puppet/README.md.
  */
 const PUPPET_UNITS: Readonly<Record<string, PngSpriteManifest>> = {
-  observation_balloon,
+  // Empty since #1627: every shipped unit is now a strip unit. The seam stays so a new puppet unit is still one row here.
 };
 
 /** Strip units: drawn strips exported by `strips.py export`, already in the player's shape. */
-const STRIP_UNITS: readonly PngUnitSprite[] = [archer, biplane, cavalry, horseman, ironclad, machine_gunner, pre_dreadnought, rifleman, spearman, submarine, tank];
+const STRIP_UNITS: readonly PngUnitSprite[] = [archer, biplane, cavalry, horseman, ironclad, machine_gunner, observation_balloon, pre_dreadnought, rifleman, spearman, submarine, tank];
 
 const PNG_UNIT_SPRITES: Readonly<Record<string, PngUnitSprite>> = Object.fromEntries([
   ...Object.entries(PUPPET_UNITS).map(([id, manifest]) => [id, fromPuppetManifest(manifest)] as const),
