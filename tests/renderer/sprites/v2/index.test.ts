@@ -470,7 +470,7 @@ describe('getUnitSpriteV2 — live fallback for uncovered unit types', () => {
   // (2026-07-31) and moved out of this sample accordingly — see the new describe block below
   // for its dedicated native-path coverage.
   // #621: tank, rifleman and submarine moved to painted PNG units (isPngUnit), which getUnitSpriteV2 resolves before this path.
-  // #759 batch 2: cannon and grenadier migrated to native v2 (cannon-grenadier-native.test.ts); these two remain fallback-tier.
+  // #759 batch 2: cannon and grenadier became painted strips (#1627, cannon-grenadier-native.test.ts); these two remain fallback-tier.
   const FALLBACK_TIER_SAMPLE = ['carrier', 'jet_fighter'];
 
   it.each(FALLBACK_TIER_SAMPLE)('%s renders via the live fallback, not v2-native', (type) => {

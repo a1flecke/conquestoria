@@ -1,0 +1,28 @@
+{
+  "id": "grenadier",
+  "family": "biped",
+  "prompt": {
+    "name": "Grenadier",
+    "look": "An 18th-century grenadier: a tall, broad-shouldered adult man with a trimmed brown moustache, wearing a tall brass-fronted mitre cap with a short tassel, a knee-length coat with brass buttons and wide turned-back cuffs, a white cross-belt over the chest, a black leather grenade pouch with a small brass badge at his right hip, light grey breeches, white gaiters over black shoes, and a short musket slung across his back. In his right hand he holds a round black iron grenade the size of an apple with a short fuse; his left hand is free.",
+    "team_area": "his coat",
+    "identity": "the same face and moustache, tall mitre cap, red coat with turned-back cuffs, white cross-belt, black grenade pouch, grey breeches, white gaiters, black shoes, slung musket and round black grenade",
+    "weapon_pose": "He stands with the round grenade held at chest height in his right hand and his left hand hanging at his side; the musket is slung across his back, its barrel rising behind his left shoulder. The grenade is well above his knees and nowhere near his shoes.",
+    "attack_frames": 6,
+    "attack": "(1) ready, grenade held at the chest; (2) a tiny orange spark at the end of the short fuse, the grenade still in his right hand; (3) he draws his right arm back behind his head, leaning back; (4) he swings the arm forward over his shoulder, body twisting toward the right; (5) the throw: the arm fully extended to the right, the grenade still held in his fingertips at the end of the swing; (6) recover, arm lowered, standing upright, the grenade back in his right hand at chest height.",
+    "damage_gear": "a dented mitre cap and a scuffed, torn coat",
+    "damage_gear_critical": "a crumpled mitre cap hanging askew and a badly torn coat with a ripped sleeve",
+    "defeat_prop": "the round grenade still held loosely in his hand, its fuse dark"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 140 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",    "file": "a", "cells": 1, "fps": 4 },
+    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": { "sources": ["a", "b#0", "b#1", "b#2", "b#3"], "shafts": 0, "stride_deg": 24, "knee_bend": 14, "foot_level": 0.7 } },
+    { "state": "attack",  "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "restFrames": [0, 5] },
+    { "state": "hit",     "file": "d", "cells": 5, "grid": [3, 2], "fps": 8, "restFrames": [0, 4], "loop": false },
+    { "state": "defeat",  "file": "e", "cells": 5, "grid": [3, 2], "fps": 5, "restFrames": [0], "loop": false }
+  ]
+}

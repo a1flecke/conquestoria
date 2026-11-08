@@ -1849,58 +1849,6 @@
   animation-delay: calc(var(--phase, 0) * -1.55s);
 }
 
-/* ─────────────────────────── #759: GRENADIER ─────────────────────────── */
-
-/* Every rule below is scoped to the grenadier variant, so no other unit is touched. */
-/* Grenadier: walking uses the shared cq-leg / cq-arm gait; only the throw is its own. The arm swings
-   overhand (wind-up behind, over the top, follow-through) and the held grenade is released at the top. */
-.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"] .cq-grenade-flight,
-.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"] .cq-grenade-burst {
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-@keyframes cq759-grenadier-throw {
-  0%, 100% { transform: rotate(8deg); }
-  20% { transform: rotate(150deg); }
-  30% { transform: rotate(262deg); }
-  55% { transform: rotate(300deg); }
-  80% { transform: rotate(350deg); }
-}
-@keyframes cq759-grenade-held {
-  0%, 29% { opacity: 1; }
-  30%, 74% { opacity: 0; }
-  75%, 100% { opacity: 1; }
-}
-@keyframes cq759-grenade-flight {
-  0%, 29% { opacity: 0; transform: translate(0, 0) scale(.9); }
-  31% { opacity: 1; transform: translate(0, 0) scale(1); }
-  45% { opacity: 1; transform: translate(10px, -13px) scale(1); }
-  58% { opacity: 1; transform: translate(20px, -14px) scale(.95); }
-  60%, 100% { opacity: 0; transform: translate(21px, -13px) scale(.8); }
-}
-@keyframes cq759-grenade-burst {
-  0%, 58%, 76%, 100% { opacity: 0; transform: scale(.4); }
-  62%, 68% { opacity: 1; transform: scale(1.25); }
-  72% { opacity: .6; transform: scale(1.05); }
-}
-.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"][data-state="attack"] .cq-arm-r {
-  animation: cq759-grenadier-throw 1.4s cubic-bezier(.4,0,.3,1) infinite;
-  animation-delay: calc(var(--phase, 0) * -1.4s);
-}
-.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"][data-state="attack"] .cq-grenade-held {
-  animation: cq759-grenade-held 1.4s step-end infinite;
-  animation-delay: calc(var(--phase, 0) * -1.4s);
-}
-.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"][data-state="attack"] .cq-grenade-flight {
-  animation: cq759-grenade-flight 1.4s cubic-bezier(.3,.7,.4,1) infinite;
-  animation-delay: calc(var(--phase, 0) * -1.4s);
-}
-.cq-v2[data-kind="ranged"][data-kind-variant="grenadier"][data-state="attack"] .cq-grenade-burst {
-  animation: cq759-grenade-burst 1.4s ease-out infinite;
-  animation-delay: calc(var(--phase, 0) * -1.4s);
-}
-
 /* Pause everything when prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .cq-sprite-figure, .cq-weapon, .cq-tool, .cq-smoke, .cq-dust, .cq-work-dust,
