@@ -107,6 +107,12 @@ export function createEspionagePanelActionsController(
 
     deps.uiLayer.appendChild(createEspionagePanel(deps.session.getState(), {
       onClose: () => deps.getElementById('espionage-panel')?.remove(),
+      onShowCaptureChoice: (spyId, spyOwner) => {
+        // The verdict dialog is the decision surface; close the panel rather than leave a stale
+        // captured-agent row behind after the player chooses expel/execute/interrogate.
+        deps.getElementById('espionage-panel')?.remove();
+        deps.showEspionageCaptureChoice(spyId, spyOwner);
+      },
       onAssignDefensive: (spyId) => {
         const target = chooseFriendlyCityTarget();
         if (!target) return;

@@ -160,6 +160,7 @@ function makeDeps(state: GameState, overrides: Partial<PanelActionsControllerDep
       setStrategicLaunchPreview: vi.fn(),
     },
     showNotification: vi.fn(),
+    showEspionageCaptureChoice: vi.fn(),
     focusNotificationTarget: vi.fn(),
     focusPirateTarget: vi.fn(),
     applyPirateActionResult: vi.fn(),
@@ -1136,6 +1137,20 @@ describe('PanelActionsController', () => {
       expect(deps.hud.closeDrawer).toHaveBeenCalledTimes(1);
       expect(createEspionagePanel).toHaveBeenCalledWith(deps.session.getState(), expect.anything());
       expect(deps.uiLayer.children.length).toBeGreaterThan(0);
+    });
+
+    it('opens the existing verdict flow from a captured-agent row', () => {
+      const { state } = makeFixture('espionage-captured-agents');
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{
+        onShowCaptureChoice?: (spyId: string, spyOwner: string) => void;
+      }>(createEspionagePanel, 0, 1);
+
+      options.onShowCaptureChoice?.('enemy-spy', 'ai-1');
+
+      expect(deps.showEspionageCaptureChoice).toHaveBeenCalledWith('enemy-spy', 'ai-1');
     });
 
     it('onAssignDefensive embeds the spy, removes the unit, and publishes through session subscribers', () => {

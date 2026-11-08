@@ -59,6 +59,8 @@ export interface PanelActionsCommonDeps {
   readonly audio: PanelActionsAudio;
   readonly renderLoop: PanelActionsRenderer;
   readonly showNotification: (message: string, type?: 'info' | 'success' | 'warning') => void;
+  /** Reuses the established capture verdict dialog for a captured agent selected in the Espionage panel. */
+  readonly showEspionageCaptureChoice: (spyId: string, spyOwner: string) => void;
   readonly focusNotificationTarget: (target: NotificationEntry['target']) => void;
   readonly focusPirateTarget: (target: PirateFocusTarget) => void;
   readonly applyPirateActionResult: (result: PirateActionResult, successMessage: string) => void;

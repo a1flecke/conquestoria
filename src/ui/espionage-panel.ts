@@ -33,6 +33,13 @@ export interface SpySummary {
 export interface EspionagePanelData {
   spies: Spy[];
   spySummaries: SpySummary[];
+  capturedEnemySpies: Array<{
+    spyId: string;
+    spyName: string;
+    spyOwnerCivId: string;
+    spyOwnerName: string;
+    cityName: string;
+  }>;
   maxSpies: number;
   activeSpyCount: number;
   availableMissions: string[];
@@ -84,6 +91,7 @@ export interface EspionagePanelCallbacks {
   onUnembed?: (spyId: string) => void;
   onSweep?: (spyId: string) => void;
   onGoPublic?: (incidentId: string) => void;
+  onShowCaptureChoice?: (spyId: string, spyOwner: string) => void;
 }
 
 const MISSION_LABELS: Record<SpyMissionType, string> = {
@@ -412,6 +420,35 @@ function appendSpyCard(
   }
 
   parent.appendChild(card);
+}
+
+function appendCapturedEnemySpies(
+  parent: HTMLElement,
+  agents: EspionagePanelData['capturedEnemySpies'],
+  callbacks: EspionagePanelCallbacks,
+): void {
+  if (agents.length === 0) return;
+
+  const block = createEl('section');
+  block.dataset.section = 'captured-agents';
+  appendSectionHeader(block, 'Captured Agents', 'Enemy agents caught in your territory, awaiting your verdict.');
+
+  for (const agent of agents) {
+    const row = createEl('div');
+    row.dataset.capturedSpyId = agent.spyId;
+    row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;';
+    const label = createEl('div', `${agent.spyName} · ${agent.spyOwnerName} · captured in ${agent.cityName}`);
+    label.style.cssText = 'line-height:1.35;';
+    row.appendChild(label);
+    if (callbacks.onShowCaptureChoice) {
+      appendActionButton(row, 'Decide fate', 'decide-captured-spy', () => {
+        callbacks.onShowCaptureChoice?.(agent.spyId, agent.spyOwnerCivId);
+      });
+    }
+    block.appendChild(row);
+  }
+
+  parent.appendChild(block);
 }
 
 function appendBulletList(parent: HTMLElement, items: string[], emptyText: string): void {
@@ -831,6 +868,8 @@ export function createEspionagePanel(
   }
   panel.appendChild(spiesBlock);
 
+  appendCapturedEnemySpies(panel, data.capturedEnemySpies, callbacks);
+
   const defenseBlock = createEl('section');
   defenseBlock.dataset.section = 'defense';
   appendSectionHeader(defenseBlock, 'Defensive Coverage', 'Cities currently receiving stationed spy coverage.');
@@ -858,6 +897,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     return {
       spies: [],
       spySummaries: [],
+      capturedEnemySpies: [],
       maxSpies: 0,
       activeSpyCount: 0,
       availableMissions: [],
@@ -877,6 +917,17 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
   }
 
   const spies = Object.values(civEsp.spies).filter(s => s.owner === state.currentPlayer);
+  const capturedEnemySpies = Object.values(state.espionage ?? {})
+    .flatMap(ownerEsp => Object.values(ownerEsp.spies))
+    .filter(spy => spy.status === 'captured' && spy.targetCivId === state.currentPlayer)
+    .map(spy => ({
+      spyId: spy.id,
+      spyName: spy.name,
+      spyOwnerCivId: spy.owner,
+      spyOwnerName: state.civilizations[spy.owner]?.name ?? spy.owner,
+      cityName: (spy.targetCityId ? state.cities[spy.targetCityId]?.name : undefined) ?? 'your territory',
+    }))
+    .sort((a, b) => a.spyName.localeCompare(b.spyName) || a.spyId.localeCompare(b.spyId));
   const activeSpyCount = spies.filter(s => s.status !== 'captured').length;
   const completedTechs = state.civilizations[state.currentPlayer]?.techState.completed ?? [];
   const availableMissions = getAvailableMissions(completedTechs);
@@ -1021,6 +1072,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
   return {
     spies,
     spySummaries,
+    capturedEnemySpies,
     maxSpies: civEsp.maxSpies,
     activeSpyCount,
     availableMissions,

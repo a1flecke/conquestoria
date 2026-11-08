@@ -208,6 +208,38 @@ describe('espionage-panel', () => {
       expect(data.spySummaries[0].promotionReady).toBe(true);
     });
 
+    it('surfaces captured enemy spies whose verdict belongs to the current player', () => {
+      const state = makeEspUiState();
+      const captured = makeTestSpy('spy-enemy', 'ai-egypt', {
+        status: 'captured',
+        targetCivId: 'player',
+        targetCityId: 'city-player-1',
+      });
+      state.espionage!['ai-egypt'] = addSpy(state.espionage!['ai-egypt'], captured);
+
+      const data = getEspionagePanelData(state);
+
+      expect(data.capturedEnemySpies).toEqual([{
+        spyId: 'spy-enemy',
+        spyName: 'Agent spy-enemy',
+        spyOwnerCivId: 'ai-egypt',
+        spyOwnerName: 'Egypt',
+        cityName: 'Capital',
+      }]);
+    });
+
+    it('never surfaces a captured spy whose verdict belongs to another player', () => {
+      const state = makeEspUiState();
+      const captured = makeTestSpy('spy-enemy', 'ai-egypt', {
+        status: 'captured',
+        targetCivId: 'player-2',
+        targetCityId: 'city-player-1',
+      });
+      state.espionage!['ai-egypt'] = addSpy(state.espionage!['ai-egypt'], captured);
+
+      expect(getEspionagePanelData(state).capturedEnemySpies).toEqual([]);
+    });
+
     it('reports currently disabled advisors', () => {
       const state = makeEspUiState();
       state.civilizations.player.advisorDisabledUntil = { chancellor: 15, spymaster: 9 };
@@ -691,6 +723,37 @@ describe('espionage-panel', () => {
 
       const disabled = findAll(panel, el => el.dataset?.section === 'disabled-advisors')[0];
       expect(collectText(disabled)).toContain('chancellor');
+    });
+
+    it('renders captured enemy agents and opens the existing verdict flow from the row', () => {
+      const state = makeEspUiState();
+      const captured = makeTestSpy('spy-enemy', 'ai-egypt', {
+        status: 'captured',
+        targetCivId: 'player',
+        targetCityId: 'city-player-1',
+      });
+      state.espionage!['ai-egypt'] = addSpy(state.espionage!['ai-egypt'], captured);
+      const opened: Array<[string, string]> = [];
+
+      const panel = createEspionagePanel(state, {
+        onClose: () => {},
+        onShowCaptureChoice: (spyId, spyOwner) => { opened.push([spyId, spyOwner]); },
+      }) as unknown;
+      const section = findAll(panel, el => el.dataset?.section === 'captured-agents')[0];
+      expect(collectText(section)).toContain('Captured Agents');
+      expect(collectText(section)).toContain('Agent spy-enemy');
+      expect(collectText(section)).toContain('Egypt');
+      expect(collectText(section)).toContain('Capital');
+
+      const button = findAll(section, el => el.dataset?.action === 'decide-captured-spy')[0] as { click(): void };
+      button.click();
+
+      expect(opened).toEqual([['spy-enemy', 'ai-egypt']]);
+    });
+
+    it('omits the captured-agents section when no enemy agent awaits a verdict', () => {
+      const panel = createEspionagePanel(makeEspUiState()) as unknown;
+      expect(findAll(panel, el => el.dataset?.section === 'captured-agents')).toHaveLength(0);
     });
 
     it('labels remote-capable missions clearly and does not leak other players data in hot seat', () => {
