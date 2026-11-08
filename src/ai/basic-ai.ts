@@ -74,6 +74,7 @@ import {
   isSpyUnitType,
   getSpyCaptureRelationshipPenalty,
 } from '@/systems/espionage-system';
+import { getAiGrudgeBonuses, applyAiGoPublic } from './ai-espionage-grudges';
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { createRng } from '@/systems/map-generator';
 import { appeaseFaction } from '@/systems/faction-commands';
@@ -1539,8 +1540,6 @@ function processAITurnInternal(
 
   // AI spy movement, infiltration, and mission issuance for infiltrated spies
   if (newState.espionage?.[civId]) {
-    const aiSpyRng = createRng(`ai-spy-${civId}-${newState.turn}`);
-
     // 1) Move idle spy units toward nearest enemy city
     const idleSpyUnits = (newState.civilizations[civId].units ?? [])
       .map(id => newState.units[id])
@@ -1639,29 +1638,33 @@ function processAITurnInternal(
     // 3) Stationed-inside (infiltrationCityId) spies issue missions
     const civEspForMission = newState.espionage?.[civId];
     if (civEspForMission) {
-      const completedTechs = newState.civilizations[civId].techState.completed ?? [];
-      // #526 MR7 review fix: this random-pick infiltration-mission path bypasses
-      // chooseAiMission entirely, so its own sabotage_relief exclusion (human-initiated
-      // only, per spec §Interactions) never applied here -- excluded separately.
-      const infiltrationMissions = getAvailableMissions(completedTechs)
-        .filter(m => m !== 'scout_area' && m !== 'sabotage_relief');
+      // #419 PR 3: an infiltrated spy now follows the same personality/intent ranking as every other AI mission
+      // (it used to pick uniformly at random, so a peaceful AI ran cyber attacks as often as a gather_intel).
+      // rankAiMissions already excludes sabotage_relief (human-initiated only, #526 MR7); scout_area is a
+      // map-reveal mission that is pointless for a spy already inside a city. The first mission the start gate
+      // accepts is used, so a refused top choice falls through instead of idling the spy.
+      const infiltrationMissions = rankAiMissions(newState, civId).filter(m => m !== 'scout_area');
       if (infiltrationMissions.length > 0) {
         for (const spy of Object.values(civEspForMission.spies)) {
           if (spy.status !== 'stationed' || !spy.infiltrationCityId || spy.currentMission) continue;
           const city = newState.cities[spy.infiltrationCityId];
           if (!city) continue;
-          const missionIdx = Math.floor(aiSpyRng() * infiltrationMissions.length);
-          const missionType = infiltrationMissions[missionIdx];
-          const started = startMission(
-            newState.espionage![civId], spy.id, missionType, undefined, city.owner, city.id,
-          );
-          if (!started.ok) continue; // spy not eligible — skip
-          newState.espionage![civId] = started.state;
-          bus.emit('espionage:mission-started', { civId, spyId: spy.id, missionType });
+          for (const missionType of infiltrationMissions) {
+            const started = startMission(
+              newState.espionage![civId], spy.id, missionType, undefined, city.owner, city.id,
+            );
+            if (!started.ok) continue; // not eligible for this mission — try the next best
+            newState.espionage![civId] = started.state;
+            bus.emit('espionage:mission-started', { civId, spyId: spy.id, missionType });
+            break;
+          }
         }
       }
     }
   }
+
+  // #419 PR 3: tell the world who struck us while the evidence is fresh (same paired command the player's button uses).
+  newState = applyAiGoPublic(newState, civId, bus);
 
   // Start missions for stationed spies without active missions
   const espState = newState.espionage?.[civId];
@@ -1911,6 +1914,8 @@ export function chooseAiSpyTarget(
   const aiDip = state.civilizations[aiCivId]?.diplomacy;
   if (!aiDip) return null;
 
+  // #419 PR 3: remembered, proven attackers (the AI's own record only) rank above an indifferent neighbour.
+  const grudges = getAiGrudgeBonuses(state, aiCivId);
   const targets: Array<{ civId: string; score: number }> = [];
   for (const [civId, relationship] of Object.entries(aiDip.relationships)) {
     if (civId === aiCivId) continue;
@@ -1924,6 +1929,7 @@ export function chooseAiSpyTarget(
     if (!hasKnownCity) continue;
     let score = Math.abs(Math.min(0, relationship));
     if (aiDip.atWarWith.includes(civId)) score += 100;
+    score += grudges[civId] ?? 0;
     targets.push({ civId, score });
   }
 
@@ -1979,14 +1985,25 @@ export function chooseAiMission(
   state: GameState,
   aiCivId: string,
 ): SpyMissionType | null {
+  return rankAiMissions(state, aiCivId)[0] ?? null;
+}
+
+/**
+ * Every mission the AI could run, best first: its personality/intent order, then anything else available.
+ * `chooseAiMission` is the head of this list; the infiltrated-spy path walks it until a start is accepted (#419 PR 3).
+ */
+export function rankAiMissions(
+  state: GameState,
+  aiCivId: string,
+): SpyMissionType[] {
   const civ = state.civilizations[aiCivId];
-  if (!civ) return null;
+  if (!civ) return [];
   // sabotage_relief is human-initiated only in this arc (spec §Interactions: "Aid,
   // exploit, and sabotage are human-initiated only... AI-initiated versions are a
   // future extension") -- excluded here rather than relying on it never sorting first.
   const available: SpyMissionType[] = getAvailableMissions(civ.techState.completed)
     .filter(mission => mission !== 'sabotage_relief');
-  if (available.length === 0) return null;
+  if (available.length === 0) return [];
 
   const personality = getPersonality(state, civ.civType ?? 'generic');
   const traits = new Set(personality.traits);
@@ -2011,10 +2028,8 @@ export function chooseAiMission(
     preferredOrder = NEUTRAL_MISSION_ORDER;
   }
 
-  for (const mission of preferredOrder) {
-    if (available.includes(mission)) return mission;
-  }
-  return available[0];
+  const ranked = preferredOrder.filter(mission => available.includes(mission));
+  return [...ranked, ...available.filter(mission => !ranked.includes(mission))];
 }
 
 /**

@@ -4,8 +4,17 @@ import {
   shouldAiRecruitSpy,
   chooseAiSpyTarget,
   chooseAiMission,
+  rankAiMissions,
   processAITurn,
 } from '@/ai/basic-ai';
+import {
+  getAiGrudgeBonuses,
+  applyAiGoPublic,
+  AI_GRUDGE_MEMORY_TURNS,
+  AI_GRUDGE_RECENT_BONUS,
+  AI_GRUDGE_OLDER_BONUS,
+} from '@/ai/ai-espionage-grudges';
+import { EXPOSE_SCANDAL_PENALTY } from '@/systems/espionage-missions';
 import type { GameState } from '@/core/types';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { EventBus } from '@/core/event-bus';
@@ -340,10 +349,8 @@ describe('AI espionage decisions', () => {
     });
   });
 
-  // #526 MR7 review fix: infiltrated (embedded) spies pick their next mission via a
-  // separate random-pick path in processAITurn (the "3) Stationed-inside spies issue
-  // missions" block) that bypasses chooseAiMission entirely -- it needs its own
-  // sabotage_relief exclusion, which this regression caught missing on first pass.
+  // #526 MR7 review fix: sabotage_relief is human-initiated only and must never reach an embedded spy.
+  // Since #419 PR 3 this path uses the shared AI mission ranking (rankAiMissions) instead of a random pick.
   describe('infiltrated-spy mission selection', () => {
     it('never issues sabotage_relief to an embedded spy, across many turn seeds', () => {
       const startedMissionTypes: string[] = [];
@@ -481,5 +488,168 @@ describe('AI capture verdict', () => {
     // At minimum verify neither side errored out
     expect(typeof aiRel).toBe('number');
     expect(typeof playerRel).toBe('number');
+  });
+});
+
+// #419 PR 3: an AI that remembers who hit it, and answers with Go public.
+describe('AI grudges and Go public (#419 PR 3)', () => {
+  function threeCivState(): GameState {
+    const state = makeAiTestState();
+    const base = state.civilizations['player'];
+    for (const id of ['rival', 'neighbor']) {
+      state.civilizations[id] = {
+        ...base, id, name: id, isHuman: false, cities: [`city-${id}`], units: [],
+        diplomacy: { ...base.diplomacy, relationships: {}, treaties: [], atWarWith: [] },
+      };
+      state.cities[`city-${id}`] = { ...state.cities['city-player-1'], id: `city-${id}`, owner: id, name: id };
+      state.espionage![id] = createEspionageCivState();
+    }
+    // The neighbour is disliked more than the rival, so with no memory it is the better target.
+    state.civilizations['ai-egypt'].diplomacy.relationships = { player: 0, rival: -20, neighbor: -60 };
+    return state;
+  }
+
+  function incident(actor: string, landedTurn: number, tracedTurn?: number) {
+    return {
+      id: `inc-${actor}-${landedTurn}`, actorCivId: actor, targetCivId: 'ai-egypt', cityId: 'city-egypt-1',
+      missionType: 'cyber_attack' as const, landedTurn, ...(tracedTurn === undefined ? {} : { tracedTurn }),
+    };
+  }
+
+  function withIncidents(state: GameState, list: ReturnType<typeof incident>[]): GameState {
+    const attributedIncidents = Object.fromEntries(list.map(i => [i.id, i]));
+    state.espionage!['ai-egypt'] = { ...state.espionage!['ai-egypt'], attributedIncidents };
+    return state;
+  }
+
+  describe('target memory', () => {
+    it('without a remembered attacker the most-disliked civ is chosen (control)', () => {
+      expect(chooseAiSpyTarget(threeCivState(), 'ai-egypt')!.civId).toBe('neighbor');
+    });
+
+    it('a proven recent attacker outranks a more-disliked neighbour', () => {
+      const state = withIncidents(threeCivState(), [incident('rival', 12, 14)]);
+      expect(chooseAiSpyTarget(state, 'ai-egypt')!.civId).toBe('rival');
+    });
+
+    it('an incident the AI cannot attribute (no trace) creates no grudge and never names its actor', () => {
+      const state = withIncidents(threeCivState(), [incident('rival', 12)]);
+      expect(getAiGrudgeBonuses(state, 'ai-egypt')).toEqual({});
+      expect(chooseAiSpyTarget(state, 'ai-egypt')!.civId).toBe('neighbor');
+    });
+
+    it('a grudge fades after the memory window', () => {
+      const state = withIncidents(threeCivState(), [incident('rival', 12, 14)]);
+      state.turn = 14 + AI_GRUDGE_MEMORY_TURNS + 1;
+      expect(getAiGrudgeBonuses(state, 'ai-egypt')).toEqual({});
+    });
+
+    it('the most recent attacker gets the larger bonus; an older one a smaller one', () => {
+      const state = withIncidents(threeCivState(), [incident('neighbor', 5, 6), incident('rival', 12, 14)]);
+      expect(getAiGrudgeBonuses(state, 'ai-egypt')).toEqual({
+        rival: AI_GRUDGE_RECENT_BONUS, neighbor: AI_GRUDGE_OLDER_BONUS,
+      });
+    });
+
+    it("is deterministic and never reads another civ's record", () => {
+      const a = withIncidents(threeCivState(), [incident('rival', 12, 14)]);
+      const b = withIncidents(threeCivState(), [incident('rival', 12, 14)]);
+      // A neighbour's own ledger about someone else must not change what ai-egypt remembers.
+      b.espionage!['neighbor'] = {
+        ...b.espionage!['neighbor'],
+        attributedIncidents: { x: { ...incident('player', 1, 2), id: 'x', targetCivId: 'neighbor' } },
+      };
+      expect(getAiGrudgeBonuses(b, 'ai-egypt')).toEqual(getAiGrudgeBonuses(a, 'ai-egypt'));
+      expect(getAiGrudgeBonuses(a, 'ai-egypt')).toEqual(getAiGrudgeBonuses(a, 'ai-egypt'));
+    });
+  });
+
+  describe('mission ranking', () => {
+    it('chooseAiMission is the head of rankAiMissions, which lists every available mission once', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].techState.completed = [
+        'espionage-scouting', 'espionage-informants', 'spy-networks', 'covert-operations',
+      ];
+      const ranked = rankAiMissions(state, 'ai-egypt');
+      expect(ranked[0]).toBe(chooseAiMission(state, 'ai-egypt'));
+      expect(new Set(ranked).size).toBe(ranked.length);
+      expect(ranked).not.toContain('sabotage_relief');
+    });
+
+    it('an embedded spy follows the ranking instead of a random pick, on every turn seed', () => {
+      const started = new Set<string>();
+      for (let turn = 1; turn <= 20; turn++) {
+        const state = makeAiTestState();
+        state.turn = turn;
+        state.civilizations['ai-egypt'].techState.completed = [
+          'espionage-scouting', 'espionage-informants', 'spy-networks', 'covert-operations',
+        ];
+        let aiEsp = { ...createEspionageCivState(), maxSpies: 1 };
+        ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'spy-embed', 'ai-egypt', 'spy_agent', `seed-${turn}`));
+        aiEsp = {
+          ...aiEsp,
+          spies: {
+            'spy-embed': {
+              ...aiEsp.spies['spy-embed'],
+              status: 'stationed',
+              infiltrationCityId: 'city-player-1',
+              targetCivId: 'player',
+              targetCityId: 'city-player-1',
+              currentMission: null,
+            },
+          },
+        };
+        state.espionage = { ...state.espionage, 'ai-egypt': aiEsp };
+        const bus = new EventBus();
+        bus.on('espionage:mission-started', event => started.add(event.missionType));
+        processAITurn(state, 'ai-egypt', bus);
+      }
+      expect(started.size).toBe(1); // one best mission, not a different random one per seed
+    });
+  });
+
+  describe('Go public', () => {
+    function goPublicState(): GameState {
+      const state = withIncidents(threeCivState(), [incident('rival', 14, 15)]);
+      state.turn = 15;
+      state.civilizations['rival'].diplomacy.treaties = [
+        { type: 'trade_agreement', civA: 'rival', civB: 'neighbor', turnsRemaining: -1 },
+      ] as never;
+      return state;
+    }
+
+    it('uses Go public once for a confirmed incident, with the same penalty the player gets, and announces it once', () => {
+      const bus = new EventBus();
+      const events: string[] = [];
+      bus.on('espionage:went-public', e => events.push(`${e.civId}>${e.culpritCivId}`));
+      const first = applyAiGoPublic(goPublicState(), 'ai-egypt', bus);
+      expect(first.civilizations['rival'].diplomacy.relationships['neighbor']).toBe(EXPOSE_SCANDAL_PENALTY);
+      expect(first.civilizations['neighbor'].diplomacy.relationships['rival']).toBe(EXPOSE_SCANDAL_PENALTY);
+      expect(first.espionage!['ai-egypt'].attributedIncidents!['inc-rival-14'].usedTurn).toBe(15);
+      const second = applyAiGoPublic(first, 'ai-egypt', bus);
+      expect(second.civilizations['rival'].diplomacy.relationships['neighbor']).toBe(EXPOSE_SCANDAL_PENALTY);
+      expect(events).toEqual(['ai-egypt>rival']);
+    });
+
+    it('does nothing for an unproven incident, after the window, or with no partners', () => {
+      const bus = new EventBus();
+      const unproven = withIncidents(goPublicState(), [incident('rival', 14)]);
+      expect(applyAiGoPublic(unproven, 'ai-egypt', bus)).toBe(unproven);
+      const stale = goPublicState();
+      stale.turn = 17;
+      expect(applyAiGoPublic(stale, 'ai-egypt', bus)).toBe(stale);
+      const lonely = goPublicState();
+      lonely.civilizations['rival'].diplomacy.treaties = [];
+      expect(applyAiGoPublic(lonely, 'ai-egypt', bus)).toBe(lonely);
+    });
+
+    it('happens inside a real AI turn', () => {
+      const bus = new EventBus();
+      let announced = 0;
+      bus.on('espionage:went-public', () => { announced += 1; });
+      const after = processAITurn(goPublicState(), 'ai-egypt', bus);
+      expect(announced).toBe(1);
+      expect(after.espionage!['ai-egypt'].attributedIncidents!['inc-rival-14'].usedTurn).toBe(15);
+    });
   });
 });
