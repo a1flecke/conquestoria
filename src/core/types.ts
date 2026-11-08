@@ -20,6 +20,7 @@ import type {
 import type { AdvisorType, CouncilGameState, CouncilTalkLevel } from './types/council';
 import type { CombatExchangeSummary, CombatModifierFact, CombatRewardNotification, CaptureKind } from './types/combat';
 import type { OperationIncident } from './types/espionage-incident';
+import type { CityBreachState } from './types/city-breach';
 import type { DiplomacyEvents } from './types/events-diplomacy';
 export type { DiplomacyEvents } from './types/events-diplomacy';
 import type { CivilizationEvents } from './types/events-civilization';
@@ -296,20 +297,6 @@ export interface LegendaryWonderHistory {
 // --- Great Generals (#544 MR3, heroic commands #544 MR4) ---
 
 export type HeroicAbilityId = 'rally' | 'seize_the_moment' | 'last_stand' | 'breach';
-
-/**
- * #939: a Siegemaster's Breach on a hostile city. Optional on `City` (absent = not breached; every reader tolerates
- * that, so no save migration). Swept at the end of the round it expires in (`expireCityBreaches`), so presence means
- * "active": the assault-strength and counter-fire readers never need the turn.
- */
-export interface CityBreachState {
-  /** The civ whose siege the walls are open to; the effect applies to that civ's units only. */
-  byCivId: string;
-  /** The issuing General's stable id, so the career/presentation can attribute it. */
-  generalDefinitionId: string;
-  /** The last turn it is active; it is removed at the end of the round whose turn reaches it. */
-  expiresTurn: number;
-}
 
 /** #544 MR4: Last Stand's shared formation state — one object drives both
  * the ongoing defense multiplier (read every combat while unexpired) and

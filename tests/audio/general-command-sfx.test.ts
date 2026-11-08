@@ -17,7 +17,7 @@ const sha = (path: string) => createHash('sha256').update(readFileSync(path)).di
 
 describe('Great General command cues (#889)', () => {
   it('has one cue per ability and one for the last command, each its own file', () => {
-    expect(Object.keys(GENERAL_COMMAND_SFX).sort()).toEqual(['final-command', 'last-stand', 'rally', 'seize']);
+    expect(Object.keys(GENERAL_COMMAND_SFX).sort()).toEqual(['breach', 'final-command', 'last-stand', 'rally', 'seize']);
     const files = Object.values(GENERAL_COMMAND_SFX).map(entry => entry.file);
     expect(new Set(files).size).toBe(files.length);
     for (const file of files) expect(file).toMatch(/^audio\/stinger\/general\//);

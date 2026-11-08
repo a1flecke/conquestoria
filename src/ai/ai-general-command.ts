@@ -12,6 +12,7 @@ import {
   getBreachPreview,
   getBreachTargetCityIds,
   getHeroicCommandEligibility,
+  isCityBombardUnit,
   getLastStandPreview,
   getRallyPreview,
   getSeizeTheMomentEligibleUnits,
@@ -20,8 +21,6 @@ import {
   issueRally,
   issueSeizeTheMoment,
 } from '@/systems/great-general-abilities';
-import { getUnitAttackProfile } from '@/systems/attack-targeting';
-import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { hasAICombatRole } from '@/ai/ai-unit-roles';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
@@ -199,12 +198,6 @@ export function evaluateLastStandOpportunity(state: GameState, generalUnitId: st
   };
 }
 
-/** A unit that can shell a city from range (`canUnitBombardCity`'s attack-profile test): melee units also "target" cities but cannot bombard. */
-function isCityBombardUnit(type: Unit['type']): boolean {
-  const profile = getUnitAttackProfile(type);
-  return (profile.kind === 'bombard' || profile.kind === 'ranged') && profile.targets.includes('city');
-}
-
 /** #939: own siege-capable units this close to the city can use an opened wall this turn or next. */
 const BREACH_SIEGE_RADIUS = 3;
 const BREACH_BOMBARD_UNIT_VALUE = 20;
@@ -231,7 +224,6 @@ export function evaluateBreachOpportunity(state: GameState, generalUnitId: strin
     for (const unitId of civ.units) {
       const unit = state.units[unitId];
       if (!unit || unit.id === general.id || !hasAICombatRole(unit.type)) continue;
-      if ((UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'air') continue;
       if (mapDistance(state.map, unit.position, city.position) > BREACH_SIEGE_RADIUS) continue;
       score += isCityBombardUnit(unit.type) ? BREACH_BOMBARD_UNIT_VALUE : BREACH_ASSAULT_UNIT_VALUE;
     }
