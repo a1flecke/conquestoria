@@ -2031,71 +2031,7 @@ function GreatGeneralV2Sprite({ faction = 'imperials', state = 'idle', phase }) 
   </SpriteFrameV2>;
 }
 
-/* ─────────────────────────── #759: Grenadier (grenade-throwing infantry) ───────────────────────────
- * Tall bearskin cap with brass plate, crossbelts, a chest bandolier of grenades and a lit-fuse grenade in the
- * throwing hand. Hooks: HumanoidV2's cq-leg-l/r and cq-arm-l/r (walk gait), .cq-plume (cap tuft),
- * .cq-grenade-held (leaves the hand on release), .cq-grenade-flight + .cq-grenade-burst (the throw and its
- * pop), .cq-wound-1..3 (HumanoidWounds). The throwing arm swings overhand through the shared cq-arm-r hook,
- * variant-scoped in the stylesheet. No .cq-weapon: this unit carries no pivoting weapon. */
-function GrenadierV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
-  const f = _fa2(faction);
-  const ink = _P2.ink.line;
-  return <SpriteFrameV2 state={state} kind="ranged" variant="grenadier" phase={phase}>
-    <g transform="translate(58 91)"><ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
-    <g transform="translate(70 91)"><ellipse className="cq-step-dust cq-step-dust--b" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
-    <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
-
-    <HumanoidV2 wounds
-      cx={64} cy={70}
-      cloth={f.dark} pants="#d9d1ba"
-      accent={f.bright} hair="#2a1a10"
-      arms="free"
-      armRContent={(
-        <g className="cq-grenade-held">
-          <circle cx="0" cy="13" r="4.4" fill="#2f2a26" stroke={ink} strokeWidth=".8" />
-          <rect x="-1.4" y="7.6" width="2.8" height="3" rx=".6" fill={_P2.metal.iron} stroke={ink} strokeWidth=".4" />
-          <path d="M0,7.6 Q3,4.5 5.5,3.6" stroke="#c87941" strokeWidth="1" fill="none" strokeLinecap="round" />
-          <circle cx="5.8" cy="3.4" r="1.7" fill="#ffd966" />
-        </g>
-      )}
-      hat={(
-        <g>
-          <path d="M-10,-34 Q-13,-52 -5,-56 Q0,-58 6,-56 Q13,-52 10,-34 Z" fill="#2a211b" stroke={ink} strokeWidth="1" />
-          <path d="M-8,-40 Q-9,-48 -5,-53 M-2,-38 Q-3,-48 0,-55 M5,-39 Q6,-47 4,-54" stroke="#47382c" strokeWidth="1.1" fill="none" strokeLinecap="round" />
-          <path d="M-5.6,-49 L5.6,-49 L4.6,-38 L-4.6,-38 Z" fill={_P2.metal.gold} stroke={ink} strokeWidth=".7" />
-          <circle cx="0" cy="-44" r="1.8" fill={f.mid} stroke={ink} strokeWidth=".4" />
-          <path d="M-10,-34.4 L10,-34.4" stroke={f.mid} strokeWidth="2.2" />
-          <g transform="translate(6 -56)"><g className="cq-plume">
-            <path d="M0,0 Q5,-5 3,-12 Q-1,-6 -3,0 Z" fill={f.bright} stroke={ink} strokeWidth=".6" />
-          </g></g>
-        </g>
-      )}
-    />
-
-    {/* crossbelts + brass buckle, then the grenade bandolier and cartridge box */}
-    <path d="M54,52 L74,76 M74,52 L54,76" stroke={_P2.cloth.linen} strokeWidth="3" strokeLinecap="round" fill="none" />
-    <path d="M54,52 L74,76 M74,52 L54,76" stroke={ink} strokeWidth=".4" fill="none" opacity=".5" />
-    <circle cx="64" cy="64" r="2.2" fill={_P2.metal.gold} stroke={ink} strokeWidth=".5" />
-    <circle cx="59.4" cy="58.6" r="2.7" fill="#2f2a26" stroke={ink} strokeWidth=".5" />
-    <circle cx="69" cy="70" r="2.7" fill="#2f2a26" stroke={ink} strokeWidth=".5" />
-    <circle cx="72.4" cy="74.4" r="2.7" fill="#2f2a26" stroke={ink} strokeWidth=".5" />
-    <rect x="46" y="70" width="8" height="8" rx="1" fill={_P2.wood.dark} stroke={ink} strokeWidth=".6" />
-    <rect x="48" y="72" width="4" height="1.6" fill={f.mid} />
-
-    {/* the throw: a grenade leaves the hand, arcs forward, and pops */}
-    <g transform="translate(94 56)"><g className="cq-grenade-flight">
-      <circle r="4.6" fill="#2f2a26" stroke="#e8dfc8" strokeWidth=".9" />
-      <circle cx="3.8" cy="-4.6" r="1.8" fill="#ffd966" />
-    </g></g>
-    <g transform="translate(115 42)"><g className="cq-grenade-burst">
-      <circle r="6" fill="#ffd966" /><circle r="2.8" fill="#fff" />
-      <path d="M0,-9 L2,-3.5 L8,-2.5 L3,1 L4,7 L0,4 L-4,7 L-3,1 L-8,-2.5 L-2,-3.5 Z" fill="#ffb347" opacity=".9" />
-    </g></g>
-  </SpriteFrameV2>;
-}
-
 Object.assign(window, {
-  GrenadierV2Sprite,
   SpriteFrameV2, HumanoidV2,
   SwordsmanV2Sprite, WorkerV2Sprite, ArcherV2Sprite, SpyOperativeV2Sprite,
   SettlerV2Sprite, ScoutV2Sprite,

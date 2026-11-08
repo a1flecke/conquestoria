@@ -27,16 +27,14 @@ date list (34 units as of 2026-08-01, after #759 batch 1 migrated `combat_drone`
 `autonomous_frigate`, `exosuit_infantry`, `propagandist`, and `drone_controller` — was 39 before
 that, 24 when #759 was originally filed) rather than trusting a pasted snapshot.
 
-**#759 batch 2.** `grenadier` is now an original code-authored native-v2 sprite (`GrenadierV2Sprite` in `units-v2.jsx`, serialized to
-`src/renderer/sprites/v2/grenadier.svg.ts`, hooks and timelines in the "#759: GRENADIER" block of `src/assets/sprite-animations-v2.css`,
-all scoped by `data-kind-variant="grenadier"`): bearskin cap, crossbelts, grenade bandolier; alternating leg/arm gait on walk, an overhand
-throw with the grenade leaving the hand, flying and bursting on attack, four damage tiers via `HumanoidWounds`. It keeps its
-`UNIT_SPRITE_CATALOG` SVG as the safe fallback for the Canvas layer and for load failure, is **not** a painted strip, and carries no PNG
-provenance. `cannon` was given painted strips instead (#1627, the thirteenth strip unit: bronze barrel, spoked wheel that turns on
-move, recoil with flash and smoke on fire, four damage tiers and a three-frame wreck), and so was `artillery` (#1627, the fourteenth: an
-olive-drab steel howitzer with a gun shield and one spoked wheel, built the same way); the cannon's native-v2 draft was dropped so no unreachable
-art stays in the tree, and its catalog SVG remains the rollback. #759 stays open. Three tiers exist and should not be conflated:
-painted strip (PNG, 14 units), native-v2 SVG (hand-authored silhouette with animation hooks), and live-fallback-only SVG (everything else).
+**#759 batch 2.** The Cannon and the Grenadier were first given original code-authored native-v2 sprites, and both then became painted strips
+(#1627), which take precedence, so the native-v2 drafts were dropped and no unreachable art stays in the tree. `cannon` (the thirteenth strip unit)
+has a bronze barrel, a spoked wheel that turns on move, recoil with flash and smoke on fire, four damage tiers and a three-frame wreck. `artillery`
+(the fourteenth) is an olive-drab steel howitzer with a gun shield and one spoked wheel, built the same way. `grenadier` (the fifteenth) is a biped in a
+brass mitre cap who throws a fused grenade, drawn as a master, a damage sheet and attack, hit and defeat strips. Each keeps its
+`UNIT_SPRITE_CATALOG` SVG as the safe fallback for the Canvas layer and for load failure, and that SVG is also its rollback. #759 stays open. Two
+tiers exist and should not be conflated: painted strip (PNG, 15 units) and live-fallback-only SVG (everything else), with native-v2 SVG
+(hand-authored silhouette with animation hooks) the middle tier for units that have it.
 
 **Third path — PNG spritesheet units.** A unit with a row in `PNG_UNIT_SPRITES`
 (`src/renderer/sprites/png/png-sprite-catalog.ts`) is drawn from a painted PNG (sheet + tint mask, built by
@@ -81,7 +79,7 @@ sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you whi
 | caravan | ✅ sprite | civilian |
 | expedition | ✅ sprite | civilian |
 | cannon | ✅ painted strips (#1627) | ranged |
-| grenadier | ✅ native v2 (#759) | ranged · variant `grenadier` |
+| grenadier | ✅ painted strips (#1627) | ranged |
 | rifleman | ✅ painted strips (#1627) | ranged |
 | ironclad | ✅ painted strips (#621 puppet, #1627 strips) | naval |
 | machine_gunner | ✅ painted strips (#1627) | ranged |

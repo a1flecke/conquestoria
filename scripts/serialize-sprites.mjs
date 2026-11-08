@@ -156,8 +156,6 @@ const UNIT_SPRITES = [
   ['maritime_patrol_aircraft', 'MaritimePatrolAircraftV2Sprite'],
   ['supercarrier',             'SupercarrierV2Sprite'],
   ['great_general',            'GreatGeneralV2Sprite'],
-  // #759 batch 2: original native-v2 art for two live-fallback units
-  ['grenadier',                'GrenadierV2Sprite'],
 ];
 
 const BUILDING_SPRITES = [
