@@ -616,7 +616,7 @@ describe('#544 MR4 — General command panel', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
 
-  function makeGeneralState(overrides: Partial<{ generalCommandChargesUsed: number; generalNoCommandThisTurn: boolean }> = {}) {
+  function makeGeneralState(overrides: Partial<{ generalCommandChargesUsed: number; generalNoCommandThisTurn: boolean; generalDefinitionId: string; generalCommandCooldownUntilTurn: number }> = {}) {
     const state = createNewGame(undefined, 'general-command-panel-1', 'small');
     const romeGeneral = GENERAL_DEFINITIONS.find(g => g.civTypeEligibility.includes('rome'))!;
     const unit = {

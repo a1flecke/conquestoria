@@ -6,6 +6,7 @@ import { appendGeneralCareerEvent } from '@/systems/great-general-career';
 import { mapDistance, mapHexesInRange } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
+import { getUnitAttackProfile } from '@/systems/attack-targeting';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
 import { createCityBreach, isCityBreachedBy } from '@/systems/city-breach';
@@ -449,6 +450,18 @@ export function issueSeizeTheMoment(
 // ---------------------------------------------------------------------------
 // #939: Breach the Walls -- the Siegemaster's signature command
 // ---------------------------------------------------------------------------
+
+/**
+ * A ground or naval unit that can shell a city from range (`canUnitBombardCity`'s attack-profile test): melee units
+ * also "target" cities but cannot bombard, and aircraft strike by their own missions. Shared by the AI's Breach and
+ * Siegemaster valuations so neither re-derives it.
+ */
+export function isCityBombardUnit(type: Unit['type']): boolean {
+  const profile = getUnitAttackProfile(type);
+  return (UNIT_DEFINITIONS[type]?.domain ?? 'land') !== 'air'
+    && (profile.kind === 'bombard' || profile.kind === 'ranged')
+    && profile.targets.includes('city');
+}
 
 export interface BreachPreview {
   eligibility: HeroicCommandEligibility;
