@@ -53,6 +53,43 @@ describe('notification delivery contract', () => {
     expect(state.notificationLog!['ai1']).toHaveLength(1);
   });
 
+  it('log-only: appends for the active viewer without a toast (#419 notification fatigue)', () => {
+    const state = makeState();
+    const { delivery, toast } = make(state);
+    delivery.log('p1', 'Your spy gathered intelligence on Carthage.', 'success');
+    expect(toast).not.toHaveBeenCalled();
+    expect(state.notificationLog!['p1']).toHaveLength(1);
+    expect(state.notificationLog!['p1'][0].message).toBe('Your spy gathered intelligence on Carthage.');
+  });
+
+  it('log-only: never queues a hot-seat handoff event for a non-current human', () => {
+    const state = makeState({ hotSeat: { players: [] } as any });
+    const { delivery, toast } = make(state); // currentPlayer is p1
+    delivery.log('p2', 'Routine intel gathered.', 'success');
+    expect(toast).not.toHaveBeenCalled();
+    expect(state.pendingEvents!['p2'] ?? []).toHaveLength(0);
+    expect(state.notificationLog!['p2']).toHaveLength(1);
+  });
+
+  it('log-only: appends for AI recipients and keeps optional fields', () => {
+    const state = makeState();
+    const target = { kind: 'map' as const, coord: { q: 1, r: 2 }, label: 'Utica' };
+    const { delivery, toast } = make(state);
+    delivery.log('ai1', 'Routine intel gathered.', 'success', target);
+    expect(toast).not.toHaveBeenCalled();
+    expect(state.notificationLog!['ai1']).toHaveLength(1);
+    expect(state.notificationLog!['ai1'][0].target).toEqual(target);
+  });
+
+  it('log-only: withHappenedTurn stamps the round the event belonged to', () => {
+    const state = makeState();
+    const { delivery } = make(state);
+    delivery.withHappenedTurn(5, () => {
+      delivery.log('p1', 'Happened last round', 'info');
+    });
+    expect(state.notificationLog!['p1'][0].turn).toBe(5);
+  });
+
   it('withHappenedTurn stamps the round the event belonged to', () => {
     const state = makeState(); // state.turn === 6
     const { delivery } = make(state);

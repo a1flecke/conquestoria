@@ -38,9 +38,14 @@ function makeSelectionStoreDouble(): SelectionStore {
 export function makePresentationContext(overrides: {
   state?: Partial<GameState>;
   deliver?: ReturnType<typeof vi.fn<NotificationSink>>;
+  log?: ReturnType<typeof vi.fn<NotificationSink>>;
   uiLayer?: HTMLElement;
-} = {}): PresentationContext & { deliver: ReturnType<typeof vi.fn<NotificationSink>> } {
+} = {}): PresentationContext & {
+  deliver: ReturnType<typeof vi.fn<NotificationSink>>;
+  log: ReturnType<typeof vi.fn<NotificationSink>>;
+} {
   const deliver = overrides.deliver ?? vi.fn<NotificationSink>();
+  const log = overrides.log ?? vi.fn<NotificationSink>();
   const state = {
     turn: 1,
     currentPlayer: 'player',
@@ -52,6 +57,7 @@ export function makePresentationContext(overrides: {
 
   return {
     deliver,
+    log,
     session: {
       getState: () => state,
       commit: vi.fn(),
@@ -62,6 +68,7 @@ export function makePresentationContext(overrides: {
     notifier: {
       toast: vi.fn(),
       deliver,
+      log,
       choice: vi.fn(),
       withHappenedTurn: (_turn, fn) => fn(),
     },

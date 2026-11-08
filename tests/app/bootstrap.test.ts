@@ -133,6 +133,7 @@ function makeFakeNotifier(): Notifier {
   return {
     toast: vi.fn(),
     deliver: vi.fn(),
+    log: vi.fn(),
     choice: vi.fn(),
     withHappenedTurn: (_turn, fn) => fn(),
   };

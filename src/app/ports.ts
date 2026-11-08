@@ -204,6 +204,13 @@ export interface Notifier {
   toast(message: string, type: NotificationEntry['type'], target?: NotificationEntry['target'], sfxCue?: string): void;
   /** The full delivery contract: log always, toast if active viewer, queue for hot-seat. */
   readonly deliver: NotificationSink;
+  /**
+   * Append-only delivery for routine results (#419 notification fatigue): log
+   * the entry, never toast, never queue a hot-seat handoff event. Use this for
+   * expected, high-frequency consequences that the player can review in the
+   * persistent log or the relevant panel.
+   */
+  readonly log: NotificationSink;
   /** A toast that stays until the player picks one of `actions`. */
   choice(message: string, actions: readonly ChoiceAction[]): void;
   /**

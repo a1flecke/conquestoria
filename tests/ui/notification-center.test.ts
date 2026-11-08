@@ -158,4 +158,27 @@ describe('notification center queue', () => {
 
     expect(civState.notificationLog?.['player']?.[0]?.turn).toBe(5);
   });
+
+  it('log appends without showing a toast or playing a cue (#419 notification fatigue)', () => {
+    const civState = {
+      turn: 9,
+      currentPlayer: 'player',
+      civilizations: { player: { isHuman: true } },
+      notificationLog: {},
+      idCounters: {},
+    } as unknown as GameState;
+    const center = createNotificationCenter({
+      layer,
+      getState: () => civState,
+      isSuppressed: () => false,
+      playCue,
+      onFocusTarget,
+    });
+
+    center.log('player', 'Your spy gathered intelligence on Carthage.', 'success');
+
+    expect(civState.notificationLog?.['player']).toHaveLength(1);
+    expect(layer.textContent).not.toContain('gathered intelligence');
+    expect(playCue).not.toHaveBeenCalled();
+  });
 });
