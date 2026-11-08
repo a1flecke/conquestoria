@@ -319,6 +319,9 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     audio,
     renderLoop,
     showNotification,
+    // Lazy wrapper: `playerActions` is constructed after `panelActions`, same deferred-but-eager
+    // pattern as `executeUpgrade` below. The callback only runs after the panel is open.
+    showEspionageCaptureChoice: (spyId, spyOwner) => playerActions.showEspionageCaptureChoice(spyId, spyOwner),
     focusNotificationTarget: target => focusNotificationTarget(renderLoop, getNotifier(), session, target),
     focusPirateTarget: target => focusPirateTarget(renderLoop, getNotifier(), target),
     applyPirateActionResult: (result, successMessage) => applyPirateActionResult(
