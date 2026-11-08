@@ -167,6 +167,22 @@ export function routeSpyExpelled(
   }
 }
 
+// Counterintelligence's strongest win (#419 Shadows & Secrets): a captured enemy spy is turned into a double agent.
+// Only the defender earned this outcome; the spy's owner is never told their agent was turned.
+export function routeSpyTurned(
+  state: GameState,
+  event: GameEvents['espionage:spy-detected'],
+  sink: NotificationSink,
+): void {
+  const spy = state.espionage?.[event.spyOwner]?.spies[event.spyId];
+  const city = event.cityId ? state.cities[event.cityId] : undefined;
+  const where = city ? ` in ${city.name}` : '';
+  const message = `Your counterintelligence turned ${spy?.name ?? 'an enemy spy'} into a double agent${where}. They will feed false intelligence to their old masters.`;
+  for (const { civId } of getEspionageNotificationAudience(state, { type: 'espionage:spy-detected', ...event })) {
+    sink(civId, message, 'success');
+  }
+}
+
 export function routeCityFlipped(
   state: GameState,
   event: GameEvents['espionage:city-flipped'],
@@ -307,6 +323,7 @@ export const ESPIONAGE_NOTIFICATION_ROUTES: {
   'espionage:intel-report-acquired': routeIntelReportAcquired,
   'espionage:spy-promoted': routeSpyPromoted,
   'espionage:spy-expelled': routeSpyExpelled,
+  'espionage:spy-detected': routeSpyTurned,
   'espionage:operation-landed': routeOperationLanded,
   'espionage:incident-traced': routeIncidentTraced,
   'espionage:went-public': routeWentPublic,

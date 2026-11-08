@@ -44,7 +44,7 @@ const SURFACE: Array<[name: string, module: object, exports: string[]]> = [
   ['espionage-routes', espionageRoutes, [
     'ESPIONAGE_NOTIFICATION_ROUTES', 'routeCityFlipped', 'routeCourierIntercepted',
     'routeIncidentTraced', 'routeIntelReportAcquired', 'routeOfficialBribed', 'routeOperationLanded', 'routeSabotageReliefDiscovered',
-    'routeScandalExposed', 'routeSpyExpelled', 'routeSpyPromoted', 'routeWentPublic',
+    'routeScandalExposed', 'routeSpyExpelled', 'routeSpyPromoted', 'routeSpyTurned', 'routeWentPublic',
   ]],
   ['map-routes', mapRoutes, [
     'getTerritoryTileFlippedMessage', 'routeBarbarianSpawned', 'routeTerritoryTileFlipped',
@@ -71,8 +71,8 @@ describe('#1250 — the notification routers keep their audited public surface',
   it('every pre-split value export is accounted for exactly once', () => {
     const values = SURFACE.flatMap(([, , exports]) => exports);
     expect(new Set(values).size, 'no export is owned by two modules').toBe(values.length);
-    // 62 pre-split exports, of which 1 is a type (NotificationSink) that has no runtime value: 61; +4 tribute routes (#1334); +1 city-state graduation (#497); +1 hostile-operation notice (#419); +2 spy career notices (#419 Shadows & Secrets).
-    expect(values).toHaveLength(71);
+    // 62 pre-split exports, of which 1 is a type (NotificationSink) that has no runtime value: 61; +4 tribute routes (#1334); +1 city-state graduation (#497); +1 hostile-operation notice (#419); +3 spy career/counterintelligence notices (#419 Shadows & Secrets).
+    expect(values).toHaveLength(72);
   });
 
   it('the compatibility barrel is gone and must not come back', () => {

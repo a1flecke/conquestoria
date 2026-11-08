@@ -95,6 +95,28 @@ describe('espionage presentation', () => {
     );
   });
 
+  it('celebrates a counterintelligence win when an enemy spy is turned into a double agent', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext({
+      state: {
+        cities: { 'city-a': { name: 'Thebes' } } as never,
+        espionage: { carthage: { spies: { 'spy-1': spy() } } } as never,
+      },
+    });
+
+    registerEspionagePresentation(bus, ctx);
+    bus.emit('espionage:spy-detected', {
+      detectingCivId: 'rome', spyOwner: 'carthage', spyId: 'spy-1', cityId: 'city-a',
+    });
+
+    expect(ctx.deliver).toHaveBeenCalledWith(
+      'rome',
+      'Your counterintelligence turned Agent X into a double agent in Thebes. They will feed false intelligence to their old masters.',
+      'success',
+    );
+    expect(ctx.deliver).not.toHaveBeenCalledWith('carthage', expect.anything(), expect.anything());
+  });
+
   it('notifies the spy owner when their agent is expelled and names the return time', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({
@@ -214,6 +236,7 @@ describe('espionage presentation', () => {
     bus.emit('espionage:spy-caught-infiltrating', { capturingCivId: 'rome', spyOwner: 'carthage', spyId: 'spy-1', cityId: 'city-a' });
     bus.emit('espionage:spy-captured', { capturingCivId: 'rome', spyOwner: 'carthage', spyId: 'spy-1' });
     bus.emit('espionage:spy-executed', { executingCivId: 'rome', spyOwner: 'carthage', spyId: 'spy-1', spyName: 'Agent X' });
+    bus.emit('espionage:spy-detected', { detectingCivId: 'rome', spyOwner: 'carthage', spyId: 'spy-1', cityId: 'city-a' });
     bus.emit('espionage:spy-promoted', { civId: 'carthage', spyId: 'spy-1', promotion: 'infiltrator' });
     bus.emit('espionage:spy-expelled', {
       civId: 'carthage', spyId: 'spy-1', spyName: 'Agent X', fromCivId: 'rome', cooldownTurns: 15,

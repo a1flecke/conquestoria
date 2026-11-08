@@ -48,6 +48,7 @@ import {
   routeIntelReportAcquired,
   routeSpyPromoted,
   routeSpyExpelled,
+  routeSpyTurned,
   ESPIONAGE_NOTIFICATION_ROUTES,
 } from '@/ui/notification-routes/espionage-routes';
 import { routeBarbarianSpawned } from '@/ui/notification-routes/map-routes';
@@ -1562,6 +1563,9 @@ describe('espionage spy career routing (#419)', () => {
         rome: { id: 'rome', name: 'Rome', diplomacy: { relationships: {}, atWarWith: [] }, visibility: { tiles: {} } },
         carthage: { id: 'carthage', name: 'Carthage', diplomacy: { relationships: {}, atWarWith: [] }, visibility: { tiles: {} } },
       } as any,
+      cities: {
+        'city-a': { id: 'city-a', name: 'Thebes', owner: 'carthage', position: { q: 0, r: 0 } },
+      } as any,
       espionage: {
         carthage: {
           spies: {
@@ -1576,6 +1580,24 @@ describe('espionage spy career routing (#419)', () => {
       } as any,
     });
   }
+
+  it('tells only the defender that their counterintelligence turned an enemy spy', () => {
+    const { sink, calls } = makeSink();
+    routeSpyTurned(
+      careerState(),
+      { detectingCivId: 'rome', spyOwner: 'carthage', spyId: 'spy-1', cityId: 'city-a' },
+      sink,
+    );
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        civId: 'rome',
+        message: 'Your counterintelligence turned Agent X into a double agent in Thebes. They will feed false intelligence to their old masters.',
+        type: 'success',
+      }),
+    ]);
+    expect(calls.some(c => c.civId === 'carthage')).toBe(false);
+  });
 
   it('tells only the spy owner about a promotion, using the earned promotion name', () => {
     const { sink, calls } = makeSink();
@@ -1717,6 +1739,7 @@ describe('espionage notification audience contract (#1201)', () => {
     'espionage:intel-report-acquired': { civId: 'rome', spyId: 'spy-1', missionType: 'gather_intel', targetCivId: 'carthage' },
     'espionage:spy-promoted': { civId: 'rome', spyId: 'spy-1', promotion: 'infiltrator' },
     'espionage:spy-expelled': { civId: 'rome', spyId: 'spy-1', spyName: 'Agent X', fromCivId: 'carthage', cooldownTurns: 5 },
+    'espionage:spy-detected': { detectingCivId: 'rome', spyOwner: 'carthage', spyId: 'spy-1', cityId: 'city-1' },
     'espionage:operation-landed': { civId: 'rome', targetCivId: 'carthage', missionType: 'cyber_attack', cityId: 'city-2', effect: { kind: 'production-lockout', turns: 3 } },
     'espionage:incident-traced': { civId: 'carthage', incidentId: 'i-1', actorCivId: 'rome', missionType: 'cyber_attack', cityId: 'city-2' },
     'espionage:went-public': { civId: 'carthage', culpritCivId: 'rome', partnerCivIds: ['egypt'], missionType: 'cyber_attack' },
