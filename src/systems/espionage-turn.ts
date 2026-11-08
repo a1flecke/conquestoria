@@ -718,7 +718,11 @@ function applySpyTurnEvents(
           }
         }
         bus.emit('espionage:spy-expelled', {
-          civId, spyId: evt.spyId, fromCivId: targetCivId ?? '',
+          civId,
+          spyId: evt.spyId,
+          spyName: spy?.name ?? 'Your spy',
+          fromCivId: targetCivId ?? '',
+          cooldownTurns: spy?.cooldownTurns ?? 0,
         });
         break;
       }

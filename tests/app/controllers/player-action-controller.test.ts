@@ -382,6 +382,8 @@ describe('PlayerActionController', () => {
       placeSpy(state, 'player', 'captor-esp-seed'); // ensures espionage.player exists as captor
       placeSpy(state, aiCivId, 'spy-1', { status: 'stationed', unitType: 'spy_scout' });
       const { deps, controller } = build(state);
+      const spyExpelled = vi.fn<(...args: [GameEvents['espionage:spy-expelled']]) => void>();
+      deps.bus.on('espionage:spy-expelled', spyExpelled);
 
       controller.showEspionageCaptureChoice('spy-1', aiCivId);
 
@@ -399,6 +401,13 @@ describe('PlayerActionController', () => {
       expect(expelledSpy).toBeDefined();
       expect(updated.units[expelledSpy!.id].position).toEqual(state.cities['capital-city'].position);
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('expelled'), 'info');
+      expect(spyExpelled).toHaveBeenCalledWith({
+        civId: aiCivId,
+        spyId: expelledSpy!.id,
+        spyName: 'Agent spy-1',
+        fromCivId: 'player',
+        cooldownTurns: 15,
+      });
     });
   });
 

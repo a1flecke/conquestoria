@@ -1,7 +1,7 @@
 // src/ui/notification-routes/espionage-routes.ts
 // #1250: espionage consequences and the exhaustive route table. Recipients come from
 // getEspionageNotificationAudience (the espionage audience contract), never re-derived here.
-import type { GameEvents, GameState, SpyMissionType } from '@/core/types';
+import type { GameEvents, GameState, SpyMissionType, SpyPromotion } from '@/core/types';
 import {
   getEspionageNotificationAudience,
   type EspionageNotificationEvent,
@@ -129,6 +129,41 @@ export function routeIntelReportAcquired(
   const label = INTEL_REPORT_LABELS[event.missionType] ?? 'intelligence';
   for (const { civId } of getEspionageNotificationAudience(state, { type: 'espionage:intel-report-acquired', ...event })) {
     sink(civId, `Your spy gathered ${label} on ${targetName}. View it in the Espionage panel.`, 'success');
+  }
+}
+
+const SPY_PROMOTION_LABELS: Record<SpyPromotion, string> = {
+  infiltrator: 'Infiltrator',
+  handler: 'Handler',
+  sentinel: 'Sentinel',
+};
+
+// Agent milestones and setbacks (#419 Shadows & Secrets). Both are rare, one-time career moments for the
+// spy's owner, so they belong in the notification log without surfacing any foreign hidden state.
+export function routeSpyPromoted(
+  state: GameState,
+  event: GameEvents['espionage:spy-promoted'],
+  sink: NotificationSink,
+): void {
+  const spy = state.espionage?.[event.civId]?.spies[event.spyId];
+  const message = `${spy?.name ?? 'Your spy'} earned the ${SPY_PROMOTION_LABELS[event.promotion]} promotion.`;
+  for (const { civId } of getEspionageNotificationAudience(state, { type: 'espionage:spy-promoted', ...event })) {
+    sink(civId, message, 'success');
+  }
+}
+
+export function routeSpyExpelled(
+  state: GameState,
+  event: GameEvents['espionage:spy-expelled'],
+  sink: NotificationSink,
+): void {
+  const expeller = state.civilizations[event.fromCivId]?.name ?? 'a rival';
+  const returnText = event.cooldownTurns > 0
+    ? ` and will return in ${event.cooldownTurns} turn${event.cooldownTurns === 1 ? '' : 's'}`
+    : '';
+  const message = `${event.spyName} was expelled by ${expeller}${returnText}.`;
+  for (const { civId } of getEspionageNotificationAudience(state, { type: 'espionage:spy-expelled', ...event })) {
+    sink(civId, message, 'warning');
   }
 }
 
@@ -270,6 +305,8 @@ export const ESPIONAGE_NOTIFICATION_ROUTES: {
   'espionage:official-bribed': routeOfficialBribed,
   'espionage:scandal-exposed': routeScandalExposed,
   'espionage:intel-report-acquired': routeIntelReportAcquired,
+  'espionage:spy-promoted': routeSpyPromoted,
+  'espionage:spy-expelled': routeSpyExpelled,
   'espionage:operation-landed': routeOperationLanded,
   'espionage:incident-traced': routeIncidentTraced,
   'espionage:went-public': routeWentPublic,

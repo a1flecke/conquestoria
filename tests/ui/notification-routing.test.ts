@@ -46,6 +46,8 @@ import {
   routeOfficialBribed,
   routeScandalExposed,
   routeIntelReportAcquired,
+  routeSpyPromoted,
+  routeSpyExpelled,
   ESPIONAGE_NOTIFICATION_ROUTES,
 } from '@/ui/notification-routes/espionage-routes';
 import { routeBarbarianSpawned } from '@/ui/notification-routes/map-routes';
@@ -1553,6 +1555,69 @@ describe('espionage:intel-report-acquired routing (post-#442 audit fix)', () => 
   });
 });
 
+describe('espionage spy career routing (#419)', () => {
+  function careerState(cooldownTurns = 0): GameState {
+    return makeState({
+      civilizations: {
+        rome: { id: 'rome', name: 'Rome', diplomacy: { relationships: {}, atWarWith: [] }, visibility: { tiles: {} } },
+        carthage: { id: 'carthage', name: 'Carthage', diplomacy: { relationships: {}, atWarWith: [] }, visibility: { tiles: {} } },
+      } as any,
+      espionage: {
+        carthage: {
+          spies: {
+            'spy-1': {
+              id: 'spy-1', owner: 'carthage', name: 'Agent X', unitType: 'spy',
+              status: 'stationed', experience: 60, cooldownTurns,
+            },
+          },
+          maxSpies: 1,
+          counterIntelligence: {},
+        },
+      } as any,
+    });
+  }
+
+  it('tells only the spy owner about a promotion, using the earned promotion name', () => {
+    const { sink, calls } = makeSink();
+    routeSpyPromoted(careerState(), { civId: 'carthage', spyId: 'spy-1', promotion: 'infiltrator' }, sink);
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        civId: 'carthage',
+        message: 'Agent X earned the Infiltrator promotion.',
+        type: 'success',
+      }),
+    ]);
+  });
+
+  it('tells only the expelled spy owner, naming the expeller and the real cooldown', () => {
+    const { sink, calls } = makeSink();
+    routeSpyExpelled(
+      careerState(15),
+      { civId: 'carthage', spyId: 'spy-1', spyName: 'Agent X', fromCivId: 'rome', cooldownTurns: 15 },
+      sink,
+    );
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        civId: 'carthage',
+        message: 'Agent X was expelled by Rome and will return in 15 turns.',
+        type: 'warning',
+      }),
+    ]);
+    expect(calls.some(c => c.civId === 'rome')).toBe(false);
+  });
+
+  it('uses a distinct label for every promotion', () => {
+    const labels = (['infiltrator', 'handler', 'sentinel'] as const).map((promotion) => {
+      const { sink, calls } = makeSink();
+      routeSpyPromoted(careerState(), { civId: 'carthage', spyId: 'spy-1', promotion }, sink);
+      return calls[0]!.message;
+    });
+    expect(new Set(labels).size).toBe(3);
+  });
+});
+
 describe('era:advanced routing', () => {
   it('era 2 delivers to every human civ, with an extra unrest-primer line per civ', () => {
     const { sink, calls } = makeSink();
@@ -1650,6 +1715,8 @@ describe('espionage notification audience contract (#1201)', () => {
     'espionage:official-bribed': { civId: 'rome', targetCivId: 'carthage', amount: 15 },
     'espionage:scandal-exposed': { civId: 'rome', targetCivId: 'carthage', partnerCivIds: ['egypt'] },
     'espionage:intel-report-acquired': { civId: 'rome', spyId: 'spy-1', missionType: 'gather_intel', targetCivId: 'carthage' },
+    'espionage:spy-promoted': { civId: 'rome', spyId: 'spy-1', promotion: 'infiltrator' },
+    'espionage:spy-expelled': { civId: 'rome', spyId: 'spy-1', spyName: 'Agent X', fromCivId: 'carthage', cooldownTurns: 5 },
     'espionage:operation-landed': { civId: 'rome', targetCivId: 'carthage', missionType: 'cyber_attack', cityId: 'city-2', effect: { kind: 'production-lockout', turns: 3 } },
     'espionage:incident-traced': { civId: 'carthage', incidentId: 'i-1', actorCivId: 'rome', missionType: 'cyber_attack', cityId: 'city-2' },
     'espionage:went-public': { civId: 'carthage', culpritCivId: 'rome', partnerCivIds: ['egypt'], missionType: 'cyber_attack' },

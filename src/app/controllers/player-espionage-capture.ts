@@ -30,6 +30,8 @@ export function createPlayerEspionageCapture(deps: PlayerActionControllerDeps): 
       {
         label: `Expel (${relPenalty} relations)`,
         onClick: () => {
+          const captorId = deps.session.getState().currentPlayer;
+          let expelledSpyId = spyId;
           // Three writes, one publication (#1015).
           deps.session.batch(() => {
             const updatedOwnerEsp = expelSpy(deps.session.getState().espionage![spyOwner], spyId, 15);
@@ -58,11 +60,11 @@ export function createPlayerEspionageCapture(deps: PlayerActionControllerDeps): 
                   },
                 },
               });
+              expelledSpyId = newUnit.id;
             } else {
               deps.session.commit({ ...deps.session.getState(), espionage: { ...deps.session.getState().espionage, [spyOwner]: updatedOwnerEsp } });
             }
             // Bilateral: captor's view of spy owner AND spy owner's view of captor
-            const captorId = deps.session.getState().currentPlayer;
             const expelTurn = deps.session.getState().turn;
             deps.session.commit({
               ...deps.session.getState(),
@@ -83,6 +85,14 @@ export function createPlayerEspionageCapture(deps: PlayerActionControllerDeps): 
               },
             });
             deps.showNotification(`${spy.name} expelled. Will return to their capital after 15 turns.`, 'info');
+          });
+          // The spy owner gets the same setback notice the turn/AI expulsion paths emit (#419 Shadows & Secrets).
+          deps.bus.emit('espionage:spy-expelled', {
+            civId: spyOwner,
+            spyId: expelledSpyId,
+            spyName: spy.name,
+            fromCivId: captorId,
+            cooldownTurns: 15,
           });
         },
       },
