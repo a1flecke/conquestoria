@@ -23,6 +23,7 @@ export type EspionageNotificationEventType =
   | 'espionage:intel-report-acquired'
   | 'espionage:spy-promoted'
   | 'espionage:spy-expelled'
+  | 'espionage:spy-detected'
   | 'espionage:operation-landed'
   | 'espionage:incident-traced'
   | 'espionage:went-public';
@@ -36,6 +37,7 @@ export type EspionageNotificationEvent =
   | (GameEvents['espionage:intel-report-acquired'] & { type: 'espionage:intel-report-acquired' })
   | (GameEvents['espionage:spy-promoted'] & { type: 'espionage:spy-promoted' })
   | (GameEvents['espionage:spy-expelled'] & { type: 'espionage:spy-expelled' })
+  | (GameEvents['espionage:spy-detected'] & { type: 'espionage:spy-detected' })
   | (GameEvents['espionage:operation-landed'] & { type: 'espionage:operation-landed' })
   | (GameEvents['espionage:incident-traced'] & { type: 'espionage:incident-traced' })
   | (GameEvents['espionage:went-public'] & { type: 'espionage:went-public' });
@@ -61,6 +63,7 @@ export const ESPIONAGE_NOTIFICATION_EVENT_TYPES = [
   'espionage:intel-report-acquired',
   'espionage:spy-promoted',
   'espionage:spy-expelled',
+  'espionage:spy-detected',
   'espionage:operation-landed',
   'espionage:incident-traced',
   'espionage:went-public',
@@ -107,6 +110,8 @@ export function getEspionageNotificationAudience(
     case 'espionage:spy-promoted':
     case 'espionage:spy-expelled':
       return [{ civId: event.civId, role: 'actor' }];
+    case 'espionage:spy-detected':
+      return [{ civId: event.detectingCivId, role: 'actor' }];
     case 'espionage:operation-landed':
       return dedupe([
         { civId: event.civId, role: 'actor' },

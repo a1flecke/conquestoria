@@ -15,6 +15,7 @@ import {
   routeOperationLanded,
   routeSpyExpelled,
   routeSpyPromoted,
+  routeSpyTurned,
   routeWentPublic,
 } from '@/ui/notification-routes/espionage-routes';
 import type { PresentationRegistrar } from '@/presentation/register-all';
@@ -65,6 +66,9 @@ export const registerEspionagePresentation: PresentationRegistrar = (bus, ctx) =
         `${spyName} was executed by ${ctx.session.getState().civilizations[executingCivId]?.name ?? 'an enemy'}.`,
         'warning',
       );
+    }),
+    bus.on('espionage:spy-detected', event => {
+      routeSpyTurned(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
     bus.on('espionage:spy-promoted', event => {
       routeSpyPromoted(ctx.session.getState(), event, ctx.notifier.deliver);
