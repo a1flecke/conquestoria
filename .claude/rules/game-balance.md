@@ -917,9 +917,12 @@ and `tests/systems/great-general-specialty-balance.test.ts`.
 - Generated officers (#888) and the universal fallback commanders
   (`gen_universal_*`, `gen_hannibal`, `gen_thessaly`) stay `generalist`.
 - Adding a specialty = one `GENERAL_SPECIALTIES` entry + `GENERAL_SPECIALTY_ASSIGNMENTS`
-  edits + (optionally) one situational term in `chooseBestGeneralCandidate`
-  (`ai-general-command.ts`). NEVER a change to an ability consumer, NEVER a
-  General-ID branch.
+  edits + one `case` in `specialtyNeed` (`ai-general-command.ts`; owned units and fog-safe
+  hostiles only, capped, never difficulty — without it the AI never seeks the specialty out)
+  + a scenario in `great-general-specialty-balance.test.ts` and an AI pick test (#939 added
+  `staff`, "Staff Commander": capacity 4, range 1, the mirror of `mobile`; Tokugawa, Napoleon,
+  Chandragupta, Mehmed). NEVER a change to an ability consumer, NEVER a General-ID branch.
+- Keep each non-generalist specialty at 4–7 Generals; take assignments from the larger groups.
 - Re-run `great-general-specialty-balance.test.ts` — each specialist must still
   win its intended scenario and no specialty may win all six.
 

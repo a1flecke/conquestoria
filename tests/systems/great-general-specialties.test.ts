@@ -85,8 +85,19 @@ describe('resolveGeneralMechanics', () => {
     expect(a).toBe(b);
   });
 
-  it('every catalog entry is one of the six specialty ids', () => {
-    const ids: GeneralSpecialtyId[] = ['generalist', 'defensive', 'initiative', 'logistician', 'mobile', 'endurance'];
+  it('staff: capacity 4, range 1, all else baseline (#939)', () => {
+    const m = resolveGeneralMechanics({ ...baseDef, id: 'gen_napoleon' });
+    expect(m.commandCapacity).toBe(4);
+    expect(m.commandRange).toBe(1);
+    expect(m.maxCommandCharges).toBe(3);
+    expect(m.cooldownTurns).toBe(10);
+    expect(m.rally.healAmount).toBe(30);
+    expect(m.lastStand).toEqual({ defenseMultiplier: 1.15, durationTurns: 2 });
+    expect(m.seize.extraTargets).toBe(0);
+  });
+
+  it('every catalog entry is one of the seven specialty ids', () => {
+    const ids: GeneralSpecialtyId[] = ['generalist', 'defensive', 'initiative', 'logistician', 'mobile', 'endurance', 'staff'];
     expect(Object.keys(GENERAL_SPECIALTIES).sort()).toEqual([...ids].sort());
   });
 });
@@ -116,7 +127,7 @@ const BOUNDS = {
 
 const SPEC_SAMPLE: Record<string, string> = {
   generalist: 'gen_hannibal', defensive: 'gen_wellington', initiative: 'gen_caesar',
-  logistician: 'gen_yuefei', mobile: 'gen_genghis', endurance: 'gen_shaka',
+  logistician: 'gen_yuefei', mobile: 'gen_genghis', endurance: 'gen_shaka', staff: 'gen_napoleon',
 };
 
 describe('#885 specialty bounds + no strict upgrade', () => {
@@ -195,7 +206,7 @@ describe('#885 roster assignments', () => {
   it('distribution stays legible — 4..7 per non-generalist specialty, >=5 generalist', () => {
     const counts: Record<string, number> = {};
     for (const v of Object.values(GENERAL_SPECIALTY_ASSIGNMENTS)) counts[v] = (counts[v] ?? 0) + 1;
-    for (const spec of ['defensive', 'initiative', 'logistician', 'mobile', 'endurance']) {
+    for (const spec of ['defensive', 'initiative', 'logistician', 'mobile', 'endurance', 'staff']) {
       expect(counts[spec] ?? 0, spec).toBeGreaterThanOrEqual(4);
       expect(counts[spec] ?? 0, spec).toBeLessThanOrEqual(7);
     }

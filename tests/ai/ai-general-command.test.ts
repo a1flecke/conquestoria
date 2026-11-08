@@ -544,6 +544,44 @@ describe('#885 chooseBestGeneralCandidate — bounded, non-omniscient, difficult
     expect(chooseBestGeneralCandidate(s, 'player', cands).id).toBe('gen_yuefei');
   });
 
+  describe('Staff Commander (#939)', () => {
+    function withArmy(seed: string, count: number, health = 100) {
+      const s = gameAtWar(seed);
+      const added: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const id = `army-${i}`;
+        s.units[id] = { id, type: 'swordsman', owner: 'player', position: { q: 3 + i, r: 3 },
+          movementPointsLeft: 1, health, experience: 0, hasMoved: false, hasActed: false, isResting: false } as Unit;
+        added.push(id);
+      }
+      s.civilizations.player!.units = [...s.civilizations.player!.units, ...added];
+      return s;
+    }
+    const cands = [def('gen_hannibal'), def('gen_napoleon'), def('gen_genghis')];
+
+    it('picks the Staff Commander when the army has outgrown the baseline command capacity', () => {
+      expect(chooseBestGeneralCandidate(withArmy('cbc-staff', 8), 'player', cands).id).toBe('gen_napoleon');
+    });
+
+    it('does not seek the Staff Commander out for a small army', () => {
+      const s = withArmy('cbc-staff-small', 0);
+      s.civilizations.player!.units = s.civilizations.player!.units.filter(id => s.units[id]?.type === 'settler');
+      expect(chooseBestGeneralCandidate(s, 'player', cands).id).not.toBe('gen_napoleon');
+    });
+
+    it('counts only own units, never a rival\'s', () => {
+      const s = withArmy('cbc-staff-foreign', 0);
+      s.civilizations.player!.units = s.civilizations.player!.units.filter(id => s.units[id]?.type === 'settler');
+      for (let i = 0; i < 8; i++) {
+        const id = `foe-${i}`;
+        s.units[id] = { id, type: 'swordsman', owner: 'ai-1', position: { q: 3 + i, r: 5 },
+          movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false } as Unit;
+        s.civilizations['ai-1']!.units = [...s.civilizations['ai-1']!.units, id];
+      }
+      expect(chooseBestGeneralCandidate(s, 'player', cands).id).not.toBe('gen_napoleon');
+    });
+  });
+
   it('never reads difficulty — same pick on Explorer and Veteran', () => {
     const cands = [def('gen_wellington'), def('gen_genghis'), def('gen_hannibal')];
     const explorer = { ...gameAtWar('cbc-diff'), opponentChallenge: 'explorer' as const };
