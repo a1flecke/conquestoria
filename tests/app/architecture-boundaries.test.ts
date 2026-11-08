@@ -879,7 +879,7 @@ describe('#1009 — espionage-system decomposition boundaries', () => {
       .toEqual(['espionage-catalog', 'espionage-counterintel', 'espionage-probability']);
     const src = readSys('espionage-presentation.ts');
     expect(src.match(/export (?:type )?\{[^}]*\} from '\.\/espionage-counterintel'/g)?.join(' ').replace(/\s+/g, ' '))
-      .toBe("export { getOperationAttribution, getGoPublicDenial, getGoPublicExpiryTurn, GO_PUBLIC_DENIAL_MESSAGES } from './espionage-counterintel' export type { OperationAttribution, GoPublicDenialReason } from './espionage-counterintel'");
+      .toBe("export { getOperationAttribution, getGoPublicDenial, getGoPublicExpiryTurn, getGoPublicPreview, GO_PUBLIC_DENIAL_MESSAGES } from './espionage-counterintel' export type { OperationAttribution, GoPublicDenialReason, GoPublicPreview } from './espionage-counterintel'");
     for (const mutation of [
       'processEspionageTurn', 'resolveMissionResult', 'startMission',
       'turnCapturedSpy', 'executeSpy', 'attemptInfiltration',

@@ -6,7 +6,7 @@ import type { Treaty } from '@/core/types/diplomacy';
 // Bounded per-partner penalty and a cap on affected partners so a maximally-connected civ can't be devastated in one
 // action (game-balance.md "never permanently cripple a city/civ from one successful spy action").
 export const EXPOSE_SCANDAL_PENALTY = -10;
-const EXPOSE_SCANDAL_MAX_PARTNERS = 4;
+export const EXPOSE_SCANDAL_MAX_PARTNERS = 4;
 
 interface ScandalWorld {
   civilizations: Record<string, { diplomacy: { treaties: Treaty[] } } | undefined>;
