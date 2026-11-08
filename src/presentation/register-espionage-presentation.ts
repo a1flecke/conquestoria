@@ -13,6 +13,8 @@ import {
   routeIntelReportAcquired,
   routeIncidentTraced,
   routeOperationLanded,
+  routeSpyExpelled,
+  routeSpyPromoted,
   routeWentPublic,
 } from '@/ui/notification-routes/espionage-routes';
 import type { PresentationRegistrar } from '@/presentation/register-all';
@@ -63,6 +65,12 @@ export const registerEspionagePresentation: PresentationRegistrar = (bus, ctx) =
         `${spyName} was executed by ${ctx.session.getState().civilizations[executingCivId]?.name ?? 'an enemy'}.`,
         'warning',
       );
+    }),
+    bus.on('espionage:spy-promoted', event => {
+      routeSpyPromoted(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('espionage:spy-expelled', event => {
+      routeSpyExpelled(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
     bus.on('espionage:spy-expired', ({ civId, spyName, unitType }) => {
       ctx.notifier.deliver(civId, `${spyName}'s network dissolved — ${unitType} era ended. No diplomatic penalty.`, 'info');

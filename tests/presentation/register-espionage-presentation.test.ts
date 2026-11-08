@@ -3,7 +3,7 @@ import { EventBus } from '@/core/event-bus';
 import { registerEspionagePresentation } from '@/presentation/register-espionage-presentation';
 import { makePresentationContext } from '../helpers/presentation-context';
 
-function spy(overrides: { name?: string; unitType?: string } = {}) {
+function spy(overrides: { name?: string; unitType?: string; cooldownTurns?: number } = {}) {
   return { name: 'Agent X', unitType: 'spy', ...overrides };
 }
 
@@ -75,6 +75,45 @@ describe('espionage presentation', () => {
     bus.emit('espionage:spy-executed', { executingCivId: 'rome', spyOwner: 'carthage', spyId: 'spy-1', spyName: 'Agent X' });
 
     expect(ctx.deliver).toHaveBeenCalledWith('carthage', expect.stringContaining('Agent X'), 'warning');
+  });
+
+  it('notifies the spy owner when their agent earns a promotion', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext({
+      state: {
+        espionage: { carthage: { spies: { 'spy-1': spy() } } } as never,
+      },
+    });
+
+    registerEspionagePresentation(bus, ctx);
+    bus.emit('espionage:spy-promoted', { civId: 'carthage', spyId: 'spy-1', promotion: 'infiltrator' });
+
+    expect(ctx.deliver).toHaveBeenCalledWith(
+      'carthage',
+      'Agent X earned the Infiltrator promotion.',
+      'success',
+    );
+  });
+
+  it('notifies the spy owner when their agent is expelled and names the return time', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext({
+      state: {
+        civilizations: { rome: { name: 'Rome' } } as never,
+        espionage: { carthage: { spies: { 'spy-1': spy({ cooldownTurns: 15 }) } } } as never,
+      },
+    });
+
+    registerEspionagePresentation(bus, ctx);
+    bus.emit('espionage:spy-expelled', {
+      civId: 'carthage', spyId: 'spy-1', spyName: 'Agent X', fromCivId: 'rome', cooldownTurns: 15,
+    });
+
+    expect(ctx.deliver).toHaveBeenCalledWith(
+      'carthage',
+      'Agent X was expelled by Rome and will return in 15 turns.',
+      'warning',
+    );
   });
 
   it('notifies a civ their spy expired with no diplomatic penalty', () => {
@@ -160,7 +199,12 @@ describe('espionage presentation', () => {
   it('disposing removes every subscription this registrar added', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({
-      state: { currentPlayer: 'rome', cities: { 'city-a': { name: 'Utica' } } as never },
+      state: {
+        currentPlayer: 'rome',
+        cities: { 'city-a': { name: 'Utica' } } as never,
+        civilizations: { rome: { name: 'Rome' } } as never,
+        espionage: { carthage: { spies: { 'spy-1': spy({ cooldownTurns: 15 }) } } } as never,
+      },
     });
     const dispose = registerEspionagePresentation(bus, ctx);
 
@@ -170,6 +214,10 @@ describe('espionage presentation', () => {
     bus.emit('espionage:spy-caught-infiltrating', { capturingCivId: 'rome', spyOwner: 'carthage', spyId: 'spy-1', cityId: 'city-a' });
     bus.emit('espionage:spy-captured', { capturingCivId: 'rome', spyOwner: 'carthage', spyId: 'spy-1' });
     bus.emit('espionage:spy-executed', { executingCivId: 'rome', spyOwner: 'carthage', spyId: 'spy-1', spyName: 'Agent X' });
+    bus.emit('espionage:spy-promoted', { civId: 'carthage', spyId: 'spy-1', promotion: 'infiltrator' });
+    bus.emit('espionage:spy-expelled', {
+      civId: 'carthage', spyId: 'spy-1', spyName: 'Agent X', fromCivId: 'rome', cooldownTurns: 15,
+    });
     bus.emit('espionage:spy-expired', { civId: 'rome', spyId: 'spy-1', spyName: 'Agent X', unitType: 'spy' as never });
     bus.emit('espionage:spy-auto-exfiltrated', { civId: 'rome', spyId: 'spy-1', cityId: 'city-a' });
     bus.emit('espionage:city-flipped', { civId: 'rome', victimCivId: 'carthage', cityId: 'city-a' });

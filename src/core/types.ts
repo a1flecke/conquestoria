@@ -2370,7 +2370,7 @@ export interface GameEvents extends DiplomacyEvents, CivilizationEvents, WorldEv
   'espionage:mission-failed': { civId: string; spyId: string; missionType: SpyMissionType };
   'espionage:spy-detected': { detectingCivId: string; spyOwner: string; spyId: string; cityId: string };
   'espionage:spy-detected-traveling': { detectingCivId: string; spyOwner: string; spyUnitId: string; position: HexCoord; wasDisguised: boolean };
-  'espionage:spy-expelled': { civId: string; spyId: string; fromCivId: string };
+  'espionage:spy-expelled': { civId: string; spyId: string; spyName: string; fromCivId: string; cooldownTurns: number };
   'espionage:spy-captured': { capturingCivId: string; spyOwner: string; spyId: string };
   'espionage:spy-recalled': { civId: string; spyId: string; reason?: string };
   'espionage:spy-infiltrated': { civId: string; spyId: string; cityId: string };

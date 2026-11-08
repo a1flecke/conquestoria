@@ -1739,9 +1739,11 @@ function processAITurnInternal(
 
         if (verdict === 'expel') {
           const updatedOwnerEsp = expelSpy(newState.espionage![victimCivId], capturedSpy.id, 15);
+          let expelledSpyId = capturedSpy.id;
           const capital = getCapitalCity(newState, victimCivId);
           if (capital) {
             const newUnit = createUnit(capturedSpy.unitType, victimCivId, capital.position, newState.idCounters);
+            expelledSpyId = newUnit.id;
             newState = {
               ...newState,
               units: { ...newState.units, [newUnit.id]: newUnit },
@@ -1783,7 +1785,11 @@ function processAITurnInternal(
             },
           };
           bus.emit('espionage:spy-expelled', {
-            civId: victimCivId, spyId: capturedSpy.id, fromCivId: civId,
+            civId: victimCivId,
+            spyId: expelledSpyId,
+            spyName: capturedSpy.name,
+            fromCivId: civId,
+            cooldownTurns: 15,
           });
         } else if (verdict === 'execute') {
           newState = {
