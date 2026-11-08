@@ -1,0 +1,17 @@
+{
+  "id": "artillery",
+  "status": "shipped: registered in STRIP_UNITS and exported with strips.py export (#1627, #759)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-08",
+  "prompts": "Based on scripts/sprite-puppet/strip-rigs/artillery.json and the templates in scripts/sprite-puppet/strip-prompts/. One conversation drew the master; the damage sheet and the wreck row were each drawn in one message of a conversation with the master attached (one prompt per image). The prompts ChatGPT actually ran were adapted from the templates for a steel howitzer on a wheeled carriage (no hatch, armour or legs wording) and were not captured verbatim. The master prompt used the softer weapon wording that worked for the Cannon and drew on the first try.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/artillery). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all three passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "None: the master, the damage sheet and the wreck row were each accepted on the first image that drew. The wheel (centre 0.612, 0.703 and radius 0.177 of the figure box) is set by hand in the move rig; the muzzle is found from the drawing. Known caveat: the wreck row redraws the carriage and spokes in olive and wood tones where the master is grey steel, and its shield is rounder than the master's; the hit and burning frames are brief and the rig's idle, move, fire and hit rows use the master.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1448, 1086], "sha256": "eb3379dd3a197c3602c58564fa49691dd7321e3b666f1d6e316e0cb1aa7255da" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1448, 1086], "sha256": "c1165458f77e54362c7c25e5f260e2ebd161e8ff8ed4339451f95d6ffe2233e4" },
+    { "role": "wreck, 3 frames in one row", "file": "c", "size": [2172, 724], "sha256": "2364134d307d30703fe0ed7db47e2d62bd129d36eef89b46331fa2b89bc1ab4e" }
+  ]
+}
