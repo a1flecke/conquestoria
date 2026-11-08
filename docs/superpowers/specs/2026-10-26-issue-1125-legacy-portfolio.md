@@ -2,6 +2,8 @@
 
 26 October 2026. Consolidated product-planning snapshot for [issue #1125](https://github.com/a1flecke/conquestoria/issues/1125), published at the user's request. This records accepted directions, candidate distinctions and explicit gaps. It is not an implementation plan or evidence of calibrated balance. Source and tests remain the authority on what the game currently implements.
 
+Updated 7 November 2026 with the subsequent exploration and water-engineering paper campaigns. Their accepted directions and constructed examples are preserved in the [exploration campaign checkpoint](2026-11-07-issue-1125-exploration-campaign.md) and [water-engineering checkpoint](2026-11-07-issue-1125-water-engineering.md). These checkpoints supersede earlier trial figures only where explicitly stated; no gameplay implementation is claimed.
+
 ## Purpose and design standard
 
 Develop several satisfying ways to leave a world-changing legacy, supporting different personalities, independent leadership and genuine cooperation. Evaluate gameplay, fun, excitement, playability and lovability. The shared framework describes how an accomplishment qualifies; it must not force every candidate into the same research/build/deploy loop.
@@ -34,13 +36,17 @@ The investigation-led experience is accepted. Complementary ocean and continenta
 
 Replayability comes from actual evidence, prior knowledge, equipment, geography and relationships. Do not randomize scientific truth merely to hide a correct answer. Sufficient existing evidence removes redundant expeditions; feasible actions remain available beyond recommendations. A foundational scientific achievement need not become a commercial product. Intellectual use abroad and the isolated-science boundary still need complete qualification definitions.
 
+The later campaign supports independent, aggressively funded expeditions and a cooperative host's competing commercial strategy. Consequential use of findings matters; two regional successes alone were insufficient. Repeat revenue, discoveries retained under negotiated rights, additional crews and remote bases support exploration without guaranteeing every lead a profitable result. The [campaign checkpoint](2026-11-07-issue-1125-exploration-campaign.md) records these distinctions and the rival-information tests.
+
 ### Water engineering
 
 The accepted candidate can use storage/distribution or distributed sources, treatment and reuse in appropriate combinations. Existing technology can support exceptional engineering. A famous dam, cheap power, one transformed town or many pipes is insufficient by itself.
 
 Real sources, replenishment, treatment and simultaneous uses constrain the design. A reservoir does not create water; hydropower is not automatically consumptive. Relocation is possible but can have real costs, dissatisfaction and community consequences. Useful applications can serve existing mature settlements, without an obligatory long population-growth tail. Routine releases do not require per-city policies.
 
-The 20%-of-world population, three applications, 5%-each and two operating-constraint figures are paper trials, not finalized requirements. Do not import Ocean's half-main-region ratio as a universal rule. Detailed operating and relocation definitions remain unfinished.
+The earlier 20%-of-world population, three applications, 5%-each and two operating-constraint figures were paper trials. The later population-focused campaign now trials substantial functioning transformation benefiting at least 50% of world population, plus meaningful depth and environmental breadth. The 50% figure is provisional and is not a universal engineering or ecological Legacy rule. The later discussion accepted substantial supporting areas relative to the strongest area as a breadth direction; translating the half-main-region principle into a water-specific measure remains a calibration task, not an automatic import of Ocean's marine-area formula. See the [water checkpoint](2026-11-07-issue-1125-water-engineering.md).
+
+Count substantial use of a capability that overcomes a major constraint, not customers, nominal capacity or incremental utility improvements. Preserve mature-settlement applications without mandatory new population growth. Routine operation recedes into civilization infrastructure; investment, access and strategic threats remain player decisions. Entrepreneurial, public-investment and cooperative approaches are all viable candidate styles. Ordinary local-contract simulations have reached a stopping point; further validation should focus on the victory boundary, whole-campaign affordability and different generated maps.
 
 ### Commerce
 

@@ -2,6 +2,18 @@
  "schema": 1,
  "policy": "Every markdown file under docs/superpowers/{plans,specs} must be classified here. entries = files that earn a place in the active tree (active: owned by an open issue; durable-reference: cited by source, tests or rules for rationale not restated there). deleted = delivered-stale | superseded | abandoned files removed from the tree; git history is the archive, and the guard fails if one reappears. Run `node scripts/docs-lifecycle.mjs refresh` to update issue-state snapshots; `check` is offline.",
  "entries": {
+  "docs/superpowers/specs/2026-11-07-issue-1125-exploration-campaign.md": {
+   "category": "active",
+   "reason": "Advisory exploration campaign learning, independent/cooperative styles and unresolved qualification for open issue #1125; constructed paper outcomes are not implemented gameplay.",
+   "issues": [1125],
+   "issueStates": {"1125": "OPEN"}
+  },
+  "docs/superpowers/specs/2026-11-07-issue-1125-water-engineering.md": {
+   "category": "active",
+   "reason": "Accepted water-engineering candidate direction, operating policies, provisional world-scale trial and remaining validation for open issue #1125.",
+   "issues": [1125],
+   "issueStates": {"1125": "OPEN"}
+  },
   "docs/superpowers/specs/2026-10-26-issue-1125-legacy-portfolio.md": {
    "category": "active",
    "reason": "Current advisory Legacy portfolio, accepted experience directions and remaining candidate gaps for open issue #1125; not an implementation plan.",
