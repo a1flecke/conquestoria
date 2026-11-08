@@ -137,6 +137,7 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
   return {
     toast,
     deliver: delivery.deliver,
+    log: delivery.log,
     choice,
     withHappenedTurn: delivery.withHappenedTurn,
   };

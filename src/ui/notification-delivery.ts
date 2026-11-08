@@ -11,6 +11,13 @@ export interface NotificationDeliveryDeps {
 
 export interface NotificationDelivery {
   deliver: NotificationSink;
+  /**
+   * Append-only variant for routine, high-frequency results (#419
+   * notification fatigue): the persistent log stays complete, but no toast is
+   * shown and no hot-seat handoff event is queued. Reserve `deliver` for
+   * outcomes the viewer must notice or act on.
+   */
+  log: NotificationSink;
   withHappenedTurn<T>(turn: number, fn: () => T): T;
 }
 
@@ -46,6 +53,13 @@ export function createNotificationDelivery(deps: NotificationDeliveryDeps): Noti
 
   return {
     deliver,
+    // Routine results are recorded for the permanent log but never interrupt
+    // the active player or pad the hot-seat handoff summary (#419).
+    log: (civId, message, type, target, cityActions, _sfxCue, combatDetails) => {
+      const state = deps.getState();
+      const turn = happenedTurn ?? state.turn;
+      appendNotification(state, civId, { message, type, turn, target, cityActions, combatDetails });
+    },
     withHappenedTurn<T>(turn: number, fn: () => T): T {
       happenedTurn = turn;
       try {

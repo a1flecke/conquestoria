@@ -214,8 +214,10 @@ describe('espionage presentation', () => {
     registerEspionagePresentation(bus, ctx);
     bus.emit('espionage:intel-report-acquired', { civId: 'rome', spyId: 'spy-1', missionType: 'monitor_troops', targetCivId: 'carthage' });
 
-    expect(ctx.deliver).toHaveBeenCalledWith('rome', expect.any(String), 'success');
-    expect(ctx.deliver).not.toHaveBeenCalledWith('carthage', expect.anything(), expect.anything());
+    expect(ctx.log).toHaveBeenCalledWith('rome', expect.any(String), 'success');
+    expect(ctx.log).not.toHaveBeenCalledWith('carthage', expect.anything(), expect.anything());
+    // Routine intel acknowledgements must not interrupt play (#419 notification fatigue).
+    expect(ctx.deliver).not.toHaveBeenCalled();
   });
 
   it('disposing removes every subscription this registrar added', () => {
@@ -250,6 +252,7 @@ describe('espionage presentation', () => {
     bus.emit('espionage:intel-report-acquired', { civId: 'rome', spyId: 'spy-1', missionType: 'monitor_troops', targetCivId: 'carthage' });
 
     expect(ctx.deliver).not.toHaveBeenCalled();
+    expect(ctx.log).not.toHaveBeenCalled();
     expect(ctx.showEspionageCaptureChoice).not.toHaveBeenCalled();
   });
 });

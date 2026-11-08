@@ -96,7 +96,10 @@ export const registerEspionagePresentation: PresentationRegistrar = (bus, ctx) =
       routeScandalExposed(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
     bus.on('espionage:intel-report-acquired', event => {
-      routeIntelReportAcquired(ctx.session.getState(), event, ctx.notifier.deliver);
+      // Routine, repeatable acknowledgement: log it, but do not interrupt the
+      // active player with a toast or hot-seat handoff (#419 notification
+      // fatigue). The full report stays available in the Espionage panel.
+      routeIntelReportAcquired(ctx.session.getState(), event, ctx.notifier.log);
     }),
     bus.on('espionage:operation-landed', event => {
       routeOperationLanded(ctx.session.getState(), event, ctx.notifier.deliver);
