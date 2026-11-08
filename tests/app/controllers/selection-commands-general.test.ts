@@ -4,6 +4,7 @@ import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import type { GameState, Unit } from '@/core/types';
 import { createGameSession } from '@/app/game-session';
+import { foundCity } from '@/systems/city-system';
 import { createGeneralCommands } from '@/app/controllers/selection-commands-general';
 import type { SelectionCommonDeps, SelectionCore } from '@/app/controllers/selection-shared';
 import type { GeneralAbilityMoment } from '@/systems/great-general-ability-presentation';
@@ -100,6 +101,58 @@ describe('general command controller (#889)', () => {
     expect(moments).toHaveLength(1);
     expect(moments[0]).toMatchObject({ kind: 'seize', affectedCount: 1 });
     expect(moments[0]!.summary).toBe('Seize the Moment: 1 unit can act again.');
+  });
+
+  describe('Breach the Walls (#939)', () => {
+    /** A Siegemaster two hexes from a visible, hostile city of the rival, at war. */
+    function makeSiegeWorld(): GameState {
+      const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'cmd-breach-1' });
+      const city = { ...foundCity('ai-1', { q: 8, r: 8 }, state.map, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'fort', hp: 100 };
+      state.cities = { ...state.cities, fort: city };
+      state.civilizations['ai-1']!.cities = ['fort'];
+      state.units['gen-1'] = unit('gen-1', {
+        type: 'great_general', position: { q: city.position.q + 2, r: city.position.r }, health: 100, generalDefinitionId: 'gen_mehmed',
+      });
+      state.civilizations.player.units = ['gen-1'];
+      state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+      state.civilizations['ai-1']!.diplomacy.atWarWith = ['player'];
+      state.civilizations.player.visibility.tiles[`${city.position.q},${city.position.r}`] = 'visible';
+      return state;
+    }
+
+    it('confirming commits the opened walls, then announces exactly one breach moment', () => {
+      const { session, commands, moments, publishedBeforeEvent, selectUnit } = setup(makeSiegeWorld());
+      const cityId = 'fort';
+      commands.onOpenBreach!('gen-1');
+      expect(document.querySelectorAll('#breach-panel input[type="radio"]')).toHaveLength(1);
+      document.querySelector<HTMLInputElement>('#breach-panel input[type="radio"]')!.click();
+      confirm('breach-panel');
+
+      expect(session.getState().cities[cityId]!.breach?.byCivId).toBe('player');
+      expect(session.getState().units['gen-1']!.generalCommandChargesUsed).toBe(1);
+      expect(moments).toHaveLength(1);
+      expect(moments[0]).toMatchObject({ kind: 'breach', civId: 'player', generalUnitId: 'gen-1', affectedCount: 1 });
+      expect(publishedBeforeEvent).toEqual([true]);
+      expect(selectUnit).toHaveBeenCalledWith('gen-1');
+    });
+
+    it('cancelling announces nothing and spends nothing', () => {
+      const { session, commands, moments } = setup(makeSiegeWorld());
+      commands.onOpenBreach!('gen-1');
+      Array.from(document.querySelectorAll<HTMLButtonElement>('#breach-panel button')).find(b => b.textContent === 'Cancel')!.click();
+      expect(moments).toHaveLength(0);
+      expect(session.getState().units['gen-1']!.generalCommandChargesUsed).toBeUndefined();
+    });
+
+    it('lists no city for a General without the specialty, and nothing can be confirmed', () => {
+      const world = makeSiegeWorld();
+      world.units['gen-1'] = { ...world.units['gen-1']!, generalDefinitionId: 'gen_hannibal' };
+      const { session, commands, moments } = setup(world);
+      commands.onOpenBreach!('gen-1');
+      expect(document.querySelectorAll('#breach-panel input[type="radio"]')).toHaveLength(0);
+      expect(moments).toHaveLength(0);
+      expect(session.getState().units['gen-1']!.generalCommandChargesUsed).toBeUndefined();
+    });
   });
 
   it('a final charge is announced as a Final Command', () => {

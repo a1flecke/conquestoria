@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
-import { createRallyPanel, createSeizeThePanelMoment, createLastStandPanel } from '@/ui/general-command-panel';
-import type { LastStandPreview, RallyPreview } from '@/systems/great-general-abilities';
+import { createBreachPanel, createRallyPanel, createSeizeThePanelMoment, createLastStandPanel } from '@/ui/general-command-panel';
+import type { BreachPreview, LastStandPreview, RallyPreview } from '@/systems/great-general-abilities';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { getGeneralPresentation } from '@/systems/great-general-presentation';
 
@@ -102,6 +102,70 @@ describe('createSeizeThePanelMoment', () => {
     checkbox.checked = true;
     checkbox.dispatchEvent(new Event('change'));
     expect(confirmButton.disabled).toBe(false);
+  });
+});
+
+describe('createBreachPanel (#939)', () => {
+  const eligibility = { eligible: true, chargesRemaining: 3, isFinalCharge: false, cooldownTurnsRemaining: 0 };
+  const preview = (cityId: string, cityName: string, hasGarrison = false): BreachPreview =>
+    ({ eligibility, available: true, cityId, cityName, durationTurns: 2, hasGarrison });
+  const confirmButton = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('button')).find(b => /^confirm$/i.test(b.textContent ?? '')) as HTMLButtonElement;
+
+  it('says what Breach does and names the duration, and lists each city with its garrison', () => {
+    const container = document.createElement('div');
+    createBreachPanel(container, [preview('c1', 'Fort Hesse', true), preview('c2', 'Brandt')], () => {}, () => {});
+    const text = container.textContent ?? '';
+    expect(text).toMatch(/2 turns/);
+    expect(text).toMatch(/through the garrison/i);
+    expect(text).toMatch(/Fort Hesse \(garrisoned\)/);
+    expect(text).toMatch(/Brandt/);
+    expect(text).not.toMatch(/Brandt \(garrisoned\)/);
+    expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(2);
+  });
+
+  it('Confirm starts disabled, enables when a city is chosen, and passes exactly that city once', () => {
+    const container = document.createElement('div');
+    const onConfirm = vi.fn();
+    createBreachPanel(container, [preview('c1', 'Fort Hesse'), preview('c2', 'Brandt')], onConfirm, () => {});
+    const confirm = confirmButton(container);
+    expect(confirm.disabled).toBe(true);
+    confirm.click();
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    const radios = container.querySelectorAll<HTMLInputElement>('input[type="radio"]');
+    radios[1]!.checked = true;
+    radios[1]!.dispatchEvent(new Event('change'));
+    expect(confirm.disabled).toBe(false);
+    confirm.click();
+    confirm.click();
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onConfirm).toHaveBeenCalledWith('c2');
+    expect(container.querySelector('#breach-panel')).toBeNull();
+  });
+
+  it('with no breachable city it explains why and offers nothing to confirm', () => {
+    const container = document.createElement('div');
+    createBreachPanel(container, [], () => {}, () => {});
+    expect(container.textContent).toMatch(/No visible hostile city/i);
+    expect(confirmButton(container).disabled).toBe(true);
+  });
+
+  it('Cancel closes the panel and confirms nothing', () => {
+    const container = document.createElement('div');
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    createBreachPanel(container, [preview('c1', 'Fort Hesse')], onConfirm, onCancel);
+    Array.from(container.querySelectorAll('button')).find(b => /cancel/i.test(b.textContent ?? ''))!.click();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(container.querySelector('#breach-panel')).toBeNull();
+  });
+
+  it('warns that it is a Final Command when it spends the last charge', () => {
+    const container = document.createElement('div');
+    createBreachPanel(container, [{ ...preview('c1', 'Fort Hesse'), eligibility: { ...eligibility, isFinalCharge: true } }], () => {}, () => {});
+    expect(container.querySelector('[data-final-command="true"]')).not.toBeNull();
   });
 });
 

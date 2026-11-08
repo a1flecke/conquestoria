@@ -3,6 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import type { GameState, Unit } from '@/core/types';
 import { Camera } from '@/renderer/camera';
 import {
+  drawBreachedCityMarkers,
   drawGeneralAbilityEffect,
   drawLastStandHoldMarkers,
   GENERAL_ABILITY_EFFECT_TYPES,
@@ -143,5 +144,62 @@ describe('Last Stand hold marker (#889)', () => {
     const rec = recordingContext();
     drawLastStandHoldMarkers(rec.ctx, [presentation('held', { q: 2, r: 2 })], camera, state);
     expect(rec.calls).toHaveLength(0);
+  });
+});
+
+// --- Breach the Walls (#939) ------------------------------------------------------------------------------
+
+describe('Breach effect (#939)', () => {
+  it('is a registered, drawable effect with its own shape (cracks), distinct from the other abilities', () => {
+    expect(GENERAL_ABILITY_EFFECT_TYPES).toContain('general-breach');
+    expect(isGeneralAbilityEffect('general-breach')).toBe(true);
+    const ops = (type: GeneralAbilityEffectType) => drawCalls(type).calls.map(c => c.op).filter(op => ['arc', 'lineTo', 'moveTo'].includes(op)).join(',');
+    for (const other of ['general-rally', 'general-seize', 'general-last-stand', 'general-final-command'] as const) {
+      expect(ops('general-breach'), other).not.toBe(ops(other));
+    }
+    expect(drawCalls('general-breach').calls.filter(c => c.op === 'lineTo').length).toBeGreaterThanOrEqual(6 * 3);
+    expect(drawCalls('general-breach').styles).toContain('#123456');
+  });
+
+  it('fades out completely by the end of its life', () => {
+    const rec = recordingContext();
+    const alphas: number[] = [];
+    const proxy = new Proxy(rec.ctx as unknown as Record<string, unknown>, {
+      set(target, prop: string, value: unknown) {
+        if (prop === 'globalAlpha') alphas.push(value as number);
+        return Reflect.set(target, prop, value);
+      },
+    }) as unknown as CanvasRenderingContext2D;
+    drawGeneralAbilityEffect(proxy, 'general-breach', 1, 0, 0, 40, style);
+    expect(Math.max(...alphas)).toBeLessThanOrEqual(0.0001);
+  });
+});
+
+describe('breached city marker (#939)', () => {
+  const camera = new Camera();
+  camera.setViewport(800, 600);
+  camera.centerOn({ q: 3, r: 2 });
+  const world = (breachedBy?: string) => ({
+    cities: { fort: { owner: 'ai-1', position: { q: 3, r: 2 }, ...(breachedBy ? { breach: { byCivId: breachedBy } } : {}) } },
+    map: { width: 40, wrapsHorizontally: false },
+  });
+  const strokes = (state: ReturnType<typeof world>, viewerId: string, visible: boolean) => {
+    const rec = recordingContext();
+    drawBreachedCityMarkers(rec.ctx, state, camera, viewerId, () => visible);
+    return rec.calls.filter(c => c.op === 'stroke').length;
+  };
+
+  it('marks nothing when no wall is open', () => {
+    expect(strokes(world(), 'player', true)).toBe(0);
+  });
+
+  it('shows the breacher, the city\'s owner and anyone who can currently see the city', () => {
+    expect(strokes(world('player'), 'player', false)).toBeGreaterThan(0);
+    expect(strokes(world('player'), 'ai-1', false)).toBeGreaterThan(0);
+    expect(strokes(world('player'), 'ai-2', true)).toBeGreaterThan(0);
+  });
+
+  it('never shows a rival\'s siege to a viewer who cannot see the city (no leak through fog)', () => {
+    expect(strokes(world('player'), 'ai-2', false)).toBe(0);
   });
 });

@@ -666,6 +666,46 @@ describe('#544 MR4 — General command panel', () => {
     for (const button of buttons) expect(button.disabled).toBe(true);
   });
 
+  describe('Breach the Walls (#939)', () => {
+    const buttonsMatching = (container: MockElement) => findButtons(container).filter(b => /Breach the Walls/.test(b.textContent ?? ''));
+
+    it('is offered to a Siegemaster and invokes onOpenBreach with the General\'s unit id', () => {
+      const state = makeGeneralState({ generalDefinitionId: 'gen_mehmed' });
+      const container = new MockElement('div');
+      const onOpenBreach = vi.fn();
+      renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', { onOpenBreach });
+      const [button, ...rest] = buttonsMatching(container);
+      expect(button).toBeDefined();
+      expect(rest).toHaveLength(0);
+      expect(button!.disabled).toBe(false);
+      button!.click();
+      expect(onOpenBreach).toHaveBeenCalledWith('u1');
+    });
+
+    it('is not offered at all to a General of any other specialty', () => {
+      for (const id of ['gen_hannibal', 'gen_wellington', 'gen_caesar', 'gen_genghis', 'gen_yuefei', 'gen_shaka']) {
+        const container = new MockElement('div');
+        renderSelectedUnitInfo(container as unknown as HTMLElement, makeGeneralState({ generalDefinitionId: id }), 'u1', {});
+        expect(buttonsMatching(container), id).toHaveLength(0);
+      }
+    });
+
+    it('is disabled while the General cannot command, with the reason shown', () => {
+      const state = makeGeneralState({ generalDefinitionId: 'gen_mehmed', generalCommandCooldownUntilTurn: 9999 });
+      const container = new MockElement('div');
+      renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+      expect(buttonsMatching(container).every(b => b.disabled)).toBe(true);
+      expect(collectAllText(container).join(' ')).toMatch(/cooldown/i);
+    });
+
+    it('labels the last charge as a Final Command', () => {
+      const state = makeGeneralState({ generalDefinitionId: 'gen_mehmed', generalCommandChargesUsed: 2 });
+      const container = new MockElement('div');
+      renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+      expect(buttonsMatching(container)[0]!.textContent).toMatch(/Final Command/);
+    });
+  });
+
   it('clicking Rally invokes onOpenRally with the General\'s unit id', () => {
     const state = makeGeneralState();
     const container = new MockElement('div');
