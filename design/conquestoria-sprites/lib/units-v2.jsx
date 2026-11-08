@@ -2031,106 +2031,6 @@ function GreatGeneralV2Sprite({ faction = 'imperials', state = 'idle', phase }) 
   </SpriteFrameV2>;
 }
 
-/* ─────────────────────────── #759: Cannon (field artillery) ───────────────────────────
- * One authored side view, faction colour only on the carriage trim and the linstock pennon.
- * Hooks (all variant-scoped in sprite-animations-v2.css, "#759 CANNON AND GRENADIER"):
- *   .cq-cannon-body    — whole carriage; idle settle, attack recoil, walk jolt
- *   .cq-cannon-barrel  — inner group of the barrel; slides back along its own axis on firing
- *   .cq-cannon-wheel   — both wheels; roll while walking (one rivet marks the rotation)
- *   .cq-muzzle-flash   — the shared v2 flash, placed at the muzzle
- *   .cq-cannon-smoke   — powder smoke puff after the shot
- *   .cq-wound-1..3     — four-tier damage (scorching, cracked cheek, splintered trail, charred wheel)
- * The barrel's SVG rotate sits on the OUTER group; only the inner group is CSS-animated. */
-function CannonV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
-  const f = _fa2(faction);
-  const ink = _P2.ink.line;
-  return <SpriteFrameV2 state={state} kind="ranged" variant="cannon" phase={phase}>
-    <ellipse className="cq-shadow" cx="62" cy="101" rx="42" ry="6" fill="#000" opacity=".3" />
-    <g className="cq-cannon-body">
-      {/* trail: the long timber that rests on the ground behind the gun */}
-      <path d="M13,96 L21,89 L70,80 L70,89 L24,99 Z" fill={_P2.wood.dark} stroke={ink} strokeWidth="1.2" />
-      <path d="M22,90.5 L69,81.5" stroke={_P2.wood.light} strokeWidth="1.6" fill="none" />
-      <path d="M9,97 L17,92 L22,99 L11,101 Z" fill={_P2.metal.iron} stroke={ink} strokeWidth="1" />
-      {/* far wheel (darker, offset) */}
-      <g transform="translate(83 86)"><g className="cq-cannon-wheel">
-        <circle r="13" fill={_P2.wood.dark} stroke={ink} strokeWidth="1.1" />
-        <circle r="8" fill="none" stroke={_P2.wood.mid} strokeWidth="1.4" />
-        <circle r="3" fill={_P2.metal.iron} />
-      </g></g>
-      {/* gun carriage cheek, bracketing the barrel */}
-      <path d="M50,65 L86,62 L90,79 L72,84 L53,83 Z" fill={_P2.wood.mid} stroke={ink} strokeWidth="1.3" />
-      <path d="M52,66.5 L85,63.5" stroke={_P2.wood.light} strokeWidth="1.6" fill="none" />
-      <path d="M55,74 L88,72" stroke={f.mid} strokeWidth="3" fill="none" />
-      <rect x="62" y="63" width="5" height="19" fill={_P2.metal.iron} stroke={ink} strokeWidth=".7" />
-      {/* barrel — OUTER group positions and tilts, INNER group is the animated one */}
-      <g transform="translate(62 66) rotate(-10)">
-        <g className="cq-cannon-barrel">
-          <circle cx="-17" cy="1" r="3.4" fill={_P2.metal.bronze} stroke={ink} strokeWidth="1" />
-          <rect x="-15" y="-1.6" width="5" height="3.2" fill={_P2.metal.bronze} stroke={ink} strokeWidth=".7" />
-          <path d="M-12,-7 L12,-7.2 L36,-5.6 L44,-5.4 L44,5.4 L36,5.6 L12,7.2 L-12,7 Q-15,0 -12,-7 Z" fill={_P2.metal.bronze} stroke={ink} strokeWidth="1.2" />
-          <path d="M-10,-5 L40,-3.6" stroke={_P2.metal.shine} strokeWidth="1.5" opacity=".75" fill="none" strokeLinecap="round" />
-          <path d="M-10,5 L40,3.7" stroke={_P2.wood.dark} strokeWidth="1.4" opacity=".45" fill="none" />
-          <rect x="-3" y="-8" width="3.2" height="16" fill={_P2.metal.iron} stroke={ink} strokeWidth=".6" />
-          <rect x="14" y="-8" width="3" height="16" fill={_P2.metal.iron} stroke={ink} strokeWidth=".6" />
-          <rect x="29" y="-7.2" width="2.6" height="14.4" fill={_P2.metal.iron} stroke={ink} strokeWidth=".6" />
-          <path d="M40,-7.4 L50,-7.8 L50,7.8 L40,7.4 Z" fill={_P2.metal.bronze} stroke={ink} strokeWidth="1.1" />
-          <ellipse cx="50" cy="0" rx="1.7" ry="5.4" fill="#15110d" />
-          <rect x="-8" y="-9.2" width="3" height="2.2" fill={_P2.metal.iron} stroke={ink} strokeWidth=".5" />
-        </g>
-      </g>
-      {/* near wheel */}
-      <g transform="translate(74 88)"><g className="cq-cannon-wheel">
-        <circle r="15.5" fill={_P2.wood.mid} stroke={ink} strokeWidth="1.4" />
-        <circle r="10.5" fill={_P2.wood.dark} opacity=".4" />
-        <path d="M0,-11V11M-11,0H11M-7.8,-7.8L7.8,7.8M-7.8,7.8L7.8,-7.8" stroke={_P2.wood.light} strokeWidth="2" strokeLinecap="round" />
-        <circle r="14.2" fill="none" stroke={_P2.metal.iron} strokeWidth="1.3" />
-        <circle r="4.4" fill={_P2.metal.iron} stroke={ink} strokeWidth=".8" />
-        <circle r="1.6" fill={_P2.metal.shine} />
-        <circle cx="0" cy="-12" r="1.4" fill={_P2.metal.shine} stroke={ink} strokeWidth=".4" />
-      </g></g>
-      {/* linstock (lit match staff) with the faction pennon */}
-      <path d="M33,96 L27,58" stroke={_P2.wood.dark} strokeWidth="2.2" strokeLinecap="round" fill="none" />
-      <path d="M27,58 L24,53 M27,58 L30,53" stroke={_P2.metal.iron} strokeWidth="1.5" strokeLinecap="round" fill="none" />
-      <circle cx="24" cy="52" r="2.2" fill="#e8a020" stroke={ink} strokeWidth=".5" />
-      <path d="M28,63 L40,66 L28,71 Z" fill={f.mid} stroke={ink} strokeWidth=".8" />
-      {/* shot pile */}
-      <g>
-        <circle cx="96" cy="98" r="3.4" fill={_P2.metal.iron} stroke={ink} strokeWidth=".8" />
-        <circle cx="103" cy="98" r="3.4" fill={_P2.metal.iron} stroke={ink} strokeWidth=".8" />
-        <circle cx="99.5" cy="92.6" r="3.4" fill={_P2.metal.iron} stroke={ink} strokeWidth=".8" />
-        <circle cx="98.6" cy="91.4" r="1" fill={_P2.metal.shine} />
-      </g>
-      {/* damage tiers: scorch -> cracked cheek -> splintered trail -> charred, broken wheel */}
-      <g className="cq-wound cq-wound-1">
-        <ellipse cx="108" cy="58" rx="5" ry="3" fill="#1a1410" opacity=".55" transform="rotate(-10 108 58)" />
-        <path d="M60,69 L64,73 L62,76" stroke="#2a1a10" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-        <path d="M70,66 l3,2" stroke="#2a1a10" strokeWidth="1" fill="none" />
-      </g>
-      <g className="cq-wound cq-wound-2">
-        <path d="M14,96 L18,92 L17,97 L21,95" stroke="#1a1410" strokeWidth="1.3" fill="none" strokeLinecap="round" />
-        <path d="M54,78 L66,80 L78,78" stroke="#1a1410" strokeWidth="1.4" fill="none" strokeLinecap="round" />
-        <circle cx="88" cy="68" r="2.2" fill="#1a1410" opacity=".7" />
-        <path d="M30,70 L36,64" stroke={_P2.cloth.linen} strokeWidth=".9" fill="none" opacity=".8" />
-      </g>
-      <g className="cq-wound cq-wound-3">
-        <ellipse cx="68" cy="73" rx="14" ry="7" fill="#1a1410" opacity=".5" />
-        <path d="M58,64 L72,92 M82,70 L74,95" stroke="#1a1410" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-        <path d="M40,74 l-8,3 M44,70 l-9,-2" stroke={_P2.wood.light} strokeWidth="1.3" fill="none" strokeLinecap="round" />
-        <path d="M66,59 Q69,53 72,57 Q74,52 77,58" fill="#e8a020" stroke="#8a3a12" strokeWidth=".6" opacity=".9" />
-      </g>
-    </g>
-    {/* muzzle: flash then a smoke puff; positions are the barrel tip after the -10 degree tilt */}
-    <g transform="translate(116 55)"><g className="cq-muzzle-flash">
-      <circle r="7" fill="#ffd966" /><circle r="3.4" fill="#fff" />
-      <path d="M0,-10 L2,-4 L9,-3 L3,1 L4,8 L0,5 L-4,8 L-3,1 L-9,-3 L-2,-4 Z" fill="#ffd966" opacity=".9" />
-    </g></g>
-    <g transform="translate(112 52)"><g className="cq-cannon-smoke">
-      <circle r="5" fill="#d9d3c6" stroke="#a79f8e" strokeWidth=".6" />
-      <circle cx="-4" cy="3" r="3.6" fill="#cfc8ba" /><circle cx="3" cy="-3" r="3.2" fill="#e4dfd2" />
-    </g></g>
-  </SpriteFrameV2>;
-}
-
 /* ─────────────────────────── #759: Grenadier (grenade-throwing infantry) ───────────────────────────
  * Tall bearskin cap with brass plate, crossbelts, a chest bandolier of grenades and a lit-fuse grenade in the
  * throwing hand. Hooks: HumanoidV2's cq-leg-l/r and cq-arm-l/r (walk gait), .cq-plume (cap tuft),
@@ -2195,7 +2095,7 @@ function GrenadierV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
 }
 
 Object.assign(window, {
-  CannonV2Sprite, GrenadierV2Sprite,
+  GrenadierV2Sprite,
   SpriteFrameV2, HumanoidV2,
   SwordsmanV2Sprite, WorkerV2Sprite, ArcherV2Sprite, SpyOperativeV2Sprite,
   SettlerV2Sprite, ScoutV2Sprite,
