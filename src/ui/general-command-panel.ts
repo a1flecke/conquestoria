@@ -1,4 +1,4 @@
-import type { LastStandPreview, RallyPreview, SeizeEligibleUnit } from '@/systems/great-general-abilities';
+import type { BreachPreview, LastStandPreview, RallyPreview, SeizeEligibleUnit } from '@/systems/great-general-abilities';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 import { markModal } from '@/ui/modal-contract';
 import type { GeneralIdentity } from '@/systems/great-general-presentation';
@@ -159,6 +159,82 @@ export function createSeizeThePanelMoment(
   });
   row.appendChild(cancelButton);
 
+  panel.appendChild(row);
+  markModal(panel, { cancel: cancelButton, initialFocus: cancelButton });
+  return panel;
+}
+
+/**
+ * #939: Breach the Walls. The Siegemaster's signature command: pick one visible hostile city in command range and open
+ * its walls to your siege. Targets are passed in already filtered by `getBreachTargetCityIds`, so every row offered is
+ * executable; the executor re-runs the same check on Confirm.
+ */
+export function createBreachPanel(
+  container: HTMLElement,
+  previews: readonly BreachPreview[],
+  onConfirm: (cityId: string) => void,
+  onCancel: () => void,
+  identity?: GeneralIdentity,
+): HTMLElement {
+  const panel = panelShell(container, 'breach-panel');
+  identityHeader(panel, 'Breach the Walls', identity);
+
+  const first = previews[0];
+  if (first?.eligibility.isFinalCharge) finalCommandNotice(panel, identity);
+
+  const turns = first?.durationTurns ?? 2;
+  const summary = document.createElement('p');
+  summary.textContent =
+    `For ${turns} turns the walls stand open to your siege: your guns fire through the garrison at full strength, `
+    + 'the walls stop shooting back, and storming the city is 20% easier. Nothing else about the siege changes: '
+    + 'the city still cannot be reduced faster than 20 HP a turn.';
+  summary.style.cssText = 'font-size:13px;opacity:0.85;margin:0 0 10px;';
+  panel.appendChild(summary);
+
+  if (previews.length === 0) {
+    const empty = document.createElement('p');
+    empty.textContent = 'No visible hostile city is within your General\'s command range with walls still closed.';
+    empty.style.cssText = 'font-size:13px;opacity:0.8;';
+    panel.appendChild(empty);
+  }
+
+  const radios: HTMLInputElement[] = [];
+  for (const preview of previews) {
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;';
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'breach-city';
+    radio.dataset.cityId = preview.cityId;
+    radios.push(radio);
+    label.appendChild(radio);
+    label.append(document.createTextNode(`${preview.cityName}${preview.hasGarrison ? ' (garrisoned)' : ''}`));
+    panel.appendChild(label);
+  }
+
+  let fired = false;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;margin-top:12px;';
+  const confirmButton = createGameButton('Confirm', 'primary', { disabled: true });
+  const syncConfirm = () => setButtonDisabled(confirmButton, !radios.some(r => r.checked));
+  for (const radio of radios) radio.addEventListener('change', syncConfirm);
+  confirmButton.addEventListener('click', () => {
+    const chosen = radios.find(r => r.checked);
+    if (fired || !chosen) return;
+    fired = true;
+    panel.remove();
+    onConfirm(chosen.dataset.cityId!);
+  });
+  row.appendChild(confirmButton);
+
+  const cancelButton = createGameButton('Cancel', 'ghost');
+  cancelButton.addEventListener('click', () => {
+    if (fired) return;
+    fired = true;
+    panel.remove();
+    onCancel();
+  });
+  row.appendChild(cancelButton);
   panel.appendChild(row);
   markModal(panel, { cancel: cancelButton, initialFocus: cancelButton });
   return panel;

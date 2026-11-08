@@ -41,6 +41,7 @@ import {
   resolveCityAssault,
 } from '@/systems/city-siege-system';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { isCityBreachedBy } from '@/systems/city-breach';
 
 /**
  * #988/#991: every combat capture (occupy or raze) counts toward the
@@ -342,7 +343,8 @@ export function beginMajorCityAssault(
       const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv.techState.completed ?? [], state.map, {
         attackerMultiplier: options.attackerMultiplier,
       });
-      const counterFireDamage = getCityCounterFireDamage(
+      // #939: open walls (a Siegemaster's Breach) do not answer the breaching civ's assault.
+      const counterFireDamage = isCityBreachedBy(city, attacker.owner) ? 0 : getCityCounterFireDamage(
         city,
         ownerCiv,
         'land',

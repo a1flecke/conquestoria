@@ -3,8 +3,8 @@
  * Callbacks are moved verbatim; each reaches selection through the `SelectionCore` handle.
  */
 import { mapHexesInRange } from '@/systems/hex-utils';
-import { getRallyPreview, issueRally, getSeizeTheMomentEligibleUnits, issueSeizeTheMoment } from '@/systems/great-general-abilities';
-import { createRallyPanel, createSeizeThePanelMoment } from '@/ui/general-command-panel';
+import { getRallyPreview, issueRally, getSeizeTheMomentEligibleUnits, issueSeizeTheMoment, getBreachPreview, getBreachTargetCityIds, issueBreach } from '@/systems/great-general-abilities';
+import { createBreachPanel, createRallyPanel, createSeizeThePanelMoment } from '@/ui/general-command-panel';
 import { getGeneralIdentityForUnit } from '@/systems/great-general-presentation';
 import { describeGeneralAbilityMoment } from '@/systems/great-general-ability-presentation';
 import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
@@ -17,7 +17,7 @@ export function createGeneralCommands(
   deps: SelectionCommonDeps,
   core: SelectionCore,
   _args: SelectionCommandArgs,
-): Pick<SelectedUnitCommands, 'onClose' | 'onReopenSupplyTutorial' | 'onReopenGeneralTutorial' | 'onOpenHallOfFame' | 'onOpenRally' | 'onPrepareStrategicLaunch' | 'onOpenSeize' | 'onStartLastStandTargeting'> {
+): Pick<SelectedUnitCommands, 'onClose' | 'onReopenSupplyTutorial' | 'onReopenGeneralTutorial' | 'onOpenHallOfFame' | 'onOpenRally' | 'onPrepareStrategicLaunch' | 'onOpenSeize' | 'onOpenBreach' | 'onStartLastStandTargeting'> {
   const { session, selection } = deps;
 
   return {
@@ -77,6 +77,25 @@ export function createGeneralCommands(
           session.commit(after);
           const moment = describeGeneralAbilityMoment('seize', before, after, generalUnitId);
           if (moment) deps.bus.emit('general:command-used', { moment });
+          core.selectUnit(generalUnitId);
+        },
+        () => {},
+        getGeneralIdentityForUnit(session.getState(), generalUnitId),
+      );
+    },
+    onOpenBreach: (generalUnitId: string) => {
+      const previews = getBreachTargetCityIds(session.getState(), generalUnitId)
+        .map(cityId => getBreachPreview(session.getState(), generalUnitId, cityId));
+      createBreachPanel(
+        deps.uiLayer,
+        previews,
+        (cityId) => {
+          const before = session.getState();
+          const after = issueBreach(before, generalUnitId, cityId);
+          session.commit(after);
+          const moment = describeGeneralAbilityMoment('breach', before, after, generalUnitId);
+          if (moment) deps.bus.emit('general:command-used', { moment });
+          else deps.showNotification('That city can no longer be breached.', 'warning');
           core.selectUnit(generalUnitId);
         },
         () => {},

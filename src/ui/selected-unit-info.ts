@@ -100,6 +100,7 @@ export interface SelectedUnitInfoCallbacks {
   onOpenRally?: (generalUnitId: string) => void;
   /** #544 MR4: opens the Seize the Moment eligible-unit picker. */
   onOpenSeize?: (generalUnitId: string) => void;
+  onOpenBreach?: (generalUnitId: string) => void;
   /** #544 MR4: begins Last Stand's hex-targeting mode. */
   onStartLastStandTargeting?: (generalUnitId: string) => void;
   /** #544 MR4: reopens the first-time General command tutorial on demand. */
@@ -511,6 +512,17 @@ export function renderSelectedUnitInfo(
       );
       lastStandButton.addEventListener('click', () => callbacks.onStartLastStandTargeting?.(unit.id));
       abilityRow.appendChild(lastStandButton);
+
+      // #939: the Siegemaster's signature command. Shown only to a General whose specialty has it.
+      if (resolveGeneralMechanics(generalDef).breach.durationTurns > 0) {
+        const breachButton = createGameButton(
+          eligibility.isFinalCharge ? 'Breach the Walls (Final Command)' : 'Breach the Walls',
+          'secondary',
+          { disabled: !eligibility.eligible },
+        );
+        breachButton.addEventListener('click', () => callbacks.onOpenBreach?.(unit.id));
+        abilityRow.appendChild(breachButton);
+      }
 
       wrapper.appendChild(abilityRow);
 

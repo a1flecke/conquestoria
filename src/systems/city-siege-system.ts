@@ -8,6 +8,7 @@ import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { getRiverDefensePenalty, isRiverBetween } from '@/systems/river-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { CITY_BREACH_ASSAULT_MULTIPLIER, isCityBreachExpired, isCityBreachedBy } from '@/systems/city-breach';
 
 // Retuned from the design doc's original 5/3 (#522 pre-merge review): a population-1
 // unwalled outpost at 5+1*3=8 put a warrior (strength 10, the cheapest and most common
@@ -115,7 +116,10 @@ export function calculateCityAssaultStrengths(
     * (1 + getVeterancyCombatModifier(attacker))
     * (1 + riverAttackPenalty)
     * (attackerDefinition.cityAssaultMultiplier ?? 1)
-    * (options.attackerMultiplier ?? 1);
+    * (options.attackerMultiplier ?? 1)
+    // #939: open walls (a Siegemaster's Breach) help only the breaching civ's own assault. Applied here so every
+    // preview, executor and AI evaluation that goes through this function agrees.
+    * (isCityBreachedBy(city, attacker.owner) ? CITY_BREACH_ASSAULT_MULTIPLIER : 1);
   // #966: HP-scaled. Identical to the raw intrinsic strength at full HP.
   const intrinsicStrength = getEffectiveCityAssaultDefense(city, defenderCompletedTechs);
   const winProbability = attackerStrength / (attackerStrength + intrinsicStrength);
@@ -404,6 +408,21 @@ export function isCityHpRegenerating(state: GameState, city: City): boolean {
 // +5 HP/turn (same rate as unit HEAL_PASSIVE) for any city below max HP, as long as
 // no hostile unit is within 1 hex. A city at 0 HP does not regenerate on its own —
 // it only reaches 0 via the 'sacked' outcome, which already floors it at 1.
+/**
+ * #939: removes every Siegemaster breach whose last turn has been played. Runs once per round beside the HP
+ * regeneration below; returns the same state when nothing expired. Presence of `city.breach` therefore means active.
+ */
+export function expireCityBreaches(state: GameState): GameState {
+  let next: GameState['cities'] | null = null;
+  for (const city of Object.values(state.cities)) {
+    if (!city.breach || !isCityBreachExpired(city.breach, state.turn)) continue;
+    if (!next) next = { ...state.cities };
+    const { breach: _expired, ...rest } = city;
+    next[city.id] = rest;
+  }
+  return next ? { ...state, cities: next } : state;
+}
+
 export function applyCityHpRegeneration(state: GameState): GameState {
   let nextCities: GameState['cities'] | null = null;
 

@@ -20,8 +20,14 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createSimulationRng } from '@/systems/simulation-rng';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { isCityBreachedBy } from '@/systems/city-breach';
 
 export type CityBombardmentSource = 'player' | 'ai';
+
+/** A garrison halves a deliberate bombardment (#974) -- unless the walls are breached for that civ (#939). */
+function getBombardmentGarrisonMitigation(city: Parameters<typeof isCityBreachedBy>[0], attackerOwner: string): number {
+  return isCityBreachedBy(city, attackerOwner) ? 1 : CITY_BOMBARDMENT_GARRISON_MITIGATION;
+}
 
 /**
  * #974: damage coefficient shared by every domain. Inherited unchanged from the naval-only
@@ -169,7 +175,7 @@ export function previewUnitCityBombardment(
     attackerDomain: domain,
     hasGarrison,
     ignoreGarrison: true,
-    garrisonMitigation: CITY_BOMBARDMENT_GARRISON_MITIGATION,
+    garrisonMitigation: getBombardmentGarrisonMitigation(city, attacker.owner),
     isOwnersLastCity: getOwnedCityCount(state, city.owner) <= 1,
     preventDestruction: true,
     era: resolveCivilizationEra(ownerCiv?.techState.completed ?? []),
@@ -187,7 +193,7 @@ export function previewUnitCityBombardment(
   // player sees matches what actually lands. Was `turn*7919` alone -- no
   // gameId, no attacker/city identity, shared by every bombardment in the
   // game on a given turn.
-  const counterFire = distance <= CITY_COUNTERFIRE_RANGE && ownerCiv
+  const counterFire = distance <= CITY_COUNTERFIRE_RANGE && ownerCiv && !isCityBreachedBy(city, attacker.owner)
     ? getCityCounterFireDamage(city, ownerCiv, domain, UNIT_DEFINITIONS[attacker.type].strength, false, Math.floor(createSimulationRng(state, { domain: 'city-counter-fire', actorId: attacker.id, targetId: city.id })() * 2147483647))
     : 0;
 
@@ -241,7 +247,7 @@ export function resolveUnitCityBombardment(
     // A unit deliberately spending its action fires through a garrison, at half effect.
     // Ambient barbarian/pirate siege ticks keep the hard block (#974).
     ignoreGarrison: true,
-    garrisonMitigation: CITY_BOMBARDMENT_GARRISON_MITIGATION,
+    garrisonMitigation: getBombardmentGarrisonMitigation(city, attacker.owner),
     maxHpLoss: getRemainingBombardmentCap(city, state.turn),
     isOwnersLastCity: getOwnedCityCount(state, city.owner) <= 1,
     preventDestruction: true,
@@ -279,7 +285,8 @@ export function resolveUnitCityBombardment(
   // defended, while standing off at range 2-3 stays safe.
   let counterFireDamage = 0;
   let attackerDied = false;
-  if (legality.distance <= CITY_COUNTERFIRE_RANGE) {
+  // #939: open walls (a Siegemaster's Breach) do not answer the breaching civ's guns.
+  if (legality.distance <= CITY_COUNTERFIRE_RANGE && !isCityBreachedBy(city, attacker.owner)) {
     // #982: same domain tag as the preview above -- what was previewed
     // matches what lands, given the same state.
     counterFireDamage = getCityCounterFireDamage(

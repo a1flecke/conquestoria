@@ -80,6 +80,16 @@ encode "$OUT/general-final-command.ogg" 1.7 \
 [3:a]atrim=0:1.0,asetpts=PTS-STARTPTS,aresample=44100,volume=0.45[impact];\
 [d3][a3][d4][impact]amix=inputs=4:duration=longest:normalize=0,highpass=f=40,lowpass=f=5800,afade=t=out:st=1.55:d=0.15,volume=12dB,alimiter=limit=0.70:level=false[out]"
 
+# #939 Breach the Walls: a deep siege impact over a falling sub-bass drop (stone giving way), then a short settling rumble.
+# Distinct from the Last Stand brace (static fifth) and from Final Command (rising swell): this one falls.
+need audio/sfx/catapult-siege-impact.ogg
+encode "$OUT/general-breach.ogg" 1.1 \
+  -f lavfi -i "aevalsrc='0.6*sin(2*PI*(150*t-120*t*t))':d=1.1:s=44100" \
+  -i "$ROOT/public/audio/sfx/catapult-siege-impact.ogg" \
+  -filter_complex "[0:a]afade=t=in:st=0:d=0.02,afade=t=out:st=0.3:d=0.8,volume=0.6[drop];\
+[1:a]atrim=0:1.0,asetpts=PTS-STARTPTS,aresample=44100,volume=0.7[impact];\
+[drop][impact]amix=inputs=2:duration=longest:normalize=0,highpass=f=40,lowpass=f=5000,afade=t=out:st=1.0:d=0.1,volume=10dB,alimiter=limit=0.70:level=false[out]"
+
 for file in "$OUT"/*.ogg; do
   ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$file" >/dev/null
   peak="$(ffmpeg -hide_banner -i "$file" -af volumedetect -f null - 2>&1 | awk '/max_volume/{print $5}')"
@@ -90,4 +100,4 @@ for file in "$OUT"/*.ogg; do
   printf '  %s  peak=%s dBFS\n' "$(basename "$file")" "$peak"
 done
 
-printf 'Generated 4 general-command audio files.\n'
+printf 'Generated 5 general-command audio files.\n'

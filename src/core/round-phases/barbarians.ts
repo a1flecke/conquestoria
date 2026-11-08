@@ -16,6 +16,7 @@ import { resolveCombatEra } from '@/systems/era-resolution';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import {
   applyCityHpRegeneration,
+  expireCityBreaches,
   applyCitySiegeOutcome,
   getCityCounterFireDamage,
   getCityGarrisonUnit,
@@ -197,6 +198,8 @@ function runBarbarians(state: GameState, context: RoundPhaseContext): GameState 
   // unit adjacent, so damage from a raid that didn't destroy the city doesn't linger
   // forever.
   newState = applyCityHpRegeneration(newState);
+  // #939: a Siegemaster's breach ends with the round whose turn is its last.
+  newState = expireCityBreaches(newState);
   return newState;
 }
 

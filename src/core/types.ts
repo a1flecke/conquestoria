@@ -295,7 +295,21 @@ export interface LegendaryWonderHistory {
 
 // --- Great Generals (#544 MR3, heroic commands #544 MR4) ---
 
-export type HeroicAbilityId = 'rally' | 'seize_the_moment' | 'last_stand';
+export type HeroicAbilityId = 'rally' | 'seize_the_moment' | 'last_stand' | 'breach';
+
+/**
+ * #939: a Siegemaster's Breach on a hostile city. Optional on `City` (absent = not breached; every reader tolerates
+ * that, so no save migration). Swept at the end of the round it expires in (`expireCityBreaches`), so presence means
+ * "active": the assault-strength and counter-fire readers never need the turn.
+ */
+export interface CityBreachState {
+  /** The civ whose siege the walls are open to; the effect applies to that civ's units only. */
+  byCivId: string;
+  /** The issuing General's stable id, so the career/presentation can attribute it. */
+  generalDefinitionId: string;
+  /** The last turn it is active; it is removed at the end of the round whose turn reaches it. */
+  expiresTurn: number;
+}
 
 /** #544 MR4: Last Stand's shared formation state — one object drives both
  * the ongoing defense multiplier (read every combat while unexpired) and
@@ -1043,6 +1057,8 @@ export interface City {
    * for correctness -- one is added purely to keep the field explicit in older saves.
    */
   bombardment?: { turn: number; hpLostThisTurn: number };
+  /** #939: walls opened by a Siegemaster General's Breach. See `CityBreachState`. */
+  breach?: CityBreachState;
   concessionImmunityUntilTurn?: number; // uprising concession: no new unrest until this turn
   resilienceBonusUntilTurn?: number;    // catastrophe recovery: +1 food +1 production until this turn
   /** Global turn when this city's Coastal Battery last returned naval siege damage. */

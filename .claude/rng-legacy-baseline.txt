@@ -42,7 +42,7 @@ src/systems/beast-system.ts:75 # [LOW] lcg() recurrence body — hand-rolled dup
 src/systems/combat-system.ts:488 # [LOW] resolveCombat's LCG recurrence body — hand-rolled duplicate of seededLcg; caller-supplied seed is already gameId-rooted
 
 # --- city-siege-system.ts (createSeededRng is parameterized; every current caller already supplies a correct or #982-converted seed) ---
-src/systems/city-siege-system.ts:135 # [LOW] createSeededRng() recurrence body — hand-rolled duplicate of seededLcg
+src/systems/city-siege-system.ts:139 # [LOW] createSeededRng() recurrence body — hand-rolled duplicate of seededLcg
 
 # --- combat-reward-system.ts (seededRoll's seed always traces back to deterministicCombatSeed via applyCombatOutcomeToState) ---
 src/systems/combat-reward-system.ts:159 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg

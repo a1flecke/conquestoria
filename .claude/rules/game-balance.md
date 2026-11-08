@@ -903,6 +903,7 @@ and `tests/systems/great-general-specialty-balance.test.ts`.
 | lastStand.defenseMultiplier | 1.15 | 1.10 | 1.30 |
 | lastStand.durationTurns | 2 | 2 | 3 |
 | seize.extraTargets | 0 | 0 | 1 |
+| breach.durationTurns (#939) | 0 (no Breach) | 0 | 2 |
 
 **Rules for a new specialty or a change to an existing one:**
 
@@ -919,12 +920,38 @@ and `tests/systems/great-general-specialty-balance.test.ts`.
 - Adding a specialty = one `GENERAL_SPECIALTIES` entry + `GENERAL_SPECIALTY_ASSIGNMENTS`
   edits + one `case` in `specialtyNeed` (`ai-general-command.ts`; owned units and fog-safe
   hostiles only, capped, never difficulty — without it the AI never seeks the specialty out)
-  + a scenario in `great-general-specialty-balance.test.ts` and an AI pick test (#939 added
-  `staff`, "Staff Commander": capacity 4, range 1, the mirror of `mobile`; Tokugawa, Napoleon,
-  Chandragupta, Mehmed). NEVER a change to an ability consumer, NEVER a General-ID branch.
+  + a scenario in `great-general-specialty-balance.test.ts` and an AI pick test. NEVER a
+  change to an ability consumer, NEVER a General-ID branch.
+- **A signature command (#939).** A specialty may also carry a command of its own, as the
+  Siegemaster does (`breach.durationTurns > 0`, see "Breach the Walls" below). It still reads
+  only `resolveGeneralMechanics`, still spends the one shared charge/cooldown, and a General
+  without it is refused by the same legality function the panel and AI ask (`getBreachPreview`).
+  A new signature command needs its own `GeneralAbilityKind`, effect, sound and `touchedUnits`/
+  moment row (`great-general-content.md`), a paired preview/executor in
+  `great-general-abilities.ts`, and an AI evaluator; never a General-ID branch.
 - Keep each non-generalist specialty at 4–7 Generals; take assignments from the larger groups.
 - Re-run `great-general-specialty-balance.test.ts` — each specialist must still
-  win its intended scenario and no specialty may win all six.
+  win its intended scenario and no specialty may win all of them.
+
+### Breach the Walls (#939)
+
+The Siegemaster (Mehmed, Alexander, Suvorov, Nebuchadnezzar) is the sixth specialty and the first with a
+signature command. Cost: a 12-turn cooldown and a weaker Last Stand (1.10). Everything about a breach lives in
+`src/systems/city-breach.ts` (the one definition of "breached") and is consumed, never re-derived, by the siege code:
+
+| Knob | Value | Meaning |
+|---|---:|---|
+| `breach.durationTurns` | 2 | The turn it is issued and the next one. `City.breach.expiresTurn = turn + 1`; swept at the end of the round that reaches it (`expireCityBreaches`, beside the HP regeneration), so presence means active |
+| garrison mitigation | 0.5 → 1 | A deliberate bombardment fires through a garrison at full strength instead of half (breaching civ only) |
+| counter-fire | → 0 | Walls do not shoot back at the breaching civ: bombardment (preview and shot) and the assault counter-fire |
+| `CITY_BREACH_ASSAULT_MULTIPLIER` | 1.2 | The breaching civ's land assault strength, inside `calculateCityAssaultStrengths`, so every preview, executor and AI evaluation agrees |
+
+It deliberately changes **none** of the #974 ceilings: the 20 HP/turn bombardment cap, capture legality (adjacent
+only, ungarrisoned, major owner), the defense floor and counter-fire against other civs are untouched, so a siege still
+takes at least five turns. It is owner-scoped (`byCivId`), difficulty-invariant and additive on the save (an optional
+`City.breach`; a save without it loads and processes a round unchanged, pinned in `city-breach.test.ts`). Legality:
+a visible, hostile city within command range whose walls are not already open to this civ (`getBreachTargetCityIds`).
+A new effect of a breach adds a row here and is read through `isCityBreachedBy`; never a General-ID branch.
 
 ## Special Building Rules
 

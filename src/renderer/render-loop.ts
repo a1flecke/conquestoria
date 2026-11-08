@@ -6,7 +6,7 @@ import { drawFogOfWar } from './fog-renderer';
 import { drawUnitPresentations } from './unit-renderer';
 import { drawCities } from './city-renderer';
 import { AnimationSystem, type EffectAnimationData, type EffectAnimationType } from './animation-system';
-import { drawLastStandHoldMarkers, FINAL_COMMAND_GOLD, type GeneralAbilityEffectType } from './general-ability-effects';
+import { drawBreachedCityMarkers, drawLastStandHoldMarkers, FINAL_COMMAND_GOLD, type GeneralAbilityEffectType } from './general-ability-effects';
 import type { GeneralAbilityMoment } from '@/systems/great-general-ability-presentation';
 import { onCanvasAssetReady } from './canvas-asset-ready';
 import { beginPaintTracking, paintAmbientRegion, paintWasTimeVarying, type PaintBounds } from './paint-clock';
@@ -590,8 +590,9 @@ export class RenderLoop {
     const type: GeneralAbilityEffectType = reduced ? 'general-ability-static'
       : moment.kind === 'rally' ? 'general-rally'
       : moment.kind === 'seize' ? 'general-seize'
+      : moment.kind === 'breach' ? 'general-breach'
       : 'general-last-stand';
-    const duration = reduced ? 1400 : moment.kind === 'seize' ? 650 : moment.kind === 'rally' ? 950 : 1150;
+    const duration = reduced ? 1400 : moment.kind === 'seize' ? 650 : moment.kind === 'rally' ? 950 : moment.kind === 'breach' ? 1300 : 1150;
     const style = { accent: moment.accent, glow: moment.glow };
     for (const coord of moment.affectedCoords) this.playEffect(type, duration, { coord, ...style });
     if (moment.isFinalCommand) {
@@ -1207,6 +1208,13 @@ export class RenderLoop {
         this.spriteOverlay?.getActiveIds() ?? new Set(),
       );
       drawLastStandHoldMarkers(this.ctx, unitPresentations, this.camera, this.state);
+      drawBreachedCityMarkers(
+        this.ctx,
+        this.state,
+        this.camera,
+        viewerId,
+        coord => viewerVisibility !== undefined && getVisibility(viewerVisibility, coord) === 'visible',
+      );
       drawUnitPresentations(
         this.ctx,
         unitPresentations,

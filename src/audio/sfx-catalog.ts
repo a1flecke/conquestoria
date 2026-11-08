@@ -122,6 +122,8 @@ export const GENERAL_COMMAND_SFX = {
   seize: real('stinger-general-seize', 'audio/stinger/general/general-seize.ogg', 0.55, 'stinger'),
   'last-stand': real('stinger-general-last-stand', 'audio/stinger/general/general-last-stand.ogg', 0.95, 'stinger'),
   'final-command': real('stinger-general-final-command', 'audio/stinger/general/general-final-command.ogg', 1.7, 'stinger'),
+  // #939: the Siegemaster's Breach the Walls.
+  breach: real('stinger-general-breach', 'audio/stinger/general/general-breach.ogg', 1.1, 'stinger'),
 } as const;
 
 const HORSEMAN_SFX = {
