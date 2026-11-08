@@ -1047,12 +1047,13 @@ describe('espionage-panel: Caught in the Act (#419 PR 2)', () => {
     return state;
   }
 
-  it('lists only traced incidents, names the actor, and a click on Go public reports the incident id', () => {
+  it('lists only traced incidents, previews the exposure cost, and reports the incident id on click', () => {
     const clicked: string[] = [];
     const panel = createEspionagePanel(tracedState(true), { onClose: () => {}, onGoPublic: id => { clicked.push(id); } });
     const text = collectText(panel);
     expect(text).toContain('Egypt');
     expect(text).not.toContain('Third');
+    expect(text).toContain('Going public damages up to 4 of their treaty partners (−10 each).');
     const buttons = findAll(panel, el => el.dataset?.action === 'go-public') as Array<{ click(): void }>;
     expect(buttons).toHaveLength(1);
     buttons[0].click();
@@ -1062,7 +1063,9 @@ describe('espionage-panel: Caught in the Act (#419 PR 2)', () => {
   it('explains instead of offering a dead button when the culprit has no partners', () => {
     const panel = createEspionagePanel(tracedState(false), { onClose: () => {}, onGoPublic: () => {} });
     expect(findAll(panel, el => el.dataset?.action === 'go-public')).toHaveLength(0);
-    expect(collectText(panel)).toContain('no treaty partners');
+    const text = collectText(panel);
+    expect(text).toContain('no treaty partners');
+    expect(text).not.toContain('Going public damages');
   });
 
   it('shows no section at all when nothing has been traced', () => {

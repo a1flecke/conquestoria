@@ -2,7 +2,7 @@ import type { DetectedSpyThreat, EspionageCivState, EspionageState, GameState } 
 import type { DiplomacyState } from '@/core/types/diplomacy';
 import type { IncidentTracedEvent, OperationIncident, OperationLandedEvent } from '@/core/types/espionage-incident';
 import { modifyRelationship } from './diplomacy-state';
-import { EXPOSE_SCANDAL_PENALTY, getScandalPartnerIds } from './espionage-scandal';
+import { EXPOSE_SCANDAL_MAX_PARTNERS, EXPOSE_SCANDAL_PENALTY, getScandalPartnerIds } from './espionage-scandal';
 import { createRng } from './map-generator';
 
 /**
@@ -322,6 +322,22 @@ export const GO_PUBLIC_DENIAL_MESSAGES: Record<GoPublicDenialReason, string> = {
   'expired': 'The moment has passed; the story is old news.',
   'no-partners': 'They have no treaty partners whose opinion this could change.',
 };
+
+/**
+ * Public rules of the Go public response, safe to show before the player commits. Deliberately does not expose how
+ * many treaties the culprit actually holds or who they are with: that would reveal unmet civilizations.
+ */
+export interface GoPublicPreview {
+  penaltyPerPartner: number;
+  maxPartners: number;
+}
+
+export function getGoPublicPreview(): GoPublicPreview {
+  return {
+    penaltyPerPartner: EXPOSE_SCANDAL_PENALTY,
+    maxPartners: EXPOSE_SCANDAL_MAX_PARTNERS,
+  };
+}
 
 /** The one eligibility source for Go public; the panel's offer and the executor both ask it. */
 export function getGoPublicDenial(state: GameState, victimId: string, incidentId: string): GoPublicDenialReason | null {

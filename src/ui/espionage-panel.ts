@@ -1,7 +1,7 @@
 // src/ui/espionage-panel.ts
 import type { GameState, Spy, SpyMissionType, SpyPromotion, InterrogationIntel } from '../core/types';
 import type { AdvisorType } from '@/core/types/council';
-import { GO_PUBLIC_DENIAL_MESSAGES, PROMOTION_XP_THRESHOLD, getAvailableMissions, getEspionageModifierBreakdown, getGoPublicDenial, getGoPublicExpiryTurn, getMissionDuration, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-presentation';
+import { GO_PUBLIC_DENIAL_MESSAGES, PROMOTION_XP_THRESHOLD, getAvailableMissions, getEspionageModifierBreakdown, getGoPublicDenial, getGoPublicExpiryTurn, getGoPublicPreview, getMissionDuration, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-presentation';
 import { getProductionLabel } from '../systems/economy-system';
 
 export interface MissionCatalogEntry {
@@ -522,6 +522,13 @@ function appendTracedIncidents(
     if (incident.used) {
       row.appendChild(createEl('div', 'You went public about this.'));
     } else if (incident.denial === null && callbacks.onGoPublic) {
+      const preview = getGoPublicPreview();
+      const outcome = createEl(
+        'div',
+        `Going public damages up to ${preview.maxPartners} of their treaty partners (−${Math.abs(preview.penaltyPerPartner)} each).`,
+      );
+      outcome.style.cssText = 'opacity:0.72;';
+      row.appendChild(outcome);
       const when = incident.lastChanceTurn === null ? '' : ` (last chance: turn ${incident.lastChanceTurn})`;
       appendActionButton(row, `Go public${when}`, 'go-public', () => callbacks.onGoPublic?.(incident.incidentId));
     } else if (incident.denial) {
