@@ -1,0 +1,17 @@
+{
+  "id": "cannon",
+  "status": "shipped: registered in STRIP_UNITS and exported with strips.py export (#1627, #759)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-07",
+  "prompts": "Based on scripts/sprite-puppet/strip-rigs/cannon.json and the templates in scripts/sprite-puppet/strip-prompts/. One conversation drew the master; the damage sheet and the wreck row were each drawn in one message of a conversation with the master attached (one prompt per image). The prompts ChatGPT actually ran were adapted from the templates for a gun on a wheeled carriage (no hatch, armour or legs wording) and were not captured verbatim. The first master prompt failed twice with an image-tool error; a shorter version with softer weapon wording drew the master.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/cannon). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all three passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "None: the master, the damage sheet and the wreck row were each accepted on the first image that drew. The wheel (centre 0.586, 0.580 and radius 0.166 of the figure box) is set by hand in the move rig; the muzzle is found from the drawing. The carriage's red shows between the spokes and turns with the wheel.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1774, 887], "sha256": "5dd8c4acf717843cb23248997528c4e35d171d8c7a17b1f53f749b6d453f05aa" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1448, 1086], "sha256": "24c2a793f53d721e1b2ea35e90a72465f63496eb1c5d3eb2a15663e9bfe5b0f0" },
+    { "role": "wreck, 3 frames in one row", "file": "c", "size": [2172, 724], "sha256": "f7488fac1837ed4f629ffa5916a27a852cb0e28be28db1575421cd6809cf2708" }
+  ]
+}

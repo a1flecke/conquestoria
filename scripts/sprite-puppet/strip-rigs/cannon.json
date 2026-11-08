@@ -1,0 +1,28 @@
+{
+  "id": "cannon",
+  "family": "vehicle",
+  "prompt": {
+    "name": "Cannon (gunpowder era field gun)",
+    "look": "A smoothbore bronze field cannon on a wooden two-wheeled gun carriage: a long heavy bronze barrel with reinforcing rings and a flared muzzle, resting on a thick oak carriage with iron bands, one large spoked wooden wheel with an iron tyre seen from the side, and a short wooden trail that rests on the ground behind. A small iron-banded wooden shot box sits on the carriage. A broad painted band runs along the side of the carriage cheek.",
+    "team_area": "the broad band along the carriage cheek",
+    "running_gear": "One large wheel drawn as a full circle with a clear iron tyre and eight distinct spokes, standing upright on the ground line; the wooden trail rests on the same ground line behind it and the barrel is horizontal.",
+    "running_gear_check": "wheel drawn as a full circle with eight distinct spokes",
+    "identity": "the same bronze barrel and rings, oak carriage, iron bands, spoked wheel, trail, shot box and red band",
+    "damage_gear": "a few spokes cracked and the carriage planks splintered",
+    "damage_gear_critical": "a bent barrel, a broken wheel with missing spokes and a snapped trail"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 74 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",   "file": "a", "cells": 1, "fps": 4, "anchor": "center", "note": "anchored on the middle of the drawing: the lowest pixels are the trail, well left of centre" },
+    { "state": "damage", "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "anchor": "center", "restFrames": [0, 1], "note": "idle pose at damage tiers 0-3" },
+    { "state": "move",   "cells": 8, "fps": 12,
+      "note": "bounce and wheel spin built in code from the master and from each damage drawing",
+      "rig": { "kind": "vehicle", "action": "move", "wheels": [[0.586, 0.580, 0.166]], "sources": ["a", "b#0", "b#1", "b#2", "b#3"] } },
+    { "state": "fire",   "cells": 8, "fps": 8, "loop": false, "note": "recoil, muzzle flash and smoke built in code",
+      "rig": { "kind": "vehicle", "action": "fire", "source": "a" } },
+    { "state": "hit",    "cells": 4, "fps": 8, "loop": false, "note": "the carriage rocked, built in code",
+      "rig": { "kind": "vehicle", "action": "hit", "source": "a" } },
+    { "state": "wreck",  "file": "c", "cells": 3, "fps": 4, "loop": false, "anchor": "center", "restFrames": [0] }
+  ]
+}

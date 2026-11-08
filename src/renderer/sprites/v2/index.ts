@@ -60,8 +60,7 @@ import { svg as navalStrikeAircraftSvg } from './naval_strike_aircraft.svg';
 import { svg as maritimePatrolAircraftSvg } from './maritime_patrol_aircraft.svg';
 import { svg as supercarrierSvg }      from './supercarrier.svg';
 import { svg as greatGeneralSvg }      from './great_general.svg';
-// #759 batch 2 — original native-v2 art for two live-fallback units
-import { svg as cannonSvg }            from './cannon.svg';
+// #759 batch 2 — original native-v2 art for a live-fallback unit
 import { svg as grenadierSvg }         from './grenadier.svg';
 // Legendary beasts — faction-neutral, keyed under 'beast'
 import { svg as beastBoarSvg }     from './beast_boar.svg';
@@ -187,7 +186,6 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   supercarrier:             supercarrierSvg,
   great_general:            greatGeneralSvg,
   // #759 batch 2
-  cannon:                   cannonSvg,
   grenadier:                grenadierSvg,
   // Legendary beasts
   beast_boar:     beastBoarSvg,
