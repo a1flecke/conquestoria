@@ -9,14 +9,19 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { isAIHostileOwner } from '@/ai/ai-hostility';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import {
+  getBreachPreview,
+  getBreachTargetCityIds,
   getHeroicCommandEligibility,
   getLastStandPreview,
   getRallyPreview,
   getSeizeTheMomentEligibleUnits,
+  issueBreach,
   issueLastStand,
   issueRally,
   issueSeizeTheMoment,
 } from '@/systems/great-general-abilities';
+import { getUnitAttackProfile } from '@/systems/attack-targeting';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { hasAICombatRole } from '@/ai/ai-unit-roles';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
@@ -194,6 +199,51 @@ export function evaluateLastStandOpportunity(state: GameState, generalUnitId: st
   };
 }
 
+/** A unit that can shell a city from range (`canUnitBombardCity`'s attack-profile test): melee units also "target" cities but cannot bombard. */
+function isCityBombardUnit(type: Unit['type']): boolean {
+  const profile = getUnitAttackProfile(type);
+  return (profile.kind === 'bombard' || profile.kind === 'ranged') && profile.targets.includes('city');
+}
+
+/** #939: own siege-capable units this close to the city can use an opened wall this turn or next. */
+const BREACH_SIEGE_RADIUS = 3;
+const BREACH_BOMBARD_UNIT_VALUE = 20;
+const BREACH_ASSAULT_UNIT_VALUE = 8;
+const BREACH_GARRISON_BONUS = 10;
+
+/**
+ * #939: Breach the Walls is worth a charge when the General's own army is actually positioned to use it. Reads only
+ * the civ's own units and the visible target city (`getBreachTargetCityIds` already requires visibility), never
+ * difficulty or hidden state. Bombard-capable units are worth the most (the breach lets them fire through a
+ * garrison at full strength); other land units can storm the opened walls. Ties break by city id.
+ */
+export function evaluateBreachOpportunity(state: GameState, generalUnitId: string): GeneralCommandOpportunity | null {
+  const general = state.units[generalUnitId];
+  if (!general) return null;
+  const civ = state.civilizations[general.owner];
+  if (!civ || !getHeroicCommandEligibility(state, general).eligible) return null;
+
+  let best: { cityId: string; score: number } | null = null;
+  for (const cityId of getBreachTargetCityIds(state, generalUnitId)) {
+    const city = state.cities[cityId];
+    if (!city) continue;
+    let score = 0;
+    for (const unitId of civ.units) {
+      const unit = state.units[unitId];
+      if (!unit || unit.id === general.id || !hasAICombatRole(unit.type)) continue;
+      if ((UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'air') continue;
+      if (mapDistance(state.map, unit.position, city.position) > BREACH_SIEGE_RADIUS) continue;
+      score += isCityBombardUnit(unit.type) ? BREACH_BOMBARD_UNIT_VALUE : BREACH_ASSAULT_UNIT_VALUE;
+    }
+    if (score === 0) continue;
+    if (getBreachPreview(state, generalUnitId, cityId).hasGarrison) score += BREACH_GARRISON_BONUS;
+    if (!best || score > best.score) best = { cityId, score };
+  }
+  if (!best) return null;
+  const chosenCityId = best.cityId;
+  return { ability: 'breach', score: best.score, execute: s => issueBreach(s, generalUnitId, chosenCityId) };
+}
+
 const GENERAL_DANGER_SCORE_PENALTY = 15;
 // #544 MR5 review fix: the raw floor an opportunity's own (unweighted)
 // score must clear before difficulty eagerness is even consulted. Without
@@ -240,6 +290,7 @@ export function chooseGeneralCommandAction(state: GameState, generalUnitId: stri
     evaluateRallyOpportunity(state, generalUnitId),
     evaluateSeizeOpportunity(state, generalUnitId),
     evaluateLastStandOpportunity(state, generalUnitId),
+    evaluateBreachOpportunity(state, generalUnitId),
   ].filter((o): o is GeneralCommandOpportunity => o !== null);
   if (opportunities.length === 0) return null;
 
@@ -258,6 +309,7 @@ const ABILITY_MOMENT_KIND: Readonly<Record<HeroicAbilityId, GeneralAbilityKind>>
   rally: 'rally',
   seize_the_moment: 'seize',
   last_stand: 'last-stand',
+  breach: 'breach',
 };
 
 /**
@@ -313,8 +365,6 @@ const CANDIDATE_BASE_WEIGHTS = { charges: 2, range: 2, capacity: 2 } as const;
  * landslide the choice — Swift / Tireless must stay live picks. */
 const CANDIDATE_SITUATIONAL_CAP_FRACTION = 0.3;
 const MOBILE_FRONTLINE_DISTANCE = 4;
-/** A Staff Commander only helps once the army outgrows the baseline command capacity. */
-const STAFF_BASELINE_CAPACITY = 3;
 
 function ownFieldUnits(state: GameState, civId: string): Unit[] {
   const civ = state.civilizations[civId];
@@ -354,11 +404,12 @@ function specialtyNeed(state: GameState, civId: string, specialtyId: string): nu
     }
     case 'endurance':
       return Math.min(majorCivWarOpponentIds(civ?.diplomacy?.atWarWith).length * 2, 4);
-    case 'staff': {
-      // #939: a big army is what a wider command capacity serves. Own combat units beyond the baseline capacity
-      // of 3, capped; owned state only, never difficulty.
-      const army = units.filter(u => hasAICombatRole(u.type)).length;
-      return Math.min(Math.max(army - STAFF_BASELINE_CAPACITY, 0), 4);
+    case 'siegemaster': {
+      // #939: a Siegemaster's Breach pays off for an army that can hurt a city. Own units whose attack can target a
+      // city, capped; only meaningful while at war. Owned state only, never difficulty.
+      if (majorCivWarOpponentIds(civ?.diplomacy?.atWarWith).length === 0) return 0;
+      const siegeUnits = units.filter(u => hasAICombatRole(u.type) && isCityBombardUnit(u.type)).length;
+      return Math.min(siegeUnits, 4);
     }
     default: // generalist — no situational lean (its value is the base stat term
       // only). Returning >0 here would give generated officers a standing edge

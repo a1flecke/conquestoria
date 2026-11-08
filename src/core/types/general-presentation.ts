@@ -2,7 +2,7 @@
 // event map can name it without closing an import cycle through the systems layer.
 import type { HexCoord } from './hex';
 
-export type GeneralAbilityKind = 'rally' | 'seize' | 'last-stand';
+export type GeneralAbilityKind = 'rally' | 'seize' | 'last-stand' | 'breach';
 
 /**
  * What a Great General command looked like to the player: which units it touched, where, in whose colours and with

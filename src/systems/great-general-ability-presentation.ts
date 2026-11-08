@@ -25,8 +25,15 @@ type Unit = Parameters<typeof getHeroicCommandEligibility>[1] & {
   readonly seizeGrantedBy?: { readonly turn: number };
   readonly lastStandHold?: { readonly formationId: string; readonly defenseBonusMultiplier: number; readonly expiresTurn: number };
 };
+type BreachableCity = {
+  readonly id: string;
+  readonly name: string;
+  readonly position: HexCoord;
+  readonly breach?: { readonly expiresTurn: number };
+};
 type GameState = Parameters<typeof getHeroicCommandEligibility>[0] & {
   readonly units: Readonly<Record<string, Unit | undefined>>;
+  readonly cities?: Readonly<Record<string, BreachableCity | undefined>>;
 };
 
 /** Enough to read as a formation without turning a ten-unit command into a screen of rings. */
@@ -36,7 +43,17 @@ const KIND_LABEL: Readonly<Record<GeneralAbilityKind, string>> = {
   rally: 'Rally',
   seize: 'Seize the Moment',
   'last-stand': 'Last Stand',
+  breach: 'Breach the Walls',
 };
+
+/** The city a Breach newly opened (the markers it wrote on cities, mirroring `touchedUnits` for unit-touching kinds). */
+function newlyBreachedCities(before: GameState, after: GameState): BreachableCity[] {
+  const out: BreachableCity[] = [];
+  for (const city of Object.values(after.cities ?? {})) {
+    if (city?.breach && !before.cities?.[city.id]?.breach) out.push(city);
+  }
+  return out.sort((a, b) => a.id.localeCompare(b.id));
+}
 
 function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
@@ -86,10 +103,32 @@ export function describeGeneralAbilityMoment(
   const identity = getGeneralIdentityForUnit(before, generalUnitId);
   if (!general || !identity) return null;
 
+  const isFinalCommand = getHeroicCommandEligibility(before, general).isFinalCharge;
+
+  // #939: Breach touches a city, not units: the moment is the breached city's hex.
+  if (kind === 'breach') {
+    const city = newlyBreachedCities(before, after)[0];
+    if (!city?.breach) return null;
+    const turns = Math.max(1, city.breach.expiresTurn - after.turn + 1);
+    const result = `Breach the Walls: the walls of ${city.name} stand open for ${plural(turns, 'turn')}.`;
+    return {
+      kind,
+      civId: general.owner,
+      generalUnitId,
+      generalName: identity.name,
+      isFinalCommand,
+      generalCoord: { q: general.position.q, r: general.position.r },
+      affectedCoords: [{ q: city.position.q, r: city.position.r }],
+      affectedCount: 1,
+      accent: identity.presentation.primary,
+      glow: identity.presentation.secondary,
+      summary: isFinalCommand ? `Final Command: ${result} ${identity.name} retires at the end of this turn.` : result,
+    };
+  }
+
   const touched = touchedUnits(kind, before, after);
   if (touched.length === 0) return null;
 
-  const isFinalCommand = getHeroicCommandEligibility(before, general).isFinalCharge;
   const seen = new Set<string>();
   const affectedCoords: HexCoord[] = [];
   const nearest = [...touched].sort((a, b) => {

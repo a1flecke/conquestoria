@@ -6,6 +6,9 @@ import { appendGeneralCareerEvent } from '@/systems/great-general-career';
 import { mapDistance, mapHexesInRange } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
+import { getVisibility } from '@/systems/fog-of-war';
+import { isHostileOwnerTo } from '@/systems/owner-hostility';
+import { createCityBreach, isCityBreachedBy } from '@/systems/city-breach';
 
 export interface HeroicCommandEligibility {
   eligible: boolean;
@@ -441,4 +444,89 @@ export function issueSeizeTheMoment(
     turn: state.turn,
     unitsRefreshed: refreshed,
   });
+}
+
+// ---------------------------------------------------------------------------
+// #939: Breach the Walls -- the Siegemaster's signature command
+// ---------------------------------------------------------------------------
+
+export interface BreachPreview {
+  eligibility: HeroicCommandEligibility;
+  /** False for a General whose specialty has no Breach: the command is not offered at all. */
+  available: boolean;
+  /** Why this city cannot be breached right now (player-facing copy); undefined when it can. */
+  denial?: string;
+  cityId: string;
+  cityName: string;
+  durationTurns: number;
+  hasGarrison: boolean;
+}
+
+/**
+ * Hostile cities this General could Breach right now: within command range, currently visible to its owner,
+ * hostile (at war / always-hostile), and not already breached by this civ. Sorted by id for determinism.
+ */
+export function getBreachTargetCityIds(state: GameState, generalUnitId: string): string[] {
+  const general = state.units[generalUnitId];
+  const definition = general ? resolveGeneralDefinition(state, general.generalDefinitionId) : undefined;
+  const visibility = general ? state.civilizations[general.owner]?.visibility : undefined;
+  if (!general || !definition || !visibility) return [];
+  if (resolveGeneralMechanics(definition).breach.durationTurns <= 0) return [];
+  const { commandRange } = getEffectiveCommandStats(general, definition);
+  return Object.values(state.cities)
+    .filter(city => city.owner !== general.owner)
+    .filter(city => isHostileOwnerTo(state, general.owner, city.owner))
+    .filter(city => !isCityBreachedBy(city, general.owner))
+    .filter(city => mapDistance(state.map, general.position, city.position) <= commandRange)
+    .filter(city => getVisibility(visibility, city.position) === 'visible')
+    .map(city => city.id)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+/** The one legality source for Breach: the preview, the executor and the AI all ask it. */
+export function getBreachPreview(state: GameState, generalUnitId: string, cityId: string): BreachPreview {
+  const general = state.units[generalUnitId];
+  const city = state.cities[cityId];
+  const eligibility = general
+    ? getHeroicCommandEligibility(state, general)
+    : { eligible: false, reason: 'General not found.', chargesRemaining: 0, isFinalCharge: false, cooldownTurnsRemaining: 0 };
+  const definition = general ? resolveGeneralDefinition(state, general.generalDefinitionId) : undefined;
+  const durationTurns = definition ? resolveGeneralMechanics(definition).breach.durationTurns : 0;
+  const base = {
+    eligibility,
+    available: durationTurns > 0,
+    cityId,
+    cityName: city?.name ?? 'Unknown city',
+    durationTurns,
+    hasGarrison: city
+      ? Object.values(state.units).some(u => u.owner === city.owner && u.position.q === city.position.q && u.position.r === city.position.r)
+      : false,
+  };
+  if (!general || !definition || !city) return { ...base, denial: 'No such General or city.' };
+  if (durationTurns <= 0) return { ...base, denial: 'This General has no Breach command.' };
+  if (!eligibility.eligible) return { ...base, denial: eligibility.reason };
+  if (!getBreachTargetCityIds(state, generalUnitId).includes(cityId)) {
+    return { ...base, denial: 'Choose a visible hostile city within your General\'s command range whose walls are not already open.' };
+  }
+  return base;
+}
+
+/**
+ * Opens the walls of `cityId` to the General owner's siege for the specialty's duration. Re-runs the preview's
+ * legality before its first write and returns the state unchanged when refused (no charge is ever spent on a
+ * refused Breach).
+ */
+export function issueBreach(state: GameState, generalUnitId: string, cityId: string): GameState {
+  const preview = getBreachPreview(state, generalUnitId, cityId);
+  if (preview.denial !== undefined) return state;
+  const general = state.units[generalUnitId]!;
+  const city = state.cities[cityId]!;
+  const withBreach: GameState = {
+    ...state,
+    cities: {
+      ...state.cities,
+      [cityId]: { ...city, breach: createCityBreach(general.owner, general.generalDefinitionId!, state.turn, preview.durationTurns) },
+    },
+  };
+  return spendHeroicCommandCharge(withBreach, generalUnitId);
 }

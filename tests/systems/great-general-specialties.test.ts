@@ -22,6 +22,7 @@ describe('resolveGeneralMechanics', () => {
       rally: { healAmount: 30 },
       lastStand: { defenseMultiplier: 1.15, durationTurns: 2 },
       seize: { extraTargets: 0 },
+      breach: { durationTurns: 0 },
     });
   });
 
@@ -85,19 +86,28 @@ describe('resolveGeneralMechanics', () => {
     expect(a).toBe(b);
   });
 
-  it('staff: capacity 4, range 1, all else baseline (#939)', () => {
-    const m = resolveGeneralMechanics({ ...baseDef, id: 'gen_napoleon' });
-    expect(m.commandCapacity).toBe(4);
-    expect(m.commandRange).toBe(1);
+  it('siegemaster: Breach for 2 turns, 12-turn cooldown, weaker Last Stand, all else baseline (#939)', () => {
+    const m = resolveGeneralMechanics({ ...baseDef, id: 'gen_mehmed' });
+    expect(m.breach.durationTurns).toBe(2);
+    expect(m.cooldownTurns).toBe(12);
+    expect(m.lastStand).toEqual({ defenseMultiplier: 1.10, durationTurns: 2 });
+    expect(m.commandRange).toBe(2);
+    expect(m.commandCapacity).toBe(3);
     expect(m.maxCommandCharges).toBe(3);
-    expect(m.cooldownTurns).toBe(10);
     expect(m.rally.healAmount).toBe(30);
-    expect(m.lastStand).toEqual({ defenseMultiplier: 1.15, durationTurns: 2 });
     expect(m.seize.extraTargets).toBe(0);
   });
 
+  it('only a Siegemaster has Breach; every other specialty and every generated officer has none (#939)', () => {
+    for (const [id, specialty] of Object.entries(GENERAL_SPECIALTY_ASSIGNMENTS)) {
+      const m = resolveGeneralMechanics({ ...baseDef, id });
+      expect(m.breach.durationTurns > 0, id).toBe(specialty === 'siegemaster');
+    }
+    expect(resolveGeneralMechanics({ ...baseDef, id: 'generated:rome:3:deadbeef' }).breach.durationTurns).toBe(0);
+  });
+
   it('every catalog entry is one of the seven specialty ids', () => {
-    const ids: GeneralSpecialtyId[] = ['generalist', 'defensive', 'initiative', 'logistician', 'mobile', 'endurance', 'staff'];
+    const ids: GeneralSpecialtyId[] = ['generalist', 'defensive', 'initiative', 'logistician', 'mobile', 'endurance', 'siegemaster'];
     expect(Object.keys(GENERAL_SPECIALTIES).sort()).toEqual([...ids].sort());
   });
 });
@@ -116,18 +126,19 @@ function flat(m: ReturnType<typeof resolveGeneralMechanics>) {
     lastStandMult: m.lastStand.defenseMultiplier,
     lastStandDur: m.lastStand.durationTurns,
     seizeExtra: m.seize.extraTargets,
+    breachTurns: m.breach.durationTurns,
   };
 }
 
 const BOUNDS = {
   commandRange: [1, 3], commandCapacity: [2, 4], maxCommandCharges: [2, 4],
   cooldownTurns: [7, 13], rallyHeal: [20, 50],
-  lastStandMult: [1.10, 1.30], lastStandDur: [2, 3], seizeExtra: [0, 1],
+  lastStandMult: [1.10, 1.30], lastStandDur: [2, 3], seizeExtra: [0, 1], breachTurns: [0, 2],
 } as const;
 
 const SPEC_SAMPLE: Record<string, string> = {
   generalist: 'gen_hannibal', defensive: 'gen_wellington', initiative: 'gen_caesar',
-  logistician: 'gen_yuefei', mobile: 'gen_genghis', endurance: 'gen_shaka', staff: 'gen_napoleon',
+  logistician: 'gen_yuefei', mobile: 'gen_genghis', endurance: 'gen_shaka', siegemaster: 'gen_mehmed',
 };
 
 describe('#885 specialty bounds + no strict upgrade', () => {
@@ -150,6 +161,8 @@ describe('#885 specialty bounds + no strict upgrade', () => {
       expect(m.lastStand.durationTurns, spec).toBeLessThanOrEqual(BOUNDS.lastStandDur[1]);
       expect(m.seize.extraTargets, spec).toBeGreaterThanOrEqual(BOUNDS.seizeExtra[0]);
       expect(m.seize.extraTargets, spec).toBeLessThanOrEqual(BOUNDS.seizeExtra[1]);
+      expect(m.breach.durationTurns, spec).toBeGreaterThanOrEqual(BOUNDS.breachTurns[0]);
+      expect(m.breach.durationTurns, spec).toBeLessThanOrEqual(BOUNDS.breachTurns[1]);
     }
   });
 
@@ -206,7 +219,7 @@ describe('#885 roster assignments', () => {
   it('distribution stays legible — 4..7 per non-generalist specialty, >=5 generalist', () => {
     const counts: Record<string, number> = {};
     for (const v of Object.values(GENERAL_SPECIALTY_ASSIGNMENTS)) counts[v] = (counts[v] ?? 0) + 1;
-    for (const spec of ['defensive', 'initiative', 'logistician', 'mobile', 'endurance', 'staff']) {
+    for (const spec of ['defensive', 'initiative', 'logistician', 'mobile', 'endurance', 'siegemaster']) {
       expect(counts[spec] ?? 0, spec).toBeGreaterThanOrEqual(4);
       expect(counts[spec] ?? 0, spec).toBeLessThanOrEqual(7);
     }
@@ -217,7 +230,7 @@ describe('#885 roster assignments', () => {
     for (const def of GENERAL_DEFINITIONS) {
       const m = resolveGeneralMechanics(def);
       for (const n of [m.commandRange, m.commandCapacity, m.maxCommandCharges, m.cooldownTurns,
-        m.rally.healAmount, m.lastStand.defenseMultiplier, m.lastStand.durationTurns, m.seize.extraTargets]) {
+        m.rally.healAmount, m.lastStand.defenseMultiplier, m.lastStand.durationTurns, m.seize.extraTargets, m.breach.durationTurns]) {
         expect(Number.isFinite(n)).toBe(true);
       }
     }

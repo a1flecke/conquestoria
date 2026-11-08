@@ -544,41 +544,48 @@ describe('#885 chooseBestGeneralCandidate — bounded, non-omniscient, difficult
     expect(chooseBestGeneralCandidate(s, 'player', cands).id).toBe('gen_yuefei');
   });
 
-  describe('Staff Commander (#939)', () => {
-    function withArmy(seed: string, count: number, health = 100) {
+  describe('Siegemaster (#939)', () => {
+    function withSiegeArmy(seed: string, siegeCount: number, atWar = true) {
       const s = gameAtWar(seed);
+      s.civilizations.player!.units = s.civilizations.player!.units.filter(id => s.units[id]?.type === 'settler');
       const added: string[] = [];
-      for (let i = 0; i < count; i++) {
-        const id = `army-${i}`;
-        s.units[id] = { id, type: 'swordsman', owner: 'player', position: { q: 3 + i, r: 3 },
-          movementPointsLeft: 1, health, experience: 0, hasMoved: false, hasActed: false, isResting: false } as Unit;
+      for (let i = 0; i < siegeCount; i++) {
+        const id = `siege-${i}`;
+        s.units[id] = { id, type: 'catapult', owner: 'player', position: { q: 3 + i, r: 3 },
+          movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false } as Unit;
         added.push(id);
       }
       s.civilizations.player!.units = [...s.civilizations.player!.units, ...added];
+      if (!atWar) {
+        s.civilizations.player!.diplomacy.atWarWith = [];
+        s.civilizations['ai-1']!.diplomacy.atWarWith = [];
+      }
       return s;
     }
-    const cands = [def('gen_hannibal'), def('gen_napoleon'), def('gen_genghis')];
+    // Hannibal ties the Siegemaster on base stats, so only the situational term can move the pick.
+    const cands = [def('gen_hannibal'), def('gen_mehmed'), def('gen_genghis')];
 
-    it('picks the Staff Commander when the army has outgrown the baseline command capacity', () => {
-      expect(chooseBestGeneralCandidate(withArmy('cbc-staff', 8), 'player', cands).id).toBe('gen_napoleon');
+    it('picks the Siegemaster when at war with an army that can hurt a city', () => {
+      expect(chooseBestGeneralCandidate(withSiegeArmy('cbc-siege', 4), 'player', cands).id).toBe('gen_mehmed');
     });
 
-    it('does not seek the Staff Commander out for a small army', () => {
-      const s = withArmy('cbc-staff-small', 0);
-      s.civilizations.player!.units = s.civilizations.player!.units.filter(id => s.units[id]?.type === 'settler');
-      expect(chooseBestGeneralCandidate(s, 'player', cands).id).not.toBe('gen_napoleon');
+    it('does not seek the Siegemaster out without siege units', () => {
+      expect(chooseBestGeneralCandidate(withSiegeArmy('cbc-siege-none', 0), 'player', cands).id).not.toBe('gen_mehmed');
+    });
+
+    it('does not seek the Siegemaster out in peacetime', () => {
+      expect(chooseBestGeneralCandidate(withSiegeArmy('cbc-siege-peace', 4, false), 'player', cands).id).not.toBe('gen_mehmed');
     });
 
     it('counts only own units, never a rival\'s', () => {
-      const s = withArmy('cbc-staff-foreign', 0);
-      s.civilizations.player!.units = s.civilizations.player!.units.filter(id => s.units[id]?.type === 'settler');
-      for (let i = 0; i < 8; i++) {
+      const s = withSiegeArmy('cbc-siege-foreign', 0);
+      for (let i = 0; i < 4; i++) {
         const id = `foe-${i}`;
-        s.units[id] = { id, type: 'swordsman', owner: 'ai-1', position: { q: 3 + i, r: 5 },
+        s.units[id] = { id, type: 'catapult', owner: 'ai-1', position: { q: 3 + i, r: 5 },
           movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false } as Unit;
         s.civilizations['ai-1']!.units = [...s.civilizations['ai-1']!.units, id];
       }
-      expect(chooseBestGeneralCandidate(s, 'player', cands).id).not.toBe('gen_napoleon');
+      expect(chooseBestGeneralCandidate(s, 'player', cands).id).not.toBe('gen_mehmed');
     });
   });
 

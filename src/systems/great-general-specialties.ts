@@ -15,7 +15,7 @@
 import type { GeneralDefinition } from '@/systems/great-general-definitions';
 
 export type GeneralSpecialtyId =
-  | 'generalist' | 'defensive' | 'initiative' | 'logistician' | 'mobile' | 'endurance' | 'staff';
+  | 'generalist' | 'defensive' | 'initiative' | 'logistician' | 'mobile' | 'endurance' | 'siegemaster';
 
 export interface ResolvedGeneralMechanics {
   commandRange: number;
@@ -25,6 +25,8 @@ export interface ResolvedGeneralMechanics {
   rally: { healAmount: number };
   lastStand: { defenseMultiplier: number; durationTurns: number };
   seize: { extraTargets: number };
+  /** #939: the Siegemaster's signature command. 0 = this General has no Breach; otherwise how many turns it holds. */
+  breach: { durationTurns: number };
 }
 
 /** The audited V1 numbers — the base every specialty delta applies to. */
@@ -36,6 +38,7 @@ export const BASELINE_GENERAL_MECHANICS: ResolvedGeneralMechanics = {
   rally: { healAmount: 30 },
   lastStand: { defenseMultiplier: 1.15, durationTurns: 2 },
   seize: { extraTargets: 0 },
+  breach: { durationTurns: 0 },
 };
 
 export interface GeneralSpecialtyDef {
@@ -52,6 +55,7 @@ const clone = (m: ResolvedGeneralMechanics): ResolvedGeneralMechanics => ({
   rally: { ...m.rally },
   lastStand: { ...m.lastStand },
   seize: { ...m.seize },
+  breach: { ...m.breach },
 });
 
 export const GENERAL_SPECIALTIES: Record<GeneralSpecialtyId, GeneralSpecialtyDef> = {
@@ -123,17 +127,18 @@ export const GENERAL_SPECIALTIES: Record<GeneralSpecialtyId, GeneralSpecialtyDef
       return m;
     },
   },
-  // #939: the 6th specialty. Built only from existing dimensions (capacity up, range down -- the mirror of
-  // 'mobile'), so it needs no new mechanic. Its AI valuation lives in `specialtyNeed` (ai-general-command.ts).
-  staff: {
-    id: 'staff',
-    displayName: 'Staff Commander',
+  // #939: the 6th specialty and the first with a signature command. A Siegemaster can Breach the Walls of a hostile
+  // city (see `issueBreach`). Its cost: a slower return to the field and a weaker Last Stand.
+  siegemaster: {
+    id: 'siegemaster',
+    displayName: 'Siegemaster',
     summary:
-      'Especially good at running a big army: commands more units at once (4). In exchange, a shorter command range (1).',
+      'Opens the walls of a hostile city for 2 turns: your guns fire through the garrison at full strength, the walls stop shooting back, and storming is easier. In exchange, a longer cooldown (12 turns) and a weaker Last Stand.',
     apply: base => {
       const m = clone(base);
-      m.commandCapacity = 4;
-      m.commandRange = 1;
+      m.breach.durationTurns = 2;
+      m.cooldownTurns = 12;
+      m.lastStand.defenseMultiplier = 1.10;
       return m;
     },
   },
@@ -156,20 +161,20 @@ export const GENERAL_SPECIALTY_ASSIGNMENTS: Record<string, GeneralSpecialtyId> =
 
   gen_wellington: 'defensive',
   gen_boromir: 'defensive',
-  gen_nebuchadnezzar: 'defensive',
-  gen_tokugawa: 'staff',
+  gen_nebuchadnezzar: 'siegemaster',
+  gen_tokugawa: 'defensive',
   gen_cuauhtemoc: 'defensive',
   gen_haldir: 'defensive',
 
   gen_caesar: 'initiative',
-  gen_suvorov: 'initiative',
+  gen_suvorov: 'siegemaster',
   gen_frederick: 'initiative',
-  gen_napoleon: 'staff',
+  gen_napoleon: 'initiative',
   gen_lancelot: 'initiative',
   gen_merry: 'initiative',
 
   gen_yuefei: 'logistician',
-  gen_chandragupta: 'staff',
+  gen_chandragupta: 'logistician',
   gen_ramesses: 'logistician',
   gen_cyrus: 'logistician',
   gen_gwydion: 'logistician',
@@ -178,11 +183,11 @@ export const GENERAL_SPECIALTY_ASSIGNMENTS: Record<string, GeneralSpecialtyId> =
   gen_eomer: 'mobile',
   gen_ragnar: 'mobile',
   gen_ugluk: 'mobile',
-  gen_alexander: 'mobile',
+  gen_alexander: 'siegemaster',
   gen_oreius: 'mobile',
 
   gen_shaka: 'endurance',
-  gen_mehmed: 'staff',
+  gen_mehmed: 'siegemaster',
   gen_elcid: 'endurance',
   gen_okoye: 'endurance',
   gen_hornedking: 'endurance',
@@ -211,6 +216,7 @@ function clampHard(m: ResolvedGeneralMechanics): ResolvedGeneralMechanics {
   out.lastStand.defenseMultiplier = Math.max(1, out.lastStand.defenseMultiplier);
   out.lastStand.durationTurns = Math.max(1, Math.round(out.lastStand.durationTurns));
   out.seize.extraTargets = Math.max(0, Math.round(out.seize.extraTargets));
+  out.breach.durationTurns = Math.max(0, Math.round(out.breach.durationTurns));
   return out;
 }
 
@@ -231,6 +237,7 @@ export function resolveGeneralMechanics(def: MechDefFields): ResolvedGeneralMech
     rally: { healAmount: BASELINE_GENERAL_MECHANICS.rally.healAmount },
     lastStand: { ...BASELINE_GENERAL_MECHANICS.lastStand },
     seize: { ...BASELINE_GENERAL_MECHANICS.seize },
+    breach: { ...BASELINE_GENERAL_MECHANICS.breach },
   };
 
   const specialtyId = GENERAL_SPECIALTY_ASSIGNMENTS[def.id];

@@ -21,6 +21,7 @@ export type GeneralAbilityEffectType =
   | 'general-seize'
   | 'general-last-stand'
   | 'general-final-command'
+  | 'general-breach'
   | 'general-ability-static';
 
 export const GENERAL_ABILITY_EFFECT_TYPES: readonly GeneralAbilityEffectType[] = [
@@ -28,6 +29,7 @@ export const GENERAL_ABILITY_EFFECT_TYPES: readonly GeneralAbilityEffectType[] =
   'general-seize',
   'general-last-stand',
   'general-final-command',
+  'general-breach',
   'general-ability-static',
 ];
 
@@ -63,6 +65,37 @@ function plusMark(ctx: CanvasRenderingContext2D, x: number, y: number, arm: numb
   ctx.moveTo(x, y - arm);
   ctx.lineTo(x, y + arm);
   ctx.stroke();
+}
+
+/** Six jagged cracks from the centre, one per hex corner: the same shape for the animation and the lasting marker. */
+function drawBreachCracks(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number): void {
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i + Math.PI / 6;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    const sx = -dy; // a perpendicular step makes each crack zig-zag
+    const sy = dx;
+    ctx.beginPath();
+    ctx.moveTo(x + dx * radius * 0.25, y + dy * radius * 0.25);
+    ctx.lineTo(x + dx * radius * 0.5 + sx * radius * 0.12, y + dy * radius * 0.5 + sy * radius * 0.12);
+    ctx.lineTo(x + dx * radius * 0.75 - sx * radius * 0.1, y + dy * radius * 0.75 - sy * radius * 0.1);
+    ctx.lineTo(x + dx * radius, y + dy * radius);
+    ctx.stroke();
+  }
+}
+
+/**
+ * The lasting Breach marker (#939): steady cracks over a city whose walls are open. State-derived (no timeline, no
+ * paint clock): `setGameState` already invalidates when the breach is opened or expires. The caller decides who may
+ * see it (the owner, the breacher, or a viewer who can currently see the city).
+ */
+export function drawBreachedCityMarker(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, colour: string): void {
+  ctx.save();
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = Math.max(1.5, size * 0.05);
+  ctx.globalAlpha = 0.9;
+  drawBreachCracks(ctx, x, y, size * 0.62);
+  ctx.restore();
 }
 
 export function drawGeneralAbilityEffect(
@@ -155,6 +188,20 @@ export function drawGeneralAbilityEffect(
       ctx.fill();
       break;
     }
+    case 'general-breach': {
+      // A shock ring leaves the hex, and jagged cracks split open across it and stay lit as they fade (stone giving way).
+      const burst = Math.min(1, progress / 0.4);
+      ctx.lineWidth = Math.max(2, size * 0.06);
+      ctx.strokeStyle = glow;
+      ctx.globalAlpha = Math.max(0, (1 - burst) * 0.8);
+      ctx.beginPath();
+      ctx.arc(x, y, reach * (0.3 + burst * 0.9), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = accent;
+      ctx.globalAlpha = Math.max(0, Math.min(1, burst * 1.5) * fade * 1.4);
+      drawBreachCracks(ctx, x, y, size * 0.62 * (0.4 + burst * 0.6));
+      break;
+    }
     case 'general-ability-static': {
       ctx.strokeStyle = accent;
       ctx.globalAlpha = 0.85;
@@ -190,6 +237,42 @@ export function drawLastStandHoldMarker(
   ctx.globalAlpha = 0.12;
   ctx.fill();
   ctx.restore();
+}
+
+type BreachMarkerState = {
+  readonly cities: Readonly<Record<string, {
+    readonly owner: string;
+    readonly position: { readonly q: number; readonly r: number };
+    readonly breach?: { readonly byCivId: string };
+  }>>;
+  readonly map: { readonly wrapsHorizontally?: boolean; readonly width: number };
+};
+
+/**
+ * Marks every city whose walls are open (#939). Shown to the city's owner, to the breaching civ, and to any viewer
+ * who can currently see the city's hex; a fogged remembered city shows nothing, so the marker never leaks a rival's
+ * siege. `viewerId` is the seat looking at the screen (hot seat: `state.currentPlayer`).
+ */
+export function drawBreachedCityMarkers(
+  ctx: CanvasRenderingContext2D,
+  state: BreachMarkerState,
+  camera: Camera,
+  viewerId: string,
+  isCurrentlyVisible: (coord: { q: number; r: number }) => boolean,
+): void {
+  for (const city of Object.values(state.cities)) {
+    if (!city.breach) continue;
+    if (city.owner !== viewerId && city.breach.byCivId !== viewerId && !isCurrentlyVisible(city.position)) continue;
+    const coords = state.map.wrapsHorizontally
+      ? getHorizontalWrapRenderCoords(city.position, state.map.width, camera)
+      : [city.position];
+    for (const coord of coords) {
+      if (!camera.isHexVisible(coord)) continue;
+      const pixel = hexToPixel(coord, camera.hexSize);
+      const screen = camera.worldToScreen(pixel.x, pixel.y);
+      drawBreachedCityMarker(ctx, screen.x, screen.y, camera.hexSize * camera.zoom, city.breach.byCivId === viewerId ? '#ffd27a' : '#ff9a8a');
+    }
+  }
 }
 
 /** The slice of `GameState` the marker reads (structural, so the full state satisfies it without the core type barrel). */

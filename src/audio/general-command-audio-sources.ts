@@ -21,6 +21,7 @@ export const GENERAL_COMMAND_AUDIO_FILES = [
   'audio/stinger/general/general-seize.ogg',
   'audio/stinger/general/general-last-stand.ogg',
   'audio/stinger/general/general-final-command.ogg',
+  'audio/stinger/general/general-breach.ogg',
 ] as const;
 
 export const GENERAL_COMMAND_AUDIO_SOURCES: GeneralCommandAudioSource[] = [{
@@ -37,5 +38,5 @@ export const GENERAL_COMMAND_AUDIO_SOURCES: GeneralCommandAudioSource[] = [{
     'audio/sfx/catapult-siege-impact.ogg',
   ],
   localFiles: [...GENERAL_COMMAND_AUDIO_FILES],
-  derivativeNotes: 'Layered, filtered, limited and re-encoded by scripts/generate-general-command-sfx.sh with deterministic in-project lavfi sine tones: a rising three-note chime (Rally), a rising sweep over a blade swish (Seize the Moment), a deep fifth over struck iron (Last Stand) and a slow swell over a deep impact (Final Command and retirement).',
+  derivativeNotes: 'Layered, filtered, limited and re-encoded by scripts/generate-general-command-sfx.sh with deterministic in-project lavfi sine tones: a rising three-note chime (Rally), a rising sweep over a blade swish (Seize the Moment), a deep fifth over struck iron (Last Stand) a slow swell over a deep impact (Final Command and retirement) and a falling sub-bass drop over a siege impact (Breach the Walls).',
 }];
