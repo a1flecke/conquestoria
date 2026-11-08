@@ -14,6 +14,7 @@ const SPEC_SAMPLE: Record<GeneralSpecialtyId, string> = {
   logistician: 'gen_yuefei',
   mobile: 'gen_genghis',
   endurance: 'gen_shaka',
+  staff: 'gen_napoleon',
 };
 const baseDef = { commandRange: 2, commandCapacity: 3, maxCommandCharges: 3, cooldownTurns: 10 };
 
@@ -25,6 +26,7 @@ const SCENARIOS: Record<string, (m: M) => number> = {
   lowCombatEmpire: m => m.commandRange * 10 + m.commandCapacity * 6, // passive-stabilization reach
   longMultiFrontWar: m => m.maxCommandCharges * 20 - m.cooldownTurns,
   sparseArmy: m => m.maxCommandCharges * 10 + (m.commandRange + m.commandCapacity) * 3,
+  massedArmy: m => m.commandCapacity * 20 + m.commandRange * 4, // many units kept close together (#939)
 };
 
 function scoreAll(scenario: keyof typeof SCENARIOS): Record<GeneralSpecialtyId, number> {
@@ -46,6 +48,7 @@ describe('#885 deterministic specialty balance matrix', () => {
     expect(winner(scoreAll('lethalDefense'))).toBe('defensive');
     expect(winner(scoreAll('lowCombatEmpire'))).toBe('mobile');
     expect(winner(scoreAll('longMultiFrontWar'))).toBe('endurance');
+    expect(winner(scoreAll('massedArmy'))).toBe('staff');
   });
 
   it('no specialty wins every scenario', () => {

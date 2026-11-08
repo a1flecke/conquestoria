@@ -15,7 +15,7 @@
 import type { GeneralDefinition } from '@/systems/great-general-definitions';
 
 export type GeneralSpecialtyId =
-  | 'generalist' | 'defensive' | 'initiative' | 'logistician' | 'mobile' | 'endurance';
+  | 'generalist' | 'defensive' | 'initiative' | 'logistician' | 'mobile' | 'endurance' | 'staff';
 
 export interface ResolvedGeneralMechanics {
   commandRange: number;
@@ -123,6 +123,20 @@ export const GENERAL_SPECIALTIES: Record<GeneralSpecialtyId, GeneralSpecialtyDef
       return m;
     },
   },
+  // #939: the 6th specialty. Built only from existing dimensions (capacity up, range down -- the mirror of
+  // 'mobile'), so it needs no new mechanic. Its AI valuation lives in `specialtyNeed` (ai-general-command.ts).
+  staff: {
+    id: 'staff',
+    displayName: 'Staff Commander',
+    summary:
+      'Especially good at running a big army: commands more units at once (4). In exchange, a shorter command range (1).',
+    apply: base => {
+      const m = clone(base);
+      m.commandCapacity = 4;
+      m.commandRange = 1;
+      return m;
+    },
+  },
 };
 
 /**
@@ -143,19 +157,19 @@ export const GENERAL_SPECIALTY_ASSIGNMENTS: Record<string, GeneralSpecialtyId> =
   gen_wellington: 'defensive',
   gen_boromir: 'defensive',
   gen_nebuchadnezzar: 'defensive',
-  gen_tokugawa: 'defensive',
+  gen_tokugawa: 'staff',
   gen_cuauhtemoc: 'defensive',
   gen_haldir: 'defensive',
 
   gen_caesar: 'initiative',
   gen_suvorov: 'initiative',
   gen_frederick: 'initiative',
-  gen_napoleon: 'initiative',
+  gen_napoleon: 'staff',
   gen_lancelot: 'initiative',
   gen_merry: 'initiative',
 
   gen_yuefei: 'logistician',
-  gen_chandragupta: 'logistician',
+  gen_chandragupta: 'staff',
   gen_ramesses: 'logistician',
   gen_cyrus: 'logistician',
   gen_gwydion: 'logistician',
@@ -168,7 +182,7 @@ export const GENERAL_SPECIALTY_ASSIGNMENTS: Record<string, GeneralSpecialtyId> =
   gen_oreius: 'mobile',
 
   gen_shaka: 'endurance',
-  gen_mehmed: 'endurance',
+  gen_mehmed: 'staff',
   gen_elcid: 'endurance',
   gen_okoye: 'endurance',
   gen_hornedking: 'endurance',

@@ -313,6 +313,8 @@ const CANDIDATE_BASE_WEIGHTS = { charges: 2, range: 2, capacity: 2 } as const;
  * landslide the choice — Swift / Tireless must stay live picks. */
 const CANDIDATE_SITUATIONAL_CAP_FRACTION = 0.3;
 const MOBILE_FRONTLINE_DISTANCE = 4;
+/** A Staff Commander only helps once the army outgrows the baseline command capacity. */
+const STAFF_BASELINE_CAPACITY = 3;
 
 function ownFieldUnits(state: GameState, civId: string): Unit[] {
   const civ = state.civilizations[civId];
@@ -352,6 +354,12 @@ function specialtyNeed(state: GameState, civId: string, specialtyId: string): nu
     }
     case 'endurance':
       return Math.min(majorCivWarOpponentIds(civ?.diplomacy?.atWarWith).length * 2, 4);
+    case 'staff': {
+      // #939: a big army is what a wider command capacity serves. Own combat units beyond the baseline capacity
+      // of 3, capped; owned state only, never difficulty.
+      const army = units.filter(u => hasAICombatRole(u.type)).length;
+      return Math.min(Math.max(army - STAFF_BASELINE_CAPACITY, 0), 4);
+    }
     default: // generalist — no situational lean (its value is the base stat term
       // only). Returning >0 here would give generated officers a standing edge
       // over a situationally-quiet specialist and break #888's authored-preferred
