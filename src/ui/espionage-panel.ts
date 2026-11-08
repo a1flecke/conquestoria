@@ -1,7 +1,7 @@
 // src/ui/espionage-panel.ts
 import type { GameState, Spy, SpyMissionType, SpyPromotion, InterrogationIntel } from '../core/types';
 import type { AdvisorType } from '@/core/types/council';
-import { GO_PUBLIC_DENIAL_MESSAGES, getAvailableMissions, getEspionageModifierBreakdown, getGoPublicDenial, getGoPublicExpiryTurn, getMissionDuration, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-presentation';
+import { GO_PUBLIC_DENIAL_MESSAGES, PROMOTION_XP_THRESHOLD, getAvailableMissions, getEspionageModifierBreakdown, getGoPublicDenial, getGoPublicExpiryTurn, getMissionDuration, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-presentation';
 import { getProductionLabel } from '../systems/economy-system';
 
 export interface MissionCatalogEntry {
@@ -127,6 +127,12 @@ const MISSION_LABELS: Record<SpyMissionType, string> = {
 // point of choice" — docs/superpowers/specs/2026-07-11-world-pressure-symmetry-design.md).
 // Fixed for the whole catalog rather than just the two new missions, so descriptions don't
 // appear inconsistently between old and new entries.
+const SPY_PROMOTION_PRESENTATION: Record<SpyPromotion, { label: string; effect: string }> = {
+  infiltrator: { label: 'Infiltrator', effect: '+10% success on covert missions' },
+  handler: { label: 'Handler', effect: '+10% success on political missions' },
+  sentinel: { label: 'Sentinel', effect: '+5% success on intelligence missions' },
+};
+
 const MISSION_DESCRIPTIONS: Record<SpyMissionType, string> = {
   scout_area: 'Reveals the fog of war around the target city.',
   monitor_troops: 'Reveals enemy unit positions and strength near the target city.',
@@ -340,12 +346,21 @@ function appendSpyCard(
   const nameEl = createEl('div', spy.name);
   nameEl.style.cssText = 'font-size:13px;font-weight:700;';
   nameBlock.appendChild(nameEl);
-  const status = createEl('div', `${spy.status} · XP ${spy.experience}`);
+  const xpLabel = spy.promotion
+    ? `XP ${spy.experience}`
+    : `XP ${Math.min(spy.experience, PROMOTION_XP_THRESHOLD)}/${PROMOTION_XP_THRESHOLD}`;
+  const status = createEl('div', `${spy.status} · ${xpLabel}`);
   status.style.cssText = 'font-size:11px;opacity:0.75;';
   nameBlock.appendChild(status);
   top.appendChild(nameBlock);
 
-  const promo = createEl('div', spy.promotion ?? (spy.promotionReady ? 'promotion ready' : 'no promotion'));
+  const promotion = spy.promotion ? SPY_PROMOTION_PRESENTATION[spy.promotion] : null;
+  const promoText = promotion
+    ? `${promotion.label} · ${promotion.effect}`
+    : spy.promotionReady
+      ? 'Promotion ready · next mission success earns a title'
+      : `${Math.max(0, PROMOTION_XP_THRESHOLD - spy.experience)} XP to promotion`;
+  const promo = createEl('div', promoText);
   promo.dataset.spyPromotion = spy.promotion ?? '';
   promo.style.cssText = 'font-size:11px;color:#e8c170;text-align:right;';
   top.appendChild(promo);

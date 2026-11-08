@@ -240,6 +240,35 @@ describe('espionage-panel', () => {
       expect(getEspionagePanelData(state).capturedEnemySpies).toEqual([]);
     });
 
+    it('shows canonical XP progress toward promotion', () => {
+      const state = makeEspUiState();
+      state.espionage!['player'] = addSpy(
+        state.espionage!['player'],
+        makeTestSpy('spy-1', 'player', { experience: 25 }),
+      );
+
+      const panel = createEspionagePanel(state) as unknown;
+      const card = findAll(panel, el => el.dataset?.spyId === 'spy-1')[0];
+
+      expect(collectText(card)).toContain('XP 25/60');
+      expect(collectText(card)).toContain('35 XP to promotion');
+    });
+
+    it('explains an earned promotion and its real benefit', () => {
+      const state = makeEspUiState();
+      state.espionage!['player'] = addSpy(
+        state.espionage!['player'],
+        makeTestSpy('spy-1', 'player', { experience: 75, promotion: 'infiltrator' }),
+      );
+
+      const panel = createEspionagePanel(state) as unknown;
+      const card = findAll(panel, el => el.dataset?.spyId === 'spy-1')[0];
+
+      expect(collectText(card)).toContain('XP 75');
+      expect(collectText(card)).toContain('Infiltrator');
+      expect(collectText(card)).toContain('+10% success on covert missions');
+    });
+
     it('reports currently disabled advisors', () => {
       const state = makeEspUiState();
       state.civilizations.player.advisorDisabledUntil = { chancellor: 15, spymaster: 9 };
@@ -716,7 +745,8 @@ describe('espionage-panel', () => {
 
       const spyCards = findAll(panel, el => el.dataset?.spyId !== undefined);
       expect(spyCards).toHaveLength(1);
-      expect(collectText(spyCards[0])).toContain('promotion ready');
+      expect(collectText(spyCards[0])).toContain('Promotion ready');
+      expect(collectText(spyCards[0])).toContain('next mission success earns a title');
 
       const defense = findAll(panel, el => el.dataset?.section === 'defense')[0];
       expect(collectText(defense)).toContain('city-player-1');

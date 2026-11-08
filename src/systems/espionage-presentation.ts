@@ -20,6 +20,7 @@ export {
   getAvailableMissions,
   getMissionDuration,
   missionRequiresPlacedSpy,
+  PROMOTION_XP_THRESHOLD,
 } from './espionage-catalog';
 export {
   getEspionageModifierBreakdown,
