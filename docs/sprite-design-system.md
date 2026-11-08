@@ -33,9 +33,10 @@ all scoped by `data-kind-variant="grenadier"`): bearskin cap, crossbelts, grenad
 throw with the grenade leaving the hand, flying and bursting on attack, four damage tiers via `HumanoidWounds`. It keeps its
 `UNIT_SPRITE_CATALOG` SVG as the safe fallback for the Canvas layer and for load failure, is **not** a painted strip, and carries no PNG
 provenance. `cannon` was given painted strips instead (#1627, the thirteenth strip unit: bronze barrel, spoked wheel that turns on
-move, recoil with flash and smoke on fire, four damage tiers and a three-frame wreck); its native-v2 draft was dropped so no unreachable
+move, recoil with flash and smoke on fire, four damage tiers and a three-frame wreck), and so was `artillery` (#1627, the fourteenth: an
+olive-drab steel howitzer with a gun shield and one spoked wheel, built the same way); the cannon's native-v2 draft was dropped so no unreachable
 art stays in the tree, and its catalog SVG remains the rollback. #759 stays open. Three tiers exist and should not be conflated:
-painted strip (PNG, 13 units), native-v2 SVG (hand-authored silhouette with animation hooks), and live-fallback-only SVG (everything else).
+painted strip (PNG, 14 units), native-v2 SVG (hand-authored silhouette with animation hooks), and live-fallback-only SVG (everything else).
 
 **Third path — PNG spritesheet units.** A unit with a row in `PNG_UNIT_SPRITES`
 (`src/renderer/sprites/png/png-sprite-catalog.ts`) is drawn from a painted PNG (sheet + tint mask, built by

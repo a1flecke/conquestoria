@@ -1,5 +1,6 @@
 import type { PngSpriteManifest, PngUnitSprite } from './png-sprite-types';
 import { fromPuppetManifest } from './png-sprite-normalise';
+import { sprite as artillery } from './generated/artillery.manifest';
 import { sprite as cannon } from './generated/cannon.manifest';
 import { sprite as cavalry } from './generated/cavalry.manifest';
 import { sprite as biplane } from './generated/biplane.manifest';
@@ -29,7 +30,7 @@ const PUPPET_UNITS: Readonly<Record<string, PngSpriteManifest>> = {
 };
 
 /** Strip units: drawn strips exported by `strips.py export`, already in the player's shape. */
-const STRIP_UNITS: readonly PngUnitSprite[] = [archer, biplane, cannon, cavalry, horseman, ironclad, machine_gunner, observation_balloon, pre_dreadnought, rifleman, spearman, submarine, tank];
+const STRIP_UNITS: readonly PngUnitSprite[] = [archer, artillery, biplane, cannon, cavalry, horseman, ironclad, machine_gunner, observation_balloon, pre_dreadnought, rifleman, spearman, submarine, tank];
 
 const PNG_UNIT_SPRITES: Readonly<Record<string, PngUnitSprite>> = Object.fromEntries([
   ...Object.entries(PUPPET_UNITS).map(([id, manifest]) => [id, fromPuppetManifest(manifest)] as const),
