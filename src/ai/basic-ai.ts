@@ -71,6 +71,7 @@ import {
   startInterrogation,
   missionRequiresPlacedSpy,
   startMission,
+  isOperationEffectFullyActive,
   isSpyUnitType,
   getSpyCaptureRelationshipPenalty,
 } from '@/systems/espionage-system';
@@ -1650,6 +1651,9 @@ function processAITurnInternal(
           const city = newState.cities[spy.infiltrationCityId];
           if (!city) continue;
           for (const missionType of infiltrationMissions) {
+            // #419: a full-strength lockout/penalty cannot be improved by repeating
+            // the operation, so try the next-best mission instead of wasting this spy.
+            if (isOperationEffectFullyActive(newState, missionType, city.owner, city.id)) continue;
             const started = startMission(
               newState.espionage![civId], spy.id, missionType, undefined, city.owner, city.id,
             );
@@ -1699,17 +1703,26 @@ function processAITurnInternal(
             civId,
             administrativePerception,
           );
-      if (target) {
-        const started = startMission(
-          newState.espionage![civId],
-          spy.id,
-          mission,
-          resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect,
-          target.civId,
-          target.cityId,
-        );
-        if (started.ok) newState.espionage![civId] = started.state;
+      if (!target) continue;
+      // #419: repeating a fully active lockout/penalty only overwrites the timer
+      // with the same value. Fall through to the next ranked remote mission.
+      let chosenMission: SpyMissionType | null = mission;
+      if (isOperationEffectFullyActive(newState, chosenMission, target.civId, target.cityId)) {
+        chosenMission = rankAiMissions(newState, civId).find(candidate =>
+          !missionRequiresPlacedSpy(candidate)
+          && !isOperationEffectFullyActive(newState, candidate, target.civId, target.cityId),
+        ) ?? null;
       }
+      if (!chosenMission) continue;
+      const started = startMission(
+        newState.espionage![civId],
+        spy.id,
+        chosenMission,
+        resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect,
+        target.civId,
+        target.cityId,
+      );
+      if (started.ok) newState.espionage![civId] = started.state;
     }
   }
 

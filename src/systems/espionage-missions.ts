@@ -28,6 +28,39 @@ import { getMissionDuration, missionRequiresPlacedSpy } from './espionage-catalo
  * diplomacy) happens in `espionage-turn.ts`. Both preserve the original RNG
  * seed strings and draw order exactly.
  */
+// The full-strength persistent effects. Re-running a mission that applies one
+// of these while the timer is already at (or above) its full duration cannot
+// improve the target's state, so the AI skips it (#419).
+export const CYBER_ATTACK_LOCKOUT_TURNS = 3;
+export const MISINFORMATION_RESEARCH_PENALTY_TURNS = 10;
+export const MISINFORMATION_RESEARCH_PENALTY_MULTIPLIER = 0.2;
+
+/**
+ * True when re-running `missionType` against this target this turn would only
+ * overwrite an already-full-strength effect with the same value. Conservative:
+ * a partially elapsed timer still counts as useful, because reapplying it buys
+ * additional turns.
+ */
+export function isOperationEffectFullyActive(
+  state: GameState,
+  missionType: SpyMissionType,
+  targetCivId?: string,
+  targetCityId?: string,
+): boolean {
+  switch (missionType) {
+    case 'cyber_attack': {
+      const city = targetCityId ? state.cities[targetCityId] : undefined;
+      return (city?.productionDisabledTurns ?? 0) >= CYBER_ATTACK_LOCKOUT_TURNS;
+    }
+    case 'misinformation_campaign': {
+      const civ = targetCivId ? state.civilizations[targetCivId] : undefined;
+      return (civ?.researchPenaltyTurns ?? 0) >= MISINFORMATION_RESEARCH_PENALTY_TURNS;
+    }
+    default:
+      return false;
+  }
+}
+
 // --- Mission lifecycle ---
 
 /**
@@ -445,11 +478,14 @@ export function resolveMissionResult(
     }
 
     case 'cyber_attack': {
-      return { productionDisabledTurns: 3 };
+      return { productionDisabledTurns: CYBER_ATTACK_LOCKOUT_TURNS };
     }
 
     case 'misinformation_campaign': {
-      return { researchPenaltyTurns: 10, researchPenaltyMultiplier: 0.2 };
+      return {
+        researchPenaltyTurns: MISINFORMATION_RESEARCH_PENALTY_TURNS,
+        researchPenaltyMultiplier: MISINFORMATION_RESEARCH_PENALTY_MULTIPLIER,
+      };
     }
 
     case 'election_interference': {
