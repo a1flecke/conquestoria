@@ -36,13 +36,13 @@ test.describe('strip units render with their tier and placement', () => {
     expect(await archer.evaluate(el => (el as HTMLElement).style.getPropertyValue('--cols'))).toBe('8');
 
     // The units switched in task 9 are strips too (8-column sheets), the Horseman included now that it has its chestnut set.
-    for (const unit of ['tank', 'ironclad', 'biplane', 'horseman', 'cavalry', 'rifleman', 'machine_gunner', 'pre_dreadnought', 'submarine', 'observation_balloon', 'cannon', 'artillery', 'grenadier']) {
+    for (const unit of ['tank', 'ironclad', 'biplane', 'horseman', 'cavalry', 'rifleman', 'machine_gunner', 'pre_dreadnought', 'submarine', 'observation_balloon', 'cannon', 'artillery', 'grenadier', 'marine']) {
       const roots = page.locator(`.cq-png[data-unit-type="${unit}"]`);
       await expect(roots.first(), unit).toBeAttached();
       expect(await roots.first().evaluate(el => (el as HTMLElement).style.getPropertyValue('--cols')), `${unit} sheet columns`).toBe('8');
     }
 
-    for (const unit of ['spearman', 'archer', 'tank', 'ironclad', 'biplane', 'horseman', 'cavalry', 'rifleman', 'machine_gunner', 'pre_dreadnought', 'submarine', 'observation_balloon', 'cannon', 'artillery', 'grenadier']) {
+    for (const unit of ['spearman', 'archer', 'tank', 'ironclad', 'biplane', 'horseman', 'cavalry', 'rifleman', 'machine_gunner', 'pre_dreadnought', 'submarine', 'observation_balloon', 'cannon', 'artillery', 'grenadier', 'marine']) {
       for (const file of ['sheet.png', 'mask.png']) {
         // The game is served under a base path, so resolve against the page, not the origin.
         const response = await page.request.get(new URL(`images/units/${unit}/${file}`, page.url()).href);

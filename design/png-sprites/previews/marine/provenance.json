@@ -1,0 +1,19 @@
+{
+  "id": "marine",
+  "status": "shipped: registered in STRIP_UNITS and exported with strips.py export (#1627, #759)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-08",
+  "prompts": "Based on scripts/sprite-puppet/strip-rigs/marine.json and the templates in scripts/sprite-puppet/strip-prompts/. One conversation drew the master; the damage sheet, the attack strip, the hit strip and the defeat strip were each drawn from the master as one prompt per image. The cutlass stays in the figure's hand in every frame (no detached blade or slash trail), the helmet is white so it does not take the team tint, and the attack, hit and defeat prompts ask for no glow or halo. The prompts ChatGPT actually ran were adapted from the templates and were not captured verbatim.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/marine). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all five passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "The first hit and defeat sheets came back RGB with a checkerboard painted into the background (a fake transparency grid), which strips.py probe refuses; both were redrawn on flat magenta and the redraws are the ones listed below. Known caveats: the attack sheet carries a faint low-alpha coloured halo around each figure, which the strips tool treats as background; the probe warns that the figures on the hit and defeat sheets are about 169 px tall (under 300), accepted because the other strips are drawn at the same size.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1086, 1448], "sha256": "a8cceb5c91a217edbb756c58bbda7f5d102e6f8d7cca604f0929f73f5deaca79" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1254, 1254], "sha256": "a31af88ebe24c59ae4d603f9bf67b709619df48ab5721b0e4b1568e2e58409ee" },
+    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1536, 1024], "sha256": "a3a9e5c64e73ea455970608256856fe38b37d5c695c271f6984c1d30bfae0cd1" },
+    { "role": "hit reaction, 5 frames (3 + 2)", "file": "d", "size": [1312, 1199], "sha256": "162cc6d4759c3e15394d6e8c5937bb2d7b882c8abb464d7f2ebceda867463043" },
+    { "role": "defeat, 5 frames (3 + 2)", "file": "e", "size": [1312, 1199], "sha256": "f66cadc7427f19d4300818f32ef7eba04921bee663ff3b2d1de3ead083af8468" }
+  ]
+}

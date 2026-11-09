@@ -31,9 +31,10 @@ that, 24 when #759 was originally filed) rather than trusting a pasted snapshot.
 (#1627), which take precedence, so the native-v2 drafts were dropped and no unreachable art stays in the tree. `cannon` (the thirteenth strip unit)
 has a bronze barrel, a spoked wheel that turns on move, recoil with flash and smoke on fire, four damage tiers and a three-frame wreck. `artillery`
 (the fourteenth) is an olive-drab steel howitzer with a gun shield and one spoked wheel, built the same way. `grenadier` (the fifteenth) is a biped in a
-brass mitre cap who throws a fused grenade, drawn as a master, a damage sheet and attack, hit and defeat strips. Each keeps its
+brass mitre cap who throws a fused grenade, drawn as a master, a damage sheet and attack, hit and defeat strips. `marine` (the sixteenth) is a biped in a white
+pith helmet, open navy jacket, red jersey and sash with a drawn cutlass, built the same way. Each keeps its
 `UNIT_SPRITE_CATALOG` SVG as the safe fallback for the Canvas layer and for load failure, and that SVG is also its rollback. #759 stays open. Two
-tiers exist and should not be conflated: painted strip (PNG, 15 units) and live-fallback-only SVG (everything else), with native-v2 SVG
+tiers exist and should not be conflated: painted strip (PNG, 16 units) and live-fallback-only SVG (everything else), with native-v2 SVG
 (hand-authored silhouette with animation hooks) the middle tier for units that have it.
 
 **Third path — PNG spritesheet units.** A unit with a row in `PNG_UNIT_SPRITES`
