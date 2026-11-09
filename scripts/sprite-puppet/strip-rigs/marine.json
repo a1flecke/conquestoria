@@ -1,0 +1,28 @@
+{
+  "id": "marine",
+  "family": "biped",
+  "prompt": {
+    "name": "Marine",
+    "look": "A late-19th-century naval landing soldier: a friendly adult man with a trimmed brown beard, wearing a white pith helmet with a small brass spike on top, a short navy-blue jacket worn open over a red knit jersey, a broad red waist sash, a white cross-belt over the chest with a small black cartridge pouch at his right hip, dark navy trousers tucked into black boots, and a short carbine slung across his back. In his right hand he holds a drawn steel cutlass with a curved blade and a brass hand-guard.",
+    "team_area": "his jersey and his waist sash",
+    "identity": "the same face and beard, white pith helmet with its brass spike, open navy jacket, red jersey and waist sash, white cross-belt, black pouch, navy trousers, black boots, slung carbine and curved cutlass",
+    "weapon_pose": "He stands ready with the cutlass held point-up in his right hand at about shoulder height beside his right shoulder, the curved blade rising to just above his helmet; his left hand hangs at his side and the carbine is slung across his back. The cutlass is well above his knees and nowhere near his boots.",
+    "attack_frames": 6,
+    "attack": "(1) ready, cutlass held up at his shoulder; (2) he draws the cutlass back behind his head, leaning back; (3) he steps forward and lifts the cutlass high overhead; (4) the cut: the cutlass sweeps down and forward to the right, his arm extended toward the right, blade pointing down-right; (5) follow-through, the blade low and to the right, body leaning forward; (6) recover, standing upright with the cutlass back at his shoulder.",
+    "damage_gear": "a dented helmet and a torn, scuffed jacket",
+    "damage_gear_critical": "a cracked helmet hanging askew and a badly torn jacket with a ripped sleeve, a nicked cutlass blade",
+    "defeat_prop": "the cutlass still held loosely in his hand"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 140 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",    "file": "a", "cells": 1, "fps": 4 },
+    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": { "sources": ["a", "b#0", "b#1", "b#2", "b#3"], "shafts": 0, "stride_deg": 24, "knee_bend": 14, "foot_level": 0.7 } },
+    { "state": "attack",  "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "restFrames": [0, 5] },
+    { "state": "hit",     "file": "d", "cells": 5, "grid": [3, 2], "fps": 8, "restFrames": [0, 4], "loop": false },
+    { "state": "defeat",  "file": "e", "cells": 5, "grid": [3, 2], "fps": 5, "restFrames": [0], "loop": false }
+  ]
+}
