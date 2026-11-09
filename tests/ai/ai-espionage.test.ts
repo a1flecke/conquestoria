@@ -386,6 +386,87 @@ describe('AI espionage decisions', () => {
       expect(startedMissionTypes).not.toContain('sabotage_relief');
     });
   });
+
+  // #419: do not spend a spy mission re-applying a persistent effect that is
+  // already at full strength -- the repeat cannot improve the timer.
+  describe('repeat operations (#419)', () => {
+    const BASE_TECHS = ['espionage-scouting', 'espionage-informants', 'spy-networks'];
+
+    function repeatState(options: {
+      lockoutTurns?: number;
+      stationed?: boolean;
+      completedTechs?: string[];
+    } = {}): GameState {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].techState.completed = [
+        ...BASE_TECHS,
+        ...(options.completedTechs ?? ['cold-war-networks', 'cyber-intelligence']),
+      ];
+      // Annuvin is the aggressive persona, which ranks the stage-5/7 operations first.
+      state.civilizations['ai-egypt'].civType = 'annuvin';
+      state.cities['city-player-1'].productionDisabledTurns = options.lockoutTurns ?? 0;
+      let aiEsp = { ...createEspionageCivState(), maxSpies: 1 };
+      ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'spy-repeat', 'ai-egypt', 'spy_agent', 'seed-repeat'));
+      aiEsp = {
+        ...aiEsp,
+        // Prevent the separate defensive-stationing pass from embedding the idle
+        // spy in the AI capital before mission selection runs.
+        counterIntelligence: { 'city-egypt-1': 1 },
+        spies: {
+          'spy-repeat': {
+            ...aiEsp.spies['spy-repeat'],
+            status: options.stationed ? 'stationed' : 'idle',
+            ...(options.stationed ? { infiltrationCityId: 'city-player-1' } : {}),
+            targetCivId: 'player',
+            targetCityId: 'city-player-1',
+            currentMission: null,
+          },
+        },
+      };
+      state.espionage = { ...state.espionage, 'ai-egypt': aiEsp };
+      return state;
+    }
+
+    function startedMissions(state: GameState): string[] {
+      const bus = new EventBus();
+      const started: string[] = [];
+      bus.on('espionage:mission-started', event => started.push(event.missionType));
+      const after = processAITurn(state, 'ai-egypt', bus);
+      // The remote-capable path starts missions without emitting mission-started,
+      // so read the resulting assignment as well.
+      const assigned = after.espionage?.['ai-egypt']?.spies['spy-repeat']?.currentMission?.type;
+      return assigned ? [...started, assigned] : started;
+    }
+
+    it('does not re-run a cyber attack while its full production lockout is active', () => {
+      const started = startedMissions(repeatState({ lockoutTurns: 3 }));
+      expect(started).not.toContain('cyber_attack');
+      expect(started).toContain('misinformation_campaign'); // chooses the next useful operation instead
+    });
+
+    it('still runs a cyber attack when the lockout is about to expire', () => {
+      expect(startedMissions(repeatState({ lockoutTurns: 1 }))).toContain('cyber_attack');
+    });
+
+    it('applies the same skip to an embedded spy', () => {
+      const started = startedMissions(repeatState({ lockoutTurns: 3, stationed: true }));
+      expect(started).not.toContain('cyber_attack');
+      expect(started).toContain('misinformation_campaign');
+    });
+
+    it('does not re-run disinformation while the full research penalty is active', () => {
+      const state = repeatState({
+        lockoutTurns: 3,
+        stationed: true,
+        completedTechs: ['cold-war-networks'],
+      });
+      state.civilizations.player.researchPenaltyTurns = 10;
+      state.civilizations.player.researchPenaltyMultiplier = 0.2;
+      const started = startedMissions(state);
+      expect(started).not.toContain('misinformation_campaign');
+      expect(started.length).toBeGreaterThan(0); // falls through to another legal embedded mission
+    });
+  });
 });
 
 describe('AI mission start consumes the typed start-mission result (#1222)', () => {

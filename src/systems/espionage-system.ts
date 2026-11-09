@@ -73,6 +73,7 @@ export type { TurnCapturedSpyCommand } from './espionage-counterintel';
 
 export {
   getMissionStartDenial,
+  isOperationEffectFullyActive,
   resolveMissionResult,
   START_MISSION_FAILURE_MESSAGES,
   startMission,
