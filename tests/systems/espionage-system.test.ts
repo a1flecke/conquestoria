@@ -2618,15 +2618,17 @@ describe('Caught in the Act: reveal and Go public (#419 PR 2)', () => {
     expect(w.state.espionage![w.attackerId].attributedIncidents).toBeUndefined();
   });
 
-  it('the panel data never names the actor until evidence exists, then offers Go public', () => {
+  it('the panel data never names the actor until evidence exists, then reports the automatic exposure', () => {
     const w = landedWorld('go-public-panel');
     const asVictim = (s: GameState): GameState => ({ ...s, currentPlayer: w.targetId });
     expect(getEspionagePanelData(asVictim(w.state)).tracedIncidents).toEqual([]);
     const traced = traceOperationIncidents(capturedSpyEvidence(w), w.targetId);
-    const rows = getEspionagePanelData(asVictim(traced.state)).tracedIncidents;
+    const auto = autoExposeConfirmedIncidents(traced.state, w.targetId);
+    const rows = getEspionagePanelData(asVictim(auto.state)).tracedIncidents;
     expect(rows).toHaveLength(1);
     expect(rows[0].actorName).toBe(w.state.civilizations[w.attackerId].name);
-    expect(rows[0].denial).toBeNull();
+    expect(rows[0].resolution).toBe('exposed');
+    expect(rows[0].exposedTurn).toBe(auto.state.turn);
   });
 
   it('reveals once: the trace fires when evidence first arrives and never again', () => {
