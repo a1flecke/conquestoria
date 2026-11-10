@@ -1,0 +1,28 @@
+{
+  "id": "infantry",
+  "family": "biped",
+  "prompt": {
+    "name": "Infantry",
+    "look": "A modern line infantryman: a friendly adult man in an olive-green and brown camouflage combat uniform, a modern composite combat helmet with a cover, a tan plate-carrier vest with ammunition pouches, a webbing belt with a pouch, green knee pads, black combat boots and tan gloves, carrying a modern assault rifle with a short scope, a red armband on his left upper arm and a small red patch on the front of his vest.",
+    "team_area": "his armband and the patch on his vest",
+    "identity": "the same face, camouflage uniform, combat helmet, tan plate-carrier vest and pouches, knee pads, black boots, assault rifle, red armband and red vest patch",
+    "weapon_pose": "He stands ready with the assault rifle held across his chest in both hands, the barrel pointing right at about chest height. The rifle is well above his knees and nowhere near his boots.",
+    "attack_frames": 6,
+    "attack": "(1) ready, rifle across the chest; (2) raising the rifle to the shoulder, stepping slightly forward; (3) rifle at the shoulder, aiming down the sights; (4) firing: a pale yellow muzzle flash at the barrel tip, the rifle recoiling; (5) recoil recovering, a small puff of grey smoke at the muzzle; (6) lowering the rifle back to the ready stance.",
+    "damage_gear": "a scuffed uniform and a scratched helmet",
+    "damage_gear_critical": "a ragged torn uniform, a cracked helmet with a head bandage and a scorched vest hanging open",
+    "defeat_prop": "the rifle on the ground beside him"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 140 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",    "file": "a", "cells": 1, "fps": 4 },
+    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": { "sources": ["a", "b#0", "b#1", "b#2", "b#3"], "shafts": 0, "stride_deg": 24, "knee_bend": 14, "foot_level": 0.7 } },
+    { "state": "attack",  "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "restFrames": [0, 5] },
+    { "state": "hit",     "file": "d", "cells": 5, "grid": [3, 2], "fps": 8, "restFrames": [0, 4], "loop": false },
+    { "state": "defeat",  "file": "e", "cells": 5, "grid": [3, 2], "fps": 5, "restFrames": [0], "loop": false }
+  ]
+}
