@@ -637,6 +637,27 @@ describe('AI strategic production', () => {
     expect(fast.score).toBeGreaterThan(slow.score);
   });
 
+  it('counts production carried over from the last completion in an empty queue, and only there (#1426)', () => {
+    const state = setupState([], ['city-a']);
+    const etaFor = (s: GameState) => generateAIProductionCandidates(
+      s, 'ai-1', 'city-a', [demand('frontline')], aggressive,
+    ).find(candidate => candidate.itemId === 'warrior')!.productionTurns;
+
+    state.cities['city-a'].productionQueue = [];
+    state.cities['city-a'].productionProgress = 0;
+    const fromNothing = etaFor(state);
+
+    const carried = structuredClone(state);
+    carried.cities['city-a'].productionProgress = 1000; // more than any warrior costs
+    expect(etaFor(carried)).toBe(1);
+    expect(fromNothing).toBeGreaterThanOrEqual(1);
+
+    // With something already queued the candidate would not inherit the stored progress, so it is not counted.
+    const queued = structuredClone(carried);
+    queued.cities['city-a'].productionQueue = ['shrine']; // a building, so the demand is still open
+    expect(etaFor(queued)).toBe(fromNothing);
+  });
+
   it('does not duplicate unique recon or detection support without visible demand', () => {
     const state = setupState(['balloon-corps', 'lookouts']);
     state.cities['city-a'].productionQueue = ['observation_balloon'];

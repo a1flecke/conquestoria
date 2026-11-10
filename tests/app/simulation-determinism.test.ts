@@ -380,13 +380,14 @@ describe('#1064 expansion determinism', () => {
   // unit's exploration to EXPANSION_SEARCH_RADIUS of its nearest city, so it can no
   // longer wander far enough to break `ai-tactics.ts`'s cohesion check once a war plan
   // needs it) changed how quickly each civ's own belief layer reveals a legal expansion
-  // site, shifting these numbers again: expansion-save-reload now cycles through
-  // expand-plan windows at 18-24, gap 25-31, 32-41, gap 42-45, 46-58+ (re-measured via
-  // a fresh probe of this exact seed after the leash landed). MIDPOINT must land inside
+  // site, shifting these numbers again. #1426 (production carries forward) plus #1688 (the AI
+  // refills a queue its own purchase emptied) shifted them once more: expansion-save-reload now
+  // cycles through expand-plan windows at 18-23, gap 24-25, 26-35, gap 36-37, 38-47, gap 48-49,
+  // 50-53, gap 54-55, 56-60 (re-measured with a fresh probe of this exact seed). MIDPOINT must land inside
   // a wide active window, not just past the first one. Do not guess these numbers if the
   // seeds, the exploration mechanism, or AI production/spending change -- re-derive them.
   const ROUNDS = 60;      // comfortably past every observed second/third-city round for both seeds
-  const MIDPOINT = 36;    // centered in expansion-save-reload's wide 32-41 active-plan window
+  const MIDPOINT = 30;    // centered in expansion-save-reload's wide 26-35 active-plan window
 
   it('reaches equivalent state from the same seed with expansion active', () => {
     const a = advance(freshGame('expansion-determinism'), ROUNDS);

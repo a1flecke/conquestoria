@@ -130,7 +130,7 @@ import {
 } from './ai-prepared-turn';
 import { isAIHostileOwner } from './ai-hostility';
 import { hasAITradeRole } from './ai-unit-roles';
-import { applyAIProduction } from './ai-production';
+import { applyAIProduction, refillAIQueuesEmptiedByPurchase } from './ai-production';
 import { applyAIGoldSpending } from './ai-treasury';
 import { applyAIResearch } from './ai-research';
 import { getAIProcurementTerms, processAIResourceMarketplace } from './ai-resource-marketplace';
@@ -1176,7 +1176,21 @@ function processAITurnInternal(
     personality,
   );
   civ = newState.civilizations[civId];
+  // #1688: gold spending runs after production, and a purchase completes the queue's only item. Refill every
+  // queue a purchase emptied in this same turn, or `processCity` discards that city's output for the round.
+  const headsBeforeSpending = civ.cities.flatMap(cityId => {
+    const head = newState.cities[cityId]?.productionQueue[0];
+    return head ? [{ cityId, purchasedItemId: head }] : [];
+  });
   newState = applyAIGoldSpending(newState, civId, bus);
+  const spentState = newState;
+  newState = refillAIQueuesEmptiedByPurchase(
+    spentState,
+    civId,
+    headsBeforeSpending.filter(entry => spentState.cities[entry.cityId]?.productionQueue.length === 0),
+    preparedForTurn.forceDemands,
+    personality,
+  );
   civ = newState.civilizations[civId];
 
   // --- Handle diplomacy ---
