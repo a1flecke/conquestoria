@@ -204,7 +204,7 @@
   },
   "docs/superpowers/specs/2026-11-09-issue-1426-production-overflow-design.md": {
    "category": "active",
-   "reason": "Production-overflow design recommendation awaiting the owner's decision on open issue #1426.",
+   "reason": "Accepted production-overflow design for open issue #1426; deleted by its last implementation PR.",
    "issues": [
     1426
    ],
