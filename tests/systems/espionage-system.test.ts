@@ -2516,6 +2516,99 @@ describe('Caught in the Act: reveal and Go public (#419 PR 2)', () => {
     expect(getGoPublicDenial(result.state, w.targetId, incident.id)).toBe('no-partners');
   });
 
+  it('automatically exposes a human victim during the espionage turn', () => {
+    const w = landedWorld('go-public-auto-turn');
+    const state: GameState = {
+      ...capturedSpyEvidence(w),
+      currentPlayer: w.targetId,
+      civilizations: {
+        ...w.state.civilizations,
+        [w.targetId]: { ...w.state.civilizations[w.targetId], isHuman: true },
+      },
+    };
+    const bus = new EventBus();
+    const events: Array<{ civId: string; culpritCivId: string }> = [];
+    bus.on('espionage:went-public', event => events.push(event));
+
+    const after = processEspionageTurn(state, bus);
+    const incident = Object.values(after.espionage![w.targetId].attributedIncidents!)[0];
+
+    expect(incident.tracedTurn).toBe(after.turn);
+    expect(incident.usedTurn).toBe(after.turn);
+    expect(events).toEqual([{
+      civId: w.targetId,
+      culpritCivId: w.attackerId,
+      partnerCivIds: w.partnerIds,
+      missionType: 'cyber_attack',
+    }]);
+  });
+
+  it('does not auto-expose an AI victim', () => {
+    const w = landedWorld('go-public-auto-ai');
+    const state: GameState = { ...capturedSpyEvidence(w), currentPlayer: w.targetId };
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('espionage:went-public', event => events.push(event));
+
+    const after = processEspionageTurn(state, bus);
+    const incident = Object.values(after.espionage![w.targetId].attributedIncidents!)[0];
+
+    expect(incident.tracedTurn).toBe(after.turn);
+    expect(incident.usedTurn).toBeUndefined();
+    expect(events).toEqual([]);
+  });
+
+  it('does not auto-expose an eliminated human victim', () => {
+    const w = landedWorld('go-public-auto-eliminated');
+    const state: GameState = {
+      ...capturedSpyEvidence(w),
+      currentPlayer: w.targetId,
+      civilizations: {
+        ...w.state.civilizations,
+        [w.targetId]: { ...w.state.civilizations[w.targetId], isHuman: true, isEliminated: true },
+      },
+    };
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('espionage:went-public', event => events.push(event));
+
+    const after = processEspionageTurn(state, bus);
+    const incident = Object.values(after.espionage![w.targetId].attributedIncidents!)[0];
+
+    expect(incident.tracedTurn).toBe(after.turn);
+    expect(incident.usedTurn).toBeUndefined();
+    expect(events).toEqual([]);
+  });
+
+  it('auto-exposes an incident that was already confirmed when it landed', () => {
+    const w = landedWorld('go-public-auto-landed-confirmed', 1);
+    const evidence = capturedSpyEvidence(w);
+    const seeded = recordOperationIncident(
+      { ...evidence, currentPlayer: w.targetId, civilizations: {
+        ...evidence.civilizations,
+        [w.targetId]: { ...evidence.civilizations[w.targetId], isHuman: true },
+      } },
+      {
+        civId: w.attackerId,
+        targetCivId: w.targetId,
+        cityId: w.cityId,
+        missionType: 'misinformation_campaign',
+        effect: { kind: 'research-penalty', turns: 10, percent: 20 },
+      },
+    );
+    const bus = new EventBus();
+    const events: Array<{ missionType: string }> = [];
+    bus.on('espionage:went-public', event => events.push(event));
+
+    const after = processEspionageTurn({ ...seeded, turn: seeded.turn + 1 }, bus);
+    const incident = Object.values(after.espionage![w.targetId].attributedIncidents!)
+      .find(i => i.missionType === 'misinformation_campaign');
+
+    expect(incident?.tracedTurn).toBeDefined();
+    expect(incident?.usedTurn).toBeDefined();
+    expect(events.map(e => e.missionType).sort()).toEqual(['cyber_attack', 'misinformation_campaign']);
+  });
+
   it('records a landed operation on the victim only, unconfirmed and unused', () => {
     const w = landedWorld('go-public-record');
     const incidents = Object.values(w.state.espionage![w.targetId].attributedIncidents ?? {});
