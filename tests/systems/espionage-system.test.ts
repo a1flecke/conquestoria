@@ -37,7 +37,7 @@ import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import type { OperationLandedEvent } from '@/core/types/espionage-incident';
 import { buildOperationEffect, isOperationMission } from '@/systems/espionage-missions';
 import { EXPOSE_SCANDAL_PENALTY } from '@/systems/espionage-scandal';
-import { getGoPublicDenial, getOperationAttribution, goPublicAboutIncident, recordOperationIncident, traceOperationIncidents } from '@/systems/espionage-counterintel';
+import { autoExposeConfirmedIncidents, getGoPublicDenial, getOperationAttribution, goPublicAboutIncident, recordOperationIncident, traceOperationIncidents } from '@/systems/espionage-counterintel';
 import { getEspionagePanelData } from '@/ui/espionage-panel';
 import { routeIncidentTraced, routeOperationLanded, routeWentPublic } from '@/ui/notification-routes/espionage-routes';
 import { assertSimulationEquivalent } from '../helpers/deterministic-state';
@@ -2464,6 +2464,57 @@ describe('Caught in the Act: reveal and Go public (#419 PR 2)', () => {
   function incidentIdOf(state: GameState, victimId: string): string {
     return Object.keys(state.espionage![victimId].attributedIncidents!)[0];
   }
+
+  it('auto-exposes a traced incident through the canonical executor', () => {
+    const w = landedWorld('go-public-auto-helper');
+    const traced = traceOperationIncidents(capturedSpyEvidence(w), w.targetId);
+    const result = autoExposeConfirmedIncidents(traced.state, w.targetId);
+
+    expect(result.exposures).toEqual([{
+      civId: w.targetId,
+      culpritCivId: w.attackerId,
+      partnerCivIds: w.partnerIds,
+      missionType: 'cyber_attack',
+    }]);
+    const incident = Object.values(result.state.espionage![w.targetId].attributedIncidents!)[0];
+    expect(incident.usedTurn).toBe(traced.state.turn);
+    const rel = (s: GameState, a: string, b: string) => s.civilizations[a].diplomacy.relationships[b] ?? 0;
+    expect(rel(result.state, w.attackerId, w.partnerIds[0]!))
+      .toBe(rel(traced.state, w.attackerId, w.partnerIds[0]!) + EXPOSE_SCANDAL_PENALTY);
+  });
+
+  it('auto-exposes every traced incident and skips any the executor refuses', () => {
+    const w = landedWorld('go-public-auto-multi', 1);
+    const secondEvent: OperationLandedEvent = {
+      civId: w.attackerId,
+      targetCivId: w.targetId,
+      cityId: w.cityId,
+      missionType: 'misinformation_campaign',
+      effect: { kind: 'research-penalty', turns: 10, percent: 20 },
+    };
+    const seeded = recordOperationIncident({ ...w.state, turn: w.state.turn + 1 }, secondEvent);
+    const traced = traceOperationIncidents(capturedSpyEvidence({ ...w, state: seeded }), w.targetId);
+    expect(traced.traced).toHaveLength(2);
+
+    const result = autoExposeConfirmedIncidents(traced.state, w.targetId);
+
+    expect(result.exposures).toHaveLength(2);
+    expect(result.exposures.map(e => e.missionType).sort())
+      .toEqual(['cyber_attack', 'misinformation_campaign']);
+  });
+
+  it('leaves a no-partner incident unresolved', () => {
+    const w = landedWorld('go-public-auto-no-partners', 0);
+    const traced = traceOperationIncidents(capturedSpyEvidence(w), w.targetId);
+
+    const result = autoExposeConfirmedIncidents(traced.state, w.targetId);
+
+    expect(result.exposures).toEqual([]);
+    expect(result.state).toBe(traced.state);
+    const incident = Object.values(result.state.espionage![w.targetId].attributedIncidents!)[0];
+    expect(incident.usedTurn).toBeUndefined();
+    expect(getGoPublicDenial(result.state, w.targetId, incident.id)).toBe('no-partners');
+  });
 
   it('records a landed operation on the victim only, unconfirmed and unused', () => {
     const w = landedWorld('go-public-record');
