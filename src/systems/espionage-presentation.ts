@@ -33,5 +33,5 @@ export type {
 } from './espionage-probability';
 // #419: what a viewer has earned about who ran a hostile operation. Takes the viewer id and returns only a tier
 // (unknown / suspected / confirmed); the actor is named only by the caller, and only at "confirmed".
-export { getOperationAttribution, getGoPublicDenial, getGoPublicExpiryTurn, getGoPublicPreview, GO_PUBLIC_DENIAL_MESSAGES } from './espionage-counterintel';
-export type { OperationAttribution, GoPublicDenialReason, GoPublicPreview } from './espionage-counterintel';
+export { getOperationAttribution, getGoPublicDenial, GO_PUBLIC_DENIAL_MESSAGES } from './espionage-counterintel';
+export type { OperationAttribution, GoPublicDenialReason } from './espionage-counterintel';
