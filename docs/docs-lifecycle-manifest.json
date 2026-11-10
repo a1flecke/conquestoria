@@ -58,26 +58,6 @@
     "889": "OPEN"
    }
   },
-  "docs/superpowers/specs/2026-11-09-issue-419-go-public-automation-design.md": {
-   "category": "active",
-   "reason": "Approved design for automating the forced Go-public response, owned by the open Shadows & Secrets issue #419.",
-   "issues": [
-    419
-   ],
-   "issueStates": {
-    "419": "OPEN"
-   }
-  },
-  "docs/superpowers/plans/2026-11-09-issue-419-go-public-automation.md": {
-   "category": "active",
-   "reason": "Implementation plan for automating the forced Go-public response, owned by the open Shadows & Secrets issue #419.",
-   "issues": [
-    419
-   ],
-   "issueStates": {
-    "419": "OPEN"
-   }
-  },
   "docs/superpowers/specs/2026-04-08-m4e-the-council-design.md": {
    "category": "durable-reference",
    "reason": "Origin of the approved legendary-wonder roster that src/systems/approved-legendary-wonder-roster.ts mirrors (its Appendix A).",
@@ -214,6 +194,20 @@
   }
  },
  "deleted": {
+  "docs/superpowers/plans/2026-11-09-issue-419-go-public-automation.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered by #1686. The durable contract lives in the espionage system, panel tests, and the #419 decision record; git history is the plan archive.",
+   "issues": [
+    419
+   ]
+  },
+  "docs/superpowers/specs/2026-11-09-issue-419-go-public-automation-design.md": {
+   "category": "delivered-stale",
+   "reason": "Design delivered by #1686; the automatic Go-public behavior is now described by the code, tests, and #419.",
+   "issues": [
+    419
+   ]
+  },
   "docs/superpowers/plans/2026-11-03-issue-497-city-state-graduation.md": {
    "category": "delivered-stale",
    "reason": "Delivered in seven PRs (#1645-#1657) plus the new-game option; the durable contract lives in .claude/rules/game-balance.md (City-State Graduation). Git history is the record.",
