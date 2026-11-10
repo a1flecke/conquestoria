@@ -38,11 +38,11 @@
 
 - [ ] **Step 1: Write the failing helper tests**
 
-In `tests/systems/espionage-system.test.ts`, add `autoExposeTracedIncidents` to the existing import from `@/systems/espionage-counterintel`:
+In `tests/systems/espionage-system.test.ts`, add `autoExposeConfirmedIncidents` to the existing import from `@/systems/espionage-counterintel`:
 
 ```ts
 import {
-  autoExposeTracedIncidents,
+  autoExposeConfirmedIncidents,
   getGoPublicDenial,
   getOperationAttribution,
   goPublicAboutIncident,
@@ -57,7 +57,7 @@ Inside `describe('Caught in the Act: reveal and Go public (#419 PR 2)', ...)`, a
   it('auto-exposes a traced incident through the canonical executor', () => {
     const w = landedWorld('go-public-auto-helper');
     const traced = traceOperationIncidents(capturedSpyEvidence(w), w.targetId);
-    const result = autoExposeTracedIncidents(traced.state, w.targetId, traced.traced);
+    const result = autoExposeConfirmedIncidents(traced.state, w.targetId);
 
     expect(result.exposures).toEqual([{
       civId: w.targetId,
@@ -81,14 +81,11 @@ Inside `describe('Caught in the Act: reveal and Go public (#419 PR 2)', ...)`, a
       missionType: 'misinformation_campaign',
       effect: { kind: 'research-penalty', turns: 10, percent: 20 },
     };
-    const seeded = recordOperationIncident(
-      { ...capturedSpyEvidence(w), turn: w.state.turn + 1 },
-      secondEvent,
-    );
-    const traced = traceOperationIncidents(seeded, w.targetId);
+    const seeded = recordOperationIncident({ ...w.state, turn: w.state.turn + 1 }, secondEvent);
+    const traced = traceOperationIncidents(capturedSpyEvidence({ ...w, state: seeded }), w.targetId);
     expect(traced.traced).toHaveLength(2);
 
-    const result = autoExposeTracedIncidents(traced.state, w.targetId, traced.traced);
+    const result = autoExposeConfirmedIncidents(traced.state, w.targetId);
 
     expect(result.exposures).toHaveLength(2);
     expect(result.exposures.map(e => e.missionType).sort())
@@ -99,7 +96,7 @@ Inside `describe('Caught in the Act: reveal and Go public (#419 PR 2)', ...)`, a
     const w = landedWorld('go-public-auto-no-partners', 0);
     const traced = traceOperationIncidents(capturedSpyEvidence(w), w.targetId);
 
-    const result = autoExposeTracedIncidents(traced.state, w.targetId, traced.traced);
+    const result = autoExposeConfirmedIncidents(traced.state, w.targetId);
 
     expect(result.exposures).toEqual([]);
     expect(result.state).toBe(traced.state);
@@ -136,18 +133,20 @@ export interface AutoExposureResult {
 
 /**
  * Automatic Go public for a human victim (#419). Runs the same canonical
- * executor for every newly traced incident, so legality and effects cannot
- * drift; the caller owns event emission.
+ * executor for every traced, unused incident on the victim's ledger, so
+ * legality and effects cannot drift; the caller owns event emission.
  */
-export function autoExposeTracedIncidents(
+export function autoExposeConfirmedIncidents(
   state: GameState,
   victimId: string,
-  traced: readonly IncidentTracedEvent[],
 ): AutoExposureResult {
   let next = state;
   const exposures: AutoExposureResult['exposures'] = [];
-  for (const incident of traced) {
-    const result = goPublicAboutIncident(next, victimId, incident.incidentId);
+  const incidents = Object.values(state.espionage?.[victimId]?.attributedIncidents ?? {})
+    .filter(incident => incident.tracedTurn !== undefined && incident.usedTurn === undefined)
+    .sort((a, b) => a.landedTurn - b.landedTurn || a.id.localeCompare(b.id));
+  for (const incident of incidents) {
+    const result = goPublicAboutIncident(next, victimId, incident.id);
     if (!result.ok) continue;
     next = result.state;
     exposures.push({
@@ -254,6 +253,35 @@ Add these tests inside the same `Caught in the Act` describe:
     expect(incident.usedTurn).toBeUndefined();
     expect(events).toEqual([]);
   });
+
+  it('auto-exposes an incident that was already confirmed when it landed', () => {
+    const w = landedWorld('go-public-auto-landed-confirmed', 1);
+    const evidence = capturedSpyEvidence(w);
+    const seeded = recordOperationIncident(
+      { ...evidence, currentPlayer: w.targetId, civilizations: {
+        ...evidence.civilizations,
+        [w.targetId]: { ...evidence.civilizations[w.targetId], isHuman: true },
+      } },
+      {
+        civId: w.attackerId,
+        targetCivId: w.targetId,
+        cityId: w.cityId,
+        missionType: 'misinformation_campaign',
+        effect: { kind: 'research-penalty', turns: 10, percent: 20 },
+      },
+    );
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('espionage:went-public', event => events.push(event));
+
+    const after = processEspionageTurn({ ...seeded, turn: seeded.turn + 1 }, bus);
+    const incident = Object.values(after.espionage![w.targetId].attributedIncidents!)
+      .find(i => i.missionType === 'misinformation_campaign');
+
+    expect(incident?.tracedTurn).toBeDefined();
+    expect(incident?.usedTurn).toBeDefined();
+    expect(events).toHaveLength(1);
+  });
 ```
 
 - [ ] **Step 2: Run the focused test to verify it fails**
@@ -272,7 +300,7 @@ In `src/systems/espionage-turn.ts`, update the counterintel import:
 
 ```ts
 import {
-  autoExposeTracedIncidents,
+  autoExposeConfirmedIncidents,
   handleSpyCaptured,
   handleSpyExpelled,
   recordOperationIncident,
@@ -292,8 +320,8 @@ Replace the final trace loop with:
     state = outcome.state;
     for (const traced of outcome.traced) bus.emit('espionage:incident-traced', traced);
     const victim = state.civilizations[victimId];
-    if (victim?.isHuman && !victim.isEliminated && outcome.traced.length > 0) {
-      const auto = autoExposeTracedIncidents(state, victimId, outcome.traced);
+    if (victim?.isHuman && !victim.isEliminated) {
+      const auto = autoExposeConfirmedIncidents(state, victimId);
       state = auto.state;
       for (const exposure of auto.exposures) bus.emit('espionage:went-public', exposure);
     }
@@ -498,7 +526,7 @@ Update the panel-data test in `tests/systems/espionage-system.test.ts`:
     const asVictim = (s: GameState): GameState => ({ ...s, currentPlayer: w.targetId });
     expect(getEspionagePanelData(asVictim(w.state)).tracedIncidents).toEqual([]);
     const traced = traceOperationIncidents(capturedSpyEvidence(w), w.targetId);
-    const auto = autoExposeTracedIncidents(traced.state, w.targetId, traced.traced);
+    const auto = autoExposeConfirmedIncidents(traced.state, w.targetId);
     const rows = getEspionagePanelData(asVictim(auto.state)).tracedIncidents;
     expect(rows).toHaveLength(1);
     expect(rows[0].actorName).toBe(w.state.civilizations[w.attackerId].name);
