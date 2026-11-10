@@ -22,7 +22,14 @@ import { recordDominationPoliticalReport } from './domination-intel';
 import { applyInteractionReputation, getCrisisInteractionDefinition } from './crisis-interaction-definitions';
 import { EXPULSION_COOLDOWN, ESPIONAGE_TECH_MAX_SPIES, getMissionXp } from './espionage-catalog';
 import { getEspionageModifierBreakdown, getSpySuccessChance } from './espionage-probability';
-import { handleSpyCaptured, handleSpyExpelled, recordOperationIncident, traceOperationIncidents, turnCapturedSpy } from './espionage-counterintel';
+import {
+  autoExposeConfirmedIncidents,
+  handleSpyCaptured,
+  handleSpyExpelled,
+  recordOperationIncident,
+  traceOperationIncidents,
+  turnCapturedSpy,
+} from './espionage-counterintel';
 import { EXPOSE_SCANDAL_PENALTY, buildOperationEffect, isOperationMission, resolveMissionResult } from './espionage-missions';
 import { checkAndApplyPromotion } from './espionage-spy-lifecycle';
 
@@ -1051,11 +1058,18 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
   state = applyEspionageConsequences(state, consequences, bus);
 
   // #419 PR 2: evidence that arrived this turn (a captured spy, a detected threat) reveals the actor of an earlier
-  // operation exactly once. The notice goes to the victim only.
+  // operation exactly once. The notice goes to the victim only. A human victim's forced Go-public response is
+  // resolved immediately (#419 automation); the reveal stays viewer-scoped.
   for (const victimId of Object.keys(state.espionage ?? {})) {
     const outcome = traceOperationIncidents(state, victimId);
     state = outcome.state;
     for (const traced of outcome.traced) bus.emit('espionage:incident-traced', traced);
+    const victim = state.civilizations[victimId];
+    if (victim?.isHuman && !victim.isEliminated) {
+      const auto = autoExposeConfirmedIncidents(state, victimId);
+      state = auto.state;
+      for (const exposure of auto.exposures) bus.emit('espionage:went-public', exposure);
+    }
   }
   return state;
 }
