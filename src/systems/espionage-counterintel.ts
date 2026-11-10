@@ -395,3 +395,41 @@ export function goPublicAboutIncident(state: GameState, victimId: string, incide
     },
   };
 }
+
+export interface AutoExposureResult {
+  state: GameState;
+  exposures: Array<{
+    civId: string;
+    culpritCivId: string;
+    partnerCivIds: string[];
+    missionType: OperationIncident['missionType'];
+  }>;
+}
+
+/**
+ * Automatic Go public for a human victim (#419). Runs the same canonical
+ * executor for every traced, unused incident on the victim's ledger, so
+ * legality and effects cannot drift; the caller owns event emission.
+ */
+export function autoExposeConfirmedIncidents(
+  state: GameState,
+  victimId: string,
+): AutoExposureResult {
+  let next = state;
+  const exposures: AutoExposureResult['exposures'] = [];
+  const incidents = Object.values(state.espionage?.[victimId]?.attributedIncidents ?? {})
+    .filter(incident => incident.tracedTurn !== undefined && incident.usedTurn === undefined)
+    .sort((a, b) => a.landedTurn - b.landedTurn || a.id.localeCompare(b.id));
+  for (const incident of incidents) {
+    const result = goPublicAboutIncident(next, victimId, incident.id);
+    if (!result.ok) continue;
+    next = result.state;
+    exposures.push({
+      civId: victimId,
+      culpritCivId: result.culpritCivId,
+      partnerCivIds: result.partnerCivIds,
+      missionType: result.missionType,
+    });
+  }
+  return { state: next, exposures };
+}
