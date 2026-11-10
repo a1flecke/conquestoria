@@ -1,9 +1,8 @@
 # Production overflow: measured behaviour and one recommendation (#1426)
 
-**Status:** recommendation awaiting the owner's decision. Nothing in this document is implemented, and no gameplay
-rule, cost, yield or technology text was changed to produce it. When the decision is made, this file is either
-updated to the accepted rule and kept until its last implementation PR deletes it (`spec-fidelity.md`, plan
-lifecycle), or deleted if the decision is "no change".
+**Status:** accepted by the owner on 2026-11-09 (section 9; the 3D Printing rate is 25%, not the 50% drafted in 7.4).
+Implementation is in progress in the three PRs of section 8; the last one deletes this file (`spec-fidelity.md`,
+plan lifecycle).
 
 **Audit base:** `origin/main` @ `8c8046ca8733b13b9d232831b51de1983aa67d41` (2026-11-09). Main did not move during the
 investigation.
@@ -373,34 +372,34 @@ number (an intentional behaviour change, `UPDATE_1239_REFERENCE=1`).
 - The 3D Printing gold rate (50%) is a provisional number, **not approved**: the only envelope proposed is
   25–50%, below idle conversion's 1:1 so that building something stays better than idling.
 
-## 8. Implementation sequence (not started; needs approval)
+## 8. Implementation sequence (approved 2026-11-09)
 
-1. **Rule + accounting.** `completeCityProductionItem` / `processCity` (B2 and `forfeited`), retire
-   `canCarryProductionOverflow`'s tech gate, keep the one-item contract; update the pinned tests
-   (`city-system.test.ts` MR6 block and #1407 disposition tests, `production-decision.test.ts`), add conservation,
-   determinism and save-continuity regressions, and the bank-probe as a regression (bounded at one turn). No AI or
-   copy change.
-2. **Truthful surfaces + 3D Printing.** `getProductionDecision().overflow` (carried / forfeited outcomes),
-   `production-decision-copy.ts`, city-panel line for carried progress, the 3D Printing effect and text,
-   `ai-tech-bespoke-value.ts` rationale, `tech-strategic-choice-audit.md`, AI candidate ETA reading stored progress.
-3. **Validation.** Disposition before/after on the four campaigns above, `pacing-audit` and reference-economy gates,
-   national-project timing check, and an `ai-long` run on `lh-late-era-medium` for the record. Delete this spec in
-   the PR that completes the last step.
+Re-sequenced from the draft so that no PR ships a dishonest surface: the rule change makes today's 3D Printing text
+and the panel's overflow copy false, so they move with the rule.
+
+1. **PR 1 — rule and every surface that states it.** B2 in `completeCityProductionItem` / `processCity`, `forfeited`
+   accounting, 3D Printing's forfeited-production gold (25%), `getProductionDecision().overflow`,
+   `production-decision-copy.ts`, the 3D Printing tech text, `ai-tech-bespoke-value.ts` rationale and the strategic
+   audit row; the pinned tests updated, plus conservation, bank-bound and save-continuity regressions.
+2. **PR 2 — AI.** Refill (or convert) a queue an AI purchase empties in the same AI turn (3.3), and AI candidate
+   ETAs that count stored progress (7.5).
+3. **PR 3 — validation.** Disposition before/after on the four campaigns, `pacing-audit` and reference-economy
+   gates, national-project timing, an `ai-long` run on `lh-late-era-medium`; deletes this spec.
 
 Every step keeps the canonical production-cost context, the conservation equation, determinism, human/AI parity,
 hot-seat safety (no new cross-civ read), save compatibility and one preview/executor contract, and touches neither
 tech pacing nor the Legacy-victory work (#1125).
 
-## 9. Decisions needed from the owner
+## 9. Owner decisions (2026-11-09)
 
-1. Accept **B2, carry-forward up to one turn's worth, for everyone**? (or keep A, or choose B3)
-2. 3D Printing's new effect: **forfeited production → gold at half value** (recommended), or a second building per
-   turn, or another production effect?
-3. If (2) is gold: the rate (25–50%; 50% recommended).
-4. Keep "changing the active item erases stored progress" as is? (recommended yes)
-5. Approve the three-PR sequence in section 8.
-6. Separately: approve a focused AI fix for the purchase defect (3.3) — after a successful rush-buy, refill or
-   convert the emptied queue in the same AI turn — tracked as its own issue, independent of 1–5.
+1. **Accepted:** B2, carry-forward up to one turn's worth, for every civ.
+2. **Accepted:** 3D Printing turns forfeited production into gold.
+3. **Rate: 25%** (`floor(forfeited × 0.25)`), at the bottom of the proposed envelope. Wherever this document says
+   "half value" or 50%, read 25%: the 155-output example in 7.4 earns about 13 gold a turn, the scout example in 7.2
+   about 36, and the rush-buy round trip returns 10% of the production.
+4. **Accepted:** changing the active item still erases stored progress.
+5. **Accepted:** the sequence in section 8.
+6. **The AI purchase defect is fixed inside this arc** (PR 2), not as a separate issue.
 
 ## Appendix A. Measurement harness
 
