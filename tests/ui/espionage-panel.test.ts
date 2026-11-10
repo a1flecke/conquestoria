@@ -1030,46 +1030,49 @@ describe('espionage panel accessible name (#1459)', () => {
   });
 });
 
-describe('espionage-panel: Caught in the Act (#419 PR 2)', () => {
+describe('espionage-panel: Caught in the Act (#419 automation)', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
 
-  function tracedState(withPartner: boolean): GameState {
+  function tracedState(withPartner: boolean, usedTurn?: number): GameState {
     const state = makeEspUiState();
     state.civilizations['ai-third'] = { ...state.civilizations['ai-egypt'], id: 'ai-third', name: 'Third' };
     if (withPartner) {
       state.civilizations['ai-egypt'].diplomacy.treaties = [{ type: 'trade_agreement', civA: 'ai-egypt', civB: 'ai-third', turnsRemaining: -1 }];
     }
     state.espionage!.player.attributedIncidents = {
-      'i-1': { id: 'i-1', actorCivId: 'ai-egypt', targetCivId: 'player', cityId: 'city-player-1', missionType: 'cyber_attack', landedTurn: 9, tracedTurn: 10 },
+      'i-1': {
+        id: 'i-1', actorCivId: 'ai-egypt', targetCivId: 'player', cityId: 'city-player-1',
+        missionType: 'cyber_attack', landedTurn: 9, tracedTurn: 10,
+        ...(usedTurn !== undefined ? { usedTurn } : {}),
+      },
       'i-2': { id: 'i-2', actorCivId: 'ai-third', targetCivId: 'player', cityId: null, missionType: 'misinformation_campaign', landedTurn: 9 },
     };
     return state;
   }
 
-  it('lists only traced incidents, previews the exposure cost, and reports the incident id on click', () => {
-    const clicked: string[] = [];
-    const panel = createEspionagePanel(tracedState(true), { onClose: () => {}, onGoPublic: id => { clicked.push(id); } });
+  it('lists only traced incidents and renders the automatic exposure without an action', () => {
+    const panel = createEspionagePanel(tracedState(true, 10), { onClose: () => {} });
     const text = collectText(panel);
+
     expect(text).toContain('Egypt');
     expect(text).not.toContain('Third');
-    expect(text).toContain('Going public damages up to 4 of their treaty partners (−10 each).');
-    const buttons = findAll(panel, el => el.dataset?.action === 'go-public') as Array<{ click(): void }>;
-    expect(buttons).toHaveLength(1);
-    buttons[0].click();
-    expect(clicked).toEqual(['i-1']);
+    expect(text).toContain('Exposed automatically on turn 10.');
+    expect(text).not.toContain('last chance');
+    expect(findAll(panel, el => el.dataset?.action === 'go-public')).toHaveLength(0);
   });
 
-  it('explains instead of offering a dead button when the culprit has no partners', () => {
-    const panel = createEspionagePanel(tracedState(false), { onClose: () => {}, onGoPublic: () => {} });
-    expect(findAll(panel, el => el.dataset?.action === 'go-public')).toHaveLength(0);
+  it('explains when no treaty partners could be swayed and offers no button', () => {
+    const panel = createEspionagePanel(tracedState(false), { onClose: () => {} });
     const text = collectText(panel);
-    expect(text).toContain('no treaty partners');
-    expect(text).not.toContain('Going public damages');
+
+    expect(text).toContain('No treaty partners could be swayed.');
+    expect(text).not.toContain('Exposed automatically');
+    expect(findAll(panel, el => el.dataset?.action === 'go-public')).toHaveLength(0);
   });
 
   it('shows no section at all when nothing has been traced', () => {
-    const panel = createEspionagePanel(makeEspUiState(), { onClose: () => {}, onGoPublic: () => {} });
+    const panel = createEspionagePanel(makeEspUiState(), { onClose: () => {} });
     expect(findAll(panel, el => el.dataset?.section === 'traced-incidents')).toHaveLength(0);
   });
 });

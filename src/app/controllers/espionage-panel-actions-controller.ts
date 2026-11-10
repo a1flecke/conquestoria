@@ -12,10 +12,9 @@ import type { GameState, HexCoord, SpyMissionType } from '@/core/types';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import {
-  embedSpy, goPublicAboutIncident, recallSpy, attemptSweep, getAvailableMissions, getMissionStartDenial, missionRequiresPlacedSpy,
+  embedSpy, recallSpy, attemptSweep, getAvailableMissions, getMissionStartDenial, missionRequiresPlacedSpy,
   START_MISSION_FAILURE_MESSAGES, startMission, unembedSpy, verifyAgent,
 } from '@/systems/espionage-system';
-import { GO_PUBLIC_DENIAL_MESSAGES } from '@/systems/espionage-presentation';
 import { hexKey, hexesInRange } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { removeUnits } from '@/systems/unit-removal-system';
@@ -279,22 +278,6 @@ export function createEspionagePanelActionsController(
           deps.showNotification(`Sweep detected ${detectedSpyIds.length} enemy spy(ies) in the city!`, 'warning');
         } else {
           deps.showNotification('Sweep complete — no enemy spies detected.', 'info');
-        }
-        deps.getElementById('espionage-panel')?.remove();
-        deps.router.open('espionage');
-      },
-      // #419 PR 2: re-runs getGoPublicDenial inside the executor, so a stale click is refused with its typed reason.
-      onGoPublic: (incidentId) => {
-        const current = deps.session.getState();
-        const result = goPublicAboutIncident(current, current.currentPlayer, incidentId);
-        if (!result.ok) {
-          deps.showNotification(GO_PUBLIC_DENIAL_MESSAGES[result.reason], 'warning');
-        } else {
-          deps.session.commit(result.state);
-          deps.bus.emit('espionage:went-public', {
-            civId: current.currentPlayer, culpritCivId: result.culpritCivId,
-            partnerCivIds: result.partnerCivIds, missionType: result.missionType,
-          });
         }
         deps.getElementById('espionage-panel')?.remove();
         deps.router.open('espionage');
