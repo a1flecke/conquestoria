@@ -58,6 +58,16 @@
     "889": "OPEN"
    }
   },
+  "docs/superpowers/specs/2026-11-09-issue-419-go-public-automation-design.md": {
+   "category": "active",
+   "reason": "Approved design for automating the forced Go-public response, owned by the open Shadows & Secrets issue #419.",
+   "issues": [
+    419
+   ],
+   "issueStates": {
+    "419": "OPEN"
+   }
+  },
   "docs/superpowers/specs/2026-04-08-m4e-the-council-design.md": {
    "category": "durable-reference",
    "reason": "Origin of the approved legendary-wonder roster that src/systems/approved-legendary-wonder-roster.ts mirrors (its Appendix A).",
