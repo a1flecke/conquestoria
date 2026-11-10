@@ -51,15 +51,16 @@ export interface EspionagePanelData {
   missionSuccessChances?: Partial<Record<SpyMissionType, number>>;
   missionSuccessBreakdown?: Partial<Record<SpyMissionType, string>>;
   currentTurn: number;
-  // #419 PR 2: hostile operations the viewer has traced to a named civ. Only incidents with proof (tracedTurn) appear, so the
-  // actor's name is always earned. `denial` is the Go public refusal copy, or null when the button is offered.
+  // #419 automation: hostile operations the viewer has traced to a named civ. Only
+  // incidents with proof (tracedTurn) appear, so the actor's name is always earned.
+  // Resolution is read-only: exposed, impossible (no partners), stale, or pending.
   tracedIncidents: Array<{
     incidentId: string;
     actorName: string;
     missionLabel: string;
     cityName: string;
     landedTurn: number;
-    resolution: 'exposed' | 'no-partners' | 'expired';
+    resolution: 'exposed' | 'no-partners' | 'expired' | 'pending';
     exposedTurn: number | null;
   }>;
   // #442 MR2 signals_intercept: the latest empire-wide troop snapshot per target civ this
@@ -529,7 +530,9 @@ function appendTracedIncidents(
       ? `Exposed automatically on turn ${incident.exposedTurn}.`
       : incident.resolution === 'no-partners'
         ? 'No treaty partners could be swayed.'
-        : 'The moment has passed; the story is old news.';
+        : incident.resolution === 'expired'
+          ? 'The moment has passed; the story is old news.'
+          : 'Automatic exposure pending.';
     const note = createEl('div', noteText);
     note.style.cssText = 'opacity:0.72;';
     row.appendChild(note);
@@ -1113,7 +1116,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
           missionLabel: MISSION_LABELS[incident.missionType] ?? incident.missionType,
           cityName: (incident.cityId ? state.cities[incident.cityId]?.name : undefined) ?? 'your empire',
           landedTurn: incident.landedTurn,
-          resolution: used ? 'exposed' as const : denial === 'no-partners' ? 'no-partners' as const : 'expired' as const,
+          resolution: used ? 'exposed' as const : denial === 'no-partners' ? 'no-partners' as const : denial === 'expired' ? 'expired' as const : 'pending' as const,
           exposedTurn: incident.usedTurn ?? null,
         };
       }),

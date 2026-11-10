@@ -323,10 +323,6 @@ export const GO_PUBLIC_DENIAL_MESSAGES: Record<GoPublicDenialReason, string> = {
   'no-partners': 'They have no treaty partners whose opinion this could change.',
 };
 
-/**
- * Public rules of the Go public response, safe to show before a player commits. Deliberately does not expose how
- * many treaties the culprit actually holds or who they are with: that would reveal unmet civilizations.
- */
 /** The one eligibility source for Go public; the panel's offer and the executor both ask it. */
 export function getGoPublicDenial(state: GameState, victimId: string, incidentId: string): GoPublicDenialReason | null {
   const incident = state.espionage?.[victimId]?.attributedIncidents?.[incidentId];
