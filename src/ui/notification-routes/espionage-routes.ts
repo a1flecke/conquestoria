@@ -282,7 +282,7 @@ export function routeIncidentTraced(
   const actorName = state.civilizations[event.actorCivId]?.name ?? 'A rival';
   const cityName = (event.cityId ? state.cities[event.cityId]?.name : undefined) ?? 'your empire';
   for (const { civId } of getEspionageNotificationAudience(state, { type: 'espionage:incident-traced', ...event })) {
-    sink(civId, `Your agents traced the attack on ${cityName} to ${actorName}. Open Espionage and Go public while the story is fresh.`, 'warning');
+    sink(civId, `Your agents traced the attack on ${cityName} to ${actorName}.`, 'warning');
   }
 }
 
@@ -295,7 +295,7 @@ export function routeWentPublic(
   const victimName = state.civilizations[event.civId]?.name ?? 'A civilization';
   const culpritName = state.civilizations[event.culpritCivId]?.name ?? 'a rival';
   for (const { civId, role } of getEspionageNotificationAudience(state, { type: 'espionage:went-public', ...event })) {
-    if (role === 'actor') sink(civId, `You told the world ${culpritName} was behind the attack. ${event.partnerCivIds.length} of their partners now trust them less.`, 'success');
+    if (role === 'actor') sink(civId, `The world now knows ${culpritName} was behind the attack. ${event.partnerCivIds.length} of their partners trust them less.`, 'success');
     else if (role === 'target') sink(civId, `${victimName} has gone public: your hostile operation is exposed and your partners trust you less.`, 'warning');
     else sink(civId, `${victimName} revealed that ${culpritName} ran a hostile operation against them -- your relationship with ${culpritName} has soured.`, 'warning');
   }
