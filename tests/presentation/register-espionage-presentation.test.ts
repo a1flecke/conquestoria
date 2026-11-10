@@ -18,6 +18,25 @@ describe('espionage presentation', () => {
     expect(ctx.deliver).toHaveBeenCalledWith('carthage', expect.any(String), 'warning');
   });
 
+  it('logs a traced incident without interrupting and never instructs a Go public click (#419)', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext({
+      state: { civilizations: { rome: { name: 'Rome' } } as never, cities: {} as never },
+    });
+
+    registerEspionagePresentation(bus, ctx);
+    bus.emit('espionage:incident-traced', {
+      civId: 'rome',
+      incidentId: 'i-1',
+      actorCivId: 'carthage',
+      missionType: 'cyber_attack',
+      cityId: 'city-a',
+    });
+
+    expect(ctx.log).toHaveBeenCalledWith('rome', expect.not.stringContaining('Go public'), 'warning');
+    expect(ctx.deliver).not.toHaveBeenCalled();
+  });
+
   it('notifies the detecting civ of a spotted traveling spy', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext();

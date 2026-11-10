@@ -105,7 +105,9 @@ export const registerEspionagePresentation: PresentationRegistrar = (bus, ctx) =
       routeOperationLanded(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
     bus.on('espionage:incident-traced', event => {
-      routeIncidentTraced(ctx.session.getState(), event, ctx.notifier.deliver);
+      // The trace is a persistent record; the automatic went-public event is the
+      // interruptive reveal (#419 automation).
+      routeIncidentTraced(ctx.session.getState(), event, ctx.notifier.log);
     }),
     bus.on('espionage:went-public', event => {
       routeWentPublic(ctx.session.getState(), event, ctx.notifier.deliver);
