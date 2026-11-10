@@ -1062,6 +1062,7 @@ export function createCityPanelView(
         <button type="button" data-idle-mode="none" style="flex:1;padding:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:12px;${noneActive}">None</button>
       </div>
       ${idleDecision?.dormant ? '<div data-idle-dormant="true" style="font-size:11px;opacity:0.75;margin-top:6px;">Conversion is paused while something is queued. It applies on a turn that starts with an empty queue.</div>' : ''}
+      ${city.productionQueue.length === 0 && city.productionProgress > 0 ? `<div data-stored-production="true" style="font-size:11px;opacity:0.85;margin-top:6px;color:#e8c170;">${Math.floor(city.productionProgress)} production carried over is waiting and will go into the next item you build.</div>` : ''}
     </div>
   `;
 

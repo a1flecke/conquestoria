@@ -1238,24 +1238,47 @@ describe('processCity', () => {
     it('an ordinary multi-turn build applies everything to construction', () => {
       const { map, city } = setup('disp-build', { productionQueue: ['workshop'], productionProgress: 0 });
       const d = processCity(city as never, map, 0, 5, createProductionCostContext()).production;
-      expect(d).toEqual({ produced: 5, appliedToBuild: 5, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0, withheldByMaterials: false });
+      expect(d).toEqual({ produced: 5, appliedToBuild: 5, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0, withheldByMaterials: false, forfeitedStored: 0, forfeitedGold: 0 });
     });
 
-    it('an item completed this turn is construction, not waste, and only exact overflow is discarded', () => {
+    it('an item completed this turn is construction, and its overflow carries even with nothing queued (#1426)', () => {
       const { map, city } = setup('disp-complete', { productionQueue: ['workshop'], productionProgress: 7, idleProduction: 'gold' });
-      const d = processCity(city as never, map, 0, 8, createProductionCostContext()).production; // 7+8=15 vs cost 12
-      expect(d.appliedToBuild).toBe(5);
-      expect(d.discarded).toBe(3);
-      expect(d.convertedGold).toBe(0);
-      expect(conserved(d)).toBe(d.produced);
+      const r = processCity(city as never, map, 0, 8, createProductionCostContext()); // 7+8=15 vs cost 12
+      expect(r.production.appliedToBuild).toBe(5);
+      expect(r.production.carriedOver).toBe(3);
+      expect(r.production.discarded).toBe(0);
+      expect(r.production.convertedGold).toBe(0);
+      expect(r.city.productionProgress).toBe(3);
+      expect(conserved(r.production)).toBe(r.production.produced);
     });
 
-    it('3d-printing carries the overflow instead of discarding it', () => {
+    it('overflow carries into a queued item without any technology (#1426)', () => {
       const { map, city } = setup('disp-carry', { productionQueue: ['workshop', 'granary'], productionProgress: 7 });
-      const d = processCity(city as never, map, 0, 8, createProductionCostContext({ completedTechs: ['3d-printing'] })).production;
-      expect(d.carriedOver).toBe(3);
-      expect(d.discarded).toBe(0);
-      expect(conserved(d)).toBe(d.produced);
+      const r = processCity(city as never, map, 0, 8, createProductionCostContext());
+      expect(r.production.carriedOver).toBe(3);
+      expect(r.production.discarded).toBe(0);
+      expect(r.city.productionQueue).toEqual(['granary']);
+      expect(r.city.productionProgress).toBe(3);
+      expect(conserved(r.production)).toBe(r.production.produced);
+    });
+
+    it('stored progress above one turn of output is forfeited at a completion, outside the conservation equation (#1426)', () => {
+      // 40 stored + 8 yield = 48 vs workshop 12: keep 8 (one turn), forfeit 28 of the earlier stored progress.
+      const { map, city } = setup('disp-forfeit', { productionQueue: ['workshop', 'granary'], productionProgress: 40 });
+      const r = processCity(city as never, map, 0, 8, createProductionCostContext());
+      expect(r.city.productionProgress).toBe(8);
+      expect(r.production).toMatchObject({ produced: 8, appliedToBuild: 0, carriedOver: 8, discarded: 0, forfeitedStored: 28, forfeitedGold: 0 });
+      expect(r.forfeitGoldBonus).toBe(0);
+      expect(conserved(r.production)).toBe(r.production.produced);
+    });
+
+    it('3D Printing pays a quarter of forfeited stored production as gold, rounded down (#1426)', () => {
+      const { map, city } = setup('disp-forfeit-gold', { productionQueue: ['workshop', 'granary'], productionProgress: 40 });
+      const r = processCity(city as never, map, 0, 8, createProductionCostContext({ completedTechs: ['3d-printing'] }));
+      expect(r.production).toMatchObject({ forfeitedStored: 28, forfeitedGold: 7 });
+      expect(r.forfeitGoldBonus).toBe(7);
+      expect(r.production.convertedGold).toBe(0);
+      expect(conserved(r.production)).toBe(r.production.produced);
     });
 
     it('empty queue converts to gold or science exactly as credited', () => {
@@ -1286,7 +1309,7 @@ describe('processCity', () => {
     it('a zero-yield city reports all zeros', () => {
       const { map, city } = setup('disp-zero', { productionQueue: [], idleProduction: 'gold' });
       expect(processCity(city as never, map, 0, 0, createProductionCostContext()).production)
-        .toEqual({ produced: 0, appliedToBuild: 0, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0, withheldByMaterials: false });
+        .toEqual({ produced: 0, appliedToBuild: 0, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0, withheldByMaterials: false, forfeitedStored: 0, forfeitedGold: 0 });
     });
   });
 
@@ -1629,7 +1652,7 @@ describe('completeCityProductionItem', () => {
   });
 });
 
-describe('MR6: 3d-printing production overflow', () => {
+describe('#1426: completion overflow carries forward, up to one turn of output', () => {
   it('carries leftover production to the next queue item exactly', () => {
     const map = generateMap(30, 30, '3d-printing-overflow-carry');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
@@ -1646,7 +1669,7 @@ describe('MR6: 3d-printing production overflow', () => {
     expect(result.city.productionProgress).toBe(4); // 20 yield - 16 library cost
   });
 
-  it('discards leftover production without the tech', () => {
+  it('carries the same leftover without 3d-printing: the rule is for every civ', () => {
     const map = generateMap(30, 30, '3d-printing-overflow-no-tech');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = {
@@ -1659,7 +1682,45 @@ describe('MR6: 3d-printing production overflow', () => {
 
     expect(result.completedBuilding).toBe('library');
     expect(result.city.productionQueue).toEqual(['granary']);
-    expect(result.city.productionProgress).toBe(0);
+    expect(result.city.productionProgress).toBe(4);
+  });
+
+  it('keeps the leftover with an empty queue, and the next enqueued item starts from it', () => {
+    const map = generateMap(30, 30, 'carry-empty-queue');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['library'],
+      productionProgress: 0,
+    };
+
+    const finished = processCity(city, map, 2, 20, createProductionCostContext());
+    expect(finished.city.productionQueue).toEqual([]);
+    expect(finished.city.productionProgress).toBe(4);
+
+    const next = processCity({ ...finished.city, productionQueue: ['granary'] }, map, 2, 1, createProductionCostContext());
+    expect(next.city.productionProgress).toBe(5);
+  });
+
+  it('never banks: a high-output city re-queueing a cheap unit holds at most one turn of output', () => {
+    // The pre-#1426 3d-printing carry was uncapped: this exact loop banked 142, 284, ... 1136 after 8 turns.
+    const map = generateMap(30, 30, 'carry-no-bank');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    let city = { ...foundCity('p1', landTile.coord, map, mkC()), productionQueue: [] as string[], productionProgress: 0 };
+    const ctx = createProductionCostContext({ completedTechs: ['3d-printing'] });
+    const stored: number[] = [];
+    let gold = 0;
+    for (let turn = 0; turn < 8; turn++) {
+      const result = processCity({ ...city, productionQueue: ['warrior', 'warrior', 'warrior', 'warrior'] }, map, 0, 150, ctx);
+      expect(result.completedUnit).toBe('warrior');
+      stored.push(result.city.productionProgress);
+      gold += result.forfeitGoldBonus;
+      city = result.city;
+    }
+    const warriorCost = getProductionCostForItem('warrior', ctx);
+    expect(stored).toEqual([150 - warriorCost, ...Array(7).fill(150)]);
+    // Each later turn forfeits (150 stored + 150 - cost) - 150 = 150 - cost, paid at a quarter with 3D Printing.
+    expect(gold).toBe(Math.floor(((150 - warriorCost) - warriorCost) / 4) + 6 * Math.floor((150 - warriorCost) / 4));
   });
 
   it('does not smuggle overflow through a same-turn dequeue-drop', () => {

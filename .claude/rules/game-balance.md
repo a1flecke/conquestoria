@@ -804,6 +804,34 @@ only** -- never what conversion does or what a graduated civilization receives (
 **Rule:** a new graduation knob goes in the rules leaf and in this table; a new gate is one reason in `MinorCivGraduationIneligibleReason`
 plus its test; nothing but the round phase may call `planMinorCivGraduations` or `graduateMinorCiv` from `src/`.
 
+## Production Overflow: Carry-Forward, One Turn's Worth (#1426)
+
+`resolveCompletionCarry` (`src/systems/city-turn.ts`) is the one statement of what survives a completion, read by
+`completeCityProductionItem`/`processCity` and by the player preview (`getProductionDecision().overflow`). For every
+civilization, human, AI or city-state, at every difficulty:
+
+| Rule | Value |
+|---|---|
+| Completions per city per turn | **1** (unchanged; the one-item contract stays) |
+| Kept after a completion | `min(progress + yield − cost, yield)`: the leftover, capped at this turn's output |
+| Where it goes | The city's stored progress: the next queued item, or whatever is enqueued later (an empty-queue enqueue keeps progress) |
+| Forfeited | Leftover above the cap. It is always progress stored *before* this turn (lumps, earlier carry), never this turn's output |
+| 3D Printing (`FORFEITED_PRODUCTION_GOLD_TECH`) | Forfeited production becomes gold at `FORFEITED_PRODUCTION_GOLD_RATE` = **0.25**, `floor`ed (`forfeitGoldBonus`, credited with the turn's income) |
+
+Accounting: this turn's output still satisfies `produced = appliedToBuild + carriedOver + convertedGold +
+convertedScience + discarded`; `forfeitedStored` and `forfeitedGold` are reported beside it, never inside it (the gold
+must not be added to `convertedGold`). Why one turn: an uncapped carry plus one item per turn banks production without
+limit (the pre-#1426 3d-printing rule held 1136 after 8 turns of re-queued cheap units and could pour it into a wonder);
+the cap bounds every lump and every carry to a one-turn head start. The rate stays below idle conversion's 1:1, and a
+round trip through rush-buy (2.5 gold per production) returns 10%, so it is never a production engine.
+
+**Exceptions, deliberately:** a legendary wonder completes in `legendary-wonder-system.ts` and keeps nothing (the
+preview says its surplus is lost); a rush-buy completion pays exactly what remains and carries nothing. Changing the
+active item still erases stored progress (`planning-system.ts`), with the existing warning.
+
+**Rule:** a new completion path asks `resolveCompletionCarry` rather than resetting or keeping progress itself, and a
+new overflow consequence is a row here.
+
 ## Production Cost Context (#984)
 
 Every production cost in the game is one function of one input:

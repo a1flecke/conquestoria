@@ -18,12 +18,16 @@ import { isCityCoastal } from './city-lifecycle';
  * end-of-round state. Ephemeral -- reported to the round bus, never persisted. Conservation:
  * `produced = appliedToBuild + carriedOver + convertedGold + convertedScience + discarded` (all integers).
  *  - appliedToBuild: added to the queue head's progress (incl. an item queued and completed in the same turn).
- *  - carriedOver: overflow beyond a completed item's cost that survived into the next item (3d-printing).
+ *  - carriedOver: this turn's output beyond a completed item's cost, kept as the next item's starting progress
+ *    (`resolveCompletionCarry`, #1426). Since the kept amount is capped at this turn's output, all of it carries.
  *  - convertedGold / convertedScience: credited by `City.idleProduction` on an empty queue.
  *  - discarded: output that reached no sink -- an empty queue with no conversion mode, a queue whose every item was
- *    dequeued this turn, or completion overflow that was not carried.
+ *    dequeued this turn, or a head waiting for materials.
  * A zero-yield city reports all zeros. Output suppressed by an unrest lock is zeroed by the caller before
  * `processCity` and is reported separately by the caller as `suppressedByLock`, not as discarded.
+ *
+ * `forfeitedStored` / `forfeitedGold` sit OUTSIDE the equation: they describe progress stored before this turn that
+ * the one-turn carry cap removed at a completion, and the 3D Printing gold paid for it.
  */
 export interface ProductionDisposition {
   produced: number;
@@ -38,6 +42,10 @@ export interface ProductionDisposition {
    * the projection can say *why* without changing the conservation equation.
    */
   withheldByMaterials: boolean;
+  /** Stored progress above the one-turn carry cap, removed when an item completed this turn (#1426). */
+  forfeitedStored: number;
+  /** Gold 3D Printing paid for `forfeitedStored` (also returned as `CityProcessResult.forfeitGoldBonus`). */
+  forfeitedGold: number;
 }
 
 export interface CityProcessResult {
@@ -47,6 +55,8 @@ export interface CityProcessResult {
   completedUnit: UnitType | null;
   idleGoldBonus: number;
   idleScienceBonus: number;
+  /** #1426: gold from forfeited stored progress (3D Printing). The caller credits it like `idleGoldBonus`. */
+  forfeitGoldBonus: number;
   /** Every unit/building silently dequeued this turn, with why. Empty when nothing dropped. */
   droppedProductionItems: DroppedProductionItem[];
   production: ProductionDisposition;
@@ -56,25 +66,50 @@ export interface CityProductionCompletionResult {
   city: City;
   completedBuilding: string | null;
   completedUnit: UnitType | null;
+  /** What the completion kept and forfeited; all zeros when nothing completed. */
+  carry: CompletionCarry;
 }
 
 export interface CompleteCityProductionItemOptions {
-  /** Production cost of the completed item — required to compute 3d-printing overflow. */
+  /** Production cost of the completed item. Without it nothing carries (a purchase pays exactly what remains). */
   cost?: number;
-  /** civ.techState.completed — when it includes '3d-printing', leftover progress carries to the next queue item. */
-  completedTechs?: string[];
+  /** The city's production this turn: the cap on what a completion may keep (#1426). */
+  productionThisTurn?: number;
+  /** civ.techState.completed — read for 3D Printing's forfeited-production gold. */
+  completedTechs?: readonly string[];
+}
+
+/** #1426: the technology that turns forfeited stored production into gold, and the rate it pays. */
+export const FORFEITED_PRODUCTION_GOLD_TECH = '3d-printing';
+export const FORFEITED_PRODUCTION_GOLD_RATE = 0.25;
+
+export interface CompletionCarry {
+  /** Becomes the city's stored progress: the next item's start, whether it is queued now or chosen later. */
+  kept: number;
+  /** Leftover above the one-turn cap; it is lost (it can only be progress stored before this turn). */
+  forfeited: number;
+  /** `floor(forfeited × FORFEITED_PRODUCTION_GOLD_RATE)` with 3D Printing, else 0. */
+  forfeitedGold: number;
 }
 
 /**
- * The one statement of when surplus production survives a completion: the civ has `3d-printing` AND another item is
- * still queued behind the one that finished. Otherwise the surplus is discarded (#1426 tracks whether that should
- * change). Exported so the player-facing production preview reads the rule instead of restating it.
+ * #1426: the one statement of what survives a completion, for every civilization. The leftover beyond the finished
+ * item's cost becomes the next item's starting progress, capped at the city's production this turn (one turn's
+ * worth), so stored production can never bank up across turns. A city still completes at most one item per turn.
+ * Exported so the player-facing production preview reads the rule instead of restating it.
  */
-export function canCarryProductionOverflow(
+export function resolveCompletionCarry(
+  leftover: number,
+  productionThisTurn: number,
   completedTechs: readonly string[] | undefined,
-  itemsQueuedBehind: number,
-): boolean {
-  return Boolean(completedTechs?.includes('3d-printing')) && itemsQueuedBehind > 0;
+): CompletionCarry {
+  const surplus = Math.max(0, leftover);
+  const kept = Math.min(surplus, Math.max(0, productionThisTurn));
+  const forfeited = surplus - kept;
+  const forfeitedGold = completedTechs?.includes(FORFEITED_PRODUCTION_GOLD_TECH)
+    ? Math.floor(forfeited * FORFEITED_PRODUCTION_GOLD_RATE)
+    : 0;
+  return { kept, forfeited, forfeitedGold };
 }
 
 export function completeCityProductionItem(
@@ -88,7 +123,7 @@ export function completeCityProductionItem(
   let completedUnit: UnitType | null = null;
 
   if (newQueue[0] !== itemId) {
-    return { city, completedBuilding, completedUnit };
+    return { city, completedBuilding, completedUnit, carry: { kept: 0, forfeited: 0, forfeitedGold: 0 } };
   }
   newQueue.shift();
 
@@ -110,22 +145,20 @@ export function completeCityProductionItem(
     }
   }
 
-  // 3d-printing: overflow production beyond the completed item's cost carries to the next
-  // queue item instead of being discarded. Only applies when a next item is actually queued —
-  // there's nothing to carry overflow into otherwise, and productionProgress must stay 0.
-  const hasOverflow = canCarryProductionOverflow(options.completedTechs, newQueue.length);
-  const overflow = hasOverflow && options.cost !== undefined
-    ? Math.max(0, city.productionProgress - options.cost)
-    : 0;
+  // #1426: the leftover is kept for whatever is built next, queued or not, capped at one turn's output.
+  const carry = options.cost !== undefined
+    ? resolveCompletionCarry(city.productionProgress - options.cost, options.productionThisTurn ?? 0, options.completedTechs)
+    : { kept: 0, forfeited: 0, forfeitedGold: 0 };
 
   let nextCity: City = {
     ...city,
     productionQueue: newQueue,
-    productionProgress: overflow,
+    productionProgress: carry.kept,
     buildings: newBuildings,
   };
 
   return {
+    carry,
     city: nextCity,
     completedBuilding,
     completedUnit,
@@ -314,6 +347,8 @@ export function processCity(
   let appliedToBuild = 0;
   let carriedOver = 0;
   let overflowDiscarded = 0;
+  let forfeitedStored = 0;
+  let forfeitGoldBonus = 0;
   let withheldByMaterials = false;
   if (newQueue.length > 0 && !materialReady) {
     // Waiting for materials keeps the item, its queue position and its stored progress. This round's
@@ -331,12 +366,15 @@ export function processCity(
       const completion = completeCityProductionItem(
         { ...city, productionQueue: newQueue, productionProgress: newProgress, buildings: newBuildings },
         currentItem,
-        { cost: currentItemCost, completedTechs },
+        { cost: currentItemCost, productionThisTurn: productionYield, completedTechs },
       );
-      // Only this turn's output can be "overflow": whatever sat above the cost beyond it was never ours to carry.
+      // Only this turn's output can be "overflow": whatever sat above the cost beyond it was stored earlier. The
+      // one-turn cap keeps at least this turn's excess, so it all carries; stored progress above the cap is forfeited.
       const excessThisTurn = Math.min(productionYield, Math.max(0, newProgress - currentItemCost));
-      carriedOver = Math.min(excessThisTurn, completion.city.productionProgress);
+      carriedOver = Math.min(excessThisTurn, completion.carry.kept);
       overflowDiscarded = excessThisTurn - carriedOver;
+      forfeitedStored = completion.carry.forfeited;
+      forfeitGoldBonus = completion.carry.forfeitedGold;
       appliedToBuild = productionYield - excessThisTurn;
       newQueue.length = 0;
       newQueue.push(...completion.city.productionQueue);
@@ -373,6 +411,8 @@ export function processCity(
     convertedScience: idleScienceBonus,
     discarded: overflowDiscarded + Math.max(0, unsunk),
     withheldByMaterials,
+    forfeitedStored,
+    forfeitedGold: forfeitGoldBonus,
   };
 
   let nextCity: City = {
@@ -394,6 +434,7 @@ export function processCity(
     completedUnit,
     idleGoldBonus,
     idleScienceBonus,
+    forfeitGoldBonus,
     droppedProductionItems,
     production,
   };

@@ -273,7 +273,7 @@ export function runCityProduction(
       ...result.production,
       suppressedByLock: yields.production - effectiveProduction,
     });
-    income.totalGold += result.idleGoldBonus;
+    income.totalGold += result.idleGoldBonus + result.forfeitGoldBonus;
     income.authoritativeCityScience[cityId] = yields.science + result.idleScienceBonus;
 
     const completed = Boolean(result.completedBuilding || result.completedUnit);

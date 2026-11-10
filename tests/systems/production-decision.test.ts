@@ -122,42 +122,50 @@ describe('getProductionDecision (production-decision arc)', () => {
     expect(getQueueMoveConsequence(city(state), 5, 0)).toEqual({ changesActiveItem: false, progressLost: 0 });
   });
 
-  it('projects surplus and what the real rules do with it: discarded without 3d-printing', () => {
+  it('projects surplus and what the real rule does with it: it carries for every civ (#1426)', () => {
     const state = setup('pd-overflow');
     city(state).productionQueue = ['warrior', 'workshop'];
     city(state).productionProgress = 0; // warrior costs 8
     const decision = getProductionDecision(state, CIV, CITY, { productionPerTurn: 20 })!;
 
-    expect(decision.overflow).toEqual({ excess: 12, outcome: 'discarded', carryNeedsQueuedItem: false });
-    const real = realTurn(state, 20).production;
-    expect(real.discarded).toBe(12);
-    expect(real.carriedOver).toBe(0);
+    expect(decision.overflow).toEqual({ excess: 12, outcome: 'carried', waitsForNextChoice: false, forfeited: 0, forfeitedGold: 0 });
+    const real = realTurn(state, 20);
+    expect(real.production.carriedOver).toBe(12);
+    expect(real.production.discarded).toBe(0);
+    expect(real.city.productionProgress).toBe(12);
   });
 
-  it('with 3d-printing the surplus carries only when something is queued behind', () => {
-    const queued = setup('pd-carry');
-    queued.civilizations[CIV]!.techState.completed.push('3d-printing');
-    city(queued).productionQueue = ['warrior', 'workshop'];
-    const carried = getProductionDecision(queued, CIV, CITY, { productionPerTurn: 20 })!;
-    const surplus = 20 - carried.cost; // the cost moves with the era 3d-printing belongs to
-    expect(carried.overflow).toEqual({ excess: surplus, outcome: 'carried', carryNeedsQueuedItem: false });
-    const realCarried = processCity(city(queued), queued.map, 0, 20, buildProductionCostContext(queued, CIV, CITY));
-    expect(realCarried.production.carriedOver).toBe(surplus);
-    expect(realCarried.production.discarded).toBe(0);
-
+  it('with nothing queued behind, the surplus still carries and waits for the next choice', () => {
     const alone = setup('pd-carry-alone');
-    alone.civilizations[CIV]!.techState.completed.push('3d-printing');
     city(alone).productionQueue = ['warrior'];
-    const lost = getProductionDecision(alone, CIV, CITY, { productionPerTurn: 20 })!;
-    expect(lost.overflow).toEqual({ excess: 20 - lost.cost, outcome: 'discarded', carryNeedsQueuedItem: true });
-    expect(processCity(city(alone), alone.map, 0, 20, buildProductionCostContext(alone, CIV, CITY)).production.discarded).toBe(20 - lost.cost);
+    const decision = getProductionDecision(alone, CIV, CITY, { productionPerTurn: 20 })!;
+    const surplus = 20 - decision.cost;
+    expect(decision.overflow).toEqual({ excess: surplus, outcome: 'carried', waitsForNextChoice: true, forfeited: 0, forfeitedGold: 0 });
+    const real = processCity(city(alone), alone.map, 0, 20, buildProductionCostContext(alone, CIV, CITY));
+    expect(real.production.carriedOver).toBe(surplus);
+    expect(real.city.productionQueue).toEqual([]);
+    expect(real.city.productionProgress).toBe(surplus);
+  });
+
+  it('previews the stored progress the one-turn cap forfeits, and 3D Printing gold, exactly as the turn applies it', () => {
+    const state = setup('pd-forfeit');
+    state.civilizations[CIV]!.techState.completed.push('3d-printing');
+    city(state).productionQueue = ['warrior', 'workshop'];
+    const cost = getProductionDecision(state, CIV, CITY, { productionPerTurn: 20 })!.cost;
+    city(state).productionProgress = cost + 30; // already paid for, plus 30 stored
+    const decision = getProductionDecision(state, CIV, CITY, { productionPerTurn: 20 })!;
+    expect(decision.overflow).toEqual({ excess: 20, outcome: 'carried', waitsForNextChoice: false, forfeited: 30, forfeitedGold: 7 });
+    const real = processCity(city(state), state.map, 0, 20, buildProductionCostContext(state, CIV, CITY));
+    expect(real.production).toMatchObject({ carriedOver: 20, forfeitedStored: 30, forfeitedGold: 7 });
+    expect(real.forfeitGoldBonus).toBe(7);
+    expect(real.city.productionProgress).toBe(20);
   });
 
   it('reports no overflow when production does not exceed the remaining cost', () => {
     const state = setup('pd-no-overflow');
     city(state).productionQueue = ['warrior'];
     const decision = getProductionDecision(state, CIV, CITY, { productionPerTurn: 8 })!;
-    expect(decision.overflow).toEqual({ excess: 0, outcome: 'none', carryNeedsQueuedItem: false });
+    expect(decision.overflow).toEqual({ excess: 0, outcome: 'none', waitsForNextChoice: false, forfeited: 0, forfeitedGold: 0 });
     expect(realTurn(state, 8).production.discarded).toBe(0);
   });
 

@@ -445,12 +445,14 @@ describe('applyAIGoldSpending never buys what the city completes anyway (#1415)'
     const afterBuy = processCity(bought.state.cities['city-a']!, bought.state.map, 0, production, context(bought.state));
     expect(afterBuy.production).toMatchObject({ produced: production, appliedToBuild: 0, discarded: production });
 
-    // What it does now: the city builds it from its own output, so the output is used.
+    // What it does now: the city builds it from its own output, so the output is used, and since #1426 the
+    // rest of the turn's output carries into whatever the city builds next instead of being discarded.
     const kept = applyAIGoldSpending(state, 'ai-1', new EventBus());
     const afterKeep = processCity(kept.cities['city-a']!, kept.map, 0, production, context(kept));
     expect(afterKeep.completedUnit).toBe('warrior');
     expect(afterKeep.production.appliedToBuild).toBe(1);
-    expect(afterKeep.production.discarded).toBe(production - 1);
+    expect(afterKeep.production.carriedOver).toBe(production - 1);
+    expect(afterKeep.production.discarded).toBe(0);
     expect(kept.civilizations['ai-1']!.gold).toBe(5000);
   });
 

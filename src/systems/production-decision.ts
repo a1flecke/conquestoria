@@ -3,7 +3,7 @@
 // the item, or change the queue?" It exists so the city panel can explain consequences from the same numbers the
 // simulation uses, instead of each surface deriving its own. Nothing here changes a rule: cost is the canonical
 // `buildProductionCostContext` price, the rush price is `getRushBuyQuote`, the overflow rule is
-// `canCarryProductionOverflow`, and per-turn output is `projectActiveProduction`.
+// `resolveCompletionCarry`, and per-turn output is `projectActiveProduction`.
 //
 // Honesty about the future: the per-turn figure is a PROJECTION of this city's own yield (see
 // `projectActiveProduction`), so every forecast here is an estimate. `isEstimate` is always true; a caller must not
@@ -12,7 +12,7 @@ import type { GameState } from '@/core/types';
 import type { MaterialCostRow } from '@/core/types/commerce';
 import { resolveCivDefinition } from './civ-registry';
 import { calculateProjectedCityYields } from './city-work-system';
-import { canCarryProductionOverflow } from './city-turn';
+import { resolveCompletionCarry } from './city-turn';
 import { getCityMaterialProjection } from './city-production-materials';
 import { getRushBuyQuote, type RushBuyDisabledReason } from './economy-system';
 import { isCityProductionLocked } from './faction-unrest-model';
@@ -78,7 +78,11 @@ export interface ProductionDecisionOptions {
   productionPerTurn?: number;
 }
 
-export type ProductionOverflowOutcome = 'none' | 'discarded' | 'carried';
+/**
+ * #1426: a completion's surplus carries (up to one turn's worth); only stored progress above that is lost.
+ * `discarded` remains only for a legendary wonder, which completes in its own system and keeps nothing.
+ */
+export type ProductionOverflowOutcome = 'none' | 'carried' | 'discarded';
 
 export interface ProductionMaterialSummary {
   /** False for an item id with no recipe and no recognized material-free special (see projection). */
@@ -132,12 +136,16 @@ export interface ProductionDecision {
   /** Stored production erased if the active item is replaced or removed (the queue-head rule). */
   progressAtStake: number;
   overflow: {
-    /** Surplus beyond the item's remaining cost that this turn's output would produce. */
+    /** This turn's output beyond the item's remaining cost; it all becomes the next item's start (#1426). */
     excess: number;
-    /** `carried` only with 3d-printing AND another item queued behind this one; otherwise the surplus is discarded. */
+    /** `carried` whenever there is excess (same for every civ, queued or not); `discarded` only for a legendary wonder. */
     outcome: ProductionOverflowOutcome;
-    /** 3d-printing is researched but nothing is queued behind the active item, so nothing can receive the surplus. */
-    carryNeedsQueuedItem: boolean;
+    /** Nothing is queued behind the item, so the carried production waits for whatever is chosen next. */
+    waitsForNextChoice: boolean;
+    /** Stored progress above one turn's worth that completing this item would lose. */
+    forfeited: number;
+    /** Gold 3D Printing would pay for `forfeited` (0 without it). */
+    forfeitedGold: number;
   };
   isEstimate: true;
 }
@@ -163,14 +171,17 @@ export function getProductionDecision(
   const finishesThisTurn = turnsToComplete === 1;
   const quote = getRushBuyQuote(state, civId, cityId);
 
-  const excess = waiting
-    ? 0
-    : Math.min(productionPerTurn, Math.max(0, progress + productionPerTurn - cost));
+  const completes = !waiting && progress + productionPerTurn >= cost;
+  const excess = completes
+    ? Math.min(productionPerTurn, Math.max(0, progress + productionPerTurn - cost))
+    : 0;
   const completedTechs = state.civilizations[civId]?.techState.completed;
   const queuedBehind = city.productionQueue.length - 1;
-  const outcome: ProductionOverflowOutcome = excess === 0
-    ? 'none'
-    : canCarryProductionOverflow(completedTechs, queuedBehind) ? 'carried' : 'discarded';
+  const legendary = itemId.startsWith('legendary:');
+  const carry = completes && !legendary
+    ? resolveCompletionCarry(progress + productionPerTurn - cost, productionPerTurn, completedTechs)
+    : { kept: 0, forfeited: 0, forfeitedGold: 0 };
+  const outcome: ProductionOverflowOutcome = excess === 0 ? 'none' : legendary ? 'discarded' : 'carried';
 
   return {
     cityId,
@@ -202,7 +213,9 @@ export function getProductionDecision(
     overflow: {
       excess,
       outcome,
-      carryNeedsQueuedItem: excess > 0 && Boolean(completedTechs?.includes('3d-printing')) && queuedBehind === 0,
+      waitsForNextChoice: outcome === 'carried' && queuedBehind === 0,
+      forfeited: carry.forfeited,
+      forfeitedGold: carry.forfeitedGold,
     },
     isEstimate: true,
   };
