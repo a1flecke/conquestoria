@@ -201,6 +201,16 @@
    "liveReferences": [
     ".claude/rules/hooks-and-tooling.md"
    ]
+  },
+  "docs/superpowers/specs/2026-11-09-issue-1426-production-overflow-design.md": {
+   "category": "active",
+   "reason": "Production-overflow design recommendation awaiting the owner's decision on open issue #1426.",
+   "issues": [
+    1426
+   ],
+   "issueStates": {
+    "1426": "OPEN"
+   }
   }
  },
  "deleted": {
