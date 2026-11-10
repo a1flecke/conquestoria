@@ -1,0 +1,19 @@
+{
+  "id": "infantry",
+  "status": "shipped: registered in STRIP_UNITS and exported with strips.py export (#1627, #759)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-09",
+  "prompts": "Based on scripts/sprite-puppet/strip-rigs/infantry.json. One conversation drew the master; the damage sheet, the attack strip, the hit strip and the defeat strip were each drawn from the master as one prompt per image, all on flat magenta. Red appears only on the armband and the vest patch so the team tint lands only there; the camouflage, helmet and gear are olive, brown and tan. The attack, hit and defeat prompts keep the rifle in his hands in every frame, ask for a pale yellow (never red or orange) muzzle flash and ask for no blood, glow or halo. The prompts ChatGPT actually ran were written for this unit and were not captured verbatim.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/infantry). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all five passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "None: every sheet was accepted on its first draw (all five came back on flat magenta with no checkerboard). Known caveat: the probe warns that the figures on the defeat sheet are about 220 px tall (under 300), accepted because the other strips are drawn at a similar size.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1024, 1536], "sha256": "464fb0d68a89a059cb7803df857803cb1f7c3c7de1ea26d11eebc63f00383960" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1254, 1254], "sha256": "f80dd0f336e4c93c226d8a83d5d62fe1c8c4469109a465ed6f66295aed3e227e" },
+    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1536, 1024], "sha256": "d27abe4657af8363cbf51302f7c2e562825538b7fba812d80f67a085f60fab26" },
+    { "role": "hit reaction, 5 frames (3 + 2)", "file": "d", "size": [1536, 1024], "sha256": "30645ef1ee7ae8370bbd1e18f498598ddedf361ce6457ff7b4caa375b6e5893f" },
+    { "role": "defeat, 5 frames (3 + 2)", "file": "e", "size": [1536, 1024], "sha256": "d5be155b7e640c9b5d2b530210bc8d0d4edfbf9c8793ddbfe826c353e12dbb55" }
+  ]
+}
