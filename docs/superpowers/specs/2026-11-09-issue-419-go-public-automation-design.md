@@ -93,8 +93,10 @@ Each traced incident shows:
 - city name,
 - landed turn,
 - and one resolution line:
-  - `Exposed automatically on turn <usedTurn>.` when exposed, or
-  - `No treaty partners could be swayed.` when no exposure was possible.
+  - `Exposed automatically on turn <usedTurn>.` when exposed,
+  - `No treaty partners could be swayed.` when no exposure was possible,
+  - `The moment has passed; the story is old news.` for a legacy expired record, or
+  - `Automatic exposure pending.` when the incident is traced but the turn's automatic resolution has not run yet.
 
 Removed from the panel:
 
@@ -142,7 +144,7 @@ Add or update regressions proving:
 5. An incident confirmed at landing (no new trace event) is still auto-exposed by the ledger scan.
 6. `incident-traced` is log-only and no longer contains the “Go public” instruction.
 7. `went-public` still reaches the victim, culprit, and partners through the existing audience contract.
-8. The panel renders the read-only resolution line and exposes no Go-public action.
+8. The panel renders the read-only resolution line (exposed, no-partners, expired, or pending) and exposes no Go-public action.
 9. The removed preview/button tests are deleted rather than skipped.
 
 ## Verification

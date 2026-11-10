@@ -440,12 +440,13 @@ git commit -m "feat(espionage): log traced incidents and reveal automatic exposu
 |---|---|---|
 | No confirmed incident | — | No “Caught in the Act” section. |
 | Confirmed incident, eligible partners | — (automatic) | Row shows actor/mission/city/turn and “Exposed automatically on turn N.” No button. The went-public toast/log also fires. |
+| Confirmed incident, eligible partners, before the turn's automatic resolution runs | — | Row shows “Automatic exposure pending.” No button. |
 | Confirmed incident, no eligible partners | — | Row shows “No treaty partners could be swayed.” No button. |
 | Legacy traced incident whose window passed | — | Row shows “The moment has passed; the story is old news.” No button. |
 
 ### Misleading UI Risks
 
-- “Exposed automatically” must appear only when `usedTurn` is set; a no-partner or legacy-expired row must use its own line.
+- “Exposed automatically” must appear only when `usedTurn` is set; a no-partner, pending, or legacy-expired row must use its own line.
 - No `go-public` action may remain in the DOM, including after reopening the panel.
 - Do not list partners by name or reveal unmet civilizations.
 - Do not show “last chance” or response-window copy anywhere.
@@ -511,6 +512,15 @@ describe('espionage-panel: Caught in the Act (#419 automation)', () => {
     expect(findAll(panel, el => el.dataset?.action === 'go-public')).toHaveLength(0);
   });
 
+  it('does not claim exposure before the automatic response runs', () => {
+    const panel = createEspionagePanel(tracedState(true), { onClose: () => {} });
+    const text = collectText(panel);
+
+    expect(text).toContain('Automatic exposure pending.');
+    expect(text).not.toContain('Exposed automatically');
+    expect(findAll(panel, el => el.dataset?.action === 'go-public')).toHaveLength(0);
+  });
+
   it('shows no section at all when nothing has been traced', () => {
     const panel = createEspionagePanel(makeEspUiState(), { onClose: () => {} });
     expect(findAll(panel, el => el.dataset?.section === 'traced-incidents')).toHaveLength(0);
@@ -558,7 +568,7 @@ In `src/ui/espionage-panel.ts`:
     missionLabel: string;
     cityName: string;
     landedTurn: number;
-    resolution: 'exposed' | 'no-partners' | 'expired';
+    resolution: 'exposed' | 'no-partners' | 'expired' | 'pending';
     exposedTurn: number | null;
   }>;
 ```
@@ -585,7 +595,9 @@ function appendTracedIncidents(
       ? `Exposed automatically on turn ${incident.exposedTurn}.`
       : incident.resolution === 'no-partners'
         ? 'No treaty partners could be swayed.'
-        : 'The moment has passed; the story is old news.';
+        : incident.resolution === 'expired'
+          ? 'The moment has passed; the story is old news.'
+          : 'Automatic exposure pending.';
     const note = createEl('div', noteText);
     note.style.cssText = 'opacity:0.72;';
     row.appendChild(note);
@@ -612,7 +624,7 @@ function appendTracedIncidents(
           missionLabel: MISSION_LABELS[incident.missionType] ?? incident.missionType,
           cityName: (incident.cityId ? state.cities[incident.cityId]?.name : undefined) ?? 'your empire',
           landedTurn: incident.landedTurn,
-          resolution: used ? 'exposed' as const : denial === 'no-partners' ? 'no-partners' as const : 'expired' as const,
+          resolution: used ? 'exposed' as const : denial === 'no-partners' ? 'no-partners' as const : denial === 'expired' ? 'expired' as const : 'pending' as const,
           exposedTurn: incident.usedTurn ?? null,
         };
       }),

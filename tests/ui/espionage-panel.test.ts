@@ -1071,6 +1071,15 @@ describe('espionage-panel: Caught in the Act (#419 automation)', () => {
     expect(findAll(panel, el => el.dataset?.action === 'go-public')).toHaveLength(0);
   });
 
+  it('does not claim exposure before the automatic response runs', () => {
+    const panel = createEspionagePanel(tracedState(true), { onClose: () => {} });
+    const text = collectText(panel);
+
+    expect(text).toContain('Automatic exposure pending.');
+    expect(text).not.toContain('Exposed automatically');
+    expect(findAll(panel, el => el.dataset?.action === 'go-public')).toHaveLength(0);
+  });
+
   it('shows no section at all when nothing has been traced', () => {
     const panel = createEspionagePanel(makeEspUiState(), { onClose: () => {} });
     expect(findAll(panel, el => el.dataset?.section === 'traced-incidents')).toHaveLength(0);
