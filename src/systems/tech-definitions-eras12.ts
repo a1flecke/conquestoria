@@ -88,7 +88,7 @@ const ERA_12_TECHS: Tech[] = [
     era: 12 },
   { id: '3d-printing', name: '3D Printing', track: 'metallurgy', cost: 1530,
     prerequisites: ['precision-engineering', 'megastructures'],
-    unlocks: ['Production overflow from completing a build item is added to the next item in the queue'],
+    unlocks: ['Stored production that is too much to carry over when an item finishes becomes gold at a quarter of its value'],
     era: 12 },
 
   // CONSTRUCTION (2)

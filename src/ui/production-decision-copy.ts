@@ -38,14 +38,19 @@ export function describeProductionDecision(decision: ProductionDecision | null):
   }
 
   let overflowNote: string | null = null;
-  const { excess, outcome, carryNeedsQueuedItem } = decision.overflow;
+  const { excess, outcome, waitsForNextChoice, forfeited, forfeitedGold } = decision.overflow;
   if (excess > 0 && outcome === 'discarded') {
-    overflowNote = `This city makes more than this item still needs: about ${excess} production beyond it would be lost.`
-      + (carryNeedsQueuedItem
-        ? ' 3d-printing can carry it over, but only when another item is queued behind this one.'
-        : ' Surplus normally does not carry over; the 3d-printing technology changes that when another item is queued behind.');
+    overflowNote = `This city makes more than this wonder still needs: about ${excess} production beyond it would be lost.`;
   } else if (excess > 0 && outcome === 'carried') {
-    overflowNote = `About ${excess} production beyond this item will carry over to the next queued item.`;
+    overflowNote = waitsForNextChoice
+      ? `About ${excess} production beyond this item will carry over to whatever you build next.`
+      : `About ${excess} production beyond this item will carry over to the next item in the queue.`;
+    if (forfeited > 0) {
+      overflowNote += ` Only one turn's worth can carry, so about ${forfeited} stored production will be lost`
+        + (forfeitedGold > 0
+          ? `; 3D Printing turns it into about ${forfeitedGold} gold.`
+          : '. Build something bigger to use it.');
+    }
   }
 
   return { rushNote, overflowNote, stalledNote };

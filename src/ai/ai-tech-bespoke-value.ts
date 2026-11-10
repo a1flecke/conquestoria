@@ -97,7 +97,7 @@ export const BESPOKE_TECH_EFFECTS: readonly BespokeTechEffect[] = [
   effect('fortresses', 'military', MODEST, 'lets workers build forts'),
   // Economy and production side effects applied outside the yield table.
   effect('cloud-computing', 'economy', 0.6, 'science-track techs cost 15% less'),
-  effect('3d-printing', 'economy', MAJOR, 'production overflow carries to the next queue item'),
+  effect('3d-printing', 'economy', MAJOR, 'forfeited stored production becomes gold (city-turn resolveCompletionCarry)'),
   effect('gene-therapy', 'economy', MODEST, 'completion bonus applied at unit production'),
   effect('private-spaceflight', 'economy', MODEST, 'new air units gain permanent movement'),
   effect('petroleum-industry', 'economy', MODEST, 'lets workers build oil wells'),

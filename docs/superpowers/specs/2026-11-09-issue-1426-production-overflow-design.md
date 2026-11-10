@@ -323,8 +323,8 @@ New effect: **production that cannot carry over is turned into gold at half its 
 - AI: same rule, no new AI behaviour; its bespoke value row is re-worded ("forfeited production becomes gold") and
   kept at its current weight, which is no longer dead value. It remains an era-12 prerequisite of two era-13 techs;
   its placement does not change.
-- Honest copy (`content-description-honesty.md`): the effect exists in one function, has a positive test, and the
-  audit row moves from `era-only` to effect-valued.
+- Honest copy (`content-description-honesty.md`): the effect exists in one function and has a positive test. (The
+  audit row stays `era-only`; see section 8.)
 - Accounting: the gold comes from *forfeited stored progress*, not this turn's output, so it is reported beside
   `forfeited` and must **not** be added to `convertedGold` (that would make `convertedGold` exceed the turn's yield and
   break the conservation equation).
@@ -381,6 +381,11 @@ and the panel's overflow copy false, so they move with the rule.
    accounting, 3D Printing's forfeited-production gold (25%), `getProductionDecision().overflow`,
    `production-decision-copy.ts`, the 3D Printing tech text, `ai-tech-bespoke-value.ts` rationale and the strategic
    audit row; the pinned tests updated, plus conservation, bank-bound and save-continuity regressions.
+   *Delivered with these deliberate differences from sections 7.1–7.4* (the canonical rule now lives in
+   `.claude/rules/game-balance.md`, "Production Overflow"): legendary wonders are excepted, because they complete in
+   their own system and keep nothing, and the preview says so; the rule reaches city-states too, since they run
+   `processCity`, with no change to their caps; the strategic-audit row stays `era-only` (it is a bespoke effect,
+   not a table row); and the city panel gains a line for production waiting in an empty queue.
 2. **PR 2 — AI.** Refill (or convert) a queue an AI purchase empties in the same AI turn (3.3), and AI candidate
    ETAs that count stored progress (7.5).
 3. **PR 3 — validation.** Disposition before/after on the four campaigns, `pacing-audit` and reference-economy

@@ -183,7 +183,23 @@ describe('city panel: queue-head change consequence', () => {
 });
 
 describe('city panel: overflow, estimates and conversion honesty', () => {
-  it('explains discarded surplus only when the city would actually produce more than the item needs', () => {
+  it('shows production carried over while the queue is empty, and only then (#1426)', () => {
+    const { container, city, state } = fixture();
+    city.productionQueue = [];
+    city.productionProgress = 17;
+    const waiting = createCityPanel(container, city, state, cb());
+    expect(waiting.querySelector('[data-stored-production]')!.textContent)
+      .toBe('17 production carried over is waiting and will go into the next item you build.');
+
+    city.productionProgress = 0;
+    expect(createCityPanel(container, city, state, cb()).querySelector('[data-stored-production]')).toBeNull();
+
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 17; // queued: the active item shows its own progress instead
+    expect(createCityPanel(container, city, state, cb()).querySelector('[data-stored-production]')).toBeNull();
+  });
+
+  it('explains carried surplus only when the city would actually produce more than the item needs', () => {
     const { container, city, state, production } = fixture();
     city.productionQueue = ['warrior'];
     city.productionProgress = 0;
@@ -191,14 +207,14 @@ describe('city panel: overflow, estimates and conversion honesty', () => {
     const panel = createCityPanel(container, city, state, cb());
     const note = panel.querySelector('[data-overflow-note]');
     if (production > cost) {
-      expect(note!.textContent).toContain(`about ${production - cost} production`);
-      expect(note!.textContent).toContain('3d-printing');
+      expect(note!.textContent).toContain(`About ${production - cost} production`);
+      expect(note!.textContent).toContain('will carry over to whatever you build next');
     } else {
       expect(note).toBeNull(); // no surplus => no warning
     }
   });
 
-  it('with surplus and no 3d-printing, states the real rule; with it and a queued item, says it carries', () => {
+  it('with surplus it says the surplus carries; stored progress above one turn is named as lost, with 3D Printing gold (#1426)', () => {
     const { container, city, state } = fixture();
     city.productionQueue = ['warrior', 'workshop'];
     city.productionProgress = 0;
@@ -206,16 +222,22 @@ describe('city panel: overflow, estimates and conversion honesty', () => {
     // Force a surplus by storing almost the whole cost.
     city.productionProgress = cost - 1;
 
-    const without = createCityPanel(container, city, state, cb());
-    const withoutNote = without.querySelector('[data-overflow-note]')!.textContent!;
-    expect(withoutNote).toMatch(/would be lost/);
-    expect(withoutNote).toContain('3d-printing');
-    expect(withoutNote).toContain('another item is queued');
+    const carried = createCityPanel(container, city, state, cb());
+    const carriedNote = carried.querySelector('[data-overflow-note]')!.textContent!;
+    expect(carriedNote).toContain('will carry over to the next item in the queue');
+    expect(carriedNote).not.toMatch(/lost/);
 
+    // Stored well beyond the item: the one-turn cap forfeits it. Without 3D Printing the note says how to use it ...
+    city.productionProgress = cost + 25;
+    const forfeit = createCityPanel(container, city, state, cb()).querySelector('[data-overflow-note]')!.textContent!;
+    expect(forfeit).toContain('about 25 stored production will be lost');
+    expect(forfeit).toContain('Build something bigger');
+
+    // ... and with it, names the gold.
     state.civilizations[state.currentPlayer].techState.completed.push('3d-printing');
-    city.productionProgress = getProductionCostForCivItem(state, state.currentPlayer, city.id, 'warrior') - 1;
+    city.productionProgress = getProductionCostForCivItem(state, state.currentPlayer, city.id, 'warrior') + 25;
     const withTech = createCityPanel(container, city, state, cb());
-    expect(withTech.querySelector('[data-overflow-note]')!.textContent).toMatch(/will carry over to the next queued item/);
+    expect(withTech.querySelector('[data-overflow-note]')!.textContent).toContain('3D Printing turns it into about 6 gold');
   });
 
   it('labels turns remaining as an estimate and never shows an ETA for a locked city', () => {

@@ -159,34 +159,44 @@ describe('overflow and conversion: what the panel says matches the emitted produ
     return { next: processTurn(structuredClone(state), bus), events };
   }
 
-  it('every emitted disposition conserves output, and the overflow note never over-states the real loss', () => {
+  it('every emitted disposition conserves output, and the carry the note promises is what the turn carries (#1426)', () => {
     const { state, city } = game('pt-overflow');
     city.productionQueue = ['warrior', 'workshop'];
     city.productionProgress = cost(state, 'warrior'); // already covered: the whole turn's output is surplus
     const panel = render(state);
     const decision = getProductionDecision(state, 'player', CITY, { productionPerTurn: production(state) })!;
-    expect(decision.overflow.outcome).toBe('discarded');
-    expect(panel.querySelector('[data-overflow-note]')!.textContent).toContain(`about ${decision.overflow.excess} production`);
+    expect(decision.overflow.outcome).toBe('carried');
+    expect(panel.querySelector('[data-overflow-note]')!.textContent).toContain(`About ${decision.overflow.excess} production`);
+    expect(panel.querySelector('[data-overflow-note]')!.textContent).toContain('will carry over to the next item in the queue');
 
-    const { events } = runTurnCollecting(state);
+    const { next, events } = runTurnCollecting(state);
     expect(events).toHaveLength(1);
     const e = events[0]!;
     expect(e.appliedToBuild + e.carriedOver + e.convertedGold + e.convertedScience + e.discarded).toBe(e.produced);
-    // The real turn produces at least what the panel projected, so the real loss is at least the stated one.
-    expect(e.discarded).toBeGreaterThanOrEqual(decision.overflow.excess);
+    expect(e.discarded).toBe(0);
+    // The real turn produces at least what the panel projected, so it carries at least the stated amount.
+    expect(e.carriedOver).toBeGreaterThanOrEqual(decision.overflow.excess);
+    expect(next.cities[CITY]!.productionProgress).toBe(e.carriedOver);
   });
 
-  it('with 3d-printing and a queued item the note says it carries, and the real accounting carries it', () => {
-    const { state, city } = game('pt-carry');
+  it('stored progress above one turn: the note names the exact loss and the 3D Printing gold the turn pays', () => {
+    const { state, city } = game('pt-forfeit');
     state.civilizations.player.techState.completed.push('3d-printing');
     city.productionQueue = ['warrior', 'workshop'];
-    city.productionProgress = cost(state, 'warrior');
-    const panel = render(state);
-    expect(panel.querySelector('[data-overflow-note]')!.textContent).toMatch(/will carry over to the next queued item/);
+    city.productionProgress = cost(state, 'warrior') + 40; // 40 stored beyond the item: forfeited whatever the yield
+    const note = render(state).querySelector('[data-overflow-note]')!.textContent!;
+    expect(note).toContain('about 40 stored production will be lost');
+    expect(note).toContain('3D Printing turns it into about 10 gold');
 
-    const { events } = runTurnCollecting(state);
-    expect(events[0]!.carriedOver).toBeGreaterThan(0);
-    expect(events[0]!.discarded).toBe(0);
+    const goldBefore = state.civilizations.player.gold;
+    const { next, events } = runTurnCollecting(state);
+    expect(events[0]!).toMatchObject({ forfeitedStored: 40, forfeitedGold: 10, discarded: 0 });
+    // The gold is really credited (it is folded into the turn's income, so compare against a run without the tech).
+    const control = structuredClone(state);
+    control.civilizations.player.techState.completed = control.civilizations.player.techState.completed.filter(t => t !== '3d-printing');
+    const controlNext = runTurnCollecting(control).next;
+    expect(next.civilizations.player.gold - controlNext.civilizations.player.gold).toBe(10);
+    expect(goldBefore).toBe(state.civilizations.player.gold);
   });
 
   it('idle conversion: paused wording while queued matches no conversion; empty queue converts', () => {
