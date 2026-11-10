@@ -1,4 +1,4 @@
-import type { GameState, PersonalityTraits, TrainableUnitEntry } from '@/core/types';
+import type { City, GameState, PersonalityTraits, TrainableUnitEntry, UnitType } from '@/core/types';
 import type { AIStrategicRole } from '@/core/types/ai';
 import {
   BUILDINGS,
@@ -609,6 +609,13 @@ function generateWithResidual(
     1,
     calculateProjectedCityYields(state, cityId, civDefinition?.bonusEffect).production,
   );
+  // #1426: an item enqueued into an empty queue starts from the city's stored progress (production carried over from
+  // its last completion), so its estimate counts it. With a queue, a candidate would not become the head, so it does not.
+  const storedProgress = state.cities[cityId]?.productionQueue.length === 0
+    ? Math.max(0, state.cities[cityId]?.productionProgress ?? 0)
+    : 0;
+  const turnsToBuild = (cost: number): number =>
+    Math.max(1, Math.ceil(Math.max(0, cost - storedProgress) / productionPerTurn));
   // #1069: computed once per city-scoring call and reused across every building candidate below,
   // instead of each candidate independently re-deriving the whole civ's projected research
   // output from scratch. See docs/superpowers/specs/2026-09-15-issue-1069-ai-round-perf-design.md §5.
@@ -667,7 +674,7 @@ function generateWithResidual(
     );
     if (!reserveAllows(state, civId, maintenanceImpact, emergency, 0)) continue;
     const cost = getContextualProductionCost(unit.type, productionCostContext);
-    const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
+    const productionTurns = turnsToBuild(cost);
     const roleDemandScore = fulfilled.missing * 40 + fulfilled.priority / 5;
     const emergencyDefenseScore = emergency ? 10 : 0;
     const personalityScore = weightProductionRoles(personality, roles, posture);
@@ -737,7 +744,7 @@ function generateWithResidual(
       const maintenanceImpact = projectedUnitMaintenanceImpact(state, civId, cityId, 'missionary');
       if (reserveAllows(state, civId, maintenanceImpact, false, 1)) {
         const cost = getContextualProductionCost('missionary', productionCostContext);
-        const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
+        const productionTurns = turnsToBuild(cost);
         const personalityScore = weightProductionRoles(personality, ['missionary'], posture);
         // Fervor-boon civs weight missionaries higher — their faith already spreads/
         // converts faster, so each additional missionary compounds more value.
@@ -785,7 +792,7 @@ function generateWithResidual(
     );
     if (!reserveAllows(state, civId, maintenanceImpact, false, economyScore)) continue;
     const cost = getContextualProductionCost(building.id, productionCostContext);
-    const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
+    const productionTurns = turnsToBuild(cost);
     const personalityScore = weightProductionRoles(personality, [], posture);
     const citySpecializationScore = building.category === city.focus ? 1 : 0;
     const maintenanceRisk = maintenanceImpact;
@@ -912,21 +919,17 @@ export interface AIProductionReport {
 }
 
 /**
- * `applyAIProduction` plus what it decided for cities it did not enqueue. A city with a candidate is queued
- * exactly as before; a city with NO candidate converts its output via `idleProduction` instead of wasting it
- * (an existing mode is dormant while a queue is active, since `processCity` only credits it on an empty queue).
+ * The one queue-empty city pass: each city in `idle` gets its best candidate through the canonical
+ * `enqueueCityProduction`, or idle conversion when it has none. Shared by the round's production pass and by the
+ * refill after an AI purchase empties a queue (#1688), so both decide the same way.
  */
-export function applyAIProductionWithReport(
+function fillEmptyAIQueues(
   state: GameState,
   civId: string,
-  demands: readonly AIForceDemand[],
+  idle: readonly City[],
+  residual: AIForceDemand[],
   personality: PersonalityTraits,
-): { state: GameState; report: AIProductionReport } {
-  const civ = state.civilizations[civId];
-  if (!civ) return { state, report: { converted: {}, enqueueRefused: [], replacedWaiting: [] } };
-  const residual = residualDemands(state, civId, demands);
-  const idle = getOwnedCities(state, civId)
-    .filter(city => city.productionQueue.length === 0);
+): { state: GameState; converted: Record<string, AIIdleProductionMode>; enqueueRefused: string[] } {
   // The comparator used to call generateWithResidual TWICE per comparison -- O(n log n)
   // full candidate generations per civ per round, each one costing a city-yield
   // projection. Precomputing is provably order-identical: the comparator already read
@@ -950,7 +953,6 @@ export function applyAIProductionWithReport(
   let idleMode: AIIdleProductionMode | undefined;
   const converted: Record<string, AIIdleProductionMode> = {};
   const enqueueRefused: string[] = [];
-  const replacedWaiting: AIReplacedWaiting[] = [];
 
   for (const city of idleCities) {
     const current = nextState.cities[city.id];
@@ -986,6 +988,66 @@ export function applyAIProductionWithReport(
       if (fulfilled) fulfilled.missing = Math.max(0, fulfilled.missing - 1);
     }
   }
+  return { state: nextState, converted, enqueueRefused };
+}
+
+export interface AIPurchaseEmptiedQueue {
+  readonly cityId: string;
+  /** The item the purchase completed (the queue's former head). */
+  readonly purchasedItemId: string;
+}
+
+/**
+ * #1688: the AI spends gold after it queues production, and its queues hold one item, so a purchase completes
+ * the only item and leaves the queue empty -- `processCity` would then discard that city's whole output for the
+ * round. This refills exactly the cities named (those a purchase emptied this turn) through the same pass the
+ * round's production uses, against the post-purchase state. The turn's demands were prepared before the
+ * purchase, so each bought unit is counted against its role first, exactly as a queued unit would be; otherwise
+ * the refill would queue a second unit for a demand the purchase already met. A city that is no longer this
+ * civ's, or whose queue is not empty, is left alone. AI-only: no human queue and no `processCity` rule changes.
+ */
+export function refillAIQueuesEmptiedByPurchase(
+  state: GameState,
+  civId: string,
+  emptied: readonly AIPurchaseEmptiedQueue[],
+  demands: readonly AIForceDemand[],
+  personality: PersonalityTraits,
+): GameState {
+  if (emptied.length === 0 || !state.civilizations[civId]) return state;
+  const idle = emptied
+    .map(entry => state.cities[entry.cityId])
+    .filter((city): city is City => city != null && city.owner === civId && city.productionQueue.length === 0);
+  if (idle.length === 0) return state;
+  const residual = residualDemands(state, civId, demands);
+  for (const { purchasedItemId } of emptied) {
+    if (!Object.prototype.hasOwnProperty.call(UNIT_DEFINITIONS, purchasedItemId)) continue;
+    const matching = matchingDemand(getAIStrategicRoles(purchasedItemId as UnitType), residual);
+    if (matching) matching.missing -= 1;
+  }
+  return fillEmptyAIQueues(state, civId, idle, residual, personality).state;
+}
+
+/**
+ * `applyAIProduction` plus what it decided for cities it did not enqueue. A city with a candidate is queued
+ * exactly as before; a city with NO candidate converts its output via `idleProduction` instead of wasting it
+ * (an existing mode is dormant while a queue is active, since `processCity` only credits it on an empty queue).
+ */
+export function applyAIProductionWithReport(
+  state: GameState,
+  civId: string,
+  demands: readonly AIForceDemand[],
+  personality: PersonalityTraits,
+): { state: GameState; report: AIProductionReport } {
+  const civ = state.civilizations[civId];
+  if (!civ) return { state, report: { converted: {}, enqueueRefused: [], replacedWaiting: [] } };
+  const residual = residualDemands(state, civId, demands);
+  const idle = getOwnedCities(state, civId)
+    .filter(city => city.productionQueue.length === 0);
+  const filled = fillEmptyAIQueues(state, civId, idle, residual, personality);
+  let nextState = filled.state;
+  const converted: Record<string, AIIdleProductionMode> = filled.converted;
+  const enqueueRefused: string[] = filled.enqueueRefused;
+  const replacedWaiting: AIReplacedWaiting[] = [];
 
   // #1506 MR09 task 10: an AI city already waiting on materials is reconsidered every round. Keep
   // invested work only when a pure next-resource-phase projection funds the whole recipe; otherwise
