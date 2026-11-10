@@ -34,15 +34,15 @@ Remove the button and the response-window busywork while keeping the reveal:
 
 ### Trigger
 
-At the point `processEspionageTurn` traces newly confirmed incidents:
+At the end of `processEspionageTurn`, for each victim:
 
 1. Emit the existing `espionage:incident-traced` event once per newly traced incident.
-2. If the victim is human, immediately call the canonical `goPublicAboutIncident` executor for each traced incident.
-3. Process **every** traced incident; do not stop after the first success.
+2. If the victim is human, immediately call `autoExposeConfirmedIncidents(state, victimId)`, which scans the victim's ledger for every incident with `tracedTurn` set and `usedTurn` unset.
+3. Process **every** eligible incident; do not stop after the first success.
 4. Emit one `espionage:went-public` event for each successful exposure.
 5. If the executor refuses (`no-partners`), leave the incident unresolved and continue.
 
-AI victims are not auto-exposed by this path. Their existing `applyAiGoPublic` turn-time behavior is unchanged.
+Scanning the ledger rather than only the newly traced list also resolves incidents that were confirmed when they landed (evidence already present) and unused incidents in legacy saves. AI victims are not auto-exposed by this path. Their existing `applyAiGoPublic` turn-time behavior is unchanged.
 
 ### Eligibility
 
@@ -109,7 +109,7 @@ The section header copy must no longer describe a player action.
 
 | Location | Change |
 |---|---|
-| `src/systems/espionage-counterintel.ts` | Add `autoExposeTracedIncidents(state, victimId, traced)` that calls `goPublicAboutIncident` for each traced incident and returns the new state plus successful exposures. No event emission here. |
+| `src/systems/espionage-counterintel.ts` | Add `autoExposeConfirmedIncidents(state, victimId)` that scans the victim's traced, unused incidents, calls `goPublicAboutIncident` for each, and returns the new state plus successful exposures. No event emission here. |
 | `src/systems/espionage-turn.ts` | After emitting `incident-traced`, call the helper for human victims and emit `espionage:went-public` per success. |
 | `src/ui/notification-routes/espionage-routes.ts` | Update the `incident-traced` copy; remove the “Go public” instruction. |
 | `src/presentation/register-espionage-presentation.ts` | Route `incident-traced` through `ctx.notifier.log`. |
@@ -122,6 +122,8 @@ The section header copy must no longer describe a player action.
 ## Edge cases
 
 - **Multiple confirmed incidents in one turn:** all are exposed; one `went-public` event each.
+- **Incident already confirmed when it landed:** the ledger scan finds it even though no new `incident-traced` event fires.
+- **Legacy traced incident with no `usedTurn`:** auto-exposed on the next human turn.
 - **No eligible partners:** no exposure, no event, ledger record preserved; panel shows the no-partner line.
 - **Already used:** executor refuses; automation continues to other incidents.
 - **Eliminated victim:** skip; do not auto-expose or emit.
@@ -137,10 +139,11 @@ Add or update regressions proving:
 2. Two confirmed incidents in one turn produce two exposures and two events.
 3. A confirmed incident with no eligible partners produces no exposure and no event, and the record remains.
 4. An AI victim is not auto-exposed by the human path.
-5. `incident-traced` is log-only and no longer contains the “Go public” instruction.
-6. `went-public` still reaches the victim, culprit, and partners through the existing audience contract.
-7. The panel renders the read-only resolution line and exposes no Go-public action.
-8. The removed preview/button tests are deleted rather than skipped.
+5. An incident confirmed at landing (no new trace event) is still auto-exposed by the ledger scan.
+6. `incident-traced` is log-only and no longer contains the “Go public” instruction.
+7. `went-public` still reaches the victim, culprit, and partners through the existing audience contract.
+8. The panel renders the read-only resolution line and exposes no Go-public action.
+9. The removed preview/button tests are deleted rather than skipped.
 
 ## Verification
 
