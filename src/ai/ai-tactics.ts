@@ -21,7 +21,7 @@ import {
 } from '@/systems/combat-system';
 import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitOccupyCity, resolveMajorCityCapture } from '@/systems/city-capture-system';
-import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
+import { calculateCityAssaultStrengths, getCityOwnerBonus } from '@/systems/city-siege-system';
 import { resolveCityInteraction } from '@/systems/city-interaction';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { isCityCoastal } from '@/systems/city-lifecycle';
@@ -430,8 +430,9 @@ function rankBombardment(
     if (!canUnitOccupyCity(candidate)) continue;
     if (distance(context.state, candidate.position, city.position) > AI_BOMBARDMENT_FOLLOWUP_RADIUS) continue;
 
-    const before = calculateCityAssaultStrengths(candidate, city, techs, context.state.map).winProbability;
-    const after = calculateCityAssaultStrengths(candidate, damagedCity, techs, context.state.map).winProbability;
+    const assaultOptions = { defenderBonus: getCityOwnerBonus(context.state, city) };
+    const before = calculateCityAssaultStrengths(candidate, city, techs, context.state.map, assaultOptions).winProbability;
+    const after = calculateCityAssaultStrengths(candidate, damagedCity, techs, context.state.map, assaultOptions).winProbability;
     bestGain = Math.max(bestGain, after - before);
   }
   // Baseline keeps a follow-up-less bombardment as a real but low-ranked candidate; the
@@ -757,7 +758,9 @@ function rankCapture(
   // option still attempts it.
   const ownerCiv = context.state.civilizations[city.owner];
   const winProbability = ownerCiv
-    ? calculateCityAssaultStrengths(unit, city, ownerCiv.techState.completed ?? [], context.state.map).winProbability
+    ? calculateCityAssaultStrengths(unit, city, ownerCiv.techState.completed ?? [], context.state.map, {
+        defenderBonus: getCityOwnerBonus(context.state, city),
+      }).winProbability
     : 1;
   return [ranked({ kind: 'capture-city', unitId: unit.id, cityId: city.id }, Math.round(winProbability * 600))];
 }

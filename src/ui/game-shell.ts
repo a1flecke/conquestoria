@@ -56,10 +56,38 @@ function trackBottomBarLayout(
   };
 }
 
+/**
+ * Publishes the measured height of the HUD and of the utility toolbar as CSS variables, so the toolbar sits below
+ * the HUD and the toasts below the toolbar whatever either wraps to. Before this the three were stacked at fixed
+ * offsets and overlapped on a phone (#1692 B1/B2).
+ */
+function trackTopLayout(container: HTMLElement, hud: HTMLElement, utilityToolbar: HTMLElement): () => void {
+  const sync = () => {
+    const hudHeight = Math.ceil(hud.getBoundingClientRect().height);
+    const toolbarHeight = Math.ceil(utilityToolbar.getBoundingClientRect().height);
+    // A detached or unlaid-out shell (tests, first paint) measures 0: keep the CSS fallbacks then.
+    if (hudHeight > 0) container.style.setProperty('--hud-height', `${Math.max(60, hudHeight)}px`);
+    if (toolbarHeight > 0) container.style.setProperty('--utility-toolbar-height', `${toolbarHeight}px`);
+  };
+
+  sync();
+  window.addEventListener('resize', sync);
+  const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(sync);
+  observer?.observe(hud);
+  observer?.observe(utilityToolbar);
+
+  return () => {
+    window.removeEventListener('resize', sync);
+    observer?.disconnect();
+  };
+}
+
 function createHud(): HTMLDivElement {
   const hud = document.createElement('div');
   hud.id = 'hud';
-  hud.style.cssText = 'position:absolute;top:0;left:0;right:0;min-height:60px;padding:8px 12px;background:rgba(0,0,0,0.6);display:flex;justify-content:space-between;align-items:center;font-size:13px;z-index:10;';
+  // Wraps: on a phone the status line, the yields and the turn line each need their own row (#1692 B1). The
+  // toolbar and the toasts sit below whatever height this ends up (trackTopLayout).
+  hud.style.cssText = 'position:absolute;top:0;left:0;right:0;min-height:60px;box-sizing:border-box;padding:8px 12px;background:rgba(0,0,0,0.6);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:2px 12px;font-size:13px;z-index:10;';
   return hud;
 }
 
@@ -95,7 +123,7 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
 
   const utilityToolbar = document.createElement('div');
   utilityToolbar.id = 'utility-toolbar';
-  utilityToolbar.style.cssText = 'position:absolute;top:60px;right:12px;z-index:21;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 24px);';
+  utilityToolbar.style.cssText = 'position:absolute;top:var(--hud-height, 60px);right:12px;z-index:21;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 24px);';
 
   const nextUnitButton = createFloatingButton('btn-next-unit', '⏩', 'Select next unmoved unit', callbacks.onNextUnit);
   nextUnitButton.style.display = 'none';
@@ -129,7 +157,7 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
 
   const notificationArea = document.createElement('div');
   notificationArea.id = 'notifications';
-  notificationArea.style.cssText = 'position:absolute;top:64px;left:12px;right:80px;z-index:20;display:flex;flex-direction:column;gap:8px;';
+  notificationArea.style.cssText = 'position:absolute;top:calc(var(--hud-height, 60px) + var(--utility-toolbar-height, 44px) + 8px);left:12px;right:12px;z-index:20;display:flex;flex-direction:column;gap:8px;pointer-events:none;';
   shell.appendChild(notificationArea);
 
   const infoPanel = document.createElement('div');
@@ -139,6 +167,8 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
   shell.appendChild(infoPanel);
 
   container.appendChild(shell);
-  stopBottomBarLayoutTracking = trackBottomBarLayout(container, bottomBar, callbacks.onBottomBarHeightChange);
+  const stopBottomBar = trackBottomBarLayout(container, bottomBar, callbacks.onBottomBarHeightChange);
+  const stopTop = trackTopLayout(container, shell.querySelector<HTMLElement>('#hud')!, utilityToolbar);
+  stopBottomBarLayoutTracking = () => { stopBottomBar(); stopTop(); };
   return shell;
 }

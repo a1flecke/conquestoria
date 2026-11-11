@@ -33,7 +33,7 @@ export const CUSTOM_CIV_PRIMARY_TRAITS: CustomCivPrimaryTraitMetadata[] = [
     description: 'Project power and scouting reach along the coast.',
     bonusName: 'Sea Dominion',
     bonusDescription: 'Coastal cities see farther and support stronger fleets.',
-    bonusEffect: { type: 'naval_bonus', visionBonus: 1 },
+    bonusEffect: { type: 'naval_bonus', visionBonus: 1, navalCombatBonus: 0.1 },
     personalityBase: { warLikelihood: 0.4, diplomacyFocus: 0.45, expansionDrive: 0.65 },
   },
   {

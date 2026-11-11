@@ -270,12 +270,20 @@ export function calculateCombatStrengths(
     isRiverBetween(map, attacker.position, defender.position),
   );
   let attackerStrength = getUnitCombatStrength(attacker)
-    * (attacker.health / 100)
+    * getHealthStrengthFactor(attacker, context?.attackerBonus)
     * (1 + getVeterancyCombatModifier(attacker))
     * (1 + riverAttackPenalty);
   let defenderStrength = getUnitCombatStrength(defender)
-    * (defender.health / 100)
+    * getHealthStrengthFactor(defender, context?.defenderBonus)
     * (1 + getVeterancyCombatModifier(defender));
+  // England "Rule Britannia" / the custom Naval Supremacy trait (#1692 A6): warships fight harder on both sides
+  // of an exchange.
+  if (context?.attackerBonus?.type === 'naval_bonus' && attackerDefinition.domain === 'naval') {
+    attackerStrength *= 1 + context.attackerBonus.navalCombatBonus;
+  }
+  if (context?.defenderBonus?.type === 'naval_bonus' && defenderDefinition.domain === 'naval') {
+    defenderStrength *= 1 + context.defenderBonus.navalCombatBonus;
+  }
 
   attackerStrength *= context?.attackerPositioningMultiplier ?? 1;
   attackerStrength *= context?.attackerAmphibiousMultiplier ?? 1;
@@ -365,6 +373,18 @@ export function calculateCombatStrengths(
     defenderDefendsPoorly: defendsPoorly(defenderDefinition.attackProfile),
     exchange: getCombatExchangeModifiers(attacker, defender),
   };
+}
+
+/** Below this health a Bushido unit stops losing strength to its wounds (#1692 A8). */
+export const BUSHIDO_HEALTH_THRESHOLD = 50;
+
+/**
+ * How much of its strength a wounded unit fights with. Japan "Bushido": below half health a unit fights as if
+ * unhurt. Everyone else scales linearly with health, as before.
+ */
+export function getHealthStrengthFactor(unit: Pick<Unit, 'health'>, bonus: CivBonusEffect | undefined): number {
+  if (bonus?.type === 'bushido' && unit.health < BUSHIDO_HEALTH_THRESHOLD) return 1;
+  return unit.health / 100;
 }
 
 function canCounterAttackAtDistance(defender: Unit, distance: number): boolean {

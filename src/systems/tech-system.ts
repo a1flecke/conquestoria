@@ -89,6 +89,27 @@ export function processResearch(state: TechState, sciencePoints: number): Resear
   };
 }
 
+/**
+ * Babylon "Cradle of Knowledge" (#1692 A3): completes one technology outright. The choice is deterministic and
+ * modest: the cheapest technology whose prerequisites are met and that is not the one being researched (ties by
+ * id), so current research and its progress are never disturbed. Returns the unchanged state when nothing is
+ * available.
+ */
+export function grantFreeTech(state: TechState): { state: TechState; grantedTech: string | null } {
+  const candidate = getAvailableTechs(state)
+    .slice()
+    .sort((a, b) => getEffectiveTechCost(a, state.completed) - getEffectiveTechCost(b, state.completed) || a.id.localeCompare(b.id))[0];
+  if (!candidate) return { state, grantedTech: null };
+  return {
+    state: {
+      ...state,
+      completed: [...state.completed, candidate.id],
+      researchQueue: state.researchQueue.filter(id => id !== candidate.id),
+    },
+    grantedTech: candidate.id,
+  };
+}
+
 export function isTechCompleted(state: TechState, techId: string): boolean {
   return state.completed.includes(techId);
 }

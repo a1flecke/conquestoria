@@ -1,7 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState, HexCoord } from '@/core/types';
 import type { VillageOutcomeType } from '@/core/types/world';
-import { updateVisibility } from '@/systems/fog-of-war';
+import { getCivCityVisionBonus, updateVisibility } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { getVisionBonus } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
@@ -205,6 +205,7 @@ export function executeValidatedUnitMove(
     nextState.map,
     getCivCityPositions(nextState, options.civId),
     unit => getVisionBonus(unit.type, movementCompletedTechs, movementActiveNPs),
+    getCivCityVisionBonus(nextState, options.civId),
   );
   nextState = {
     ...nextState,

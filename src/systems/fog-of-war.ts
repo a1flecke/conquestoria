@@ -42,6 +42,31 @@ function visibilityDistance(a: HexCoord, b: HexCoord, map: GameMap): number {
   return map.wrapsHorizontally ? wrappedHexDistance(a, b, map.width) : hexDistance(a, b);
 }
 
+const CITY_VISION_RANGE = 2;
+
+/**
+ * The civilization bonus to a city's own sight (#1692 A6): England "Rule Britannia" and the custom Naval Supremacy
+ * trait see farther from coastal cities. Returns undefined for every other civilization, so callers pay nothing.
+ * Every `updateVisibility` caller that passes city positions passes this too.
+ */
+export function getCivCityVisionBonus(
+  state: GameState,
+  civId: string,
+): ((cityPosition: HexCoord) => number) | undefined {
+  const bonus = resolveCivDefinition(state, state.civilizations[civId]?.civType ?? '')?.bonusEffect;
+  if (bonus?.type !== 'naval_bonus' || bonus.visionBonus <= 0) return undefined;
+  const map = state.map;
+  return (cityPosition) => {
+    const center = canonicalVisibilityCoord(cityPosition, map);
+    const neighbors = map.wrapsHorizontally ? getWrappedHexNeighbors(center, map.width) : hexNeighbors(center);
+    const coastal = neighbors.some(coord => {
+      const terrain = map.tiles[hexKey(coord)]?.terrain;
+      return terrain === 'ocean' || terrain === 'coast';
+    });
+    return coastal ? bonus.visionBonus : 0;
+  };
+}
+
 /**
  * Recalculates visibility for a player based on their units and cities.
  * Pure: returns a new `VisibilityMap` plus newly revealed tiles (were
@@ -53,6 +78,7 @@ export function updateVisibility(
   map: GameMap,
   cityPositions: HexCoord[] = [],
   getVisionBonus?: (unit: Unit) => number,
+  getCityVisionBonus?: (cityPosition: HexCoord) => number,
 ): { visibility: VisibilityMap; newlyRevealed: HexCoord[] } {
   // Downgrade all 'visible' to 'fog' into a fresh tiles object.
   const tiles: VisibilityMap['tiles'] = {};
@@ -96,7 +122,11 @@ export function updateVisibility(
 
   // Reveal around each city (vision range 2)
   for (const cityPos of cityPositions) {
-    const visible = getVisibilityRange(canonicalVisibilityCoord(cityPos, map), 2, map);
+    const visible = getVisibilityRange(
+      canonicalVisibilityCoord(cityPos, map),
+      CITY_VISION_RANGE + (getCityVisionBonus ? getCityVisionBonus(cityPos) : 0),
+      map,
+    );
     for (const coord of visible) {
       revealTile(coord);
     }

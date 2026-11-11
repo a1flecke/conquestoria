@@ -156,5 +156,10 @@ export function calculateCityYields(
     yields.food += Math.floor(yields.science / 3);
   }
 
+  // Germany "Industrial Powerhouse" (#1692 A11): a percentage of the city's whole production, applied last.
+  if (bonusEffect?.type === 'industrial_efficiency') {
+    yields.production = Math.round(yields.production * (1 + bonusEffect.productionBonus));
+  }
+
   return yields;
 }

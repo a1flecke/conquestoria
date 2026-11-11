@@ -39,6 +39,7 @@ import {
   calculateCityAssaultStrengths,
   getCityCounterFireDamage,
   resolveCityAssault,
+  getCityOwnerBonus,
 } from '@/systems/city-siege-system';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { isCityBreachedBy } from '@/systems/city-breach';
@@ -342,6 +343,7 @@ export function beginMajorCityAssault(
       const assaultSeed = Math.floor(createSimulationRng(state, { domain: 'city-assault-resolve', actorId: attackerId, targetId: cityId })() * 2147483647);
       const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv.techState.completed ?? [], state.map, {
         attackerMultiplier: options.attackerMultiplier,
+        defenderBonus: getCityOwnerBonus(state, city),
       });
       // #939: open walls (a Siegemaster's Breach) do not answer the breaching civ's assault.
       const counterFireDamage = isCityBreachedBy(city, attacker.owner) ? 0 : getCityCounterFireDamage(

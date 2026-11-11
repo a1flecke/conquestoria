@@ -742,7 +742,7 @@ describe('#1008 — city-system decomposition boundaries', () => {
       'BUILDINGS', 'TRAINABLE_UNITS', 'TERMINAL_COMBAT_UNITS', 'MELEE_RANGED_UNIT_TYPES',
       'ERA_1_2_MELEE_UNIT_TYPES', 'LOCAL_INFRASTRUCTURE_BUILDINGS', 'getLocalCityHealingBonus',
       'CITY_NAMES', 'foundCity', 'isPositionCoastal', 'isCityCoastal', 'civHasCoastalCity',
-      'razeForestForProduction', 'getAvailableBuildings', 'getTrainableUnitsForCiv',
+      'getAvailableBuildings', 'getTrainableUnitsForCiv',
       'getTrainableUnitsForCity', 'isBuildingObsolete', 'isUnitObsolete', 'cityFollowsOwnFaith',
       'getDetectionUnitTypeForCiv', 'SETTLER_COST_BY_ERA', 'getSettlerProductionCost',
       'getCatalogProductionCost', 'getProductionCostForItem', 'createProductionCostContext',

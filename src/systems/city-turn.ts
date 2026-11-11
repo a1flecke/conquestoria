@@ -1,4 +1,4 @@
-import type { City, DroppedProductionItem, GameMap, ProductionDropReason, UnitType } from '@/core/types';
+import type { City, CivBonusEffect, DroppedProductionItem, GameMap, ProductionDropReason, UnitType } from '@/core/types';
 import { BUILDINGS } from './city-building-catalog';
 import { TRAINABLE_UNITS } from './city-unit-catalog';
 import { getTrainableUnitsForCiv, isBuildingObsolete, isUnitObsolete } from './city-availability';
@@ -166,6 +166,15 @@ export function completeCityProductionItem(
 }
 
 /**
+ * The food a city must bank to grow. India "Subcontinent" (#1692 A9) needs less; `city.foodNeeded` stays the
+ * unreduced base so a captured city simply uses its new owner's rule.
+ */
+export function getCityGrowthThreshold(city: Pick<City, 'foodNeeded'>, bonusEffect: CivBonusEffect | undefined): number {
+  if (bonusEffect?.type !== 'faster_growth') return city.foodNeeded;
+  return Math.max(1, Math.floor(city.foodNeeded * bonusEffect.foodReduction));
+}
+
+/**
  * #984: the cost inputs arrive as one `ProductionCostContext` rather than seven
  * positional arguments. `era`, `completedTechs` and `availableResources` are
  * read back out of it for queue eligibility too, so the threshold this function
@@ -198,9 +207,10 @@ export function processCity(
   let newPop = city.population;
   let newFoodNeeded = city.foodNeeded;
 
-  if (newFood >= city.foodNeeded) {
+  const growthThreshold = getCityGrowthThreshold(city, productionCost.bonusEffect);
+  if (newFood >= growthThreshold) {
     newPop++;
-    newFood -= city.foodNeeded;
+    newFood -= growthThreshold;
     newFoodNeeded = Math.floor(city.foodNeeded * 1.3);
     grew = true;
   }

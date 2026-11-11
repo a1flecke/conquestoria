@@ -26,10 +26,11 @@ import { resolveBoundedSplash } from '@/systems/combat-system';
 import { recordCampPressureFromCombatOutcome } from '@/systems/barbarian-pressure';
 import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { resolveRogueElephantHostHandlerDeaths } from '@/systems/rogue-elephant-host-system';
-import { hexKey } from '@/systems/hex-utils';
+import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { recordBeastSlain, type BeastSlainPayload } from '@/systems/beast-system';
 import { normalizedExperience } from '@/systems/veterancy-tiers';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 import { appendLegendaryWonderMilitaryFacts } from '@/systems/legendary-wonder-history';
 import { getFortificationTier } from '@/systems/fortification-system';
 import {
@@ -407,6 +408,32 @@ function recordGeneralCareerCombatEvents(
   return out;
 }
 
+/**
+ * Aztec "Flower Wars" (#1692 A7): a victory adds production to the victor's city nearest the fight. Stored
+ * progress, so it is subject to the ordinary one-turn carry cap when an item completes (#1426).
+ */
+function applyCombatVictoryProduction(state: GameState, victorCivId: string, position: Unit['position']): GameState {
+  const victor = state.civilizations[victorCivId];
+  if (!victor) return state;
+  const bonus = resolveCivDefinition(state, victor.civType ?? '')?.bonusEffect;
+  if (bonus?.type !== 'combat_production' || bonus.productionBonus <= 0) return state;
+  let nearest: { id: string; distance: number } | undefined;
+  for (const cityId of [...victor.cities].sort()) {
+    const city = state.cities[cityId];
+    if (!city || city.owner !== victorCivId) continue;
+    const distance = state.map?.wrapsHorizontally
+      ? wrappedHexDistance(city.position, position, state.map.width)
+      : hexDistance(city.position, position);
+    if (!nearest || distance < nearest.distance) nearest = { id: cityId, distance };
+  }
+  if (!nearest) return state;
+  const city = state.cities[nearest.id]!;
+  return {
+    ...state,
+    cities: { ...state.cities, [city.id]: { ...city, productionProgress: city.productionProgress + bonus.productionBonus } },
+  };
+}
+
 export function applyCombatOutcomeToState(
   state: GameState,
   result: CombatResult,
@@ -782,6 +809,11 @@ export function applyCombatOutcomeToState(
       campDestroyed = { campId: camp.campId, reward: camp.reward };
     }
   }
+
+  // #1692 A7: Aztec "Flower Wars". A consequence of the kill, so it lives here for every executor (player, AI,
+  // defender winning on its own turf). Captures do not count: nothing was defeated.
+  if (defenderActuallyDefeated) nextState = applyCombatVictoryProduction(nextState, attackerBefore.owner, defenderBefore.position);
+  if (attackerActuallyDefeated) nextState = applyCombatVictoryProduction(nextState, defenderBefore.owner, attackerBefore.position);
 
   // #1200: idle-pressure bookkeeping (`lastCombatTurnByLandmass` feeds the pirate/threat pressure score) is
   // per MAJOR civ in the fight, attacker and defender alike -- not just whoever happened to be the executor's

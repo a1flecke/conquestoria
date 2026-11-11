@@ -50,6 +50,9 @@ Movement bonuses are the most easily broken stat — small integers stack to pro
 | `military-logistics` tech | tech | all land units | road entry cost 1 → 0.5 (not additive +N) | era 4+ |
 | `railway-expansion` tech | tech | all land units | road entry cost 1 → 0.5 (not additive +N; does not stack with Military Logistics) | era 7+ |
 | `gps-navigation` tech | tech | land units in own territory | ignores hills/forest extra cost (terrain cost 1) | era 12+ |
+| Mongolia `mounted_movement` civ bonus (also the custom Expansionist trait) | civ bonus | mounted land units of that civ only | +1 move, baked in at unit creation | whole game |
+
+**Mongolia stacking analysis (#1692):** the only other land-unit movement sources are road discounts and `gps-navigation`, which change tile *cost*, not movement points, so a Mongol mounted unit's additive total is +1 (limit +2). It is one civilization's identity, not an empire-wide source every civ can reach.
 
 **Roads discount, they don't stack:** entering a `hasRoad` tile always costs 1 movement, or 0.5 if the moving unit's owner has `military-logistics` **or** `railway-expansion` — never both at once (0.5 is the floor, not 0.25). See `tests/systems/road-system.test.ts` for the explicit no-stack regression.
 
