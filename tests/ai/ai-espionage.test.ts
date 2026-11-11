@@ -7,6 +7,7 @@ import {
   rankAiMissions,
   processAITurn,
 } from '@/ai/basic-ai';
+import { prepareMajorCivStrategicPlan, PLAN_AGNOSTIC_DEMAND_SOURCE_IDS } from '@/ai/ai-prepared-turn';
 import {
   getAiGrudgeBonuses,
   applyAiGoPublic,
@@ -642,6 +643,37 @@ describe('AI grudges and Go public (#419 PR 3)', () => {
       };
       expect(getAiGrudgeBonuses(b, 'ai-egypt')).toEqual(getAiGrudgeBonuses(a, 'ai-egypt'));
       expect(getAiGrudgeBonuses(a, 'ai-egypt')).toEqual(getAiGrudgeBonuses(a, 'ai-egypt'));
+    });
+  });
+
+  describe('spy procurement demand (#419)', () => {
+    it('asks production for a spy when the civ has spy capacity and none active', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].techState.completed = ['espionage-scouting'];
+      state.espionage!['ai-egypt'] = { ...state.espionage!['ai-egypt'], maxSpies: 1 };
+
+      const prepared = prepareMajorCivStrategicPlan(state, 'ai-egypt');
+      const demand = prepared.forceDemands.find(entry => entry.role === 'espionage');
+
+      expect(demand).toMatchObject({
+        sourcePlanIds: ['espionage-procurement'],
+        priority: 70,
+        desired: 1,
+        assigned: 0,
+      });
+      // The round scheduler drops any demand whose source is neither a live plan nor
+      // plan-agnostic; without this the demand never reaches production.
+      expect(PLAN_AGNOSTIC_DEMAND_SOURCE_IDS.has('espionage-procurement')).toBe(true);
+    });
+
+    it('does not ask for a spy without spy capacity', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].techState.completed = ['espionage-scouting'];
+      state.espionage!['ai-egypt'] = { ...state.espionage!['ai-egypt'], maxSpies: 0 };
+
+      const prepared = prepareMajorCivStrategicPlan(state, 'ai-egypt');
+
+      expect(prepared.forceDemands.some(entry => entry.role === 'espionage')).toBe(false);
     });
   });
 

@@ -475,9 +475,34 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
   for (const civId of Object.keys(state.civilizations)) {
     countersByCiv.set(civId, emptyCivCounters());
   }
-  const bumpCounter = (civId: string, key: keyof CampaignCivCounters): void => {
+  const bumpCounter = (
+    civId: string,
+    key: 'capturesMade' | 'capturesSuffered' | 'peaceEventsInvolvingCiv' | 'warDeclarationsInvolvingCiv',
+  ): void => {
     const counters = countersByCiv.get(civId);
     if (counters) counters[key] += 1;
+  };
+  // #419: espionage counters are optional numbers/records, so they get their own typed bumps.
+  const bumpEspionageNumber = (
+    civId: string,
+    key: 'spiesCaptured' | 'spiesTurned' | 'spiesExpelled' | 'spiesExecuted' | 'incidentsTraced' | 'wentPublic' | 'operationsSuffered',
+  ): void => {
+    const counters = countersByCiv.get(civId);
+    if (counters) counters[key] = (counters[key] ?? 0) + 1;
+  };
+  const bumpMissionStarted = (civId: string, missionType: string): void => {
+    const counters = countersByCiv.get(civId);
+    if (!counters) return;
+    counters.spyMissionsStarted = (counters.spyMissionsStarted ?? 0) + 1;
+    counters.spyMissionsStartedByType ??= {};
+    counters.spyMissionsStartedByType[missionType] = (counters.spyMissionsStartedByType[missionType] ?? 0) + 1;
+  };
+  const bumpOperationLanded = (civId: string, missionType: string): void => {
+    const counters = countersByCiv.get(civId);
+    if (!counters) return;
+    counters.operationsLanded = (counters.operationsLanded ?? 0) + 1;
+    counters.operationsLandedByType ??= {};
+    counters.operationsLandedByType[missionType] = (counters.operationsLandedByType[missionType] ?? 0) + 1;
   };
   const saveReloadRounds: number[] = [];
   let terminationReason: CampaignTerminationReason = 'turn-cap';
@@ -494,6 +519,11 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
     // #1407 -- exact production accounting for this round only, reset every round.
     const productionByCiv = new Map<string, CampaignProductionAccounting>();
     for (const civId of Object.keys(state.civilizations)) productionByCiv.set(civId, emptyProductionAccounting());
+    // #419 -- espionage event volume and per-civ mission/operation mix for this round.
+    const espionageEventCounts: Record<string, number> = {};
+    const bumpEspionageEvent = (type: string): void => {
+      espionageEventCounts[type] = (espionageEventCounts[type] ?? 0) + 1;
+    };
     bus.on('city:production-disposition', event => {
       const sunk = event.appliedToBuild + event.carriedOver + event.convertedGold + event.convertedScience + event.discarded;
       if (Math.abs(event.produced - sunk) > 1e-9) {
@@ -543,6 +573,76 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
         round,
       );
     });
+    // #419 -- espionage outcomes, mission/operation mix, and a notification-volume proxy.
+    bus.on('espionage:mission-started', event => {
+      bumpEspionageEvent('mission-started');
+      bumpMissionStarted(event.civId, event.missionType);
+    });
+    bus.on('espionage:operation-landed', event => {
+      bumpEspionageEvent('operation-landed');
+      bumpOperationLanded(event.civId, event.missionType);
+      bumpEspionageNumber(event.targetCivId, 'operationsSuffered');
+    });
+    bus.on('espionage:incident-traced', event => {
+      bumpEspionageEvent('incident-traced');
+      bumpEspionageNumber(event.civId, 'incidentsTraced');
+    });
+    bus.on('espionage:went-public', event => {
+      bumpEspionageEvent('went-public');
+      bumpEspionageNumber(event.civId, 'wentPublic');
+    });
+    bus.on('espionage:spy-captured', event => {
+      bumpEspionageEvent('spy-captured');
+      bumpEspionageNumber(event.spyOwner, 'spiesCaptured');
+    });
+    bus.on('espionage:spy-caught-infiltrating', event => {
+      bumpEspionageEvent('spy-caught-infiltrating');
+      bumpEspionageNumber(event.spyOwner, 'spiesCaptured');
+    });
+    bus.on('espionage:spy-executed', event => {
+      bumpEspionageEvent('spy-executed');
+      bumpEspionageNumber(event.spyOwner, 'spiesExecuted');
+    });
+    bus.on('espionage:spy-expelled', event => {
+      bumpEspionageEvent('spy-expelled');
+      bumpEspionageNumber(event.civId, 'spiesExpelled');
+    });
+    bus.on('espionage:spy-detected', event => {
+      bumpEspionageEvent('spy-detected');
+      bumpEspionageNumber(event.spyOwner, 'spiesTurned');
+    });
+    bus.on('espionage:spy-promoted', () => {
+      bumpEspionageEvent('spy-promoted');
+    });
+    bus.on('espionage:intel-report-acquired', () => {
+      bumpEspionageEvent('intel-report-acquired');
+    });
+    // Volume-only events: they still cross the notification surface, so they count
+    // toward the campaign's espionage notification volume even when no per-civ
+    // counter applies.
+    const volumeOnlyEspionageEvents = [
+      'espionage:spy-infiltrated',
+      'espionage:spy-arrived',
+      'espionage:spy-assigned',
+      'espionage:spy-recruited',
+      'espionage:spy-recalled',
+      'espionage:spy-expired',
+      'espionage:spy-auto-exfiltrated',
+      'espionage:spy-detected-traveling',
+      'espionage:mission-succeeded',
+      'espionage:mission-failed',
+      'espionage:city-flipped',
+      'espionage:courier-intercepted',
+      'espionage:official-bribed',
+      'espionage:scandal-exposed',
+      'espionage:sabotage-relief-discovered',
+      'espionage:advisor-assassinated',
+      'espionage:documents-forged',
+      'espionage:intel-extracted',
+    ] as const;
+    for (const type of volumeOnlyEspionageEvents) {
+      bus.on(type, () => bumpEspionageEvent(type.slice('espionage:'.length)));
+    }
 
     const completed = runCompletedRound(state, bus, {
       improvements: (current, eventBus) => processImprovementTurns(current, eventBus),
@@ -694,6 +794,7 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
         metrics.planProgressTransitions,
         countersByCiv,
         productionByCiv,
+        espionageEventCounts,
       ));
     }
 
