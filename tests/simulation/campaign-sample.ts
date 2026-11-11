@@ -47,6 +47,19 @@ export interface CampaignCivCounters {
   capturesSuffered: number;
   peaceEventsInvolvingCiv: number;
   warDeclarationsInvolvingCiv: number;
+  // #419: espionage campaign metrics. Optional so pre-existing sample literals stay valid;
+  // the report treats an absent value as zero.
+  spyMissionsStarted?: number;
+  spyMissionsStartedByType?: Record<string, number>;
+  operationsLanded?: number;
+  operationsLandedByType?: Record<string, number>;
+  operationsSuffered?: number;
+  incidentsTraced?: number;
+  wentPublic?: number;
+  spiesCaptured?: number;
+  spiesTurned?: number;
+  spiesExpelled?: number;
+  spiesExecuted?: number;
 }
 
 export function emptyCivCounters(): CampaignCivCounters {
@@ -55,6 +68,17 @@ export function emptyCivCounters(): CampaignCivCounters {
     capturesSuffered: 0,
     peaceEventsInvolvingCiv: 0,
     warDeclarationsInvolvingCiv: 0,
+    spyMissionsStarted: 0,
+    spyMissionsStartedByType: {},
+    operationsLanded: 0,
+    operationsLandedByType: {},
+    operationsSuffered: 0,
+    incidentsTraced: 0,
+    wentPublic: 0,
+    spiesCaptured: 0,
+    spiesTurned: 0,
+    spiesExpelled: 0,
+    spiesExecuted: 0,
   };
 }
 
@@ -89,6 +113,10 @@ export interface CampaignCivSample extends CampaignCivCounters {
   maxPlanNoProgressRounds: number;
   /** #1086: absent for a human civ or a non-human civ with no round processed yet. */
   nationalIntent: string | null;
+  /** #419: spy records and tech-granted capacity, for campaign-level espionage legibility. */
+  spies?: number;
+  maxSpies?: number;
+  spyStatusCounts?: Record<string, number>;
 }
 
 export interface CampaignRoundSample {
@@ -106,6 +134,8 @@ export interface CampaignRoundSample {
   stateBytesBeforeRound: number;
   /** cumulative across the whole run so far (fixture-tracked) */
   planProgressTransitions: number;
+  /** #419: espionage event-type counts emitted during this round, a deterministic notification-volume proxy. */
+  espionageEventCounts?: Record<string, number>;
   civs: CampaignCivSample[];
 }
 
@@ -128,6 +158,7 @@ export function buildCampaignRoundSample(
   planProgressTransitions: number,
   countersByCiv: ReadonlyMap<string, CampaignCivCounters>,
   productionByCiv?: ReadonlyMap<string, CampaignProductionAccounting>,
+  espionageEventCounts?: Record<string, number>,
 ): CampaignRoundSample {
   const civs: CampaignCivSample[] = Object.values(state.civilizations)
     .map(civ => {
@@ -143,6 +174,7 @@ export function buildCampaignRoundSample(
         ...Object.values(state.opponentAI?.majorCivs?.[civ.id]?.defensePlansByCityId ?? {}),
       ];
       const counters = countersByCiv.get(civ.id) ?? emptyCivCounters();
+      const espionage = state.espionage?.[civ.id];
       return {
         civId: civ.id,
         isHuman: Boolean(civ.isHuman),
@@ -182,6 +214,12 @@ export function buildCampaignRoundSample(
           0,
         ),
         nationalIntent: state.opponentAI?.nationalIntentByCiv?.[civ.id]?.current ?? null,
+        spies: Object.keys(espionage?.spies ?? {}).length,
+        maxSpies: espionage?.maxSpies ?? 0,
+        spyStatusCounts: Object.values(espionage?.spies ?? {}).reduce<Record<string, number>>((counts, spy) => {
+          counts[spy.status] = (counts[spy.status] ?? 0) + 1;
+          return counts;
+        }, {}),
         ...counters,
       };
     })
@@ -200,6 +238,7 @@ export function buildCampaignRoundSample(
     totalCities: Object.keys(state.cities).length,
     stateBytesBeforeRound,
     planProgressTransitions,
+    ...(espionageEventCounts ? { espionageEventCounts: { ...espionageEventCounts } } : {}),
     civs,
   };
 }
