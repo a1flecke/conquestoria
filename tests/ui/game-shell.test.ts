@@ -195,6 +195,38 @@ describe('game-shell', () => {
     expect(panel?.style.maxWidth).toBe('620px');
   });
 
+  it('stacks the toolbar below the measured HUD and the toasts below the toolbar (#1692 B1/B2)', () => {
+    const shell = createGameShell(document.body, {
+      onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
+      onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
+      onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenVictoryProgress: () => {}, onOpenMenu: () => {},
+      supplyOverlayEnabled: false,
+      onToggleSupplyOverlay: () => false,
+    });
+    const hud = shell.querySelector<HTMLElement>('#hud')!;
+    const toolbar = shell.querySelector<HTMLElement>('#utility-toolbar')!;
+    const toasts = shell.querySelector<HTMLElement>('#notifications')!;
+
+    // The HUD may wrap, and nothing below it is at a fixed offset any more.
+    expect(hud.style.flexWrap).toBe('wrap');
+    expect(toolbar.style.top).toBe('var(--hud-height, 60px)');
+    expect(toasts.style.top).toBe('calc(var(--hud-height, 60px) + var(--utility-toolbar-height, 44px) + 8px)');
+    expect(toasts.style.pointerEvents).toBe('none');
+
+    // A phone HUD that wrapped to three rows, and a toolbar that wrapped to two.
+    vi.spyOn(hud, 'getBoundingClientRect').mockReturnValue({ height: 118 } as DOMRect);
+    vi.spyOn(toolbar, 'getBoundingClientRect').mockReturnValue({ height: 96 } as DOMRect);
+    window.dispatchEvent(new Event('resize'));
+    expect(document.body.style.getPropertyValue('--hud-height')).toBe('118px');
+    expect(document.body.style.getPropertyValue('--utility-toolbar-height')).toBe('96px');
+
+    // Never shorter than the HUD's own minimum.
+    vi.spyOn(hud, 'getBoundingClientRect').mockReturnValue({ height: 40 } as DOMRect);
+    window.dispatchEvent(new Event('resize'));
+    expect(document.body.style.getPropertyValue('--hud-height')).toBe('60px');
+  });
+
   it('reserves the measured action-bar height for the map and keeps selected-unit details scrollable', () => {
     const onBottomBarHeightChange = vi.fn();
     const shell = createGameShell(document.body, {

@@ -101,6 +101,28 @@ describe('city overview panel (#552)', () => {
     expect(container.textContent).not.toContain('EnemyCity');
   });
 
+  it('shows what each city is building and flags an idle one (#1692 D2)', () => {
+    const state = makeFixtureState({
+      cities: [
+        { id: 'city-1', owner: 'player', name: 'Alpha' },
+        { id: 'city-2', owner: 'player', name: 'Beta' },
+        { id: 'city-3', owner: 'player', name: 'Gamma' },
+      ],
+    });
+    state.cities['city-1'] = { ...state.cities['city-1']!, productionQueue: ['warrior', 'shrine'] };
+    state.cities['city-2'] = { ...state.cities['city-2']!, productionQueue: [], idleProduction: null };
+    state.cities['city-3'] = { ...state.cities['city-3']!, productionQueue: [], idleProduction: 'gold' };
+    const container = document.createElement('div');
+    createCityOverviewPanel(container, state, { onOpenCity: vi.fn(), onAppeaseFaction: vi.fn(), onConcedeToMovement: vi.fn(), onClose: vi.fn() });
+    const line = (cityId: string) => container.querySelector<HTMLElement>(`[data-city-row="${cityId}"] [data-city-production]`)!;
+    expect(line('city-1').dataset.cityProduction).toBe('building');
+    expect(line('city-1').textContent).toContain('Warrior');
+    expect(line('city-1').textContent).toContain('+1 queued');
+    expect(line('city-2').dataset.cityProduction).toBe('idle');
+    expect(line('city-2').textContent).toContain('Idle: nothing queued');
+    expect(line('city-3').textContent).toContain('production becomes gold');
+  });
+
   it('defaults to sorting cities in unrest/revolt first', () => {
     const state = makeFixtureState({
       cities: [

@@ -142,7 +142,7 @@ export function createHudController(deps: HudControllerDeps): HudController {
       }
       const economyStatus = calculateCivEconomy(state, civ.id);
 
-      // The tech's name, never its id (#1692 C3: the button read "fire").
+      // The technology's display name, never its raw id (#1692 C3).
       const currentResearchId = civ.techState.currentResearch;
       const techName = currentResearchId ? getTechById(currentResearchId)?.name ?? currentResearchId : 'None';
       hud.textContent = '';
