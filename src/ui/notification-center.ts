@@ -49,6 +49,16 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
   const queue: QueuedToast[] = [];
   let isShowingNotification = false;
   let currentDismissTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The toast on screen: when it appeared and how to dismiss it, so a growing backlog can shorten its stay. */
+  let current: { shownAt: number; dismiss: () => void } | null = null;
+
+  function scheduleCurrentDismiss(): void {
+    if (!current) return;
+    if (currentDismissTimer) clearTimeout(currentDismissTimer);
+    const remaining = Math.max(0, toastDurationMs(queue.length) - (Date.now() - current.shownAt));
+    const { dismiss } = current;
+    currentDismissTimer = setTimeout(dismiss, remaining);
+  }
 
   function displayNext(): void {
     const next = queue.shift();
@@ -72,6 +82,8 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
     const dismiss = (): void => {
       if (currentDismissTimer) clearTimeout(currentDismissTimer);
       currentDismissTimer = null;
+      current = null;
+      if (!notif.parentNode) return;
       notif.style.opacity = '0';
       setTimeout(() => {
         notif.remove();
@@ -86,9 +98,8 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
     deps.layer.innerHTML = '';
     deps.layer.appendChild(notif);
 
-    currentDismissTimer = setTimeout(() => {
-      if (notif.parentNode) dismiss();
-    }, toastDurationMs(queue.length));
+    current = { shownAt: Date.now(), dismiss };
+    scheduleCurrentDismiss();
 
     deps.playCue(next.sfxCue);
   }
@@ -102,6 +113,8 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
     if (deps.isSuppressed()) return;
     queue.push({ message, type, target, sfxCue });
     if (!isShowingNotification) displayNext();
+    // A toast that was alone when it appeared must not hold the newcomers up for its full six seconds.
+    else scheduleCurrentDismiss();
   }
 
   const delivery = createNotificationDelivery({

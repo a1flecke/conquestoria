@@ -31,7 +31,11 @@ const SAVE_ROUND = 3;
 // food row moved it from 21 to 55 rounds (#1318 trial), which tripled the runtime past the old 90 s wall-clock limit on
 // CI and showed up as a flaky-looking timeout. Bound it by ROUNDS instead, fail with an explanation when the trajectory
 // moves, and derive the timeout from that budget: two campaigns x ROUND_BUDGET rounds x ~0.45 s solo per round.
-const ROUND_BUDGET = 40;
+// Re-measured for #1692: wiring the civilization bonuses that used to do nothing (here Mongolia's mounted movement
+// on newly built cavalry, and the rest of the economy reading each owner's bonus) moved this trajectory from a win
+// at turn ~21 to a win at turn 51. Rome still falls on turn 8; Greece holds out longer. The outcome is unchanged
+// (domination, both rivals eliminated, save/reload-equivalent), so the budget moves with it, with headroom.
+const ROUND_BUDGET = 80;
 const SOLO_MS_PER_ROUND = 450;
 const CAMPAIGN_TIMEOUT_MS = simTimeout(2 * ROUND_BUDGET * SOLO_MS_PER_ROUND);
 
@@ -188,7 +192,7 @@ function runCampaign(start: GameState, reloadAtSaveRound: boolean): CampaignResu
     if (round === SAVE_ROUND && reloadAtSaveRound) state = saveAndReload(state);
   }
   if (!state.gameOver) {
-    throw new Error(`${SEED}: no domination win within ${ROUND_BUDGET} rounds (it won at turn ~21 when this budget was set). An economy, AI or tech change moved the campaign trajectory; investigate it, then re-measure and update ROUND_BUDGET deliberately.`);
+    throw new Error(`${SEED}: no domination win within ${ROUND_BUDGET} rounds (it won at turn 51 when this budget was set). An economy, AI or tech change moved the campaign trajectory; investigate it, then re-measure and update ROUND_BUDGET deliberately.`);
   }
   return { state, traces, rivalStatusChanges };
 }

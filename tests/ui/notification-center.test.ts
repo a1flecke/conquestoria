@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createNotificationCenter } from '@/ui/notification-center';
+import { createNotificationCenter, toastDurationMs } from '@/ui/notification-center';
 import type { GameState } from '@/core/types';
 import type { NotificationMapTarget } from '@/core/notification-log';
 
@@ -47,6 +47,36 @@ describe('notification center queue', () => {
     vi.runOnlyPendingTimers();
 
     expect(layer.textContent).toContain('second');
+  });
+
+  it('drains a backlog faster than a lone toast, without dropping any (#1692 D1)', () => {
+    expect(toastDurationMs(0)).toBe(6000);
+    expect(toastDurationMs(2)).toBe(3000);
+    expect(toastDurationMs(10)).toBe(1500);
+
+    const center = make();
+    for (const message of ['one', 'two', 'three', 'four', 'five']) center.toast(message, 'info');
+
+    // Four are waiting behind "one": it yields after 1.5s (plus the 200ms fade), not six seconds.
+    vi.advanceTimersByTime(1500 + 200);
+    expect(layer.textContent).toContain('two');
+    // Every message is shown in order; the last one, with nothing behind it, keeps the full six seconds.
+    vi.advanceTimersByTime(1500 + 200);
+    expect(layer.textContent).toContain('three');
+    vi.advanceTimersByTime(3000 + 200);
+    expect(layer.textContent).toContain('four');
+    vi.advanceTimersByTime(3000 + 200);
+    expect(layer.textContent).toContain('five');
+    vi.advanceTimersByTime(5900);
+    expect(layer.textContent).toContain('five');
+    vi.advanceTimersByTime(100 + 200);
+    expect(layer.textContent).toBe('');
+  });
+
+  it('a toast can be tapped although its container lets map taps through (#1692 B2)', () => {
+    const center = make();
+    center.toast('tap me', 'info');
+    expect((layer.firstElementChild as HTMLElement).style.pointerEvents).toBe('auto');
   });
 
   it('plays the sfx cue attached to a toast', () => {

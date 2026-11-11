@@ -67,6 +67,12 @@ export function completeUnitProduction(
       unit.movementBonus = (unit.movementBonus ?? 0) + navalMoveBonus;
     }
   }
+  // Mongolia "Horse Lords" / the custom Expansionist trait (#1692 A2): baked in at build time like the naval
+  // bonuses above, so `resetUnitTurn` re-applies it every turn.
+  if (civDef?.bonusEffect.type === 'mounted_movement' && UNIT_CLASS_BY_TYPE[unitType].includes('mounted')) {
+    unit.movementPointsLeft += civDef.bonusEffect.bonus;
+    unit.movementBonus = (unit.movementBonus ?? 0) + civDef.bonusEffect.bonus;
+  }
   if (unitDef?.domain === 'air' && civ.techState.completed.includes('private-spaceflight')) {
     unit.movementPointsLeft += 1;
     unit.movementBonus = (unit.movementBonus ?? 0) + 1;
