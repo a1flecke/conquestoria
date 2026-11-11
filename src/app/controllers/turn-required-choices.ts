@@ -7,7 +7,8 @@ import { createReligionBoonModal } from '@/ui/religion-boon-modal';
 import { chooseBoon } from '@/systems/religion-system';
 import { getIdleCityIds, getRecommendedIdleCityChoice, needsResearchChoice, enqueueResearch, enqueueCityProduction, ENQUEUE_DENIAL_MESSAGES } from '@/systems/planning-system';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
-import { getAvailableTechs, getEffectiveTechCost } from '@/systems/tech-system';
+import { getAvailableTechs, getEffectiveTechCost, getTechById } from '@/systems/tech-system';
+import { getProductionDisplayName } from '@/systems/city-production-presentation';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import type { TurnFlowController, TurnFlowControllerDeps } from './turn-flow-shared';
 
@@ -132,7 +133,7 @@ export function createTurnRequiredChoices(deps: TurnFlowControllerDeps): TurnReq
             [session.getState().currentPlayer]: { ...civ, techState: enqueueResearch(civ.techState, techId) },
           },
         });
-        deps.showNotification(`Researching ${techId}...`, 'info');
+        deps.showNotification(`Researching ${getTechById(techId)?.name ?? techId}...`, 'info');
         refreshRequiredChoicesAfterAction();
       },
       onChooseCityBuild: (cityId, itemId) => {
@@ -145,7 +146,7 @@ export function createTurnRequiredChoices(deps: TurnFlowControllerDeps): TurnReq
           return;
         }
         session.commit(result.state);
-        deps.showNotification(`${city.name}: queued ${itemId}`, 'info');
+        deps.showNotification(`${city.name}: queued ${getProductionDisplayName(itemId)}`, 'info');
         refreshRequiredChoicesAfterAction();
       },
       onOpenTech: () => {

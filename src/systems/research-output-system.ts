@@ -247,7 +247,15 @@ export function calculateCivResearchOutput(
     Object.entries(cityScience).map(([cityId, science]) => ({ cityId, science })),
     options.policy ?? DIMINISHING_RESEARCH_POLICY,
   );
-  const empireBonusScience = getEmpireBonusScience(state, civId);
+  const flatEmpireBonusScience = getEmpireBonusScience(state, civId);
+  // China "Mandate of Heaven" / the custom Scholarly trait (#1692 A4): a percentage of the civilization's whole
+  // research, reported inside the empire-bonus row so the breakdown still adds up.
+  const civBonus = resolveCivDefinition(state, state.civilizations[civId]?.civType ?? '')?.bonusEffect;
+  const researchSpeedScience = civBonus?.type === 'extra_tech_speed'
+    // The epsilon keeps 20 x (1.2 - 1) from flooring to 3: 1.2 - 1 is not exactly 0.2 in binary.
+    ? Math.floor(Math.max(0, coordinated.final + flatEmpireBonusScience) * (civBonus.speedMultiplier - 1) + 1e-9)
+    : 0;
+  const empireBonusScience = flatEmpireBonusScience + researchSpeedScience;
   const penaltyMultiplier = state.civilizations[civId]?.researchPenaltyTurns && state.civilizations[civId]!.researchPenaltyTurns! > 0
     ? state.civilizations[civId]!.researchPenaltyMultiplier ?? 0
     : 0;

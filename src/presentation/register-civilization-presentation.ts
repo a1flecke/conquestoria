@@ -11,7 +11,7 @@ export const registerCivilizationPresentation: PresentationRegistrar = (bus, ctx
       );
     }),
     bus.on('civ:resettled', ({ civId }) => {
-      ctx.notifier.deliver(civId, 'Your civilization has a city again.', 'success');
+      ctx.notifier.deliver(civId, 'Your civilization has a city to call home.', 'success');
     }),
     bus.on('civ:eliminated', ({ civId, eliminatedBy }) => {
       ctx.notifier.deliver(civId, 'Your civilization has been defeated.', 'warning');

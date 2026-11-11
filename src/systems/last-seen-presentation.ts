@@ -6,7 +6,7 @@ import type {
   LastSeenTilePresentation,
   LastSeenUnitPresentation,
 } from '@/core/types';
-import { applyReconReveals, getVisibility, isFog, updateVisibility } from '@/systems/fog-of-war';
+import { applyReconReveals, getVisibility, isFog, updateVisibility, getCivCityVisionBonus } from '@/systems/fog-of-war';
 import { isUnitConcealedFrom } from '@/systems/concealment';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { getVisionBonus } from '@/systems/unit-modifier-system';
@@ -197,6 +197,7 @@ export function updateAndRefreshVisibility(state: GameState, civId: string): Gam
     state.map,
     cityPositions,
     unit => getVisionBonus(unit.type, civ.techState.completed, activeNPs),
+    getCivCityVisionBonus(state, civId),
   );
   let next: GameState = {
     ...state,

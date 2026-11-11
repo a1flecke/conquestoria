@@ -13,6 +13,8 @@ import {
 import { applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
 import { getTacticalFortOccupantHealingBonus } from '@/systems/legendary-wonder-tactical-effects';
 import { retireGeneralsAtTurnEnd } from '@/systems/great-general-system';
+import { resolveCivDefinition } from '@/systems/civ-registry';
+import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import type { CivTurn } from './types';
 
 /**
@@ -27,6 +29,7 @@ export function healCivUnits(newState: GameState, turn: CivTurn, completedTechs:
     civ.cities.map(id => newState.cities[id]).filter(Boolean).map(city => [`${city!.position.q},${city!.position.r}`, city!] as const),
   );
   const healActiveNPs = getActiveNationalProjectsForCiv(newState, civId);
+  const civBonus = resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect;
   for (const unitId of civ.units) {
     const unit = newState.units[unitId];
     if (!unit || unit.health >= 100) continue;
@@ -51,7 +54,17 @@ export function healCivUnits(newState: GameState, turn: CivTurn, completedTechs:
       tacticalFortHealingBonus: getTacticalFortOccupantHealingBonus(newState, unit),
     });
     if (getRestAvailability(unit.landSupply).canRest) {
-      newState.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory, healingBonus);
+      const healed = healUnit(unit, inFriendlyCity, inFriendlyTerritory, healingBonus);
+      // Rohan "Riders of the Mark" (#1692 A13): cavalry standing on grassland recover a fixed amount every
+      // turn, on top of ordinary healing and even after moving or fighting. Supply still gates it.
+      const grasslandHeal = civBonus?.type === 'grassland_cavalry_heal'
+        && tile?.terrain === 'grassland'
+        && UNIT_CLASS_BY_TYPE[unit.type].includes('mounted')
+        ? civBonus.healPerTurn
+        : 0;
+      newState.units[unitId] = grasslandHeal > 0
+        ? { ...healed, health: Math.min(100, healed.health + grasslandHeal) }
+        : healed;
     }
   }
 }

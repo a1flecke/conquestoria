@@ -14,6 +14,7 @@
  * but can only be placed into the DOM after `createGameShell()` has built
  * that toolbar.
  */
+import { getTechById } from '@/systems/tech-system';
 import type { RenderLoop } from '@/renderer/render-loop';
 import type { GameSession } from '@/app/ports';
 import type { PanelRouter } from '@/app/panel-router';
@@ -141,7 +142,9 @@ export function createHudController(deps: HudControllerDeps): HudController {
       }
       const economyStatus = calculateCivEconomy(state, civ.id);
 
-      const techName = civ.techState.currentResearch ?? 'None';
+      // The tech's name, never its id (#1692 C3: the button read "fire").
+      const currentResearchId = civ.techState.currentResearch;
+      const techName = currentResearchId ? getTechById(currentResearchId)?.name ?? currentResearchId : 'None';
       hud.textContent = '';
       const status = getCivilizationStatusForViewer(state, civ.id);
       if (status) {
@@ -155,7 +158,7 @@ export function createHudController(deps: HudControllerDeps): HudController {
       const yieldsRow = document.createElement('div');
       yieldsRow.dataset.role = 'hud-yields';
       yieldsRow.style.cssText =
-        'display:flex;align-items:center;gap:10px;flex-wrap:nowrap;overflow:hidden;min-width:0;';
+        'display:flex;align-items:center;gap:4px 10px;flex-wrap:wrap;min-width:0;flex:1 1 auto;';
 
       const yieldSpan = document.createElement('span');
       yieldSpan.textContent = `🌾 ${totalFood}`;
@@ -167,7 +170,7 @@ export function createHudController(deps: HudControllerDeps): HudController {
 
       const goldBtn = document.createElement('button');
       goldBtn.style.cssText =
-        'background:transparent;color:inherit;border:none;font-family:inherit;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
+        'background:transparent;color:inherit;border:none;font-family:inherit;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;white-space:nowrap;flex-shrink:0;';
       goldBtn.textContent = `💰 ${formatGoldHudText(economyStatus, civ.gold)}`;
       goldBtn.addEventListener('click', () => drawer?.toggle());
       yieldsRow.appendChild(goldBtn);
@@ -268,6 +271,8 @@ export function createHudController(deps: HudControllerDeps): HudController {
       }
 
       const infoRow = document.createElement('div');
+      infoRow.dataset.role = 'hud-turn-info';
+      infoRow.style.cssText = 'margin-left:auto;white-space:nowrap;text-align:right;';
       if (state.hotSeat && civ.name) {
         const nameSpan = document.createElement('span');
         nameSpan.textContent = `${civ.name} · `;

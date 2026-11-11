@@ -8,11 +8,11 @@ describe('civilization status presentation', () => {
 
     expect(getCivilizationStatusForViewer(state, 'ai-1')).toEqual({
       kind: 'rebuild',
-      message: 'Your civilization is still in play. Found a city with a settler to rebuild.',
+      message: 'You have no city. Select a Settler and choose Found City to settle one.',
     });
     expect(getCivilizationStatusForViewer(state, 'player')).toEqual({
       kind: 'rebuild',
-      message: 'Your civilization is still in play. Found a city with a settler to rebuild.',
+      message: 'You have no city. Select a Settler and choose Found City to settle one.',
     });
   });
 });

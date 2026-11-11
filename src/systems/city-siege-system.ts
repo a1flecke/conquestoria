@@ -1,4 +1,5 @@
-import type { City, Civilization, GameMap, GameState, HexCoord, Unit } from '@/core/types';
+import type { City, CivBonusEffect, Civilization, GameMap, GameState, HexCoord, Unit } from '@/core/types';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 import type { OpponentChallenge } from '@/core/types/ai';
 import { OPPONENT_CHALLENGE_PROFILES } from '@/core/opponent-challenge';
 import { getCityDefenseBreakdown } from '@/systems/combat-system';
@@ -95,6 +96,23 @@ export interface CityAssaultStrengthBreakdown {
 export interface CityAssaultOptions {
   /** Applied after normal health, veterancy, and river calculations. */
   attackerMultiplier?: number;
+  /**
+   * The city owner's civilization bonus (#1692 A12). REQUIRED, written as `undefined` when there is none: an
+   * optional key is one a caller simply never writes, and the preview, the executor and the AI would then disagree
+   * about a Gondor city's odds. Build it with `getCityOwnerBonus(state, city)`.
+   */
+  defenderBonus: CivBonusEffect | undefined;
+}
+
+/** The civilization bonus of whoever owns the city (city-states and unknown owners have none). */
+export function getCityOwnerBonus(state: GameState, city: Pick<City, 'owner'>): CivBonusEffect | undefined {
+  return resolveCivDefinition(state, state.civilizations[city.owner]?.civType ?? '')?.bonusEffect;
+}
+
+/** Gondor "White City": a walled city is harder to storm. Bombardment and counter-fire are unchanged. */
+export function getFortifiedCityDefenseMultiplier(city: City, defenderBonus: CivBonusEffect | undefined): number {
+  if (defenderBonus?.type !== 'fortified_defense') return 1;
+  return (city.buildings ?? []).includes('walls') ? 1 + defenderBonus.defenseBonus : 1;
 }
 
 // Mirrors calculateCombatStrengths' attacker-side formula exactly (combat-system.ts) --
@@ -105,7 +123,7 @@ export function calculateCityAssaultStrengths(
   city: City,
   defenderCompletedTechs: string[],
   map: GameMap,
-  options: CityAssaultOptions = {},
+  options: CityAssaultOptions,
 ): CityAssaultStrengthBreakdown {
   const attackerDefinition = UNIT_DEFINITIONS[attacker.type];
   const riverAttackPenalty = getRiverDefensePenalty(
@@ -121,7 +139,8 @@ export function calculateCityAssaultStrengths(
     // preview, executor and AI evaluation that goes through this function agrees.
     * (isCityBreachedBy(city, attacker.owner) ? CITY_BREACH_ASSAULT_MULTIPLIER : 1);
   // #966: HP-scaled. Identical to the raw intrinsic strength at full HP.
-  const intrinsicStrength = getEffectiveCityAssaultDefense(city, defenderCompletedTechs);
+  const intrinsicStrength = getEffectiveCityAssaultDefense(city, defenderCompletedTechs)
+    * getFortifiedCityDefenseMultiplier(city, options.defenderBonus);
   const winProbability = attackerStrength / (attackerStrength + intrinsicStrength);
   return { attackerStrength, intrinsicStrength, winProbability };
 }

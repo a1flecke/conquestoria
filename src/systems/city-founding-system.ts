@@ -13,6 +13,7 @@ import {
   canonicalizeCityCoord,
   recalculateTerritory,
 } from '@/systems/city-territory-system';
+import { applyAutoRoadsForNewCity } from '@/systems/civ-auto-roads';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hexKey } from '@/systems/hex-utils';
 import { initializeLegendaryWonderProjectsForCity } from '@/systems/legendary-wonder-system';
@@ -104,6 +105,8 @@ export function foundCityInState(
     preserveForeignHolders: true,
   });
   nextState = territory.state;
+  // Rome's Roman Roads: after territory, so the route respects the borders the new city just drew.
+  nextState = applyAutoRoadsForNewCity(nextState, city.id).state;
   const liveness = reconcileCivilizationLiveness(state, nextState);
   nextState = liveness.state;
 

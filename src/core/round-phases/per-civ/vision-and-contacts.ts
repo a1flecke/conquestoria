@@ -3,6 +3,7 @@ import { EventBus } from '@/core/event-bus';
 import { getNetworkUnitVisionBonus } from '@/systems/network-infrastructure-plans';
 import {
   applyReconReveals,
+  getCivCityVisionBonus,
   updateVisibility,
   revealMinorCivCities,
   applySharedVision,
@@ -33,6 +34,7 @@ export function refreshCivVision(state: GameState, turn: CivTurn, roster: CivRos
       newState.map,
       cityPositions,
       unit => getVisionBonus(unit.type, visionCompletedTechs, visionActiveNPs) + getNetworkUnitVisionBonus(newState, unit.id),
+      getCivCityVisionBonus(newState, civId),
     );
     newState.civilizations[civId].visibility = visionAfterUpdate;
     newState = applyReconReveals(newState, civId);

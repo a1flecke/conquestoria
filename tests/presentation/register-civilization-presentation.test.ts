@@ -19,7 +19,7 @@ describe('civilization presentation', () => {
       'Your civilization is still in play. Found a city with a settler to rebuild.',
       'warning',
     );
-    expect(ctx.deliver).toHaveBeenNthCalledWith(2, 'p1', 'Your civilization has a city again.', 'success');
+    expect(ctx.deliver).toHaveBeenNthCalledWith(2, 'p1', 'Your civilization has a city to call home.', 'success');
     expect(ctx.deliver).toHaveBeenNthCalledWith(3, 'p1', 'Your civilization has been defeated.', 'warning');
   });
 

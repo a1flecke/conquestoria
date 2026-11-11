@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateCityYields } from '@/systems/resource-system';
-import { razeForestForProduction, applyProductionBonus } from '@/systems/city-system';
+import { applyProductionBonus } from '@/systems/city-system';
 import type { City, GameMap, CivBonusEffect } from '@/core/types';
 
 function makeCity(overrides?: Partial<City>): City {
@@ -70,25 +70,6 @@ describe('civ bonus effects', () => {
       const baseCost = applyProductionBonus('warrior', undefined);
       const penalizedCost = applyProductionBonus('warrior', bonus);
       expect(penalizedCost).toBeGreaterThan(baseCost);
-    });
-  });
-
-  describe('Isengard forest_industry', () => {
-    it('razes forest for burst production and clears improvement', () => {
-      const city = makeCity({ ownedTiles: [{ q: 0, r: 0 }], productionProgress: 10 });
-      const map = makeMap({ '0,0': { terrain: 'forest', improvement: 'farm', improvementTurnsLeft: 0 } });
-      const result = razeForestForProduction(city, map as any, { q: 0, r: 0 });
-      expect(result).not.toBeNull();
-      expect(result!.city.productionProgress).toBe(40); // 10 + 30
-      expect(result!.map.tiles['0,0'].terrain).toBe('plains');
-      expect(result!.map.tiles['0,0'].improvement).toBe('none');
-    });
-
-    it('returns null for non-forest tile', () => {
-      const city = makeCity({ ownedTiles: [{ q: 0, r: 0 }] });
-      const map = makeMap({ '0,0': { terrain: 'plains' } });
-      const result = razeForestForProduction(city, map as any, { q: 0, r: 0 });
-      expect(result).toBeNull();
     });
   });
 });

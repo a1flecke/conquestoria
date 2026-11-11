@@ -614,7 +614,7 @@ describe('calculateCityAssaultStrengths / resolveCityAssault (#522)', () => {
     const { city, ownerCiv } = makeCityAndCiv({ population: 1, buildings: [] });
     const trebuchet = createUnit('trebuchet', 'ai-1', { q: 3, r: 2 }, mkC());
 
-    expect(calculateCityAssaultStrengths(trebuchet, city, ownerCiv.techState.completed ?? [], { width: 10, height: 10, wrapsHorizontally: false, rivers: [], tiles: {} }).attackerStrength)
+    expect(calculateCityAssaultStrengths(trebuchet, city, ownerCiv.techState.completed ?? [], { width: 10, height: 10, wrapsHorizontally: false, rivers: [], tiles: {} }, { defenderBonus: undefined }).attackerStrength)
       .toBeCloseTo(33.75, 5);
   });
   it('computes attacker strength the same way calculateCombatStrengths does (health, veterancy, river)', () => {
@@ -623,7 +623,7 @@ describe('calculateCityAssaultStrengths / resolveCityAssault (#522)', () => {
     const ownerCiv = state.civilizations.player;
     const attacker = createUnit('swordsman', 'ai-1', { q: 3, r: 2 }, state.idCounters);
 
-    const breakdown = calculateCityAssaultStrengths(attacker, city, ownerCiv.techState.completed ?? [], state.map);
+    const breakdown = calculateCityAssaultStrengths(attacker, city, ownerCiv.techState.completed ?? [], state.map, { defenderBonus: undefined });
 
     // swordsman strength 25, full health, no veterancy, no river between (2,2)-(3,2) here
     expect(breakdown.attackerStrength).toBeCloseTo(25, 5);
@@ -637,7 +637,7 @@ describe('calculateCityAssaultStrengths / resolveCityAssault (#522)', () => {
     const ownerCiv = withTechs(state.civilizations.player, ['fortification-engineering']);
     const attacker = createUnit('warrior', 'ai-1', { q: 3, r: 2 }, state.idCounters);
 
-    const breakdown = calculateCityAssaultStrengths(attacker, city, ownerCiv.techState.completed ?? [], state.map);
+    const breakdown = calculateCityAssaultStrengths(attacker, city, ownerCiv.techState.completed ?? [], state.map, { defenderBonus: undefined });
 
     expect(breakdown.winProbability).toBeLessThan(0.5);
     expect(breakdown.winProbability).toBeGreaterThan(0);
@@ -735,7 +735,7 @@ describe('city assault balance sampling (#522)', () => {
     const attacker = createUnit('warrior', 'ai-1', { q: 3, r: 2 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
     const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv.techState.completed ?? [], {
       width: 10, height: 10, wrapsHorizontally: false, rivers: [], tiles: {},
-    });
+    }, { defenderBonus: undefined });
     const wins = Array.from({ length: 50 }, (_, i) => resolveCityAssault(
       strengths.attackerStrength, strengths.intrinsicStrength, sampleSeed(i),
     ).attackerWins);
@@ -749,7 +749,7 @@ describe('city assault balance sampling (#522)', () => {
     const attacker = createUnit('tank', 'ai-1', { q: 3, r: 2 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
     const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv.techState.completed ?? [], {
       width: 10, height: 10, wrapsHorizontally: false, rivers: [], tiles: {},
-    });
+    }, { defenderBonus: undefined });
     const wins = Array.from({ length: 50 }, (_, i) => resolveCityAssault(
       strengths.attackerStrength, strengths.intrinsicStrength, sampleSeed(i),
     ).attackerWins);

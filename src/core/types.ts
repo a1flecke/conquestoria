@@ -1171,7 +1171,7 @@ export type CivBonusEffect =
   | { type: 'faster_military'; speedMultiplier: number }
   | { type: 'extra_tech_speed'; speedMultiplier: number }
   | { type: 'trade_route_bonus'; bonusGold: number }
-  | { type: 'naval_bonus'; visionBonus: number }
+  | { type: 'naval_bonus'; visionBonus: number; navalCombatBonus: number }
   | { type: 'combat_production'; productionBonus: number }
   | { type: 'bushido' }
   | { type: 'faster_growth'; foodReduction: number }

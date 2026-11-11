@@ -3,6 +3,9 @@ import { BUILDINGS } from '@/systems/city-system';
 import { checkEraAdvancement, processMinorCivEraUpgrade } from '@/systems/minor-civ-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { expireNationalProjects } from '@/systems/national-project-system';
+import { resolveCivDefinition } from '@/systems/civ-registry';
+import { grantFreeTech } from '@/systems/tech-system';
+import { applyResearchCompletionConsequences } from '@/systems/tech-completion-system';
 import type { RoundPhase, RoundPhaseContext } from './types';
 
 /**
@@ -55,7 +58,22 @@ function runEraProgression(state: GameState, context: RoundPhaseContext): GameSt
 
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
     const era = resolveCivilizationEra(civ.techState.completed);
-    if (era > (previousEraByCiv[civId] ?? era)) bus.emit('civilization:era-advanced', { civId, previousEra: previousEraByCiv[civId]!, era });
+    if (era > (previousEraByCiv[civId] ?? era)) {
+      bus.emit('civilization:era-advanced', { civId, previousEra: previousEraByCiv[civId]!, era });
+      // Babylon "Cradle of Knowledge" (#1692 A3): one free technology per era entered. Judged against the
+      // round-start baseline, so the free technology can never trigger a second grant in the same round.
+      if (resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect.type === 'free_tech_on_era' && !civ.isEliminated) {
+        const grant = grantFreeTech(civ.techState);
+        if (grant.grantedTech) {
+          newState = {
+            ...newState,
+            civilizations: { ...newState.civilizations, [civId]: { ...civ, techState: grant.state } },
+          };
+          bus.emit('tech:completed', { civId, techId: grant.grantedTech });
+          newState = applyResearchCompletionConsequences(newState, civId, grant.grantedTech, bus);
+        }
+      }
+    }
   }
   // Local minor-civ pressure is derived from nearby/target civilizations, so it
   // must be checked every round rather than only when aggregate World Age moves.

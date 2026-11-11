@@ -22,7 +22,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
     color: '#d94a4a',
     cityNames: ['Rome', 'Ostia', 'Antium', 'Cumae', 'Neapolis', 'Ravenna', 'Pompeii', 'Capua', 'Brundisium', 'Mediolanum', 'Placentia', 'Cremona', 'Lugdunum', 'Emerita', 'Hispalis', 'Aquileia'],
     bonusName: 'Roman Roads',
-    bonusDescription: 'Roads auto-built between cities (free movement bonus)',
+    bonusDescription: 'Each new city is linked by a free road to your nearest city',
     bonusEffect: { type: 'auto_roads' },
     personality: {
       traits: ['aggressive', 'expansionist'],
@@ -127,8 +127,8 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
     color: '#4a6ad9',
     cityNames: ['London', 'York', 'Canterbury', 'Nottingham', 'Dover', 'Hastings', 'Oxford', 'Liverpool', 'Bristol', 'Birmingham', 'Winchester', 'Durham', 'Leicester', 'Coventry', 'Chester', 'Bath'],
     bonusName: 'Rule Britannia',
-    bonusDescription: '+1 vision for coastal cities, stronger naval units',
-    bonusEffect: { type: 'naval_bonus', visionBonus: 1 },
+    bonusDescription: '+1 vision for coastal cities, naval units fight 15% harder',
+    bonusEffect: { type: 'naval_bonus', visionBonus: 1, navalCombatBonus: 0.15 },
     personality: {
       traits: ['expansionist', 'aggressive'],
       warLikelihood: 0.5,
@@ -188,7 +188,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
     color: '#1e3a8a',
     cityNames: ['Paris', 'Orleans', 'Lyon', 'Marseille', 'Bordeaux', 'Rouen', 'Reims', 'Avignon', 'Nantes', 'Strasbourg', 'Toulouse', 'Tours', 'Dijon', 'Caen', 'Amiens', 'Chartres'],
     bonusName: 'City of Light',
-    bonusDescription: 'Cities exert cultural pressure on neighboring tiles, expanding borders faster',
+    bonusDescription: 'Cities press harder on contested tiles and reach their wide border at 2 population',
     bonusEffect: { type: 'culture_pressure', radiusBonus: 1 },
     personality: {
       traits: ['diplomatic', 'trader'],
@@ -218,7 +218,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
     color: '#f5f5f4',
     cityNames: ['Minas Tirith', 'Osgiliath', 'Dol Amroth', 'Pelargir', 'Anfalas', 'Edhellond', 'Calembel', 'Linhir', 'Cair Andros', 'Amon Din', 'Pinnath Gelin', 'Tumladen', 'Lossarnach', 'Ethring', 'Belfalas', 'Morthond'],
     bonusName: 'White City',
-    bonusDescription: 'Fortified cities are 25% harder to capture',
+    bonusDescription: 'Walled cities are 25% harder to capture',
     bonusEffect: { type: 'fortified_defense', defenseBonus: 0.25 },
     personality: {
       traits: ['diplomatic', 'aggressive'],
@@ -294,7 +294,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
     color: '#374151',
     cityNames: ['Orthanc', 'Nan Curunir', 'Methedras', 'Dol Baran', 'Tharbad', 'Gap of Rohan', 'Fangorn Marches', 'Isen Ford', 'Helms Dike', 'Isen Vale', 'Wizard Vale', 'Angrenost', 'Dunland Heights', 'Wold Gate', 'Stonewain', 'Westemnet Gate'],
     bonusName: 'Industry of War',
-    bonusDescription: 'Industry & war — raze forests for burst production',
+    bonusDescription: 'Industry & war — clearing forest for a farm gives +30 extra production',
     bonusEffect: { type: 'forest_industry', productionBurst: 30 },
     personality: {
       traits: ['aggressive', 'expansionist'],

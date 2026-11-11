@@ -31,6 +31,19 @@ const TOAST_COLORS: Record<NotificationEntry['type'], string> = {
   warning: '#d94a4a',
 };
 
+/**
+ * How long a toast stays up, given how many are waiting behind it (#1692 D1). One at a time for a fixed six
+ * seconds meant a turn with five messages took half a minute to read out, so the queue fell further behind every
+ * turn (66 waiting by turn 12 in a play-through) and announced events long after they happened. A toast with
+ * nothing behind it keeps the full time; a backlog drains faster. Nothing is dropped, and the message log keeps
+ * every entry.
+ */
+export function toastDurationMs(waitingBehind: number): number {
+  if (waitingBehind <= 0) return 6000;
+  if (waitingBehind <= 2) return 3000;
+  return 1500;
+}
+
 /** Moved verbatim from main.ts's module-scope notification queue (#787 phase 4). */
 export function createNotificationCenter(deps: NotificationCenterDeps): Notifier {
   const queue: QueuedToast[] = [];
@@ -46,7 +59,7 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
 
     isShowingNotification = true;
     const notif = document.createElement('div');
-    notif.style.cssText = `background:${TOAST_COLORS[next.type]}ee;color:#1a1a2e;padding:10px 14px;border-radius:10px;font-size:12px;cursor:pointer;transition:opacity 0.3s;max-width:90%;`;
+    notif.style.cssText = `background:${TOAST_COLORS[next.type]}ee;color:#1a1a2e;padding:10px 14px;border-radius:10px;font-size:12px;cursor:pointer;pointer-events:auto;align-self:flex-start;transition:opacity 0.3s;max-width:90%;`;
     notif.textContent = next.message;
 
     if (queue.length > 0) {
@@ -75,7 +88,7 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
 
     currentDismissTimer = setTimeout(() => {
       if (notif.parentNode) dismiss();
-    }, 6000);
+    }, toastDurationMs(queue.length));
 
     deps.playCue(next.sfxCue);
   }

@@ -2,6 +2,7 @@ import type { UnitType, Unit, HexCoord, CivBonusEffect } from '@/core/types';
 import type { IdCounters } from '@/core/types/ids';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getNavalOperationsMovementPenalty } from './naval-endurance';
+import { UNIT_CLASS_BY_TYPE } from './unit-modifier-definitions';
 
 /**
  * Unit creation and per-turn reset (#1010). Depends only on the catalog leaf.
@@ -19,10 +20,14 @@ export function createUnit(
   counters: IdCounters,
   bonusEffect?: CivBonusEffect,
 ): Unit {
-  const movementBonus =
-    bonusEffect?.type === 'naval_raiding' && VIKING_MOBILITY_UNITS.has(type)
-      ? bonusEffect.movementBonus
-      : 0;
+  // Baked in at creation, like every other movement bonus (resetUnitTurn re-applies `movementBonus`).
+  let movementBonus = 0;
+  if (bonusEffect?.type === 'naval_raiding' && VIKING_MOBILITY_UNITS.has(type)) {
+    movementBonus = bonusEffect.movementBonus;
+  } else if (bonusEffect?.type === 'mounted_movement' && UNIT_CLASS_BY_TYPE[type].includes('mounted')) {
+    // Mongolia "Horse Lords" / the custom Expansionist trait (#1692 A2).
+    movementBonus = bonusEffect.bonus;
+  }
   const definition = UNIT_DEFINITIONS[type];
   return {
     id: `unit-${counters.nextUnitId++}`,
