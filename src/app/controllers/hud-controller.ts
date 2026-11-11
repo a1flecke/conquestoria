@@ -158,7 +158,9 @@ export function createHudController(deps: HudControllerDeps): HudController {
       const yieldsRow = document.createElement('div');
       yieldsRow.dataset.role = 'hud-yields';
       yieldsRow.style.cssText =
-        'display:flex;align-items:center;gap:4px 10px;flex-wrap:wrap;min-width:0;flex:1 1 auto;';
+        // One baseline at every width (#437): the row never wraps. The HUD around it does (#1692), so on a
+        // phone this row gets a line to itself, and scrolls sideways if late-game chips outgrow the screen.
+        'display:flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0;max-width:100%;overflow-x:auto;flex:0 1 auto;';
 
       const yieldSpan = document.createElement('span');
       yieldSpan.textContent = `🌾 ${totalFood}`;
