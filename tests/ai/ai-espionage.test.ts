@@ -675,6 +675,17 @@ describe('AI grudges and Go public (#419 PR 3)', () => {
 
       expect(prepared.forceDemands.some(entry => entry.role === 'espionage')).toBe(false);
     });
+
+    it('does not divert production from an active war', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].techState.completed = ['espionage-scouting'];
+      state.civilizations['ai-egypt'].diplomacy.atWarWith = ['player'];
+      state.espionage!['ai-egypt'] = { ...state.espionage!['ai-egypt'], maxSpies: 1 };
+
+      const prepared = prepareMajorCivStrategicPlan(state, 'ai-egypt');
+
+      expect(prepared.forceDemands.some(entry => entry.role === 'espionage')).toBe(false);
+    });
   });
 
   describe('mission ranking', () => {
