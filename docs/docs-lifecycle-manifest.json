@@ -181,16 +181,6 @@
    "liveReferences": [
     ".claude/rules/hooks-and-tooling.md"
    ]
-  },
-  "docs/superpowers/specs/2026-11-09-issue-1426-production-overflow-design.md": {
-   "category": "active",
-   "reason": "Accepted production-overflow design for open issue #1426; deleted by its last implementation PR.",
-   "issues": [
-    1426
-   ],
-   "issueStates": {
-    "1426": "OPEN"
-   }
   }
  },
  "deleted": {
@@ -3788,6 +3778,13 @@
    "reason": "Era 8-9 legendary-wonder production art delivered for #619; current behavior lives in source, tests, docs/sprite-design-system.md and .claude/rules/sprites.md.",
    "issues": [
     619
+   ]
+  },
+  "docs/superpowers/specs/2026-11-09-issue-1426-production-overflow-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered by the three #1426 PRs (#1689 rule, #1690 AI refill, and the validation PR). The rule lives in .claude/rules/game-balance.md (Production Overflow) and city-turn.ts; git history is the design archive.",
+   "issues": [
+    1426
    ]
   }
  },
