@@ -2064,6 +2064,17 @@ describe('renderSelectedUnitInfo - veterancy', () => {
     expect(text).toContain('+10% combat');
     expect(text).toContain('25 XP to Elite');
   });
+
+  it('does not show combat veterancy on a unit that cannot fight (#1692 D4)', () => {
+    const state = makeWorkerState({}, { type: 'worker' });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).not.toContain('% combat');
+    expect(text).not.toContain('XP to Seasoned');
+  });
 });
 
 describe('renderSelectedUnitInfo - based aircraft', () => {

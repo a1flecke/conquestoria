@@ -234,6 +234,36 @@ describe('city-panel national projects', () => {
     }
   });
 
+  it('lists locked items nearest first: earlier era, then fewer missing technologies (#1692 D3)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    clickElement(panel.querySelector('[data-locked-show-more]'));
+
+    const completed = state.civilizations.player.techState.completed;
+    const eraOf = new Map(TECH_TREE.map(tech => [tech.id, tech.era] as const));
+    const reasons = [
+      ...Array.from(panel.querySelectorAll<HTMLElement>('[data-locked-reason]')),
+      ...Array.from(panel.querySelectorAll<HTMLElement>('[data-locked-reason-extra]')),
+    ].map(element => element.textContent ?? '').filter(text => text.startsWith('Requires: '));
+    expect(reasons.length).toBeGreaterThan(1);
+    // Rebuild each row's distance from its own visible checklist, so the test reads what the player reads.
+    const distances = reasons.map(text => {
+      const missing = text.replace('Requires: ', '').split(' + ')
+        .filter(name => !name.endsWith(' ✓'))
+        .map(name => TECH_TREE.find(tech => tech.name === name))
+        .filter((tech): tech is NonNullable<typeof tech> => Boolean(tech) && !completed.includes(tech!.id));
+      return [Math.max(0, ...missing.map(tech => eraOf.get(tech.id) ?? 0)), missing.length] as const;
+    });
+    for (let index = 1; index < distances.length; index += 1) {
+      const [previousEra, previousCount] = distances[index - 1]!;
+      const [era, count] = distances[index]!;
+      expect(era > previousEra || (era === previousEra && count >= previousCount),
+        `row ${index} (${reasons[index]}) is nearer than row ${index - 1} (${reasons[index - 1]})`).toBe(true);
+    }
+  });
+
   it('keeps SAM Site visible with its missing local building prerequisites', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed = ['radar-systems', 'rocketry'];
