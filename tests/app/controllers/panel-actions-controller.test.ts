@@ -757,7 +757,7 @@ describe('PanelActionsController', () => {
       expect(deps.session.getState().civilizations.player.techState.currentResearch).toBe('fire');
       expect(deps.renderLoop.setGameState).toHaveBeenCalled();
       expect(deps.hud.update).toHaveBeenCalled();
-      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('fire'), 'info');
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('Fire'), 'info');
     });
 
     it('onQueueResearch publishes the queued tech through session subscribers', () => {
