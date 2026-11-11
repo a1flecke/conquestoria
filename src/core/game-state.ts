@@ -12,7 +12,7 @@ import type {
   StartPlacementMode,
 } from './types';
 import type { OpponentChallenge } from '@/core/types/ai';
-import { generateMap, findStartPositions, createRng, guaranteeStartResources } from '@/systems/map-generator';
+import { generateMap, findStartPositions, StartPlacementError, createRng, guaranteeStartResources } from '@/systems/map-generator';
 import { loadGeoMap } from '@/systems/geo-map-loader';
 import { getLoadedGeoMapData, type GeographicMapScript } from '@/systems/geo-map-data';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
@@ -135,6 +135,53 @@ function placeStartsOrThrow(
     throw new GameCreationError(result.requested, result.available);
   }
   return result.positions;
+}
+
+/** How many generated maps a campaign tries before giving up on placing every civilization. */
+export const GENERATED_MAP_ATTEMPTS = 6;
+
+/**
+ * Generates a non-geographic map and its starts. A generated map occasionally cannot hold every civilization the
+ * required distance apart (about 1 in 40 small single-continent maps with four civilizations). That used to escape
+ * as an untyped error: the Start button did nothing, and because the setup screen keeps one seed, pressing it again
+ * failed the same way (#1692). Now the next map in a deterministic sequence derived from the same seed is tried, so
+ * a seed that worked before produces exactly the map it always did, and a seed that could not now can. Only if
+ * every attempt fails does the player get the typed `GameCreationError` the setup screens already explain.
+ */
+function generateMapWithStarts(
+  mapScript: MapScript,
+  dims: { width: number; height: number },
+  gameSeed: string,
+  civTypeIds: string[],
+  size: 'small' | 'medium' | 'large',
+): { map: GameMap; startPositions: HexCoord[] } {
+  let lastFailure: StartPlacementError | undefined;
+  for (let attempt = 0; attempt < GENERATED_MAP_ATTEMPTS; attempt += 1) {
+    const mapSeed = attempt === 0 ? gameSeed : `${gameSeed}~map${attempt}`;
+    try {
+      if (mapScript === 'balanced') {
+        const result = generateBalancedMap(dims.width, dims.height, mapSeed, civTypeIds.length);
+        return { map: result.map, startPositions: result.startPositions };
+      }
+      if (mapScript === 'single-continent') {
+        const result = generateContinentMap(dims.width, dims.height, mapSeed);
+        return {
+          map: result.map,
+          startPositions: findStartPositions(result.map, civTypeIds, 'single-continent', size, result.continentHexes),
+        };
+      }
+      const map = generateMap(dims.width, dims.height, mapSeed);
+      // The balanced and single-continent generators tag landmass regions themselves; generateMap does not, so a
+      // procedural map used to gain regionKeys only on its first load (normalizeLandmassKeys). Tag at creation so
+      // a fresh game already matches its own save/reload (#1004).
+      map.tiles = tagLandmassRegions(map);
+      return { map, startPositions: findStartPositions(map, civTypeIds, 'procedural', size) };
+    } catch (error) {
+      if (!(error instanceof StartPlacementError)) throw error;
+      lastFailure = error;
+    }
+  }
+  throw new GameCreationError(civTypeIds.length, lastFailure?.placed ?? 0);
 }
 
 export function createDefaultSettings(
@@ -296,26 +343,8 @@ export function createNewGame(
       map = loadLoadedGeoMap('new-world', actualSize, dims, false);
       startPositions = placeStartsOrThrow(map, civTypeIds, 'new-world', actualSize, startPlacementMode, gameSeed);
       break;
-    case 'balanced': {
-      const result = generateBalancedMap(dims.width, dims.height, gameSeed, civTypeIds.length);
-      map = result.map;
-      startPositions = result.startPositions;
-      break;
-    }
-    case 'single-continent': {
-      const result = generateContinentMap(dims.width, dims.height, gameSeed);
-      map = result.map;
-      startPositions = findStartPositions(map, civTypeIds, 'single-continent', actualSize, result.continentHexes);
-      break;
-    }
-    default: // 'procedural' and old saves
-      map = generateMap(dims.width, dims.height, gameSeed);
-      // The balanced and single-continent generators tag landmass regions
-      // themselves; generateMap does not, so a procedural map used to gain
-      // regionKeys only on its first load (normalizeLandmassKeys). Tag at
-      // creation so a fresh game already matches its own save/reload (#1004).
-      map.tiles = tagLandmassRegions(map);
-      startPositions = findStartPositions(map, civTypeIds, 'procedural', actualSize);
+    default: // 'balanced', 'single-continent', 'procedural' and old saves
+      ({ map, startPositions } = generateMapWithStarts(mapScript, dims, gameSeed, civTypeIds, actualSize));
       break;
   }
 
@@ -528,24 +557,8 @@ export function createHotSeatGame(
       map = loadLoadedGeoMap('new-world', config.mapSize, dims, false);
       startPositions = placeStartsOrThrow(map, civTypeIds, 'new-world', config.mapSize, startPlacementMode, gameSeed);
       break;
-    case 'balanced': {
-      const result = generateBalancedMap(dims.width, dims.height, gameSeed, civTypeIds.length);
-      map = result.map;
-      startPositions = result.startPositions;
-      break;
-    }
-    case 'single-continent': {
-      const result = generateContinentMap(dims.width, dims.height, gameSeed);
-      map = result.map;
-      startPositions = findStartPositions(map, civTypeIds, 'single-continent', config.mapSize, result.continentHexes);
-      break;
-    }
-    default: // 'procedural' and old saves
-      map = generateMap(dims.width, dims.height, gameSeed);
-      // See createNewGame: tag landmass regions at creation so a fresh hot-seat
-      // game already matches its own save/reload (#1004).
-      map.tiles = tagLandmassRegions(map);
-      startPositions = findStartPositions(map, civTypeIds, 'procedural', config.mapSize);
+    default: // 'balanced', 'single-continent', 'procedural' and old saves
+      ({ map, startPositions } = generateMapWithStarts(mapScript, dims, gameSeed, civTypeIds, config.mapSize));
       break;
   }
 

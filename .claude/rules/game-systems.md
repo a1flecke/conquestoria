@@ -149,7 +149,8 @@ Every major civilization's start must have a credible, legal path toward a secon
 connected landmass (any non-water tile, wrapping across the seam) holds a legal city-centre site
 (`isCityCenterTerrain`) at `>= MIN_CITY_CENTER_DISTANCE` from it, **or** a city there is coastal and a *different*
 landmass with such a site borders the same body of water. Landmass tile count is deliberately not the test, and the
-contract promises nothing about equal terrain, resources, ship tech or travel time.
+contract promises nothing about equal terrain, resources, ship tech or travel time (food has its own, separate floor:
+see "Start fertility and placement retry" below).
 
 - **Both placers consume it:** `findStartPositions` (procedural, balanced, single-continent) filters its candidate
   pool, and `placeCivilizationStarts` (geographic balanced/historical fallbacks) filters `collectCandidates`. A new
@@ -160,6 +161,24 @@ contract promises nothing about equal terrain, resources, ship tech or travel ti
   constant, so it cannot drift from `canFoundCityAt`. Pinned by `tests/systems/start-viability.test.ts`, including the
   original unrecoverable `lh-late-era-medium` start. The `lh-1107-search-0` long-horizon fixture is a separate,
   intentionally kept #1107 scenario.
+
+### Start fertility and placement retry (#1692)
+
+Viability says a start is not trapped; it says nothing about food, and about one generated start in ten had almost
+no farmland. `src/systems/start-fertility.ts` adds a deliberately low floor: the six best tiles within two hexes of a
+start must give at least `MIN_START_FOOD` (9) food from base terrain (`terrain-yields.ts`, the leaf `tile-yield.ts`
+re-exports). It promises nothing about production, resources or equality.
+
+- **Only `findStartPositions` applies it** (procedural, balanced, single-continent). Its greedy pass keeps the
+  widest-spaced candidate when that one is already fertile, so a seed with good starts is placed exactly as before;
+  otherwise it takes the widest-spaced fertile candidate. If preferring fertility leaves a later civilization with
+  no separated site, the original pass decides. The geographic placer ranks by its own quality score and is unchanged.
+- **A failed placement is typed and retried.** `findStartPositions` throws `StartPlacementError`.
+  `generateMapWithStarts` (`game-state.ts`) tries up to `GENERATED_MAP_ATTEMPTS` maps from seeds derived from the
+  campaign seed (`<seed>~map<n>`; attempt 0 is the seed itself, so a seed that worked yields the same map), then
+  raises the `GameCreationError` the setup screens display. Before this an untyped throw escaped the Start button's
+  handler and the click did nothing.
+- Pinned by the `#1692` blocks in `tests/systems/start-viability.test.ts`.
 
 ## Geographic map data is loaded on demand (#1456)
 
