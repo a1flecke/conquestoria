@@ -3,6 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import {
   chooseMinorCivQueueItem,
   evaluateMinorCivEconomyPosture,
+  MINOR_CIV_THREAT_STAND_DOWN_TURNS,
   evaluateMinorCivEmergencyLevy,
   getMinorCivAvailableResources,
   getMinorCivBuildCandidates,
@@ -137,6 +138,23 @@ describe('minor-civ economy helpers', () => {
     };
 
     expect(evaluateMinorCivEconomyPosture(state, minorCiv.id)).toBe('mobilizing');
+  });
+
+  it('holds the guard for a few turns after the last raider left, then stands down (#1692)', () => {
+    const state = createNewGame(undefined, 'minor-economy-stand-down', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    state.turn = 20;
+    const base = { policy: 'defense' as const, posture: 'mobilizing' as const, lastProcessedTurn: 19 };
+
+    minorCiv.economy = { ...base, lastImmediateThreatTurn: 20 - MINOR_CIV_THREAT_STAND_DOWN_TURNS };
+    expect(evaluateMinorCivEconomyPosture(state, minorCiv.id)).toBe('mobilizing');
+
+    minorCiv.economy = { ...base, lastImmediateThreatTurn: 20 - MINOR_CIV_THREAT_STAND_DOWN_TURNS - 1 };
+    expect(evaluateMinorCivEconomyPosture(state, minorCiv.id)).toBe('settled');
+
+    // A save from before the field existed stands down exactly as it used to.
+    minorCiv.economy = { ...base };
+    expect(evaluateMinorCivEconomyPosture(state, minorCiv.id)).toBe('settled');
   });
 
   it('maps an active localRecoveryUntilTurn window into a recovering posture (#951)', () => {
