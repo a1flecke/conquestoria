@@ -58,6 +58,7 @@ import {
   reconcileMinorCivLeagues,
 } from './minor-civ-league-system';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { isFertileStart } from '@/systems/start-fertility';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
   small: [2, 4],
@@ -183,14 +184,24 @@ function findValidPosition(
 ): HexCoord | null {
   // Applied while walking the already-shuffled candidates (not by pre-filtering them), so the random
   // stream and every placement that never touched a camp are exactly what they were.
+  const separated = (pos: HexCoord): boolean => {
+    if (campPositions.some(c => mapDistance(map, pos, c) === 0)) return false;
+    if (startPositions.some(s => mapDistance(map, pos, s) < 8)) return false;
+    if (cityPositions.some(c => mapDistance(map, pos, c) < 6)) return false;
+    if (placedPositions.some(p => mapDistance(map, pos, p) < 10)) return false;
+    return true;
+  };
+  // #1692 G3: a city-state on polar snow can barely feed itself and is a weak neighbour for the whole game. The
+  // first separated candidate that can feed a young city wins (the same floor a major civilization's start gets);
+  // only when none can does the first separated candidate of any kind, as before. No extra random draws, so the
+  // stream and every placement that was already on fertile land are unchanged.
+  let fallback: HexCoord | null = null;
   for (const pos of candidates) {
-    if (campPositions.some(c => mapDistance(map, pos, c) === 0)) continue;
-    if (startPositions.some(s => mapDistance(map, pos, s) < 8)) continue;
-    if (cityPositions.some(c => mapDistance(map, pos, c) < 6)) continue;
-    if (placedPositions.some(p => mapDistance(map, pos, p) < 10)) continue;
-    return pos;
+    if (!separated(pos)) continue;
+    if (isFertileStart(map, pos)) return pos;
+    fallback ??= pos;
   }
-  return null;
+  return fallback;
 }
 
 // === Turn Processing ===

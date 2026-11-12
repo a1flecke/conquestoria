@@ -490,3 +490,25 @@ describe('a generated map that cannot hold every civilization (#1692)', () => {
     expect(first.gameId).toBe(second.gameId);
   });
 });
+
+describe('city-states are placed where they can feed themselves (#1692 G3)', () => {
+  it('no generated city-state sits on land below the start food floor when fertile land was available', () => {
+    const barren: string[] = [];
+    let placed = 0;
+    for (const mapScript of ['balanced', 'procedural'] as const) {
+      for (let seed = 0; seed < 12; seed++) {
+        const state = createNewGame({
+          civType: 'rome', seed: `city-state-${mapScript}-${seed}`, mapSize: 'small', mapScript, opponentCount: 1, gameTitle: 't',
+        });
+        for (const minor of Object.values(state.minorCivs)) {
+          const city = state.cities[minor.cityId];
+          if (!city) continue;
+          placed++;
+          if (!isFertileStart(state.map, city.position)) barren.push(`${mapScript} ${seed} ${minor.id} @${city.position.q},${city.position.r}`);
+        }
+      }
+    }
+    expect(placed).toBeGreaterThan(24);
+    expect(barren).toEqual([]);
+  }, simTimeout(60_000));
+});

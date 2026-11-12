@@ -137,6 +137,9 @@ export function fitCityBannerLabel(
   const populationSuffix = ` (${population})`;
   const fullLabel = `${normalizedName}${populationSuffix}`;
   if (ctx.measureText(fullLabel).width <= maxWidth) return fullLabel;
+  // #1692: the name is what identifies a city on the map. When the banner cannot hold both, a whole name beats
+  // two letters and a number ("Gondor" rather than "Go… (5)"); the population is one tap away in the city panel.
+  if (ctx.measureText(normalizedName).width <= maxWidth) return normalizedName;
 
   const suffixWidth = ctx.measureText(populationSuffix).width;
   const nameWidth = maxWidth - suffixWidth;

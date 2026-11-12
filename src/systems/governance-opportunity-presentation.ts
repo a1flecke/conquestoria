@@ -11,6 +11,7 @@ import { getGovernanceFreeCapacity } from '@/systems/governance-capacity';
 import { GOVERNANCE_POLICY_DEFINITIONS } from '@/systems/governance-policy-definitions';
 import { getGovernancePolicyEligibility } from '@/systems/governance-policy-system';
 import { getGovernorAssignmentEligibility } from '@/systems/governor-system';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 /** Relative rank input (1-100): a deliberate choice, but never urgent. */
 export const GOVERNANCE_OPPORTUNITY_PRIORITY = 50;
@@ -28,8 +29,22 @@ export interface GovernanceOpportunity {
   destination: { kind: 'open-governance' };
 }
 
+/** Unrest, and with it everything governance does, starts in this era (`processFactionTurn` skips era 1). */
+export const GOVERNANCE_FIRST_ERA = 2;
+
+/**
+ * Whether governance is worth showing this civilization at all. One definition for the HUD's Governance button and
+ * for this opportunity: the Council used to advise an Era 1 player to spend governance capacity on turn 15 while
+ * the HUD, for the same reason, was still hiding the button (#1692 G2).
+ */
+export function isGovernanceUnlocked(state: GameState, civId: string): boolean {
+  const civ = state.civilizations[civId];
+  return Boolean(civ) && resolveCivilizationEra(civ!.techState.completed) >= GOVERNANCE_FIRST_ERA;
+}
+
 export function getGovernanceOpportunity(state: GameState, civId: string): GovernanceOpportunity | null {
   if (!state.civilizations[civId]) return null;
+  if (!isGovernanceUnlocked(state, civId)) return null;
   // Computed once; every eligibility call below reuses it.
   const freeCapacity = getGovernanceFreeCapacity(state, civId);
   if (freeCapacity <= 0) return null;
