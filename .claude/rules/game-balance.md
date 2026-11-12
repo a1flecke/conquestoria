@@ -490,6 +490,13 @@ unit within hex distance **2** of the city) → `mobilizing`; a regional grievan
 `minorCivCoalitions` entry → `mobilizing`; a `wary` grievance at pressure ≥ 20, or zero live units
 → `fortifying`; otherwise → `settled`.
 
+**Stand-down delay (#1692):** after the last turn a hostile unit stood inside the alarm radius
+(`MinorCivEconomyState.lastImmediateThreatTurn`, written by `processMinorCivEconomyTurn`), the
+city-state stays `mobilizing` for `MINOR_CIV_THREAT_STAND_DOWN_TURNS` (3) more turns. A camp's
+raiders arrive every few turns; standing down between raids dropped the unit cap and dequeued the
+defender in production (#954). Difficulty-invariant; the field is optional and a save without it
+stands down immediately, as before (no migration).
+
 The production queue is **not** re-evaluated every turn — `chooseMinorCivQueueItem` only runs
 when the queue is empty and at least `queueDecisionInterval` turns have passed since the last
 decision, **or** the current queue head is no longer a legal candidate (tech/era/resource

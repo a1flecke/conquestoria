@@ -278,6 +278,9 @@ function normalizeEconomyState(value: unknown, state: Pick<GameState, 'turn'>): 
   if (isFiniteNonNegativeNumber(value.lastQueueDecisionTurn)) {
     economy.lastQueueDecisionTurn = value.lastQueueDecisionTurn;
   }
+  if (isFiniteNonNegativeNumber(value.lastImmediateThreatTurn)) {
+    economy.lastImmediateThreatTurn = value.lastImmediateThreatTurn;
+  }
 
   const pendingUnitSpawn = normalizePendingSpawn(value.pendingUnitSpawn, state);
   if (pendingUnitSpawn) {
@@ -383,6 +386,17 @@ export function getMinorCivBuildCandidates(
   return { buildings, units };
 }
 
+// A city-state keeps its guard up for a few turns after the last raider left its walls (#1692).
+// A camp's raiders arrive every few turns; standing down between each raid dropped the unit cap
+// and dequeued the defender being built (#954), so a raided city-state never finished one.
+// Difficulty-invariant. Absent on older saves, which then stand down exactly as before.
+export const MINOR_CIV_THREAT_STAND_DOWN_TURNS = 3;
+
+function isWithinThreatStandDown(state: GameState, economy: MinorCivEconomyState | undefined): boolean {
+  const last = economy?.lastImmediateThreatTurn;
+  return last !== undefined && last <= state.turn && state.turn - last <= MINOR_CIV_THREAT_STAND_DOWN_TURNS;
+}
+
 function hasImmediateCityThreat(state: GameState, minorCivId: string): boolean {
   const minorCiv = state.minorCivs[minorCivId];
   const city = minorCiv ? state.cities[minorCiv.cityId] : undefined;
@@ -413,7 +427,11 @@ export function evaluateMinorCivEconomyPosture(state: GameState, minorCivId: str
   }
 
   const grievances = Object.values(minorCiv.regionalGrievanceByCiv ?? {});
-  if (minorCiv.diplomacy.atWarWith.length > 0 || hasImmediateCityThreat(state, minorCivId)) {
+  if (
+    minorCiv.diplomacy.atWarWith.length > 0
+    || hasImmediateCityThreat(state, minorCivId)
+    || isWithinThreatStandDown(state, economy)
+  ) {
     return 'mobilizing';
   }
 
@@ -967,6 +985,9 @@ export function processMinorCivEconomyTurn(
     lastProcessedTurn: nextState.turn,
     lastPostureChangeTurn: posture !== economy.posture ? nextState.turn : economy.lastPostureChangeTurn,
     lastQueueDecisionTurn: madeQueueDecision ? nextState.turn : economy.lastQueueDecisionTurn,
+    lastImmediateThreatTurn: hasImmediateCityThreat(nextState, minorCivId)
+      ? nextState.turn
+      : economy.lastImmediateThreatTurn,
     recentProductionSummary: completed
       ? {
           itemId: completed.itemId,
