@@ -106,7 +106,7 @@ export interface AcceptedOccurrence {
  *     (~650/turn) simply exceeded every remaining technology's cost, so `processResearch` finished the newly chosen
  *     technology in the same round and left `currentResearch` null at the sample point. The old predicate read that
  *     null as "made no choice". `campaign-analysis.ts` now requires the round to have completed nothing as well, and
- *     the entry is deleted: the matrix currently has no accepted gaps.
+ *     the entry was deleted.
  *
  * `lh-late-era-medium` uses `mapSeed: 'lh-1107-search-0'`; why that map was chosen (a recoverable 43-tile landmass
  * for `ai-1`) is in `docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md`.
@@ -125,7 +125,15 @@ export interface AcceptedOccurrence {
  *     ratchet's first direction still fails the run for any finding that is not covered, so an empty register can
  *     never hide a new stall.
  */
-export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [];
+export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
+  {
+    code: 'gold-hoard',
+    issue: '#1693',
+    why: 'The late-era trader (ai-2) gained 41,803 gold over 78 consecutive rounds without a net treasury dip. The issue owns the remaining economy finding.',
+    scenarios: ['lh-late-era-medium'],
+    accepted: [{ scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 78 }],
+  },
+];
 
 export type UnknownFindingReason = 'unregistered' | 'new-civ' | 'worsened';
 

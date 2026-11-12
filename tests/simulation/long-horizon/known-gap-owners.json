@@ -1,5 +1,7 @@
 {
   "_comment": "Recorded GitHub state of every known-gap owner. Regenerate with ./scripts/dev.sh known-gap-owners-refresh; never edit by hand.",
-  "checkedAt": "2026-11-01",
-  "owners": {}
+  "checkedAt": "2026-11-12",
+  "owners": {
+    "#1693": "open"
+  }
 }
