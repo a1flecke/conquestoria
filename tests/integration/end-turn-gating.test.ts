@@ -6,7 +6,15 @@ import { getIdleCityIds, needsResearchChoice } from '@/systems/planning-system';
 describe('end-turn gating', () => {
   it('detects when the player has no active research but valid options exist', () => {
     const state = createNewGame(undefined, 'end-turn-gating-seed', 'small');
-    expect(needsResearchChoice(state, state.currentPlayer)).toBe(true);
+    const playerId = state.currentPlayer;
+    // #1692: research only accrues from cities, so nothing is asked before the first one exists.
+    expect(needsResearchChoice(state, playerId)).toBe(false);
+
+    const settlerId = state.civilizations[playerId].units.find(unitId => state.units[unitId]?.type === 'settler')!;
+    const city = foundCity(playerId, state.units[settlerId].position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations[playerId].cities.push(city.id);
+    expect(needsResearchChoice(state, playerId)).toBe(true);
   });
 
   it('still reports blockers after only one of multiple idle choices is resolved', () => {
