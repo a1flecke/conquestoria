@@ -6,6 +6,7 @@ import { preach, isPreachTargetEligible } from '@/systems/religion-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { getOwnedCities, getOwnedCityCount } from '@/systems/city-ownership';
+import { removeCityProductionCommand } from '@/systems/planning-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
@@ -125,6 +126,7 @@ import { processMajorCivStrategicTurnInPlace } from './ai-major-turn';
 import { processAIResettlement } from './ai-resettlement';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import {
+  blocksSpyProcurement,
   prepareMajorCivStrategicPlan,
   type PreparedMajorCivPlan,
 } from './ai-prepared-turn';
@@ -1169,10 +1171,28 @@ function processAITurnInternal(
       newState = startLegendaryWonderBuild(newState, civId, cityId, wonderCandidates[0], bus);
     }
   }
+  // An earlier actor can declare war after planning. Free any spy queue head
+  // before choosing production or buying the current head.
+  const deferSpies = blocksSpyProcurement(
+    civ.diplomacy.atWarWith,
+    preparedForTurn.portfolio.primaryPlan,
+    preparedForTurn.nationalIntent.current,
+  );
+  if (deferSpies) {
+    for (const city of getOwnedCities(newState, civId)) {
+      if (!isSpyUnitType(city.productionQueue[0] as UnitType)) continue;
+      newState = removeCityProductionCommand(
+        newState, city.id, 0, city.productionMaterials?.queueRevision ?? 0,
+      ).state;
+    }
+  }
+  const productionDemands = deferSpies
+    ? preparedForTurn.forceDemands.filter(demand => demand.role !== 'espionage')
+    : preparedForTurn.forceDemands;
   newState = applyAIProduction(
     newState,
     civId,
-    preparedForTurn.forceDemands,
+    productionDemands,
     personality,
   );
   civ = newState.civilizations[civId];
@@ -1188,7 +1208,7 @@ function processAITurnInternal(
     spentState,
     civId,
     headsBeforeSpending.filter(entry => spentState.cities[entry.cityId]?.productionQueue.length === 0),
-    preparedForTurn.forceDemands,
+    productionDemands,
     personality,
   );
   civ = newState.civilizations[civId];

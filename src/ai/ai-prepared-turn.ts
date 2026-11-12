@@ -81,6 +81,7 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { resolveNationalIntent, scoreIntents } from './ai-national-intent';
 import { NATIONAL_INTENT_POSTURE, type NationalIntentPosture } from './ai-national-intent-posture';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
+import { isSpyUnitType } from '@/systems/spy-unit-types';
 
 export interface PreparedMajorCivPlan {
   civId: string;
@@ -201,6 +202,28 @@ export const WORKER_SOFT_CAP = 4;
 export const TRADE_ROUTES_PER_CITIES = 3;
 export const TRADE_PROCUREMENT_DEMAND_PRIORITY = 30;
 
+export function blocksSpyProcurement(
+  atWarWith: readonly string[],
+  primaryPlan: AIStrategicPlan | null,
+  intent: NationalIntentState['current'],
+): boolean {
+  return atWarWith.length > 0 || primaryPlan?.objective === 'capture' || intent === 'dominate';
+}
+
+function spyProcurementDemand(
+  state: Readonly<GameState>,
+  perception: MajorCivPerception,
+): PreparedForceDemandSeed[] {
+  const espionage = state.espionage?.[perception.actorId];
+  if (!espionage?.maxSpies || perception.ownCities.length === 0) return [];
+  if (perception.ownCities.some(city => city.productionQueue.some(itemId => isSpyUnitType(itemId as UnitType)))) return [];
+
+  // One operative gives the AI access to its mission pipeline. Stationed spies
+  // still satisfy demand after their units leave the map.
+  const activeSpies = Object.values(espionage.spies).filter(spy => spy.status !== 'captured').length;
+  return incrementalDemandSeed('espionage', 'espionage-procurement', 35, activeSpies, 1);
+}
+
 /**
  * Force-demand `sourcePlanIds` entries that name a standing, observation-derived need
  * rather than a specific `AIStrategicPlan` -- these are recomputed fresh from world
@@ -224,6 +247,7 @@ export const PLAN_AGNOSTIC_DEMAND_SOURCE_IDS: ReadonlySet<string> = new Set([
   'objective-readiness',
   'worker-infrastructure',
   'trade-procurement',
+  'espionage-procurement',
   'observed-armor',
   'remembered-armor',
   'observed-air',
@@ -941,6 +965,11 @@ export function prepareMajorCivStrategicPlan(
   const primaryCaptureRequiredRoles = portfolioResult.portfolio.primaryPlan?.objective === 'capture'
     ? portfolioResult.portfolio.primaryPlan.requiredRoles
     : undefined;
+  const spyDemand = blocksSpyProcurement(
+    civ.diplomacy.atWarWith,
+    portfolioResult.portfolio.primaryPlan,
+    nationalIntent.current,
+  ) ? [] : spyProcurementDemand(state, perception);
   const forceDemands = mergePreparedForceDemands(
     assignments.forceDemands,
     [
@@ -983,6 +1012,7 @@ export function prepareMajorCivStrategicPlan(
       // city-bounded shape as workers, and only while real work is material-blocked with at
       // least one legally permitted partner.
       ...tradeProcurementDemand(state, perception),
+      ...spyDemand,
       ...(counterplay ? [{
         ...counterplay.forceDemand,
         desired: 1,
