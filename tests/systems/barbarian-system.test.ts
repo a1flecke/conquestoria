@@ -23,6 +23,7 @@ import { executeUnitMove } from '@/systems/unit-movement-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { selectBarbarianReinforcement } from '@/systems/barbarian-force-composer';
 import { getBarbarianArchetypeDefinition, resolveBarbarianArchetype, type BarbarianArchetype } from '@/systems/barbarian-archetype';
+import { assertNoIllegalBlockingOccupancy } from '../helpers/save-state-invariants';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -976,6 +977,36 @@ describe('processPurposefulBarbarians', () => {
 });
 
 describe('barbarian camp evolution', () => {
+  it('leaves the garrison of a nearby surviving camp barbarian when another camp evolves (#1698)', () => {
+    const state = createNewGame(undefined, 'evolve-nearby-camp', 'small');
+    const evolving = { id: 'camp-evolve', position: { q: 15, r: 15 }, strength: 8, spawnCooldown: 2 };
+    const surviving = { id: 'camp-survive', position: { q: 18, r: 15 }, strength: 5, spawnCooldown: 2, resurgent: true };
+    state.barbarianCamps = { [evolving.id]: evolving, [surviving.id]: surviving };
+    state.map.tiles[hexKey(evolving.position)].terrain = 'grassland';
+    state.map.tiles[hexKey(surviving.position)].terrain = 'grassland';
+    state.cities = {};
+    state.minorCivs = {};
+    for (const civ of Object.values(state.civilizations)) {
+      civ.cities = [];
+      civ.units = [];
+    }
+    const evolvingGarrison = createUnit('warrior', 'barbarian', evolving.position, state.idCounters);
+    const survivingGarrison = createUnit('warrior', 'barbarian', surviving.position, state.idCounters);
+    state.units = { [evolvingGarrison.id]: evolvingGarrison, [survivingGarrison.id]: survivingGarrison };
+    assertNoIllegalBlockingOccupancy(state);
+
+    const next = minorCivsPhase.run(state, createRoundPhaseContext(state, new EventBus()));
+
+    expect(next.barbarianCamps[evolving.id]).toBeUndefined();
+    expect(next.barbarianCamps[surviving.id]).toEqual(surviving);
+    expect(next.units[survivingGarrison.id].owner).toBe('barbarian');
+    const [cityState] = Object.values(next.minorCivs);
+    expect(next.units[evolvingGarrison.id].owner).toBe(cityState.id);
+    expect(cityState.units).toContain(evolvingGarrison.id);
+    expect(cityState.units).not.toContain(survivingGarrison.id);
+    assertNoIllegalBlockingOccupancy(next);
+  });
+
   it('evolves camp at strength 8+', () => {
     const state = createNewGame(undefined, 'evolve-test', 'medium');
     // Clear existing camps so only our test camp is checked
