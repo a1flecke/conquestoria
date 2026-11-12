@@ -82,7 +82,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     id: 'explore',
     advisor: 'explorer',
     icon: '🔭',
-    message: 'The world awaits! Select your Scout and send them into the unknown. Who knows what we might find out there?',
+    message: 'The world awaits! Send a unit into the unknown, or train a Scout to do it faster. Who knows what we might find out there?',
     trigger: (state) => getOwnedCityCount(state, state.currentPlayer) > 0,
     tutorialStep: 'explore',
   },
@@ -500,6 +500,9 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
       const civ = state.civilizations[state.currentPlayer];
       if (!civ) return false;
       if (getOwnedCityCount(state, state.currentPlayer) === 0 || state.turn < 5) return false;
+      // Every campaign starts at 0 gold, so a small but growing treasury is not a warning (#1692).
+      const netGoldPerTurn = state.economyStatusByCiv?.[state.currentPlayer]?.netGoldPerTurn;
+      if (netGoldPerTurn !== undefined && netGoldPerTurn > 0) return false;
       return civ.gold < 10;
     },
   },

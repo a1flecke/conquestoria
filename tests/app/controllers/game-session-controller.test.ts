@@ -228,6 +228,24 @@ describe('GameSessionController', () => {
       expect(deps.renderLoop.start).toHaveBeenCalledTimes(1);
     });
 
+    it('autosaves when the page is hidden, so a reload or tab eviction keeps this turn (#1692)', async () => {
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const gameSession = createGameSessionController(deps);
+      void gameSession.startGame();
+      vi.mocked(saveManager.autoSave).mockClear();
+
+      const visibility = vi.spyOn(document, 'visibilityState', 'get');
+      visibility.mockReturnValue('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(saveManager.autoSave).not.toHaveBeenCalled();
+
+      visibility.mockReturnValue('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(saveManager.autoSave).toHaveBeenCalledWith(deps.session.getState());
+      visibility.mockRestore();
+    });
+
     it('clears any previous game\'s ceremony/victory backlog before presenting this GameState (#993)', async () => {
       const state = makeFixture();
       const deps = baseDeps(state);

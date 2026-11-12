@@ -115,6 +115,17 @@ describe('unit stack panel', () => {
     expect(container.textContent).toContain('XP 25');
   });
 
+  it('shows no veterancy for a unit that cannot fight (#1692)', () => {
+    const container = document.createElement('div');
+
+    renderUnitStackPanel(container, stateWithStack(), { q: 2, r: 1 }, ['worker'], {
+      onSelectUnit: () => {},
+    });
+
+    expect(container.textContent).not.toContain('XP');
+    expect(container.textContent).not.toContain('Recruit');
+  });
+
   it('does not render loaded cargo even if the caller passes its id', () => {
     const state = stateWithStack();
     state.units.transport = unit('transport', 'transport', { movementPointsLeft: 3, cargoUnitIds: ['cargo'] });

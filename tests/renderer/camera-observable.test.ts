@@ -82,4 +82,17 @@ describe('Camera observable mutations (#1439)', () => {
     expect(camera.worldToScreen(15, 30)).toEqual({ x: 10, y: 20 });
     expect(camera.screenToWorld(10, 20)).toEqual({ x: 15, y: 30 });
   });
+
+  it('keeps the centre of the view when the viewport is resized (#1692)', () => {
+    const camera = new Camera();
+    camera.setViewport(390, 844);
+    camera.centerOn({ q: 6, r: 4 });
+    const centre = () => ({ x: camera.x + camera.width / (2 * camera.zoom), y: camera.y + camera.height / (2 * camera.zoom) });
+    const before = centre();
+
+    camera.setViewport(844, 390);
+
+    expect(centre().x).toBeCloseTo(before.x, 6);
+    expect(centre().y).toBeCloseTo(before.y, 6);
+  });
 });

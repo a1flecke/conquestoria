@@ -19,6 +19,34 @@ describe('required-choice-panel', () => {
     expect(panel.querySelectorAll('button').length).toBeGreaterThan(1);
   });
 
+  it('shows only the section that has a decision, and says what a technology gives (#1692)', () => {
+    const researchOnly = createRequiredChoicePanel(document.body, {
+      researchChoices: [{ techId: 'fire', label: 'Fire', turns: 4, detail: 'Unlocks Workshop' }],
+      cityChoices: [],
+      onChooseResearch: vi.fn(),
+      onChooseCityBuild: vi.fn(),
+      onOpenTech: vi.fn(),
+      onOpenCity: vi.fn(),
+    });
+    expect(researchOnly.textContent).toContain('Choose Research');
+    expect(researchOnly.textContent).toContain('Unlocks Workshop');
+    expect(researchOnly.textContent).not.toContain('Choose Production');
+    // The choice button's own name still ends in its estimate.
+    expect(researchOnly.querySelector('section button')?.textContent).toBe('Fire · 4 turns');
+
+    const productionOnly = createRequiredChoicePanel(document.body, {
+      researchChoices: [],
+      cityChoices: [{ cityId: 'city-1', cityName: 'Roma', itemId: 'warrior', label: 'Warrior', turns: 3 }],
+      onChooseResearch: vi.fn(),
+      onChooseCityBuild: vi.fn(),
+      onOpenTech: vi.fn(),
+      onOpenCity: vi.fn(),
+    });
+    expect(productionOnly.textContent).toContain('Choose Production');
+    expect(productionOnly.textContent).not.toContain('Choose Research');
+    expect(productionOnly.textContent).not.toContain('required right now');
+  });
+
   it('can be recreated cleanly for the next required choice after one action resolves', () => {
     const first = createRequiredChoicePanel(document.body, {
       researchChoices: [{ techId: 'fire', label: 'Fire', turns: 4 }],

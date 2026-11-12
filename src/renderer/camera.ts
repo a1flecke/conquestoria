@@ -68,8 +68,20 @@ export class Camera {
     }
   }
 
+  /**
+   * Resize the viewport around its centre (#1692): the world point in the middle of the screen stays
+   * in the middle. Keeping the top-left corner fixed instead pushed the player's view off to one side
+   * whenever a phone was rotated or a window resized. The first sizing (from 0) only sets the size.
+   */
   setViewport(width: number, height: number): void {
-    this.commit(() => { this._width = width; this._height = height; });
+    this.commit(() => {
+      if (this._width > 0 && this._height > 0) {
+        this._x += (this._width - width) / (2 * this._zoom);
+        this._y += (this._height - height) / (2 * this._zoom);
+      }
+      this._width = width;
+      this._height = height;
+    });
   }
 
   centerOn(coord: HexCoord): void {

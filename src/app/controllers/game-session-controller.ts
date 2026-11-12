@@ -288,6 +288,15 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
 
     // Input (only set up once)
     if (!inputInitialized) {
+      // #1692: the game otherwise saves only at creation and at end of turn, so a reload or a mobile
+      // browser evicting the hidden tab lost everything done this turn. Writes are serialized in
+      // save-manager and keyed by turn, so this replaces the turn's own autosave and cannot land
+      // after a later one.
+      const saveWhenHidden = (): void => {
+        if (document.visibilityState === 'hidden') autoSave(deps.session.getState()).catch(() => {});
+      };
+      document.addEventListener('visibilitychange', saveWhenHidden);
+      window.addEventListener('pagehide', () => { autoSave(deps.session.getState()).catch(() => {}); });
       deps.canvas.addEventListener('pointerdown', () => { if (deps.hud.isDrawerOpen()) deps.hud.closeDrawer(); });
 
       const callbacks: InputCallbacks = {

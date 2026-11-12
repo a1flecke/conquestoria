@@ -111,7 +111,9 @@ export function renderUnitStackPanel(
     const statusLine = document.createElement('div');
     statusLine.style.cssText = 'font-size:10px;opacity:0.72;margin-top:3px;';
     const tier = getVeterancyTier(unit);
-    statusLine.textContent = `${unitStatus(unit)} · ${tier.label} · XP ${unit.experience ?? 0} · ${resolveSuperweaponContentDescription(unit.type, UNIT_DESCRIPTIONS[unit.type] ?? '', state)}`;
+    // Veterancy is a combat modifier; a unit that cannot fight shows none (#1692, as in the unit panel).
+    const veterancy = def.strength > 0 ? ` · ${tier.label} · XP ${unit.experience ?? 0}` : '';
+    statusLine.textContent = `${unitStatus(unit)}${veterancy} · ${resolveSuperweaponContentDescription(unit.type, UNIT_DESCRIPTIONS[unit.type] ?? '', state)}`;
 
     row.appendChild(nameLine);
     row.appendChild(statusLine);

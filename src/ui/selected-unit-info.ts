@@ -371,6 +371,7 @@ export function renderSelectedUnitInfo(
   descDiv.style.cssText = 'font-size:10px;opacity:0.6;margin-top:2px;';
   descDiv.textContent = resolveSuperweaponContentDescription(unit.type, UNIT_DESCRIPTIONS[unit.type] ?? '', state);
 
+  descDiv.dataset.unitReference = 'true';
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
 
@@ -551,6 +552,7 @@ export function renderSelectedUnitInfo(
       helpLink.textContent = 'ℹ️ How supply works';
       helpLink.style.cssText = 'margin-top:2px;background:none;border:none;color:#8fe8b0;font-size:10px;text-decoration:underline;cursor:pointer;padding:0;';
       helpLink.addEventListener('click', () => callbacks.onReopenSupplyTutorial!());
+      helpLink.dataset.unitReference = 'true';
       wrapper.appendChild(helpLink);
     }
   }
@@ -593,9 +595,11 @@ export function renderSelectedUnitInfo(
     const roleSummary = document.createElement('div');
     roleSummary.style.cssText = 'font-size:11px;line-height:1.35;margin-top:6px;color:#f8d28a;';
     roleSummary.textContent = rolePresentation.summary;
+    roleSummary.dataset.unitReference = 'true';
     wrapper.appendChild(roleSummary);
 
     const details = document.createElement('details');
+    details.dataset.unitReference = 'true';
     details.style.cssText = 'margin-top:6px;font-size:11px;line-height:1.4;';
     const summary = document.createElement('summary');
     summary.textContent = 'Role details';
@@ -696,6 +700,7 @@ export function renderSelectedUnitInfo(
   const nextLabel = nextTierLabel(tier.label);
   const combatBonus = Math.round(getVeterancyCombatModifier(unit) * 100);
   const xpDiv = document.createElement('div');
+  xpDiv.dataset.unitReference = 'true';
   xpDiv.style.cssText = 'font-size:10px;opacity:0.75;margin-top:4px;';
   xpDiv.textContent = nextTierXp === null || nextLabel === null
     ? `XP: ${unit.experience ?? 0} · ${tier.label} · +${combatBonus}% combat`
@@ -711,6 +716,7 @@ export function renderSelectedUnitInfo(
     const paidEntry = unitMaint.paidUnits.find(r => r.id === unitId);
     if (freeEntry || paidEntry) {
       const upkeepLine = document.createElement('div');
+      upkeepLine.dataset.unitReference = 'true';
       upkeepLine.style.cssText = 'font-size:10px;margin-top:2px;';
       if (freeEntry) {
         upkeepLine.textContent = 'Upkeep: Free support';
@@ -1382,6 +1388,7 @@ export function renderSelectedUnitInfo(
         actionsDiv.appendChild(upgradeButton);
       } else if (upgrade.targetType) {
         const readiness = document.createElement('div');
+        readiness.dataset.unitReference = 'true';
         readiness.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(232,193,112,0.1);border:1px solid rgba(232,193,112,0.28);font-size:11px;color:#f8d28a;line-height:1.45;';
         const heading = document.createElement('strong');
         heading.textContent = `Upgrade to ${UNIT_DEFINITIONS[upgrade.targetType].name} needs:`;
@@ -1407,4 +1414,43 @@ export function renderSelectedUnitInfo(
   };
   updateScrollCue();
   container.onscroll = updateScrollCue;
+  applyCompactReference(wrapper, topRow, closeBtn, updateScrollCue);
+}
+
+/** Phone widths at or below this fold the panel's reference text so the map stays visible (#1692). */
+export const COMPACT_UNIT_PANEL_MAX_WIDTH = 480;
+// A reading preference for this page view only: never game state, never saved.
+let unitReferenceExpanded = false;
+
+/**
+ * On a phone the full panel covered the selected unit and every tile it could move to. The
+ * reference text (description, role, veterancy, upkeep, upgrade requirements) folds behind a
+ * Details button there; status lines and every action stay visible.
+ */
+function applyCompactReference(
+  wrapper: HTMLElement,
+  topRow: HTMLElement,
+  closeBtn: HTMLElement,
+  onLayoutChange: () => void,
+): void {
+  if (typeof window === 'undefined' || window.innerWidth > COMPACT_UNIT_PANEL_MAX_WIDTH) return;
+  const reference = Array.from(wrapper.querySelectorAll<HTMLElement>('[data-unit-reference]'));
+  if (reference.length === 0) return;
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.dataset.unitDetailsToggle = 'true';
+  toggle.style.cssText = 'margin-left:auto;margin-right:8px;min-height:44px;padding:0 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.08);color:white;font-size:12px;cursor:pointer;touch-action:manipulation;';
+  const apply = () => {
+    for (const element of reference) element.hidden = !unitReferenceExpanded;
+    toggle.textContent = unitReferenceExpanded ? 'Hide details' : 'Details';
+    toggle.setAttribute('aria-expanded', String(unitReferenceExpanded));
+    onLayoutChange();
+  };
+  toggle.addEventListener('click', () => {
+    unitReferenceExpanded = !unitReferenceExpanded;
+    apply();
+  });
+  topRow.insertBefore(toggle, closeBtn);
+  apply();
 }

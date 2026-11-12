@@ -2,7 +2,7 @@ import { createGameButton } from '@/ui/ui-kit';
 import { markModal } from '@/ui/modal-contract';
 
 export interface RequiredChoiceConfig {
-  researchChoices: Array<{ techId: string; label: string; turns: number }>;
+  researchChoices: Array<{ techId: string; label: string; turns: number; detail?: string }>;
   cityChoices: Array<{ cityId: string; cityName: string; itemId: string; label: string; turns: number }>;
   onChooseResearch: (techId: string) => void;
   onChooseCityBuild: (cityId: string, itemId: string) => void;
@@ -42,41 +42,36 @@ export function createRequiredChoicePanel(
   intro.style.cssText = 'font-size:13px;opacity:0.8;margin:0 0 16px;';
   panel.appendChild(intro);
 
-  const researchSection = document.createElement('section');
-  researchSection.style.cssText = 'margin-bottom:16px;background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;';
-  researchSection.appendChild(buildSectionTitle('Choose Research'));
-
-  if (config.researchChoices.length === 0) {
-    const empty = document.createElement('div');
-    empty.textContent = 'No research choice is required right now.';
-    empty.style.cssText = 'font-size:12px;opacity:0.7;';
-    researchSection.appendChild(empty);
-  } else {
+  // Only a section with a decision in it is shown (#1692): the other one used to print
+  // "No ... choice is required right now." above or below the real question.
+  if (config.researchChoices.length > 0) {
+    const researchSection = document.createElement('section');
+    researchSection.style.cssText = 'margin-bottom:16px;background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;';
+    researchSection.appendChild(buildSectionTitle('Choose Research'));
     config.researchChoices.forEach(choice => {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = `${choice.label} · ${choice.turns} turns`;
-      button.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.08);color:inherit;';
+      button.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:2px;padding:10px;min-height:44px;border-radius:8px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.08);color:inherit;';
       button.addEventListener('click', () => config.onChooseResearch(choice.techId));
       researchSection.appendChild(button);
+      const detail = document.createElement('div');
+      detail.dataset.researchDetail = choice.techId;
+      detail.textContent = choice.detail ?? '';
+      detail.style.cssText = 'font-size:11px;opacity:0.75;margin:0 2px 10px;line-height:1.35;';
+      researchSection.appendChild(detail);
     });
+    const openTechButton = createGameButton('Open Tech Panel', 'secondary');
+    openTechButton.addEventListener('click', () => config.onOpenTech());
+    researchSection.appendChild(openTechButton);
+    panel.appendChild(researchSection);
   }
-
-  const openTechButton = createGameButton('Open Tech Panel', 'secondary');
-  openTechButton.addEventListener('click', () => config.onOpenTech());
-  researchSection.appendChild(openTechButton);
-  panel.appendChild(researchSection);
 
   const citySection = document.createElement('section');
   citySection.style.cssText = 'background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;';
   citySection.appendChild(buildSectionTitle('Choose Production'));
 
-  if (config.cityChoices.length === 0) {
-    const empty = document.createElement('div');
-    empty.textContent = 'No city production choice is required right now.';
-    empty.style.cssText = 'font-size:12px;opacity:0.7;';
-    citySection.appendChild(empty);
-  } else {
+  if (config.cityChoices.length > 0) {
     config.cityChoices.forEach(choice => {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
@@ -94,9 +89,9 @@ export function createRequiredChoicePanel(
 
       citySection.appendChild(row);
     });
+    panel.appendChild(citySection);
   }
 
-  panel.appendChild(citySection);
   // A decision the player must make: focus enters, Tab stays inside, Escape does not dismiss it.
   markModal(panel);
   container.appendChild(panel);
