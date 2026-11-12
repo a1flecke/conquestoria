@@ -1434,7 +1434,8 @@ function applyCompactReference(
   onLayoutChange: () => void,
 ): void {
   if (typeof window === 'undefined' || window.innerWidth > COMPACT_UNIT_PANEL_MAX_WIDTH) return;
-  const reference = Array.from(wrapper.querySelectorAll<HTMLElement>('[data-unit-reference]'));
+  const reference = Array.from(wrapper.children as HTMLCollectionOf<HTMLElement>)
+    .filter(element => element.dataset?.unitReference === 'true');
   if (reference.length === 0) return;
 
   const toggle = document.createElement('button');

@@ -91,6 +91,8 @@ describe('save-panel', () => {
     });
 
     expect(document.querySelectorAll('#save-panel [data-save-epic-card="true"]')).toHaveLength(1);
+    // #1692: opaque on the start screen, where only the empty in-game toolbar sits behind it.
+    expect((document.querySelector('#save-panel') as HTMLElement).style.background).toBe('rgb(10, 10, 30)');
     expect(document.body.textContent).not.toContain('Autosave Turn 9');
     expect(document.body.textContent).toContain('Desert Run');
   });
