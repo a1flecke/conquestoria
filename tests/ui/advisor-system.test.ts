@@ -312,7 +312,7 @@ describe('AdvisorSystem', () => {
   it('shows scholar no-research reminder when tech completed but idle', () => {
     const bus = new EventBus();
     const advisor = new AdvisorSystem(bus);
-    const state = makeState();
+    const state = stateWithCity(); // research needs a city (#1692)
     state.tutorial.active = false;
     state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: true, spymaster: false, artisan: false };
     state.civilizations.player.techState.completed = ['agriculture'];
@@ -344,6 +344,23 @@ describe('AdvisorSystem', () => {
     expect(messages).toHaveLength(1);
     expect(messages[0].advisor).toBe('treasurer');
     expect(messages[0].message).toContain('empty');
+  });
+
+  it('does not call a small but growing treasury empty (#1692)', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithCity();
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false, spymaster: false, artisan: false };
+    state.civilizations.player.gold = 5;
+    state.turn = 10;
+    state.economyStatusByCiv = { player: { netGoldPerTurn: 2 } } as unknown as typeof state.economyStatusByCiv;
+
+    const messages: any[] = [];
+    bus.on('advisor:message', (msg) => messages.push(msg));
+
+    advisor.check(state);
+    expect(messages).toHaveLength(0);
   });
 
   it('does not show treasurer broke on turn 1', () => {

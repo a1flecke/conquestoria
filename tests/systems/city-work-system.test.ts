@@ -12,7 +12,7 @@ import {
   normalizeWorkedTilesForCity,
   setCityWorkedTile,
 } from '@/systems/city-work-system';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { WONDER_DEFINITIONS } from '@/systems/wonder-definitions';
 
 function addCity(state: GameState, owner: string, position: HexCoord) {
@@ -258,6 +258,29 @@ describe('city focus assignment', () => {
     const result = assignCityFocus(state, city.id, 'gold');
 
     expect(result.state.cities[city.id].workedTiles).toEqual([wonder]);
+  });
+
+  it('balanced focus gives a coastal city production as it grows, not only water (#1692)', () => {
+    const state = createNewGame(undefined, 'city-work-balanced');
+    const city = addCity(state, 'player', { q: 15, r: 15 });
+    const ring = hexNeighbors(city.position);
+    expect(ring).toHaveLength(6);
+    // Three coast tiles (2 food, 1 gold) and three hills (2 production): the old flat score took all coast.
+    ring.forEach((coord, index) => {
+      const tile = state.map.tiles[hexKey(coord)];
+      state.map.tiles[hexKey(coord)] = {
+        ...tile, owner: 'player', terrain: index < 3 ? 'coast' : 'hills', resource: null, improvement: 'none', wonder: null, river: false,
+      } as typeof tile;
+    });
+    state.cities[city.id] = { ...city, population: 4, ownedTiles: [city.position, ...ring] };
+
+    const result = assignCityFocus(state, city.id, 'balanced');
+    const terrains = result.state.cities[city.id].workedTiles.map(coord => state.map.tiles[hexKey(coord)].terrain);
+
+    expect(terrains.filter(terrain => terrain === 'hills')).toHaveLength(2);
+    expect(terrains.filter(terrain => terrain === 'coast')).toHaveLength(2);
+    // Food wins the opening tie, so a new city grows first.
+    expect(terrains[0]).toBe('coast');
   });
 
   it('leaves surplus population unassigned when no valid unclaimed tiles exist', () => {

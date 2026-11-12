@@ -1,14 +1,14 @@
 {
   "e1": {
     "state": {
-      "__whole": "5c8513ce79ac",
+      "__whole": "7020c51f4786",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "ffd07905fec0",
       "beasts": "efef0319be28",
-      "cities": "94678a15f94b",
+      "cities": "90ef460344de",
       "cityFaith": "44136fa355b3",
-      "civilizations": "3d45e100c313",
+      "civilizations": "ced30631a2bf",
       "commerceMarket": "b2fbd0e811fc",
       "commercePermissions": "b053f8ba4051",
       "crisisForces": "44136fa355b3",
@@ -16,7 +16,7 @@
       "defensiveLeagues": "4f53cda18c2b",
       "discoveredWonders": "1727ec260c17",
       "dominationIntel": "44136fa355b3",
-      "economyStatusByCiv": "ec01a3ea19ce",
+      "economyStatusByCiv": "af865f37ecc7",
       "embargoes": "4f53cda18c2b",
       "era": "6b86b273ff34",
       "espionage": "5b5a2bb386e8",
@@ -58,7 +58,7 @@
       "tribalVillages": "25b57199045f",
       "turn": "6b86b273ff34",
       "tutorial": "8036676ee8e5",
-      "units": "cdd882eb69b9",
+      "units": "3d8e1ac6c51a",
       "wars": "77b5821c1dcf",
       "winner": "74234e98afe7",
       "wonderDiscoverers": "8d2f89c41a72"
@@ -67,12 +67,12 @@
   },
   "e2": {
     "state": {
-      "__whole": "edaf10ce7b54",
+      "__whole": "f19ed6bedaa1",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "3844da1b263b",
       "beasts": "efef0319be28",
-      "cities": "191107db072c",
+      "cities": "d147603278e2",
       "cityFaith": "44136fa355b3",
       "civilizations": "71f974a38d26",
       "commerceMarket": "d213ee80ec7c",

@@ -36,7 +36,10 @@ export async function createSavePanel(
 
   const panel = document.createElement('div');
   panel.id = 'save-panel';
-  panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,10,30,0.97);z-index:60;overflow-y:auto;padding:16px;';
+  // The start screen has no game behind it, only the empty in-game toolbar, which showed through
+  // as a ghost (#1692); in-game it stays slightly translucent over the map.
+  const background = mode === 'start' ? 'rgb(10,10,30)' : 'rgba(10,10,30,0.97)';
+  panel.style.cssText = `position:absolute;top:0;left:0;right:0;bottom:0;background:${background};z-index:60;overflow-y:auto;padding:16px;`;
 
   const epics = mode === 'start' ? await listSaveEpics() : [];
   const saves = mode === 'save'

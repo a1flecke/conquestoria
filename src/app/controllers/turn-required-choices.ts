@@ -12,6 +12,16 @@ import { getProductionDisplayName } from '@/systems/city-production-presentation
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import type { TurnFlowController, TurnFlowControllerDeps } from './turn-flow-shared';
 
+/** One line saying what a technology gives, so the quick pick is not a list of bare names (#1692). */
+export function describeResearchChoice(tech: ReturnType<typeof getAvailableTechs>[number]): string {
+  const unlocked = [...(tech.unlocksUnits ?? []), ...(tech.unlocksBuildings ?? [])].map(getProductionDisplayName);
+  const parts = [
+    ...(unlocked.length > 0 ? [`Unlocks ${unlocked.join(', ')}`] : []),
+    ...tech.unlocks,
+  ];
+  return parts.slice(0, 2).join(' · ');
+}
+
 export interface TurnRequiredChoices {
   closeRequiredChoicePanel: TurnFlowController['closeRequiredChoicePanel'];
   showReligionBoonIfNeeded: TurnFlowController['showReligionBoonIfNeeded'];
@@ -99,6 +109,7 @@ export function createTurnRequiredChoices(deps: TurnFlowControllerDeps): TurnReq
       ? getAvailableTechs(civ.techState).slice(0, 3).map(tech => ({
         techId: tech.id,
         label: tech.name,
+        detail: describeResearchChoice(tech),
         turns: estimateTurnsToComplete({ cost: getEffectiveTechCost(tech, civ.techState.completed), outputPerTurn: sciencePerTurn }),
       }))
       : [];
@@ -119,6 +130,13 @@ export function createTurnRequiredChoices(deps: TurnFlowControllerDeps): TurnReq
         };
       })
       .filter((choice): choice is NonNullable<typeof choice> => choice !== null);
+
+    // Nothing to offer (an idle city with no buildable item): a prompt with no choice in it would
+    // only block the screen.
+    if (researchChoices.length === 0 && cityChoices.length === 0) {
+      closeRequiredChoicePanel();
+      return false;
+    }
 
     deps.setBlockingOverlay('required-choice');
     createRequiredChoicePanel(uiLayer, {

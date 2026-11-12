@@ -2,13 +2,13 @@
   "turns": [
     {
       "state": {
-        "__whole": "985e1dc4c781",
+        "__whole": "509bcfbf42fc",
         "activeEventChains": "51fe40cdcded",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "a2bc0877883b",
         "beasts": "0c41ad5ea819",
-        "cities": "4a6efc82a966",
+        "cities": "9881d4fddd24",
         "cityFaith": "44136fa355b3",
         "civilizations": "668551a7f7ba",
         "commercePermissions": "b053f8ba4051",
@@ -68,18 +68,18 @@
         "wonderDiscoverers": "704ba0f8991a",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "9d68a99490f0",
+      "events": "1cf2408e555f",
       "trace": "c290a96984b0"
     },
     {
       "state": {
-        "__whole": "dc72bad77c35",
+        "__whole": "c9d56381560c",
         "activeEventChains": "208001498e9d",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "746f30abee35",
         "beasts": "0c41ad5ea819",
-        "cities": "3f6db1951f76",
+        "cities": "008305407a0d",
         "cityFaith": "44136fa355b3",
         "civilizations": "e8db12c21075",
         "commercePermissions": "b053f8ba4051",
@@ -139,20 +139,20 @@
         "wonderDiscoverers": "704ba0f8991a",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "67988bd191bf",
+      "events": "85ed8b50b146",
       "trace": "20269e54cb36"
     },
     {
       "state": {
-        "__whole": "954fe3bdb8ea",
+        "__whole": "0e2e198aba15",
         "activeEventChains": "e7ebd5002d6f",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "752fdb48f903",
         "beasts": "b41d533eb9df",
-        "cities": "08e0b10621cb",
+        "cities": "1c65a5f2463e",
         "cityFaith": "44136fa355b3",
-        "civilizations": "25802241a708",
+        "civilizations": "4a173ada721b",
         "commercePermissions": "b053f8ba4051",
         "completedLegendaryWonders": "44136fa355b3",
         "crisisForces": "6b8851af20c5",
@@ -210,7 +210,7 @@
         "wonderDiscoverers": "704ba0f8991a",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "a49ab06d1502",
+      "events": "a86d30c15db1",
       "trace": "20269e54cb36"
     }
   ]

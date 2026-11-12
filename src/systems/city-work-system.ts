@@ -107,6 +107,43 @@ function scoreYieldForFocus(yieldValue: ResourceYield, focus: CityFocus): number
   }
 }
 
+// The city centre's own food and production (`calculateCityYields`), the starting point of the balance.
+const BALANCED_CENTRE_FOOD = 1;
+const BALANCED_CENTRE_PRODUCTION = 1;
+const BALANCED_SCARCE_WEIGHT = 5;
+
+/**
+ * Balanced focus picks one citizen at a time and favours whichever of food and production the city
+ * has less of so far (#1692). A flat score ranked coast (2 food, 1 gold) above every production
+ * tile, so a balanced coastal city worked only water and stayed at 1 production at any size.
+ * Food wins a tie, so a new city grows first.
+ */
+function pickBalancedTiles(available: WorkableCityTile[], population: number): HexCoord[] {
+  const remaining = [...available].sort((left, right) => hexKey(left.coord).localeCompare(hexKey(right.coord)));
+  const picked: HexCoord[] = [];
+  let food = BALANCED_CENTRE_FOOD;
+  let production = BALANCED_CENTRE_PRODUCTION;
+  while (picked.length < population && remaining.length > 0) {
+    const foodWeight = food <= production ? BALANCED_SCARCE_WEIGHT : 3;
+    const productionWeight = production < food ? BALANCED_SCARCE_WEIGHT : 3;
+    let bestIndex = 0;
+    let bestScore = -Infinity;
+    remaining.forEach((tile, index) => {
+      const score = tile.yield.food * foodWeight + tile.yield.production * productionWeight
+        + tile.yield.gold * 2 + tile.yield.science * 2;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = index;
+      }
+    });
+    const [best] = remaining.splice(bestIndex, 1);
+    picked.push(best.coord);
+    food += best.yield.food;
+    production += best.yield.production;
+  }
+  return picked;
+}
+
 function countUnassigned(cityPopulation: number, workedTiles: HexCoord[]): number {
   return Math.max(0, cityPopulation - workedTiles.length);
 }
@@ -115,14 +152,16 @@ export function assignCityFocus(state: GameState, cityId: string, focus: Exclude
   const city = state.cities[cityId];
   if (!city) return { state, changed: false, reason: 'missing-city', unassignedCitizens: 0 };
 
-  const ranked = getWorkableTilesForCity(state, cityId)
-    .filter(tile => tile.available)
-    .sort((left, right) => {
-      const scoreDelta = scoreYieldForFocus(right.yield, focus) - scoreYieldForFocus(left.yield, focus);
-      return scoreDelta || hexKey(left.coord).localeCompare(hexKey(right.coord));
-    });
-
-  const workedTiles = ranked.slice(0, city.population).map(tile => tile.coord);
+  const available = getWorkableTilesForCity(state, cityId).filter(tile => tile.available);
+  const workedTiles = focus === 'balanced'
+    ? pickBalancedTiles(available, city.population)
+    : available
+      .sort((left, right) => {
+        const scoreDelta = scoreYieldForFocus(right.yield, focus) - scoreYieldForFocus(left.yield, focus);
+        return scoreDelta || hexKey(left.coord).localeCompare(hexKey(right.coord));
+      })
+      .slice(0, city.population)
+      .map(tile => tile.coord);
   const cities = {
     ...state.cities,
     [cityId]: { ...city, focus, workedTiles },

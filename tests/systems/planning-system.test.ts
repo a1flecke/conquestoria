@@ -13,6 +13,7 @@ import {
   activateNextQueuedResearch,
   getIdleCityIds,
   getRecommendedIdleCityChoice,
+  needsResearchChoice,
   moveQueuedId,
   removeQueuedId,
   reorderCityProduction,
@@ -179,6 +180,37 @@ describe('planning-system city queues', () => {
 
     expect(choice).not.toBeNull();
     expect(choice?.itemId).not.toBe('herbalist');
+  });
+
+  it('recommends something the civilization does not already have (#1692)', () => {
+    const state = createNewGame(undefined, 'idle-choice-variety', 'small');
+    const playerId = state.currentPlayer;
+    const settlerId = state.civilizations[playerId].units.find(unitId => state.units[unitId]?.type === 'settler')!;
+    const city = foundCity(playerId, state.units[settlerId].position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations[playerId].cities.push(city.id);
+
+    const first = getRecommendedIdleCityChoice(state, playerId, city.id)!;
+    // Hand the civilization one of whatever was recommended; the next recommendation must differ.
+    const template = state.units[settlerId];
+    state.units['owned-copy'] = { ...template, id: 'owned-copy', type: first.itemId as typeof template.type };
+    state.civilizations[playerId].units.push('owned-copy');
+
+    const second = getRecommendedIdleCityChoice(state, playerId, city.id)!;
+    expect(second.itemId).not.toBe(first.itemId);
+  });
+
+  it('asks for research only once the civilization has a city (#1692)', () => {
+    const state = createNewGame(undefined, 'research-needs-city', 'small');
+    const playerId = state.currentPlayer;
+    expect(state.civilizations[playerId].cities).toHaveLength(0);
+    expect(needsResearchChoice(state, playerId)).toBe(false);
+
+    const settlerId = state.civilizations[playerId].units.find(unitId => state.units[unitId]?.type === 'settler')!;
+    const city = foundCity(playerId, state.units[settlerId].position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations[playerId].cities.push(city.id);
+    expect(needsResearchChoice(state, playerId)).toBe(true);
   });
 
   it('prices recommended Settler production with the current era cost table', () => {

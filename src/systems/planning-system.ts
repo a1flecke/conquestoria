@@ -338,6 +338,11 @@ export function needsResearchChoice(state: GameState, civId: string): boolean {
   if (civ.techState.currentResearch) {
     return false;
   }
+  // Research only accrues from cities, so a civilization that has not founded one yet has nothing
+  // to decide (#1692): asking on turn 1 put a full-screen prompt over the map with invented estimates.
+  if (!civ.cities.some(cityId => state.cities[cityId]?.owner === civId)) {
+    return false;
+  }
   return getAvailableTechs(civ.techState).length > 0;
 }
 
@@ -395,9 +400,19 @@ export function getRecommendedIdleCityChoice(
   // #1506 MR09 task 10: a fundable item is an immediate solution; an unfundable one is only ever
   // offered as an explicit "plan and wait" so an idle-production warning never promises a build the
   // city cannot pay for.
+  // Prefer something the civilization does not have yet (#1692): sorting by time alone offered the
+  // cheapest unit again the moment the first one was built, indefinitely.
+  const ownedByType = new Map<string, number>();
+  for (const unitId of civ.units) {
+    const type = state.units[unitId]?.type;
+    if (type) ownedByType.set(type, (ownedByType.get(type) ?? 0) + 1);
+  }
+  const owned = (itemId: string): number => ownedByType.get(itemId) ?? 0;
+
   const best = candidates
     .sort((left, right) =>
       Number(right.fundableNow) - Number(left.fundableNow)
+      || owned(left.itemId) - owned(right.itemId)
       || left.turns - right.turns
       || left.cost - right.cost
       || left.priority - right.priority)[0];
