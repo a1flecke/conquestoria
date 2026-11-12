@@ -51,7 +51,7 @@ export async function createSavePanel(
   panel.innerHTML = `
     <div style="max-width:400px;margin:0 auto;">
       <h1 style="text-align:center;color:#e8c170;font-size:22px;margin-bottom:4px;">Conquestoria</h1>
-      <p style="text-align:center;font-size:11px;opacity:0.5;margin-bottom:20px;">Build your civilization</p>
+      <p style="text-align:center;font-size:11px;opacity:0.75;margin-bottom:20px;">Build your civilization</p>
       ${mode === 'start' ? renderStartButtons(hasAuto) : ''}
       <div style="margin-top:16px;">
         <div id="save-panel-heading" style="font-size:14px;color:#e8c170;margin-bottom:8px;">${mode === 'save' ? 'Save Game' : 'Saved Games'}</div>
@@ -75,7 +75,7 @@ export async function createSavePanel(
   const renderEmpty = (message: string): void => {
     if (!saveSlots) return;
     const empty = document.createElement('div');
-    empty.style.cssText = 'font-size:12px;opacity:0.5;text-align:center;padding:16px;';
+    empty.style.cssText = 'font-size:12px;opacity:0.75;text-align:center;padding:16px;';
     empty.textContent = message;
     saveSlots.appendChild(empty);
   };
@@ -391,7 +391,7 @@ function renderStartButtons(hasAuto: boolean): string {
 function renderBackupButtons(): string {
   return `
     <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
-      <div style="font-size:11px;color:rgba(255,255,255,0.4);text-align:center;margin-bottom:8px;">Backup &amp; Restore</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.7);text-align:center;margin-bottom:8px;">Backup &amp; Restore</div>
       <div style="display:flex;gap:8px;justify-content:center;">
         <button id="btn-export-save" style="padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;font-size:12px;cursor:pointer;">Export Save</button>
         <button id="btn-import-save" style="padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;font-size:12px;cursor:pointer;">Import Save</button>
@@ -433,7 +433,7 @@ function createEpicCard(epic: SaveEpic): HTMLElement {
   const date = new Date(epic.latestPlayed);
   const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const meta = document.createElement('div');
-  meta.style.cssText = 'font-size:11px;opacity:0.5;';
+  meta.style.cssText = 'font-size:11px;opacity:0.75;';
   const modeText = epic.gameMode === 'hotseat' ? `Hot Seat (${epic.playerNames?.join(', ') ?? ''})` : 'Solo';
   meta.textContent = `Latest turn ${epic.latestTurn} · ${epic.saves.length} save${epic.saves.length === 1 ? '' : 's'} · ${modeText} · ${dateStr}`;
   content.appendChild(meta);
@@ -476,7 +476,7 @@ function createSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): HTMLElement
   const date = new Date(save.lastPlayed);
   const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const meta = document.createElement('div');
-  meta.style.cssText = 'font-size:11px;opacity:0.5;';
+  meta.style.cssText = 'font-size:11px;opacity:0.75;';
   meta.textContent = `Turn ${save.turn} · ${save.gameMode === 'hotseat' ? `Hot Seat (${save.playerNames?.join(', ') ?? ''})` : save.civType} · ${dateStr}`;
   content.appendChild(meta);
   row.appendChild(content);

@@ -37,6 +37,12 @@ class MockElement {
     return child;
   }
 
+  insertBefore(child: MockElement, before: MockElement): MockElement {
+    const index = this.children.indexOf(before);
+    this.children.splice(index < 0 ? this.children.length : index, 0, child);
+    return child;
+  }
+
   addEventListener(event: string, listener: (...args: unknown[]) => void): void {
     this.listeners[event] ??= [];
     this.listeners[event].push(listener);
@@ -159,6 +165,44 @@ describe('land-supply status line (#544)', () => {
     state.civilizations.player.units = ['u1'];
     return state;
   }
+
+  it('on a phone, folds reference text behind a Details button and keeps status and actions (#1692)', () => {
+    const state = makeUnitState('compact-phone-panel', 'warrior');
+    const container = new MockElement('div');
+    (globalThis as any).window = { innerWidth: 390 };
+    try {
+      renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    } finally {
+      (globalThis as any).window = undefined;
+    }
+
+    const wrapper = container.children[0];
+    const reference = wrapper.children.filter(child => child.dataset.unitReference === 'true');
+    expect(reference.length).toBeGreaterThan(0);
+    expect(reference.every(child => (child as unknown as { hidden: boolean }).hidden)).toBe(true);
+    // The supply status is not reference text: it stays on screen.
+    const supply = wrapper.children.find(child => child.textContent.startsWith('Full Supply'))!;
+    expect((supply as unknown as { hidden?: boolean }).hidden).toBeFalsy();
+
+    const toggle = findButtons(container).find(button => button.dataset.unitDetailsToggle === 'true')!;
+    expect(toggle.textContent).toBe('Details');
+    toggle.click();
+    expect(reference.every(child => !(child as unknown as { hidden: boolean }).hidden)).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    toggle.click(); // leave the module preference collapsed for later tests
+  });
+
+  it('on a wide screen, shows everything and adds no Details button (#1692)', () => {
+    const state = makeUnitState('compact-desktop-panel', 'warrior');
+    const container = new MockElement('div');
+    (globalThis as any).window = { innerWidth: 1280 };
+    try {
+      renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    } finally {
+      (globalThis as any).window = undefined;
+    }
+    expect(findButtons(container).some(button => button.dataset.unitDetailsToggle === 'true')).toBe(false);
+  });
 
   it('shows Full Supply with a territory fallback label when no source is in range', () => {
     const state = makeUnitState('supply-status-full', 'warrior');
