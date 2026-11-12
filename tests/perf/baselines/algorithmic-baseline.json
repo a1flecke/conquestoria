@@ -2,32 +2,32 @@
   "__doc__": "#1007 machine-independent algorithmic baselines + budgets. Integers/ratios ONLY (contamination-tested). Regenerate with `UPDATE_PERF_BASELINE=1 yarn vitest run tests/perf/algorithmic-budgets.test.ts`. See .claude/rules/performance-budgets.md.",
   "areas": {
     "aiRound@e1": {
-      "blockingEntityAtCalls": 264,
-      "cityYieldCalls": 2853,
+      "blockingEntityAtCalls": 262,
+      "cityYieldCalls": 3000,
       "civEconomyCalls": 9,
-      "economyStatusCalls": 2634,
-      "heapPops": 2464,
+      "economyStatusCalls": 2586,
+      "heapPops": 5066,
       "ownedRoadConnectivityCalls": 32,
-      "ownedRoadTileScans": 15,
-      "pathQueries": 181,
+      "ownedRoadTileScans": 16,
+      "pathQueries": 159,
       "projectedGrossGoldCalls": 0,
-      "roadConnectivityCalls": 925,
+      "roadConnectivityCalls": 762,
       "structuredCloneWholeState": 9,
-      "structuredCloneWholeStateBytes": 31289910
+      "structuredCloneWholeStateBytes": 30994262
     },
     "aiRound@e2": {
-      "blockingEntityAtCalls": 499,
-      "cityYieldCalls": 6148,
-      "civEconomyCalls": 10,
-      "economyStatusCalls": 5374,
-      "heapPops": 8072,
-      "ownedRoadConnectivityCalls": 56,
-      "ownedRoadTileScans": 16,
-      "pathQueries": 310,
+      "blockingEntityAtCalls": 498,
+      "cityYieldCalls": 6466,
+      "civEconomyCalls": 13,
+      "economyStatusCalls": 5371,
+      "heapPops": 10300,
+      "ownedRoadConnectivityCalls": 54,
+      "ownedRoadTileScans": 23,
+      "pathQueries": 264,
       "projectedGrossGoldCalls": 0,
-      "roadConnectivityCalls": 2796,
-      "structuredCloneWholeState": 9,
-      "structuredCloneWholeStateBytes": 45434602
+      "roadConnectivityCalls": 2647,
+      "structuredCloneWholeState": 8,
+      "structuredCloneWholeStateBytes": 40795260
     },
     "findPath": {
       "heapPops": 70,
@@ -60,31 +60,31 @@
       "structuredCloneWholeState": 3
     },
     "saveSerialize@e1": {
-      "bytes": 2908619,
-      "entityBytes": 1216907
+      "bytes": 2897867,
+      "entityBytes": 1206020
     },
     "saveSerialize@e2": {
-      "bytes": 4308674,
-      "entityBytes": 2188544
+      "bytes": 4323830,
+      "entityBytes": 2203739
     },
     "turn@e1": {
       "blockingEntityAtCalls": 0,
-      "cityYieldCalls": 102,
-      "civEconomyCalls": 4,
+      "cityYieldCalls": 104,
+      "civEconomyCalls": 5,
       "economyStatusCalls": 24,
       "heapPops": 0,
       "ownedRoadConnectivityCalls": 0,
-      "ownedRoadTileScans": 20,
+      "ownedRoadTileScans": 21,
       "pathQueries": 0,
       "projectedGrossGoldCalls": 0,
-      "roadConnectivityCalls": 28,
+      "roadConnectivityCalls": 29,
       "structuredCloneWholeState": 2,
-      "structuredCloneWholeStateBytes": 7859760,
+      "structuredCloneWholeStateBytes": 7813359,
       "visibilityPasses": 8
     },
     "turn@e2": {
       "blockingEntityAtCalls": 0,
-      "cityYieldCalls": 258,
+      "cityYieldCalls": 250,
       "civEconomyCalls": 9,
       "economyStatusCalls": 48,
       "heapPops": 0,
@@ -94,25 +94,25 @@
       "projectedGrossGoldCalls": 0,
       "roadConnectivityCalls": 33,
       "structuredCloneWholeState": 2,
-      "structuredCloneWholeStateBytes": 11577243,
+      "structuredCloneWholeStateBytes": 11651818,
       "visibilityPasses": 8
     }
   },
   "auditedCommit": "6be5a726",
   "budgets": {
     "aiRound": {
-      "blockingEntityAtCalls": 749,
-      "cityYieldCalls": 9222,
-      "civEconomyCalls": 15,
-      "economyStatusCalls": 8061,
-      "heapPops": 12108,
-      "ownedRoadConnectivityCalls": 84,
-      "ownedRoadTileScans": 24,
-      "pathQueries": 465,
+      "blockingEntityAtCalls": 747,
+      "cityYieldCalls": 9699,
+      "civEconomyCalls": 20,
+      "economyStatusCalls": 8057,
+      "heapPops": 15450,
+      "ownedRoadConnectivityCalls": 81,
+      "ownedRoadTileScans": 35,
+      "pathQueries": 396,
       "projectedGrossGoldCalls": 0,
-      "roadConnectivityCalls": 4194,
-      "structuredCloneWholeState": 14,
-      "structuredCloneWholeStateBytes": 68151903
+      "roadConnectivityCalls": 3971,
+      "structuredCloneWholeState": 12,
+      "structuredCloneWholeStateBytes": 61192890
     },
     "findPath": {
       "heapPops": 105,
@@ -127,8 +127,8 @@
       "structuredCloneWholeState": 5
     },
     "saveSerialize": {
-      "bytes": 6463011,
-      "entityBytes": 3282816
+      "bytes": 6485745,
+      "entityBytes": 3305609
     },
     "turn": {
       "blockingEntityAtCalls": 0,
@@ -140,7 +140,7 @@
       "projectedGrossGoldCalls": 0,
       "roadConnectivityCalls": 50,
       "structuredCloneWholeState": 3,
-      "structuredCloneWholeStateBytes": 17365865,
+      "structuredCloneWholeStateBytes": 17477727,
       "visibilityPasses": 12
     },
     "unconditionalPasses": {
@@ -149,14 +149,14 @@
   },
   "ratios": {
     "aiRoundCityYieldCalls": 2.8,
-    "aiRoundCloneBytes": 1.89,
-    "aiRoundHeapPops": 4.26,
-    "aiRoundPathQueries": 2.23,
-    "aiRoundProjectionCalls": 2.65,
-    "aiRoundRoadCalls": 3.84,
+    "aiRoundCloneBytes": 1.71,
+    "aiRoundHeapPops": 2.64,
+    "aiRoundPathQueries": 2.16,
+    "aiRoundProjectionCalls": 2.7,
+    "aiRoundRoadCalls": 4.37,
     "findPathPopsPerRouteStep": 3.64,
-    "saveBytes": 1.93,
-    "saveEntityBytes": 2.34,
+    "saveBytes": 1.94,
+    "saveEntityBytes": 2.38,
     "turnHeapPops": 0
   }
 }

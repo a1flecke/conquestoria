@@ -113,13 +113,19 @@ describe('unit step', () => {
   });
 
   it('rejects placing a unit on an already-occupied tile unless unsafe: true', () => {
+    // A tile this seed leaves empty, found rather than assumed: where the base game puts its own units is not
+    // this test's business, and a fixed coordinate broke when start placement changed (#1692).
+    const seed = 'scenario-unit-step-occupied';
+    const base = buildScenario({ name: 'unit-step-occupied-base', description: 'test only', seed, base: soloBase, steps: [] });
+    const occupied = new Set(Object.values(base.units).map(unit => `${unit.position.q},${unit.position.r}`));
+    const free = Object.values(base.map.tiles).find(tile => !occupied.has(`${tile.coord.q},${tile.coord.r}`))!.coord;
     const stepsBase: ScenarioStep[] = [
-      { kind: 'terrain', position: { q: 0, r: 0 }, terrain: 'plains' },
-      { kind: 'unit', civId: 'player', type: 'scout', position: { q: 0, r: 0 } },
-      { kind: 'unit', civId: 'ai-1', type: 'warrior', position: { q: 0, r: 0 } },
+      { kind: 'terrain', position: free, terrain: 'plains' },
+      { kind: 'unit', civId: 'player', type: 'scout', position: free },
+      { kind: 'unit', civId: 'ai-1', type: 'warrior', position: free },
     ];
     const blocked: ScenarioDefinition = {
-      name: 'unit-step-occupied', description: 'test only', seed: 'scenario-unit-step-occupied',
+      name: 'unit-step-occupied', description: 'test only', seed,
       base: soloBase, steps: stepsBase,
     };
     expect(() => buildScenario(blocked)).toThrow(ScenarioError);

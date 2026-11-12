@@ -179,8 +179,12 @@ function expectCounterBudgets(
 
 /** GUARD 10 shape: AI-round whole-state clone count is entity-independent, and its bytes stay bounded. */
 function expectAiRoundCloneWork(e1: AreaSample, e2: AreaSample, base: Baseline): void {
-  expect(e2.structuredCloneWholeState, 'AI round whole-state clone count must not scale with entities')
-    .toBe(e1.structuredCloneWholeState);
+  // "Must not GROW with entities". It used to be pinned as exact equality, which only held while both fixtures
+  // happened to take the same once-per-action clones (founding a city, a worker step and a few tactical actions
+  // each clone the state once). After #1692 moved the fixtures' starts the doubled fixture takes one fewer such
+  // action (8 against 9). Fewer is not scaling; a per-entity clone still fails here and in the sabotage proof.
+  expect(e2.structuredCloneWholeState!, 'AI round whole-state clone count must not scale with entities')
+    .toBeLessThanOrEqual(e1.structuredCloneWholeState!);
   expect(e2.structuredCloneWholeState!).toBeLessThanOrEqual(base.budgets.aiRound!.structuredCloneWholeState!);
   expect(e2.structuredCloneWholeStateBytes!, 'AI round whole-state clone-byte budget')
     .toBeLessThanOrEqual(base.budgets.aiRound!.structuredCloneWholeStateBytes!);
