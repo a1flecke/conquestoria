@@ -288,6 +288,8 @@ describe('focusNotificationTarget', () => {
   it('reports a no-longer-visible target as last spotted here', () => {
     const state = makeFixture();
     const coord = { q: 3, r: 4 };
+    // Stated, not inherited from wherever this seed happens to start the player: the tile was seen and is not now.
+    state.civilizations.player.visibility = { tiles: { [hexKey(coord)]: 'fog' } };
     const session = createGameSession(state);
     const renderLoop = { camera: { centerOn: vi.fn() } };
     const notifier = { toast: vi.fn() };
