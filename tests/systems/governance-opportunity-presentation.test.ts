@@ -1,11 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import type { Civilization, GameState } from '@/core/types';
-import { getGovernanceOpportunity, GOVERNANCE_OPPORTUNITY_PRIORITY } from '@/systems/governance-opportunity-presentation';
+import { getGovernanceOpportunity, GOVERNANCE_OPPORTUNITY_PRIORITY, isGovernanceUnlocked } from '@/systems/governance-opportunity-presentation';
 import { getGovernancePolicyEligibility, setGovernancePolicy } from '@/systems/governance-policy-system';
 import { getGovernorAssignmentEligibility, assignGovernor } from '@/systems/governor-system';
 import { getGovernancePresentation } from '@/systems/governance-presentation';
 import { GOVERNANCE_POLICY_DEFINITIONS } from '@/systems/governance-policy-definitions';
-import { makeGovernanceTestState } from './helpers/governance-fixture';
+import { makeGovernanceTestState as makeEraOneGovernanceState } from './helpers/governance-fixture';
+import { getEraAdvancementTechs } from '@/systems/tech-definitions';
+
+// Governance only matters from Era 2 (#1692 G2), so these cases play a civilization that has reached Era 2. The
+// shared fixture stays in Era 1 for the suites that want it.
+const ERA_TWO_TECHS = getEraAdvancementTechs(2).map(tech => tech.id);
+function makeGovernanceTestState(options: Parameters<typeof makeEraOneGovernanceState>[0] = {}) {
+  return makeEraOneGovernanceState({ ...options, completedTechs: [...ERA_TWO_TECHS, ...(options.completedTechs ?? [])] });
+}
 
 const ALL_LOCKED_POLICIES: Partial<Civilization> = {
   governancePolicyChangedTurn: { 'conscription-levy': 8, 'free-trade-charter': 8, 'local-autonomy-writ': 8 },
@@ -39,6 +47,23 @@ describe('governance opportunity (#1373)', () => {
     expect(opp.adoptablePolicyCount).toBe(0);
     expect(opp.assignableGovernorCount).toBe(1);
     expect(opp.why).toBe('You have 2 capacity free. You have room to assign another governor.');
+  });
+
+  it('is absent in Era 1, when unrest and therefore governance do nothing yet (#1692 G2)', () => {
+    const state = makeGovernanceTestState();
+    expect(isGovernanceUnlocked(state, 'player')).toBe(true);
+    expect(getGovernanceOpportunity(state, 'player')).not.toBeNull();
+
+    const eraOne = {
+      ...state,
+      civilizations: {
+        ...state.civilizations,
+        player: { ...state.civilizations.player, techState: { ...state.civilizations.player.techState, completed: [] } },
+      },
+    };
+    expect(isGovernanceUnlocked(eraOne, 'player')).toBe(false);
+    expect(getGovernanceOpportunity(eraOne, 'player')).toBeNull();
+    expect(isGovernanceUnlocked(state, 'nobody')).toBe(false);
   });
 
   it('is absent with no free capacity', () => {

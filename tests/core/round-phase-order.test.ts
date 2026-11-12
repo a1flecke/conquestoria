@@ -376,19 +376,20 @@ const EXPECTED_AFTER: ReadonlyArray<readonly [phase: string, calls: readonly str
   ]],
 ];
 
-// Changed for #1692 (start food floor): the crowded fixture's civilizations start on different tiles, so which
+// Changed for #1692 (start and city-state food floor): the crowded fixture's civilizations and city-states stand on
+// different tiles, so which
 // first-turn moves reveal a wonder, meet a neighbour or flip a border tile changed. The SHAPE is the same as
 // before: one block per civilization (production disposition, move, optional first contact, fog, optional wonder)
 // and then the identical world tail from the territory flip onward. No phase moved.
 const EXPECTED_EVENT_TYPES_TURN_1: readonly string[] = [
-  'turn:end', 'city:production-disposition*', 'unit:move', 'civilization:first-contact', 'fog:revealed', 'wonder:discovered*',
-  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move',
-  'civilization:first-contact', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed',
+  'turn:end', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered', 'city:production-disposition*', 'unit:move',
+  'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*',
+  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed',
   'wonder:discovered', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*',
   'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*',
-  'territory:tile-flipped', 'minor-civ:quest-issued*', 'minor-civ:evolved', 'threat:barbarian-resurgence*', 'eventchain:started*',
+  'territory:tile-flipped', 'minor-civ:quest-issued*', 'minor-civ:evolved', 'threat:barbarian-resurgence', 'eventchain:started*',
   'eventchain:choice-made', 'eventchain:started', 'eventchain:choice-made', 'eventchain:started', 'eventchain:choice-made',
-  'espionage:intel-extracted', 'era:advanced', 'economy:treasury-strain*', 'turn:start',
+  'espionage:intel-extracted', 'era:advanced', 'turn:start',
 ];
 
 function flatten(blocks: ReadonlyArray<readonly [string, readonly string[]]>): string[] {

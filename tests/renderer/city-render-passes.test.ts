@@ -120,6 +120,22 @@ describe('fitCityBannerLabel', () => {
     expect(ctx.measureText(wide).width).toBeLessThanOrEqual(80);
   });
 
+  it('shows the whole name without the population before it would cut the name (#1692)', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    ctx.font = 'bold 12px system-ui';
+    const nameWidth = ctx.measureText('Gondor').width;
+    const fullWidth = ctx.measureText('Gondor (5)').width;
+
+    // Room for the name but not for the name and the population.
+    expect(fitCityBannerLabel(ctx, 'Gondor', 5, (nameWidth + fullWidth) / 2, true)).toBe('Gondor');
+    // Room for both: unchanged.
+    expect(fitCityBannerLabel(ctx, 'Gondor', 5, fullWidth, true)).toBe('Gondor (5)');
+    // Not even room for the name: the old truncation, population kept.
+    const tight = fitCityBannerLabel(ctx, 'Gondor', 5, nameWidth - 1, true);
+    expect(tight).toContain('…');
+    expect(tight).toMatch(/\(5\)$/);
+  });
+
   it('reserves measured width for the complete population suffix', () => {
     const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
     ctx.font = 'bold 12px system-ui';
