@@ -81,7 +81,7 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { resolveNationalIntent, scoreIntents } from './ai-national-intent';
 import { NATIONAL_INTENT_POSTURE, type NationalIntentPosture } from './ai-national-intent-posture';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
-import { isSpyUnitType } from '@/systems/spy-unit-types';
+import { ESPIONAGE_PROCUREMENT_SOURCE_ID, hasQueuedAISpy } from './ai-production';
 
 export interface PreparedMajorCivPlan {
   civId: string;
@@ -216,12 +216,12 @@ function spyProcurementDemand(
 ): PreparedForceDemandSeed[] {
   const espionage = state.espionage?.[perception.actorId];
   if (!espionage?.maxSpies || perception.ownCities.length === 0) return [];
-  if (perception.ownCities.some(city => city.productionQueue.some(itemId => isSpyUnitType(itemId as UnitType)))) return [];
+  if (hasQueuedAISpy(perception.ownCities)) return [];
 
   // One operative gives the AI access to its mission pipeline. Stationed spies
   // still satisfy demand after their units leave the map.
   const activeSpies = Object.values(espionage.spies).filter(spy => spy.status !== 'captured').length;
-  return incrementalDemandSeed('espionage', 'espionage-procurement', 35, activeSpies, 1);
+  return incrementalDemandSeed('espionage', ESPIONAGE_PROCUREMENT_SOURCE_ID, 35, activeSpies, 1);
 }
 
 /**
@@ -247,7 +247,7 @@ export const PLAN_AGNOSTIC_DEMAND_SOURCE_IDS: ReadonlySet<string> = new Set([
   'objective-readiness',
   'worker-infrastructure',
   'trade-procurement',
-  'espionage-procurement',
+  ESPIONAGE_PROCUREMENT_SOURCE_ID,
   'observed-armor',
   'remembered-armor',
   'observed-air',
