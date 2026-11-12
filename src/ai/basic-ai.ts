@@ -6,7 +6,6 @@ import { preach, isPreachTargetEligible } from '@/systems/religion-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { getOwnedCities, getOwnedCityCount } from '@/systems/city-ownership';
-import { removeCityProductionCommand } from '@/systems/planning-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
@@ -132,7 +131,7 @@ import {
 } from './ai-prepared-turn';
 import { isAIHostileOwner } from './ai-hostility';
 import { hasAITradeRole } from './ai-unit-roles';
-import { applyAIProduction, refillAIQueuesEmptiedByPurchase } from './ai-production';
+import { applyAIProduction, refillAIQueuesEmptiedByPurchase, releaseAISpyQueueHeads } from './ai-production';
 import { applyAIGoldSpending } from './ai-treasury';
 import { applyAIResearch } from './ai-research';
 import { getAIProcurementTerms, processAIResourceMarketplace } from './ai-resource-marketplace';
@@ -1178,14 +1177,7 @@ function processAITurnInternal(
     preparedForTurn.portfolio.primaryPlan,
     preparedForTurn.nationalIntent.current,
   );
-  if (deferSpies) {
-    for (const city of getOwnedCities(newState, civId)) {
-      if (!isSpyUnitType(city.productionQueue[0] as UnitType)) continue;
-      newState = removeCityProductionCommand(
-        newState, city.id, 0, city.productionMaterials?.queueRevision ?? 0,
-      ).state;
-    }
-  }
+  if (deferSpies) newState = releaseAISpyQueueHeads(newState, civId);
   const productionDemands = deferSpies
     ? preparedForTurn.forceDemands.filter(demand => demand.role !== 'espionage')
     : preparedForTurn.forceDemands;

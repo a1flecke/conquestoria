@@ -182,9 +182,10 @@ describe('prepared major-civilization planning', () => {
     it('releases a spy queue when war starts after peacetime planning', () => {
       const { state, civ } = spyProcurementGame();
       const cityId = civ.cities[0];
+      const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+      expect(prepared.forceDemands.some(demand => demand.role === 'espionage' && demand.missing === 1)).toBe(true);
       const queued = enqueueCityProduction(state, cityId, 'spy_informant');
       expect(queued.ok).toBe(true);
-      const prepared = prepareMajorCivStrategicPlan(queued.state, civ.id);
       queued.state.civilizations[civ.id].diplomacy.atWarWith = ['player'];
       queued.state.civilizations.player.diplomacy.atWarWith = [civ.id];
 
