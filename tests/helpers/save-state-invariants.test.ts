@@ -3,6 +3,7 @@ import type { GameState, Unit } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { attemptInfiltration, createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import {
   assertBilateralWar,
@@ -1063,6 +1064,27 @@ describe('#994 assertNoIllegalBlockingOccupancy', () => {
     state.units[garrison.id] = garrison;
 
     expect(() => assertNoIllegalBlockingOccupancy(state)).not.toThrow();
+  });
+
+  it('permits an infiltrating scout to remain on a foreign city without permitting a mixed-owner stack', () => {
+    const { state, cityId } = stateWithPlayerCity('occ-foreign-spy');
+    const city = state.cities[cityId];
+    const scout = createUnit('spy_scout', 'ai-1', city.position, state.idCounters);
+    state.units = { [scout.id]: scout };
+    expect(() => assertNoIllegalBlockingOccupancy(state)).toThrow(/foreign-city/);
+
+    const { state: espionage } = createSpyFromUnit(createEspionageCivState(), scout.id, scout.owner, scout.type, 'occ-spy');
+    const infiltration = attemptInfiltration(
+      espionage, scout.id, scout.type, cityId, city.position, 0, 'ai-infiltrate-unit-62-82',
+    );
+    expect(infiltration.era1ScoutResult).toBeDefined();
+    expect(infiltration.removeUnitFromMap).toBe(false);
+    state.espionage = { ...state.espionage, [scout.owner]: infiltration.civEsp };
+    expect(() => assertNoIllegalBlockingOccupancy(state)).not.toThrow();
+
+    const garrison = createUnit('warrior', city.owner, city.position, state.idCounters);
+    state.units[garrison.id] = garrison;
+    expect(() => assertNoIllegalBlockingOccupancy(state)).toThrow(/different owners/);
   });
 
   // #845: an undefended barbarian camp had zero representation in the movement system before

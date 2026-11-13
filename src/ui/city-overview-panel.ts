@@ -7,6 +7,7 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getTopUnrestLever } from '@/systems/unrest-guidance';
 import { unrestRecommendationCopy } from '@/ui/unrest-guidance-copy';
 import { createGameButton } from '@/ui/ui-kit';
+import { getProductionDisplayName, getProductionIconForItem } from '@/systems/city-production-presentation';
 
 export interface CityOverviewPanelCallbacks {
   onOpenCity: (cityId: string) => void;
@@ -131,6 +132,18 @@ export function createCityOverviewPanel(
     yieldsLine.style.cssText = 'display:flex;gap:12px;font-size:12px;opacity:0.85;margin-top:4px;';
     yieldsLine.textContent = `🌾+${yields.food} ⚒️+${yields.production} 💰+${yields.gold} 🔬+${yields.science}`;
     row.appendChild(yieldsLine);
+
+    // #1692 D2: what the city is making, so an idle city is visible from the list.
+    const activeItem = city.productionQueue[0];
+    const productionLine = document.createElement('div');
+    productionLine.dataset.cityProduction = activeItem ? 'building' : 'idle';
+    productionLine.style.cssText = `font-size:12px;margin-top:4px;color:${activeItem ? 'rgba(255,255,255,0.8)' : '#d9a25c'};`;
+    productionLine.textContent = activeItem
+      ? `${getProductionIconForItem(activeItem)} ${getProductionDisplayName(activeItem)}${city.productionQueue.length > 1 ? ` (+${city.productionQueue.length - 1} queued)` : ''}`
+      : city.idleProduction
+        ? `Nothing queued: production becomes ${city.idleProduction}`
+        : '⚠️ Idle: nothing queued';
+    row.appendChild(productionLine);
 
     if (city.unrestLevel > 0) {
       // #919 MR3: one plain-language "top lever" line — the single most useful thing

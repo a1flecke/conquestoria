@@ -20,6 +20,7 @@ import { getRoadBlockerReason, getRoadBuildTurns } from './road-system';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
 import { getFortificationPlacement } from './fortification-system';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 
 export const DEFAULT_WORKER_CHARGES = 2;
 export const MAX_WORKER_CHARGES = 5;
@@ -216,7 +217,10 @@ export function applyWorkerAction(
       nextTerrain = 'plains';
       const boostedCity = findNearestOwnedCity(state, unit.owner, tile.coord);
       if (boostedCity) {
-        forestProductionBonus = FOREST_FARM_PRODUCTION_BONUS;
+        // Isengard "Industry of War" (#1692 A14): razing woodland feeds the forges on top of the ordinary yield.
+        const civBonus = resolveCivDefinition(state, state.civilizations[unit.owner]?.civType ?? '')?.bonusEffect;
+        forestProductionBonus = FOREST_FARM_PRODUCTION_BONUS
+          + (civBonus?.type === 'forest_industry' ? civBonus.productionBurst : 0);
         boostedCityId = boostedCity.id;
       }
     }

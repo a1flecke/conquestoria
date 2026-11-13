@@ -14,6 +14,7 @@
  * but can only be placed into the DOM after `createGameShell()` has built
  * that toolbar.
  */
+import { getTechById } from '@/systems/tech-system';
 import type { RenderLoop } from '@/renderer/render-loop';
 import type { GameSession } from '@/app/ports';
 import type { PanelRouter } from '@/app/panel-router';
@@ -23,6 +24,7 @@ import { civHasAirDefenseCoverage } from '@/systems/air-defense-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { calculateCivEconomy, formatGoldHudText } from '@/systems/economy-system';
+import { isGovernanceUnlocked } from '@/systems/governance-opportunity-presentation';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { isAutonomyActivated } from '@/systems/network-plan-system';
@@ -141,7 +143,9 @@ export function createHudController(deps: HudControllerDeps): HudController {
       }
       const economyStatus = calculateCivEconomy(state, civ.id);
 
-      const techName = civ.techState.currentResearch ?? 'None';
+      // The technology's display name, never its raw id (#1692 C3).
+      const currentResearchId = civ.techState.currentResearch;
+      const techName = currentResearchId ? getTechById(currentResearchId)?.name ?? currentResearchId : 'None';
       hud.textContent = '';
       const status = getCivilizationStatusForViewer(state, civ.id);
       if (status) {
@@ -155,7 +159,9 @@ export function createHudController(deps: HudControllerDeps): HudController {
       const yieldsRow = document.createElement('div');
       yieldsRow.dataset.role = 'hud-yields';
       yieldsRow.style.cssText =
-        'display:flex;align-items:center;gap:10px;flex-wrap:nowrap;overflow:hidden;min-width:0;';
+        // One baseline at every width (#437): the row never wraps. The HUD around it does (#1692), so on a
+        // phone this row gets a line to itself, and scrolls sideways if late-game chips outgrow the screen.
+        'display:flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0;max-width:100%;overflow-x:auto;flex:0 1 auto;';
 
       const yieldSpan = document.createElement('span');
       yieldSpan.textContent = `🌾 ${totalFood}`;
@@ -167,7 +173,7 @@ export function createHudController(deps: HudControllerDeps): HudController {
 
       const goldBtn = document.createElement('button');
       goldBtn.style.cssText =
-        'background:transparent;color:inherit;border:none;font-family:inherit;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
+        'background:transparent;color:inherit;border:none;font-family:inherit;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;white-space:nowrap;flex-shrink:0;';
       goldBtn.textContent = `💰 ${formatGoldHudText(economyStatus, civ.gold)}`;
       goldBtn.addEventListener('click', () => drawer?.toggle());
       yieldsRow.appendChild(goldBtn);
@@ -229,7 +235,7 @@ export function createHudController(deps: HudControllerDeps): HudController {
       // #987: governance panel entry point. Shown once unrest itself starts
       // mattering (era >= 2, matching processFactionTurn's own era<=1 skip) —
       // no point sending a brand-new empire to a panel with nothing to report.
-      if (resolveCivilizationEra(civ.techState.completed) >= 2) {
+      if (isGovernanceUnlocked(state, civ.id)) {
         const governanceButton = document.createElement('button');
         governanceButton.type = 'button';
         governanceButton.style.cssText = 'background:transparent;color:inherit;border:1px solid rgba(232,193,112,0.45);border-radius:6px;font:inherit;padding:4px 8px;min-height:44px;';
@@ -268,6 +274,8 @@ export function createHudController(deps: HudControllerDeps): HudController {
       }
 
       const infoRow = document.createElement('div');
+      infoRow.dataset.role = 'hud-turn-info';
+      infoRow.style.cssText = 'margin-left:auto;white-space:nowrap;text-align:right;';
       if (state.hotSeat && civ.name) {
         const nameSpan = document.createElement('span');
         nameSpan.textContent = `${civ.name} · `;

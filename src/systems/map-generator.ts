@@ -14,6 +14,7 @@ import { LEGENDARY_WONDER_DEFINITIONS } from './legendary-wonder-definitions';
 import { EARTH_START_POSITIONS } from './earth-start-positions';
 import { isValidStartTile } from './map-validation';
 import { createStartViabilityIndex } from './start-viability';
+import { isFertileStart } from './start-fertility';
 import { OLD_WORLD_START_POSITIONS } from './old-world-start-positions';
 import { NEW_WORLD_START_POSITIONS } from './new-world-start-positions';
 
@@ -426,6 +427,24 @@ export function getGeographicStartAnchor(
 }
 
 /**
+ * A generated map could not hold every civilization the required distance apart. Typed so game creation can try
+ * another map or tell the player, instead of an untyped throw the setup screen cannot explain (#1692).
+ */
+export class StartPlacementError extends Error {
+  constructor(
+    readonly requested: number,
+    readonly placed: number,
+    readonly minimumDistance: number,
+  ) {
+    super(
+      `[findStartPositions] Could not place ${requested} civilizations at least `
+      + `${minimumDistance} hexes apart; placed ${placed}.`,
+    );
+    this.name = 'StartPlacementError';
+  }
+}
+
+/**
  * Find start positions for all civs. Returns positions in the same order as civTypeIds.
  *
  * For geo scripts, precomputed historical starts are looked up first;
@@ -500,41 +519,67 @@ export function findStartPositions(
   }
 
   // Pass 2: greedy for slots without precomputed positions.
-  const used = new Set<string>(
-    positions.filter(Boolean).map(p => hexKey(p!)),
-  );
-  const placedPositions = positions.filter(Boolean) as HexCoord[];
-
   const minimumDistance = getMinimumStartDistance(map);
-  for (let i = 0; i < count; i++) {
-    if (positions[i] !== null) continue;
+  const fertilityByKey = new Map<string, boolean>();
+  const fertile = (coord: HexCoord): boolean => {
+    const key = hexKey(coord);
+    let known = fertilityByKey.get(key);
+    if (known === undefined) {
+      known = isFertileStart(map, coord);
+      fertilityByKey.set(key, known);
+    }
+    return known;
+  };
 
-    let bestCandidate: HexCoord | null = null;
-    let bestMinDist = -1;
+  // One greedy pass over a copy of the precomputed slots. Returns how many it placed when it gets stuck.
+  const placeGreedy = (preferFertile: boolean): { positions: HexCoord[] } | { placed: number } => {
+    const placing = [...positions];
+    const used = new Set<string>(placing.filter(Boolean).map(p => hexKey(p!)));
+    const placedPositions = placing.filter(Boolean) as HexCoord[];
+    for (let i = 0; i < count; i++) {
+      if (placing[i] !== null) continue;
 
-    for (const c of allCandidates) {
-      if (used.has(hexKey(c))) continue;
-      const minDist = placedPositions.length === 0
-        ? Infinity
-        : Math.min(...placedPositions.map(p => getStartPositionDistance(map, c, p)));
+      let bestCandidate: HexCoord | null = null;
+      let bestMinDist = -1;
+      let bestFertileCandidate: HexCoord | null = null;
+      let bestFertileMinDist = -1;
 
-      if (minDist >= minimumDistance && minDist > bestMinDist) {
-        bestMinDist = minDist;
-        bestCandidate = c;
+      for (const c of allCandidates) {
+        if (used.has(hexKey(c))) continue;
+        const minDist = placedPositions.length === 0
+          ? Infinity
+          : Math.min(...placedPositions.map(p => getStartPositionDistance(map, c, p)));
+        if (minDist < minimumDistance) continue;
+
+        if (minDist > bestMinDist) {
+          bestMinDist = minDist;
+          bestCandidate = c;
+        }
+        if (preferFertile && minDist > bestFertileMinDist && fertile(c)) {
+          bestFertileMinDist = minDist;
+          bestFertileCandidate = c;
+        }
       }
-    }
 
-    const selected = bestCandidate;
-    if (!selected) {
-      throw new Error(
-        `[findStartPositions] Could not place ${count} civilizations at least `
-        + `${minimumDistance} hexes apart; placed ${placedPositions.length}.`,
-      );
+      // The widest-spaced candidate, as before, unless it cannot feed a city and a fertile one exists: then the
+      // widest-spaced fertile candidate. A seed whose starts were already fertile is placed exactly as it was.
+      const selected = bestCandidate && bestFertileCandidate && !fertile(bestCandidate)
+        ? bestFertileCandidate
+        : bestCandidate;
+      if (!selected) return { placed: placedPositions.length };
+      placing[i] = selected;
+      used.add(hexKey(selected));
+      placedPositions.push(selected);
     }
-    positions[i] = selected;
-    used.add(hexKey(selected));
-    placedPositions.push(selected);
-  }
+    return { positions: placing as HexCoord[] };
+  };
 
-  return positions as HexCoord[];
+  // #1692 E: prefer starts a young city can feed (`start-fertility.ts`). Moving one pick can leave a later
+  // civilization with no separated site, so when the fertile pass gets stuck the original pass decides, and only
+  // if that fails too is the placement refused, exactly as before.
+  const preferred = placeGreedy(true);
+  if ('positions' in preferred) return preferred.positions;
+  const original = placeGreedy(false);
+  if ('positions' in original) return original.positions;
+  throw new StartPlacementError(count, original.placed, minimumDistance);
 }

@@ -143,14 +143,14 @@ describe('HudController', () => {
     const hud = createHudController(deps);
 
     hud.update();
-    expect(document.getElementById('hud')?.textContent).toContain('fire');
+    expect(document.getElementById('hud')?.textContent).toContain('Fire');
     (document.querySelector('[data-action="open-research-breakdown"]') as HTMLButtonElement).click();
     const outgoingScience = document.querySelector('[data-research-output-kind="final"]')?.textContent;
 
     deps.session.commit({ ...deps.session.getState(), currentPlayer: 'player-2' });
     hud.update();
     expect(document.querySelector('[data-role="research-breakdown"]')).toBeNull();
-    expect(document.getElementById('hud')?.textContent).toContain('writing');
+    expect(document.getElementById('hud')?.textContent).toContain('Writing');
     (document.querySelector('[data-action="open-research-breakdown"]') as HTMLButtonElement).click();
 
     expect(document.querySelector('[data-research-output-kind="final"]')?.textContent).not.toBe(outgoingScience);

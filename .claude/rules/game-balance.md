@@ -50,6 +50,9 @@ Movement bonuses are the most easily broken stat — small integers stack to pro
 | `military-logistics` tech | tech | all land units | road entry cost 1 → 0.5 (not additive +N) | era 4+ |
 | `railway-expansion` tech | tech | all land units | road entry cost 1 → 0.5 (not additive +N; does not stack with Military Logistics) | era 7+ |
 | `gps-navigation` tech | tech | land units in own territory | ignores hills/forest extra cost (terrain cost 1) | era 12+ |
+| Mongolia `mounted_movement` civ bonus (also the custom Expansionist trait) | civ bonus | mounted land units of that civ only | +1 move, baked in at unit creation | whole game |
+
+**Mongolia stacking analysis (#1692):** the only other land-unit movement sources are road discounts and `gps-navigation`, which change tile *cost*, not movement points, so a Mongol mounted unit's additive total is +1 (limit +2). It is one civilization's identity, not an empire-wide source every civ can reach.
 
 **Roads discount, they don't stack:** entering a `hasRoad` tile always costs 1 movement, or 0.5 if the moving unit's owner has `military-logistics` **or** `railway-expansion` — never both at once (0.5 is the floor, not 0.25). See `tests/systems/road-system.test.ts` for the explicit no-stack regression.
 
@@ -486,6 +489,13 @@ unit within hex distance **2** of the city) → `mobilizing`; a regional grievan
 `coalition-talks` status → `mobilizing`; membership in a `forming` or `active`
 `minorCivCoalitions` entry → `mobilizing`; a `wary` grievance at pressure ≥ 20, or zero live units
 → `fortifying`; otherwise → `settled`.
+
+**Stand-down delay (#1692):** after the last turn a hostile unit stood inside the alarm radius
+(`MinorCivEconomyState.lastImmediateThreatTurn`, written by `processMinorCivEconomyTurn`), the
+city-state stays `mobilizing` for `MINOR_CIV_THREAT_STAND_DOWN_TURNS` (3) more turns. A camp's
+raiders arrive every few turns; standing down between raids dropped the unit cap and dequeued the
+defender in production (#954). Difficulty-invariant; the field is optional and a save without it
+stands down immediately, as before (no migration).
 
 The production queue is **not** re-evaluated every turn — `chooseMinorCivQueueItem` only runs
 when the queue is empty and at least `queueDecisionInterval` turns have passed since the last

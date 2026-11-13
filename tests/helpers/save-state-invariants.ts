@@ -3,6 +3,7 @@ import { classifyOwner } from '@/core/owner-kind';
 import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getBlockingMapEntityAt } from '@/systems/unit-movement-legality';
+import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/systems/transport-system';
 import { isBasedAirUnit } from '@/systems/air-base-state';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
@@ -734,6 +735,10 @@ export function assertOpponentAIPortfolioIntegrity(state: GameState): void {
  * skipped here exactly as `buildUnitOccupancy` already skips them for movement's own stacking
  * check, so a carrier's air wing or a transport's cargo manifest never double-reports the same
  * tile its hull already covers.
+ *
+ * Espionage can explicitly enter a foreign city. A scout stays on the map after a
+ * successful infiltration, and an uncaught spy stays on the map during cooldown.
+ * These spies still participate in the mixed-owner stacking check.
  */
 export function assertNoIllegalBlockingOccupancy(state: GameState): void {
   const problems: string[] = [];
@@ -742,6 +747,13 @@ export function assertNoIllegalBlockingOccupancy(state: GameState): void {
   for (const [unitId, unit] of Object.entries(state.units)) {
     if (unit.transportId || isBasedAirUnit(unit)) continue;
     const blocker = getBlockingMapEntityAt(state, unit, unit.position);
+    if (blocker?.reason === 'foreign-city' && isSpyUnitType(unit.type)) {
+      const spy = state.espionage?.[unit.owner]?.spies[unitId];
+      if (
+        spy?.owner === unit.owner && spy.unitType === unit.type
+        && (spy.status === 'idle' || spy.status === 'cooldown' || spy.status === 'on_mission')
+      ) continue;
+    }
     if (blocker) {
       problems.push(
         `unit "${unitId}" (owner "${unit.owner}") sits on tile (${unit.position.q},${unit.position.r}) blocked by ${blocker.reason} "${blocker.entityId}"`,

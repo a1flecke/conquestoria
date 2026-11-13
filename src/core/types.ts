@@ -1171,7 +1171,7 @@ export type CivBonusEffect =
   | { type: 'faster_military'; speedMultiplier: number }
   | { type: 'extra_tech_speed'; speedMultiplier: number }
   | { type: 'trade_route_bonus'; bonusGold: number }
-  | { type: 'naval_bonus'; visionBonus: number }
+  | { type: 'naval_bonus'; visionBonus: number; navalCombatBonus: number }
   | { type: 'combat_production'; productionBonus: number }
   | { type: 'bushido' }
   | { type: 'faster_growth'; foodReduction: number }
@@ -1735,6 +1735,8 @@ export interface MinorCivEconomyState {
   localRecoveryUntilTurn?: number;
   /** Turn on/after which the next emergency levy may fire (#951). Hard gate, independent of posture. */
   levyCooldownUntilTurn?: number;
+  /** Last turn a hostile unit stood within the city's alarm radius; holds `mobilizing` briefly (#1692). */
+  lastImmediateThreatTurn?: number;
   lastQueueDecisionTurn?: number;
   pendingUnitSpawn?: {
     unitType: UnitType;

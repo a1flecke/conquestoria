@@ -739,6 +739,23 @@ describe('AI strategic production', () => {
     expect(generated).toContain('stealth_bomber');
   });
 
+  it('satisfies spy procurement with spy units even when a propagandist is already queued', () => {
+    const state = setupState(['cyber-warfare', 'synthetic-media-operations'], ['city-a', 'city-b']);
+    grantResources(state, RESOURCE_DEFINITIONS.map(definition => definition.id as ResourceType));
+    const candidateUnits = (entry: AIForceDemand) =>
+      generateAIProductionCandidates(state, 'ai-1', 'city-a', [entry], aggressive)
+        .filter(candidate => candidate.kind === 'unit')
+        .map(candidate => candidate.itemId);
+    const procurement = demand('espionage', 1, 35, ['espionage-procurement']);
+
+    expect(candidateUnits(demand('espionage')))
+      .toEqual(expect.arrayContaining(['cyber_unit', 'propagandist', 'spy_hacker']));
+    expect(candidateUnits(procurement)).toEqual(['spy_hacker']);
+
+    state.cities['city-b'].productionQueue = ['propagandist'];
+    expect(candidateUnits(procurement)).toEqual(['spy_hacker']);
+  });
+
   it('generates every currently available building without hardcoded AI branches', () => {
     const state = setupState(TECH_TREE.map(tech => tech.id));
     state.era = 11;

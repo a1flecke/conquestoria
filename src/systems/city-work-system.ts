@@ -3,6 +3,7 @@ import { hexKey } from './hex-utils';
 import { calculateCityYields } from './resource-system';
 import { getTileYield } from './tile-yield';
 import { getNetworkCityYieldBonus } from './network-infrastructure-plans';
+import { resolveCivDefinition } from './civ-registry';
 import {
   buildCityWorkClaimIndex,
   canonicalizeCityCoord,
@@ -203,6 +204,11 @@ export function calculateProjectedCityYields(
 ): ResourceYield {
   const city = state.cities[cityId];
   if (!city) return { food: 0, production: 0, gold: 0, science: 0 };
+  // #1692: a caller that names no bonus gets the city owner's. The city panel, the city list, the city grid and
+  // the HUD all called this without one, so they showed yields the turn did not apply (Shire food, Russian
+  // tundra, German production...). An explicit argument still wins, for callers pricing a hypothetical owner.
+  const ownerBonus = bonusEffect
+    ?? resolveCivDefinition(state, state.civilizations?.[city.owner]?.civType ?? '')?.bonusEffect;
 
   const workResult = city.focus === 'custom'
     ? normalizeWorkedTilesForCity(state, cityId)
@@ -211,7 +217,7 @@ export function calculateProjectedCityYields(
   const completedTechs = workResult.state.civilizations?.[projectedCity.owner]?.techState.completed ?? [];
   const hostsCompletedLegendaryWonder = Object.values(workResult.state.completedLegendaryWonders ?? {})
     .some(w => w.cityId === cityId);
-  const baseYields = calculateCityYields(projectedCity, workResult.state.map, bonusEffect, completedTechs, { hostsCompletedLegendaryWonder }, state.turn);
+  const baseYields = calculateCityYields(projectedCity, workResult.state.map, ownerBonus, completedTechs, { hostsCompletedLegendaryWonder }, state.turn);
   const networkBonus = getNetworkCityYieldBonus(workResult.state, cityId, baseYields);
   // Catastrophe-crisis recovery reward — must match turn-manager.ts's own +1/+1 so the
   // displayed projection never diverges from what processTurn actually applies.

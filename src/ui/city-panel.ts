@@ -903,6 +903,21 @@ export function createCityPanelView(
     })),
   ];
 
+  // #1692 D3: nearest first. An item blocked only by a resource or a local building comes before one waiting on
+  // research; among those, the earliest era and then the fewest missing technologies lead, so the preview shows
+  // what the player can reach next instead of whatever the catalog happens to list first. Stable otherwise.
+  const techEraById = new Map(TECH_TREE.map(tech => [tech.id, tech.era] as const));
+  const lockedDistance = (item: typeof lockedItems[number]): [number, number] => {
+    const missing = item.requiredTechs.filter(techId => !completedTechs.includes(techId));
+    return [Math.max(0, ...missing.map(techId => techEraById.get(techId) ?? 0)), missing.length];
+  };
+  const lockedOrder = new Map(lockedItems.map((item, index) => [item, index] as const));
+  lockedItems.sort((left, right) => {
+    const [leftEra, leftCount] = lockedDistance(left);
+    const [rightEra, rightCount] = lockedDistance(right);
+    return leftEra - rightEra || leftCount - rightCount || lockedOrder.get(left)! - lockedOrder.get(right)!;
+  });
+
   const prerequisiteChecklist = (techIds: readonly string[]): string => techIds
     .map(techId => {
       const name = TECH_TREE.find(tech => tech.id === techId)?.name ?? techId;

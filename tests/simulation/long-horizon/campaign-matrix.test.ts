@@ -53,6 +53,11 @@ describe('long-horizon campaign matrix', () => {
       // scenario where every AI is dead is not exercising the AI.
       const livingAi = report.perCiv.filter(c => !c.isHuman && c.living);
       expect(livingAi.length).toBeGreaterThan(0);
+      if (seed === 'lh-late-era-medium') {
+        expect(livingAi.some(civ =>
+          Object.keys(run.finalState.espionage?.[civ.civId]?.spies ?? {}).length > 0,
+        ), 'a living AI should have fielded a spy by the end of the late-era campaign').toBe(true);
+      }
     },
     SCENARIO_TIMEOUT_MS,
   );

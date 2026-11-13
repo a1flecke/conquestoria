@@ -1,26 +1,13 @@
 import type { GameMap, HexCoord, HexTile, ResourceYield } from '@/core/types';
 import { hexKey, hexNeighbors, wrapHexCoord } from './hex-utils';
+import { TERRAIN_YIELDS } from './terrain-yields';
 import { getImprovementYieldBonus } from './improvement-system';
 import { getWonderYieldBonus } from './wonder-system';
 import { getWonderDefinition } from './wonder-definitions';
 import { getRiverYieldBonus } from './river-system';
 import { getTerrainTechYieldBonus } from './tech-yield-system';
 
-export const TERRAIN_YIELDS: Record<string, ResourceYield> = {
-  grassland:  { food: 2, production: 0, gold: 0, science: 0 },
-  plains:     { food: 1, production: 1, gold: 0, science: 0 },
-  desert:     { food: 0, production: 0, gold: 0, science: 0 },
-  tundra:     { food: 1, production: 0, gold: 0, science: 0 },
-  snow:       { food: 0, production: 0, gold: 0, science: 0 },
-  forest:     { food: 1, production: 1, gold: 0, science: 0 },
-  hills:      { food: 0, production: 2, gold: 0, science: 0 },
-  mountain:   { food: 0, production: 1, gold: 0, science: 0 },
-  ocean:      { food: 1, production: 0, gold: 0, science: 0 },
-  coast:      { food: 2, production: 0, gold: 1, science: 0 },
-  jungle:     { food: 2, production: 0, gold: 0, science: 0 },
-  swamp:      { food: 1, production: 0, gold: 0, science: 0 },
-  volcanic:   { food: 0, production: 0, gold: 0, science: 0 },
-};
+export { TERRAIN_YIELDS };
 
 function addYield(total: ResourceYield, bonus: Partial<ResourceYield>): void {
   total.food += bonus.food ?? 0;

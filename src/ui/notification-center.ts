@@ -31,11 +31,34 @@ const TOAST_COLORS: Record<NotificationEntry['type'], string> = {
   warning: '#d94a4a',
 };
 
+/**
+ * How long a toast stays up, given how many are waiting behind it (#1692 D1). One at a time for a fixed six
+ * seconds meant a turn with five messages took half a minute to read out, so the queue fell further behind every
+ * turn (66 waiting by turn 12 in a play-through) and announced events long after they happened. A toast with
+ * nothing behind it keeps the full time; a backlog drains faster. Nothing is dropped, and the message log keeps
+ * every entry.
+ */
+export function toastDurationMs(waitingBehind: number): number {
+  if (waitingBehind <= 0) return 6000;
+  if (waitingBehind <= 2) return 3000;
+  return 1500;
+}
+
 /** Moved verbatim from main.ts's module-scope notification queue (#787 phase 4). */
 export function createNotificationCenter(deps: NotificationCenterDeps): Notifier {
   const queue: QueuedToast[] = [];
   let isShowingNotification = false;
   let currentDismissTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The toast on screen: when it appeared and how to dismiss it, so a growing backlog can shorten its stay. */
+  let current: { shownAt: number; dismiss: () => void } | null = null;
+
+  function scheduleCurrentDismiss(): void {
+    if (!current) return;
+    if (currentDismissTimer) clearTimeout(currentDismissTimer);
+    const remaining = Math.max(0, toastDurationMs(queue.length) - (Date.now() - current.shownAt));
+    const { dismiss } = current;
+    currentDismissTimer = setTimeout(dismiss, remaining);
+  }
 
   function displayNext(): void {
     const next = queue.shift();
@@ -46,7 +69,7 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
 
     isShowingNotification = true;
     const notif = document.createElement('div');
-    notif.style.cssText = `background:${TOAST_COLORS[next.type]}ee;color:#1a1a2e;padding:10px 14px;border-radius:10px;font-size:12px;cursor:pointer;transition:opacity 0.3s;max-width:90%;`;
+    notif.style.cssText = `background:${TOAST_COLORS[next.type]}ee;color:#1a1a2e;padding:10px 14px;border-radius:10px;font-size:12px;cursor:pointer;pointer-events:auto;align-self:flex-start;transition:opacity 0.3s;max-width:90%;`;
     notif.textContent = next.message;
 
     if (queue.length > 0) {
@@ -59,6 +82,8 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
     const dismiss = (): void => {
       if (currentDismissTimer) clearTimeout(currentDismissTimer);
       currentDismissTimer = null;
+      current = null;
+      if (!notif.parentNode) return;
       notif.style.opacity = '0';
       setTimeout(() => {
         notif.remove();
@@ -73,9 +98,8 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
     deps.layer.innerHTML = '';
     deps.layer.appendChild(notif);
 
-    currentDismissTimer = setTimeout(() => {
-      if (notif.parentNode) dismiss();
-    }, 6000);
+    current = { shownAt: Date.now(), dismiss };
+    scheduleCurrentDismiss();
 
     deps.playCue(next.sfxCue);
   }
@@ -89,6 +113,8 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
     if (deps.isSuppressed()) return;
     queue.push({ message, type, target, sfxCue });
     if (!isShowingNotification) displayNext();
+    // A toast that was alone when it appeared must not hold the newcomers up for its full six seconds.
+    else scheduleCurrentDismiss();
   }
 
   const delivery = createNotificationDelivery({

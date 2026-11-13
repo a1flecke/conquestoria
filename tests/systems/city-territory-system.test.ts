@@ -404,6 +404,9 @@ describe('city founding territory rules', () => {
 
   it('records frontier progress for contested held tiles before flipping', () => {
     const state = createNewGame(undefined, 'territory-frontier-progress');
+    // Neither side may be France: its culture bonus (#1692) would decide this contest instead of city size.
+    state.civilizations.player.civType = 'egypt';
+    state.civilizations['ai-1'].civType = 'egypt';
     state.territoryFrontiers = {};
     state.cities = {};
     const holder = addCity(state, 'player', 10, 10);

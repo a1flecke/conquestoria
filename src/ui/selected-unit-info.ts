@@ -700,7 +700,9 @@ export function renderSelectedUnitInfo(
   xpDiv.textContent = nextTierXp === null || nextLabel === null
     ? `XP: ${unit.experience ?? 0} · ${tier.label} · +${combatBonus}% combat`
     : `XP: ${unit.experience ?? 0} · ${tier.label} · +${combatBonus}% combat · ${nextTierXp} XP to ${nextLabel}`;
-  wrapper.appendChild(xpDiv);
+  // #1692 D4: veterancy is a combat modifier, so a unit that cannot fight (settler, worker, caravan...) does not
+  // show "+0% combat · 10 XP to Seasoned".
+  if (def.strength > 0) wrapper.appendChild(xpDiv);
 
   if (unit.owner === state.currentPlayer) {
     const unitMaint = calculateCivUnitMaintenance(state, unit.owner);

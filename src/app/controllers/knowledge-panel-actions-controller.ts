@@ -9,6 +9,7 @@
  * copy. Cross-use-case openers (City, Wonder, Diplomacy) go through
  * `PanelActionsCrossCalls` so this module never imports a peer controller.
  */
+import { getTechById } from '@/systems/tech-system';
 import type { CouncilCardAction } from '@/core/types/council';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
@@ -263,7 +264,7 @@ export function createKnowledgePanelActionsController(
           ...deps.session.getState(),
           civilizations: { ...deps.session.getState().civilizations, [deps.session.getState().currentPlayer]: { ...civ, techState: nextTechState } },
         });
-        deps.showNotification(`Queued research: ${techId}`, 'info');
+        deps.showNotification(`Queued research: ${getTechById(techId)?.name ?? techId}`, 'info');
         // Return fresh state so the open panel reopens from the committed object,
         // not the pre-click reference it captured (#915).
         return deps.session.getState();

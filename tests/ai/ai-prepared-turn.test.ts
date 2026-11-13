@@ -12,6 +12,9 @@ import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
 import { refreshMajorCivIntel } from '@/ai/ai-perception';
 import { applyAIProduction, generateAIProductionCandidates } from '@/ai/ai-production';
+import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
+import { processPreparedAITurn } from '@/ai/basic-ai';
+import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { getWrappedHexNeighbors, hexDistance, hexKey, mapHexesInRange } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
@@ -23,8 +26,10 @@ import {
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { findPath } from '@/systems/unit-pathfinding';
-import type { GameState, HexCoord, TerrainType } from '@/core/types';
+import type { GameState, HexCoord, TerrainType, UnitType } from '@/core/types';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
+import { createEspionageCivState, createSpyFromUnit, isSpyUnitType } from '@/systems/espionage-system';
+import { enqueueCityProduction } from '@/systems/planning-system';
 
 describe('remembered infrastructure in the AI path map', () => {
   it.each(['missing', 'legacy', 'unexplored'] as const)('does not route through %s observations', kind => {
@@ -125,6 +130,73 @@ function setupVisibleDefendedCapture(
 }
 
 describe('prepared major-civilization planning', () => {
+  describe('spy procurement', () => {
+    function spyProcurementGame() {
+      const state = createNewGame({
+        civType: 'rome', mapSize: 'small', opponentCount: 1,
+        gameTitle: 'Spy procurement', seed: 'prepared-spy-procurement',
+      });
+      const civ = state.civilizations['ai-1'];
+      civ.civType = 'egypt';
+      civ.techState.completed = ['espionage-scouting', 'espionage-informants'];
+      civ.gold = 0;
+      addSpacedCities(state, civ.id, 2);
+      state.espionage = { ...state.espionage, [civ.id]: { ...createEspionageCivState(), maxSpies: 2 } };
+      return { state, civ };
+    }
+
+    it('queues one spy through the round scheduler even with several free cities', () => {
+      const { state, civ } = spyProcurementGame();
+
+      const result = processNonHumanMajorRound(state, new EventBus());
+
+      expect(result.planningErrors).toEqual([]);
+      expect(civ.cities.flatMap(id => result.state.cities[id].productionQueue)
+        .filter(itemId => isSpyUnitType(itemId as UnitType))).toEqual(['spy_informant']);
+    });
+
+    it('counts an off-map spy against the peacetime roster limit', () => {
+      const { state, civ } = spyProcurementGame();
+      const created = createSpyFromUnit(state.espionage![civ.id], 'stationed-spy', civ.id, 'spy_informant', 'stationed');
+      created.spy.status = 'stationed';
+      state.espionage![civ.id] = created.state;
+
+      const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands.find(entry => entry.role === 'espionage');
+
+      expect(demand?.missing ?? 0).toBe(0);
+    });
+
+    it('defers spy procurement during domination even before a capture plan exists', () => {
+      const { state, civ } = spyProcurementGame();
+      civ.civType = 'rome';
+      addSpacedCities(state, civ.id, 5);
+
+      const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+
+      expect(civ.diplomacy.atWarWith).toEqual([]);
+      expect(prepared.nationalIntent.current).toBe('dominate');
+      expect(prepared.portfolio.primaryPlan?.objective).not.toBe('capture');
+      expect(prepared.forceDemands.some(demand => demand.role === 'espionage')).toBe(false);
+    });
+
+    it('releases a spy queue when war starts after peacetime planning', () => {
+      const { state, civ } = spyProcurementGame();
+      const cityId = civ.cities[0];
+      const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+      expect(prepared.forceDemands.some(demand => demand.role === 'espionage' && demand.missing === 1)).toBe(true);
+      const queued = enqueueCityProduction(state, cityId, 'spy_informant');
+      expect(queued.ok).toBe(true);
+      queued.state.civilizations[civ.id].diplomacy.atWarWith = ['player'];
+      queued.state.civilizations.player.diplomacy.atWarWith = [civ.id];
+
+      const result = processPreparedAITurn(queued.state, prepared, new EventBus());
+
+      expect(result.state.cities[cityId].productionQueue[0]).toBeDefined();
+      expect(civ.cities.flatMap(id => result.state.cities[id].productionQueue)
+        .some(itemId => isSpyUnitType(itemId as UnitType))).toBe(false);
+    });
+  });
+
   it.each([
     ['explorer', 4],
     ['standard', 6],
@@ -672,6 +744,8 @@ describe('prepared major-civilization planning', () => {
     state.opponentChallenge = challenge;
     const civ = state.civilizations['ai-1'];
     civ.civType = 'rome';
+    civ.techState.completed = ['espionage-scouting'];
+    state.espionage = { ...state.espionage, [civ.id]: { ...createEspionageCivState(), maxSpies: 1 } };
     const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
     const targetTile = Object.values(state.map.tiles)
       .filter(tile =>
@@ -712,6 +786,7 @@ describe('prepared major-civilization planning', () => {
       target: { kind: 'city', id: targetCity.id },
       reasonCodes: ['domination-pursuit'],
     });
+    expect(prepared.forceDemands.some(demand => demand.role === 'espionage')).toBe(false);
   });
 
   it('assembles a counted critical force for a visibly fortified and garrisoned capture target', () => {

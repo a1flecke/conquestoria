@@ -3,7 +3,8 @@ import { preloadGeoMapData } from '../helpers/geo-map-data';
 import type { GameMap, HexTile, MapScript } from '@/core/types';
 import { createHotSeatGame, createNewGame, MAP_DIMENSIONS } from '@/core/game-state';
 import { cityDistance, isCityCenterTerrain, MIN_CITY_CENTER_DISTANCE } from '@/systems/city-territory-system';
-import { findStartPositions, MIN_MAJOR_CIV_START_DISTANCE, getStartPositionDistance } from '@/systems/map-generator';
+import { findStartPositions, MIN_MAJOR_CIV_START_DISTANCE, getStartPositionDistance, StartPlacementError } from '@/systems/map-generator';
+import { getStartFood, isFertileStart, MIN_START_FOOD } from '@/systems/start-fertility';
 import { placeCivilizationStarts } from '@/systems/start-placement-system';
 import { createStartViabilityIndex } from '@/systems/start-viability';
 import { normalizeLoadedStateForTest } from '@/storage/save-manager';
@@ -413,4 +414,101 @@ describe('every generator path honours the contract (#1453)', () => {
       }
     }
   });
+});
+
+describe('start fertility (#1692 E)', () => {
+  const flat = (terrainAt: (q: number, r: number) => string): GameMap => {
+    const tiles: Record<string, HexTile> = {};
+    for (let q = 0; q < 12; q++) {
+      for (let r = 0; r < 12; r++) {
+        tiles[`${q},${r}`] = { coord: { q, r }, terrain: terrainAt(q, r) } as unknown as HexTile;
+      }
+    }
+    return { width: 12, height: 12, tiles, wrapsHorizontally: false, rivers: [] } as GameMap;
+  };
+
+  it('counts the food of the six best tiles within two hexes, never the centre', () => {
+    expect(getStartFood(flat(() => 'grassland'), { q: 6, r: 6 })).toBe(12);
+    expect(getStartFood(flat(() => 'desert'), { q: 6, r: 6 })).toBe(0);
+    expect(getStartFood(flat(() => 'forest'), { q: 6, r: 6 })).toBe(6);
+    // A lush centre does not rescue a barren ring.
+    expect(getStartFood(flat((q, r) => (q === 6 && r === 6 ? 'grassland' : 'desert')), { q: 6, r: 6 })).toBe(0);
+    expect(isFertileStart(flat(() => 'plains'), { q: 6, r: 6 })).toBe(false);
+    expect(MIN_START_FOOD).toBe(9);
+  });
+
+  it('greedy placement prefers a fertile start over a wider-spaced barren one, and still places when none is fertile', () => {
+    // Desert everywhere except a grassland pocket in one corner.
+    const pocket = flat((q, r) => (q >= 8 && r >= 5 && r <= 9 ? 'grassland' : 'desert'));
+    const withPocket = { ...pocket, width: 30 } as GameMap;
+    const [start] = findStartPositions(withPocket, ['a'], 'procedural', 'small');
+    expect(isFertileStart(withPocket, start!)).toBe(true);
+
+    const barren = { ...flat(() => 'desert'), width: 30 } as GameMap;
+    expect(findStartPositions(barren, ['a'], 'procedural', 'small')).toHaveLength(1);
+  });
+
+  it('every generated start can feed a young city', () => {
+    const below: string[] = [];
+    for (const mapScript of ['balanced', 'procedural', 'single-continent'] as const) {
+      for (let seed = 0; seed < 12; seed++) {
+        const state = createNewGame({
+          civType: 'egypt', seed: `fertility-${mapScript}-${seed}`, mapSize: 'small', mapScript, opponentCount: 3, gameTitle: 't',
+        });
+        for (const civ of Object.values(state.civilizations)) {
+          const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler');
+          if (settler && !isFertileStart(state.map, settler.position)) below.push(`${mapScript} ${seed} ${civ.id}`);
+        }
+      }
+    }
+    expect(below).toEqual([]);
+  }, simTimeout(60_000));
+});
+
+describe('a generated map that cannot hold every civilization (#1692)', () => {
+  it('findStartPositions reports a typed failure', () => {
+    const only = new Set(['5,5']);
+    const map = (() => {
+      const tiles: Record<string, HexTile> = {};
+      for (let q = 0; q < 30; q++) for (let r = 0; r < 20; r++) tiles[`${q},${r}`] = { coord: { q, r }, terrain: 'grassland' } as unknown as HexTile;
+      return { width: 30, height: 20, tiles, wrapsHorizontally: false, rivers: [] } as GameMap;
+    })();
+    let failure: unknown;
+    try { findStartPositions(map, ['a', 'b'], 'procedural', 'small', only); } catch (error) { failure = error; }
+    expect(failure).toBeInstanceOf(StartPlacementError);
+    expect((failure as StartPlacementError).requested).toBe(2);
+    expect((failure as StartPlacementError).placed).toBe(1);
+  });
+
+  it('game creation tries the next map for the same seed instead of failing, deterministically', () => {
+    // This seed's first small single-continent map holds only two of the three civilizations.
+    const config = { civType: 'egypt', seed: 'q-single-continent-13', mapSize: 'small', mapScript: 'single-continent', opponentCount: 3, gameTitle: 't' } as const;
+    const first = createNewGame(config);
+    const second = createNewGame(config);
+    expect(Object.keys(first.civilizations).length).toBeGreaterThanOrEqual(3);
+    expect(Object.values(first.units).map(unit => unit.position)).toEqual(Object.values(second.units).map(unit => unit.position));
+    expect(first.gameId).toBe(second.gameId);
+  });
+});
+
+describe('city-states are placed where they can feed themselves (#1692 G3)', () => {
+  it('no generated city-state sits on land below the start food floor when fertile land was available', () => {
+    const barren: string[] = [];
+    let placed = 0;
+    for (const mapScript of ['balanced', 'procedural'] as const) {
+      for (let seed = 0; seed < 12; seed++) {
+        const state = createNewGame({
+          civType: 'rome', seed: `city-state-${mapScript}-${seed}`, mapSize: 'small', mapScript, opponentCount: 1, gameTitle: 't',
+        });
+        for (const minor of Object.values(state.minorCivs)) {
+          const city = state.cities[minor.cityId];
+          if (!city) continue;
+          placed++;
+          if (!isFertileStart(state.map, city.position)) barren.push(`${mapScript} ${seed} ${minor.id} @${city.position.q},${city.position.r}`);
+        }
+      }
+    }
+    expect(placed).toBeGreaterThan(24);
+    expect(barren).toEqual([]);
+  }, simTimeout(60_000));
 });

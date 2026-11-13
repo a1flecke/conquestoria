@@ -125,12 +125,13 @@ import { processMajorCivStrategicTurnInPlace } from './ai-major-turn';
 import { processAIResettlement } from './ai-resettlement';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import {
+  blocksSpyProcurement,
   prepareMajorCivStrategicPlan,
   type PreparedMajorCivPlan,
 } from './ai-prepared-turn';
 import { isAIHostileOwner } from './ai-hostility';
 import { hasAITradeRole } from './ai-unit-roles';
-import { applyAIProduction, refillAIQueuesEmptiedByPurchase } from './ai-production';
+import { applyAIProduction, refillAIQueuesEmptiedByPurchase, releaseAISpyQueueHeads } from './ai-production';
 import { applyAIGoldSpending } from './ai-treasury';
 import { applyAIResearch } from './ai-research';
 import { getAIProcurementTerms, processAIResourceMarketplace } from './ai-resource-marketplace';
@@ -1169,10 +1170,21 @@ function processAITurnInternal(
       newState = startLegendaryWonderBuild(newState, civId, cityId, wonderCandidates[0], bus);
     }
   }
+  // An earlier actor can declare war after planning. Free any spy queue head
+  // before choosing production or buying the current head.
+  const deferSpies = blocksSpyProcurement(
+    civ.diplomacy.atWarWith,
+    preparedForTurn.portfolio.primaryPlan,
+    preparedForTurn.nationalIntent.current,
+  );
+  if (deferSpies) newState = releaseAISpyQueueHeads(newState, civId);
+  const productionDemands = deferSpies
+    ? preparedForTurn.forceDemands.filter(demand => demand.role !== 'espionage')
+    : preparedForTurn.forceDemands;
   newState = applyAIProduction(
     newState,
     civId,
-    preparedForTurn.forceDemands,
+    productionDemands,
     personality,
   );
   civ = newState.civilizations[civId];
@@ -1188,7 +1200,7 @@ function processAITurnInternal(
     spentState,
     civId,
     headsBeforeSpending.filter(entry => spentState.cities[entry.cityId]?.productionQueue.length === 0),
-    preparedForTurn.forceDemands,
+    productionDemands,
     personality,
   );
   civ = newState.civilizations[civId];

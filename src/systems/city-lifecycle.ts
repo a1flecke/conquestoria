@@ -87,21 +87,3 @@ export function civHasCoastalCity(state: GameState, civId: string): boolean {
     return city ? isCityCoastal(city, state.map) : false;
   });
 }
-
-export function razeForestForProduction(
-  city: City,
-  map: GameMap,
-  tileCoord: HexCoord,
-): { city: City; map: GameMap } | null {
-  const key = `${tileCoord.q},${tileCoord.r}`;
-  const tile = map.tiles[key];
-  if (!tile || tile.terrain !== 'forest') return null;
-
-  const isOwned = city.ownedTiles.some(t => t.q === tileCoord.q && t.r === tileCoord.r);
-  if (!isOwned) return null;
-
-  const newTile = { ...tile, terrain: 'plains' as const, improvement: 'none' as const, improvementTurnsLeft: 0 };
-  const newMap = { ...map, tiles: { ...map.tiles, [key]: newTile } };
-  const newCity = { ...city, productionProgress: city.productionProgress + 30 };
-  return { city: newCity, map: newMap };
-}

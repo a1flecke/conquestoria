@@ -2,7 +2,7 @@ import type { City, GameState, Unit } from '@/core/types';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { canUnitOccupyCity } from '@/systems/city-capture-system';
 import { canUnitBombardCity, previewUnitCityBombardment } from '@/systems/city-bombardment-system';
-import { calculateCityAssaultStrengths, getCityIntrinsicStrength } from '@/systems/city-siege-system';
+import { calculateCityAssaultStrengths, getCityIntrinsicStrength, getCityOwnerBonus } from '@/systems/city-siege-system';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
@@ -127,6 +127,7 @@ export function resolveCityInteraction(
   const techs = getCityDefenderTechs(state, city);
   const strengths = calculateCityAssaultStrengths(unit, city, techs, state.map, {
     attackerMultiplier: options.attackerMultiplier,
+    defenderBonus: getCityOwnerBonus(state, city),
   });
   available.push({
     kind: 'capture',

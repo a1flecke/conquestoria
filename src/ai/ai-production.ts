@@ -43,6 +43,9 @@ import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { computeResearchScoringBaseline, getMarginalCivResearchGain } from '@/systems/research-output-system';
 import { getOwnedCities } from '@/systems/city-ownership';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
+import { isSpyUnitType } from '@/systems/spy-unit-types';
+
+export const ESPIONAGE_PROCUREMENT_SOURCE_ID = 'espionage-procurement';
 
 export interface AIProductionCandidate {
   itemId: string;
@@ -118,10 +121,25 @@ function cloneDemands(demands: readonly AIForceDemand[]): AIForceDemand[] {
   }));
 }
 
-function validQueuedUnitRoles(
+export function hasQueuedAISpy(cities: readonly Pick<City, 'productionQueue'>[]): boolean {
+  return cities.some(city => city.productionQueue.some(itemId => isSpyUnitType(itemId as UnitType)));
+}
+
+export function releaseAISpyQueueHeads(state: GameState, civId: string): GameState {
+  let nextState = state;
+  for (const city of getOwnedCities(state, civId)) {
+    if (!isSpyUnitType(city.productionQueue[0] as UnitType)) continue;
+    nextState = removeCityProductionCommand(
+      nextState, city.id, 0, city.productionMaterials?.queueRevision ?? 0,
+    ).state;
+  }
+  return nextState;
+}
+
+function validQueuedUnitTypes(
   state: GameState,
   civId: string,
-): AIStrategicRole[][] {
+): UnitType[] {
   const civ = state.civilizations[civId];
   if (!civ) return [];
   const resources = getCivAvailableResources(state, civId);
@@ -132,20 +150,25 @@ function validQueuedUnitRoles(
     if (!getCityMaterialProjection(state, city.id).funded) return [];
     const itemId = city.productionQueue[0];
     if (!itemId) return [];
-    const validTypes = new Set(
-      getTrainableUnitsForCity(
-        city,
-        civ.techState.completed,
-        state.map,
-        civ.civType,
-        resources,
-        cityFollowsOwnFaith(state, city),
-      ).map(unit => unit.type),
-    );
-    return validTypes.has(itemId as never)
-      ? [[...getAIStrategicRoles(itemId as never)]]
-      : [];
+    const trainable = getTrainableUnitsForCity(
+      city,
+      civ.techState.completed,
+      state.map,
+      civ.civType,
+      resources,
+      cityFollowsOwnFaith(state, city),
+    ).find(unit => unit.type === itemId);
+    return trainable ? [trainable.type] : [];
   });
+}
+
+function canMeetProductionDemand(
+  entry: AIForceDemand,
+  unitType: UnitType,
+  roles: readonly AIStrategicRole[],
+): boolean {
+  return entry.missing > 0 && roles.includes(entry.role)
+    && (!entry.sourcePlanIds.includes(ESPIONAGE_PROCUREMENT_SOURCE_ID) || isSpyUnitType(unitType));
 }
 
 function residualDemands(
@@ -154,9 +177,10 @@ function residualDemands(
   demands: readonly AIForceDemand[],
 ): AIForceDemand[] {
   const residual = cloneDemands(demands);
-  for (const roles of validQueuedUnitRoles(state, civId)) {
+  for (const unitType of validQueuedUnitTypes(state, civId)) {
+    const roles = getAIStrategicRoles(unitType);
     const matching = residual
-      .filter(entry => entry.missing > 0 && roles.includes(entry.role))
+      .filter(entry => canMeetProductionDemand(entry, unitType, roles))
       .sort((left, right) =>
         right.priority - left.priority || left.role.localeCompare(right.role))[0];
     if (matching) matching.missing -= 1;
@@ -165,11 +189,12 @@ function residualDemands(
 }
 
 function matchingDemand(
+  unitType: UnitType,
   roles: readonly AIStrategicRole[],
   demands: readonly AIForceDemand[],
 ): AIForceDemand | undefined {
   return demands
-    .filter(entry => entry.missing > 0 && roles.includes(entry.role))
+    .filter(entry => canMeetProductionDemand(entry, unitType, roles))
     .sort((left, right) =>
       right.priority - left.priority
       || right.missing - left.missing
@@ -635,8 +660,10 @@ function generateWithResidual(
     if (!unit) return false;
     const roles = getAIStrategicRoles(unit.type);
     return roles.includes('capture') || roles.includes('frontline');
-  }) || validQueuedUnitRoles(state, civId).some(roles =>
-    roles.includes('capture') || roles.includes('frontline'));
+  }) || validQueuedUnitTypes(state, civId).some(unitType => {
+    const roles = getAIStrategicRoles(unitType);
+    return roles.includes('capture') || roles.includes('frontline');
+  });
   const airDefenseThreatenedCityIds = getVisibleAirDefenseThreatenedCityIds(state, civId);
   const hasSubmarineThreat = hasRememberedHostileSubmarineSighting(state, civId);
   const candidates: AIProductionCandidate[] = [];
@@ -645,8 +672,10 @@ function generateWithResidual(
     if (UNIT_DEFINITIONS[unit.type].airOperation
       && !canCompleteAirUnitProduction(state, cityId, unit.type).ok) continue;
     const roles = getAIStrategicRoles(unit.type);
-    const fulfilled = matchingDemand(roles, demands);
+    const fulfilled = matchingDemand(unit.type, roles, demands);
     if (!fulfilled) continue;
+    // Spy recruitment uses free queues. It cannot displace work waiting for materials.
+    if (city.productionQueue.length > 0 && fulfilled.sourcePlanIds.includes(ESPIONAGE_PROCUREMENT_SOURCE_ID)) continue;
     if (roles.includes('transport') && !cargoDemand) continue;
     if (
       needsCaptureCapacity
@@ -1021,7 +1050,8 @@ export function refillAIQueuesEmptiedByPurchase(
   const residual = residualDemands(state, civId, demands);
   for (const { purchasedItemId } of emptied) {
     if (!Object.prototype.hasOwnProperty.call(UNIT_DEFINITIONS, purchasedItemId)) continue;
-    const matching = matchingDemand(getAIStrategicRoles(purchasedItemId as UnitType), residual);
+    const unitType = purchasedItemId as UnitType;
+    const matching = matchingDemand(unitType, getAIStrategicRoles(unitType), residual);
     if (matching) matching.missing -= 1;
   }
   return fillEmptyAIQueues(state, civId, idle, residual, personality).state;

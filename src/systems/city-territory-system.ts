@@ -1,6 +1,7 @@
 import type { City, GameEvents, GameMap, GameState, HexCoord, TerrainType, TerritoryFrontierState } from '@/core/types';
 import { BUILDINGS } from './city-system';
 import { hexDistance, hexesInRange, hexKey, wrapHexCoord, wrappedHexDistance } from './hex-utils';
+import { resolveCivDefinition } from './civ-registry';
 
 export const MIN_CITY_CENTER_DISTANCE = 4;
 
@@ -137,8 +138,30 @@ export function calculateCityPressureForTile(state: GameState, city: City, coord
     + Math.floor(city.population / 2)
     + Math.min(TERRITORY_PRESSURE_BALANCE.cultureBuildingCap, countCultureBuildings(city))
     + faithBonus
+    + getCulturePressureBonus(state, city) * CULTURE_PRESSURE_PER_BONUS_POINT
     - cityDistance(city.position, coord, state.map);
 }
+
+/** Pressure added per point of France's `culture_pressure.radiusBonus` (#1692 A10). */
+export const CULTURE_PRESSURE_PER_BONUS_POINT = 2;
+
+function getCulturePressureBonus(state: GameState, city: City): number {
+  const bonus = resolveCivDefinition(state, state.civilizations[city.owner]?.civType ?? '')?.bonusEffect;
+  return bonus?.type === 'culture_pressure' ? bonus.radiusBonus : 0;
+}
+
+/**
+ * The radius a city claims. France "City of Light" (#1692 A10) reaches the wide border as soon as a city has two
+ * citizens instead of waiting for the usual growth, maturity or culture buildings, and presses harder on every
+ * contested tile. The maximum radius is unchanged for everyone.
+ */
+export function getTerritoryRadiusForCity(state: GameState, city: City): number {
+  const base = getBaseTerritoryRadius(city);
+  if (base >= MAX_CULTURAL_TERRITORY_RADIUS) return base;
+  return getCulturePressureBonus(state, city) > 0 && city.population >= 2 ? MAX_CULTURAL_TERRITORY_RADIUS : base;
+}
+
+const MAX_CULTURAL_TERRITORY_RADIUS = 3;
 
 function getStrongestChallengerClaim(
   claims: TerritoryClaim[],
@@ -159,7 +182,7 @@ export function generateTerritoryClaimsForCity(
   reason: TerritoryRecalculationReason,
 ): TerritoryClaim[] {
   const claims: TerritoryClaim[] = [];
-  for (const rawCoord of hexesInRange(city.position, getBaseTerritoryRadius(city))) {
+  for (const rawCoord of hexesInRange(city.position, getTerritoryRadiusForCity(state, city))) {
     const coord = canonicalizeCityCoord(rawCoord, state.map);
     const tile = state.map.tiles[hexKey(coord)];
     if (!canClaimTile(tile)) continue;

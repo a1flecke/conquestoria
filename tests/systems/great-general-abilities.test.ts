@@ -773,9 +773,9 @@ describe('what a breach changes in the siege (#939)', () => {
     const open = breached(closed);
     const attacker = breachUnit('rifle', 'swordsman', 'player', { q: 1, r: 0 });
     const outsider = breachUnit('rival', 'swordsman', 'ai-2', { q: 1, r: 0 });
-    const base = calculateCityAssaultStrengths(attacker, closed.cities.fort!, [], closed.map).attackerStrength;
-    const boosted = calculateCityAssaultStrengths(attacker, open.cities.fort!, [], open.map).attackerStrength;
-    const otherCiv = calculateCityAssaultStrengths(outsider, open.cities.fort!, [], open.map).attackerStrength;
+    const base = calculateCityAssaultStrengths(attacker, closed.cities.fort!, [], closed.map, { defenderBonus: undefined }).attackerStrength;
+    const boosted = calculateCityAssaultStrengths(attacker, open.cities.fort!, [], open.map, { defenderBonus: undefined }).attackerStrength;
+    const otherCiv = calculateCityAssaultStrengths(outsider, open.cities.fort!, [], open.map, { defenderBonus: undefined }).attackerStrength;
     expect(boosted).toBeCloseTo(base * CITY_BREACH_ASSAULT_MULTIPLIER, 6);
     expect(otherCiv).toBeCloseTo(base, 6);
   });

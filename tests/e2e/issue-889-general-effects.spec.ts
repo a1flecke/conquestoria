@@ -17,13 +17,21 @@ async function openScenario(page: Page): Promise<void> {
   }
 }
 
-/** From the first unit needing orders, walk the keyboard cursor to the General's hex and select it. */
+/**
+ * Select the General with the keyboard alone. The scenario puts it on the map's top-left hex (0,0), so from the
+ * first unit needing orders the map cursor goes up until the General is announced or the edge stops it, then left.
+ * This used to walk a fixed eight hexes straight up, which only worked while this seed happened to start the
+ * player's settler directly below that corner; it broke when start placement changed (#1692).
+ */
 async function selectGeneral(page: Page): Promise<void> {
   await page.keyboard.press('n');
   const caption = page.locator('[role="status"][aria-live="polite"]');
-  for (let step = 0; step < 8; step++) {
-    await page.keyboard.press('Shift+ArrowUp');
-    if ((await caption.allInnerTexts()).join(' ').includes('your Great General')) break;
+  const onGeneral = async (): Promise<boolean> => (await caption.allInnerTexts()).join(' ').includes('your Great General');
+  walk: for (const key of ['Shift+ArrowUp', 'Shift+ArrowLeft']) {
+    for (let step = 0; step < 40; step++) {
+      if (await onGeneral()) break walk;
+      await page.keyboard.press(key);
+    }
   }
   await expect(caption).toContainText('your Great General');
   await page.keyboard.press('Enter');

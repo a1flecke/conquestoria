@@ -595,14 +595,17 @@ export function projectCivGrossGold(
   }
 
   if (state.marketplace) {
-    grossGold += processTradeRouteIncome(
-      state.marketplace.tradeRoutes.filter(route =>
-        state.cities[route.fromCityId]?.owner === civId
-        && !blockadedCityIds.has(route.fromCityId)
-        && !blockadedCityIds.has(route.toCityId),
-      ),
-      state,
+    const earningRoutes = state.marketplace.tradeRoutes.filter(route =>
+      state.cities[route.fromCityId]?.owner === civId
+      && !blockadedCityIds.has(route.fromCityId)
+      && !blockadedCityIds.has(route.toCityId),
     );
+    grossGold += processTradeRouteIncome(earningRoutes, state);
+    // Persia "Silk Road" / the custom Trade Dominance trait (#1692 A5): a flat bonus per route that is
+    // earning this turn, so a blockaded route pays neither its income nor the bonus.
+    if (civDef?.bonusEffect.type === 'trade_route_bonus') {
+      grossGold += earningRoutes.length * civDef.bonusEffect.bonusGold;
+    }
   }
 
   grossGold += getClaimedTrophyGoldPerTurn(state, civId);

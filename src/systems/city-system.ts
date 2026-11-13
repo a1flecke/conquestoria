@@ -44,7 +44,6 @@ export {
   foundCity,
   isCityCoastal,
   isPositionCoastal,
-  razeForestForProduction,
 } from './city-lifecycle';
 export type { FoundCityOptions } from './city-lifecycle';
 

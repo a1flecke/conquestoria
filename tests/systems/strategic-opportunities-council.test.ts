@@ -10,6 +10,7 @@ import {
 } from '@/systems/strategic-opportunity-presentation';
 import { declareMajorWar } from '@/systems/diplomacy-system';
 import { declareWarGoal } from '@/systems/war-goal-system';
+import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { AI_A, AI_B, HUMAN_A, HUMAN_B } from '../helpers/viewer-knowledge-fixtures';
 import { addCity, pickSites, twoCityWorld } from '../helpers/assessment-fixtures';
 import { expectViewerSafety } from '../helpers/viewer-safety';
@@ -28,6 +29,11 @@ function world(options: { full?: boolean } = {}): GameState {
   // Both viewers are researching, so no science constraint muddies the agenda.
   state.civilizations[HUMAN_B].techState.currentResearch = 'pottery';
   if (options.full) state.civilizations[HUMAN_A].governancePolicies = { ...ALL_POLICIES };
+  // Governance is only offered from Era 2 (#1692 G2), so both viewers have reached it.
+  for (const civId of [HUMAN_A, HUMAN_B]) {
+    const techState = state.civilizations[civId].techState;
+    techState.completed = [...new Set([...techState.completed, ...getEraAdvancementTechs(2).map(tech => tech.id)])];
+  }
   return state;
 }
 
