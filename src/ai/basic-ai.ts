@@ -21,6 +21,7 @@ import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { findPath } from '@/systems/unit-pathfinding';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { getIdleExplorerUnitIds, computeAdministrativeExploreLeash } from './ai-exploration';
+import { planHomeGuardStations } from './ai-home-guard';
 import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
 import {
   canLoadUnitOntoTransport,
@@ -711,7 +712,7 @@ function processAITurnInternal(
   const assignedThisRound = new Set(Object.values(preparedForTurn.assignments.assignmentsByPlanId).flat());
   for (const unitId of assignedThisRound) {
     const unit = newState.units[unitId];
-    if (unit?.automation?.mode === 'auto-explore') {
+    if (unit?.automation?.mode === 'auto-explore' || unit?.automation?.mode === 'journey') {
       newState = {
         ...newState,
         units: { ...newState.units, [unitId]: { ...unit, automation: undefined } },
@@ -960,7 +961,30 @@ function processAITurnInternal(
   // own auto-explore button drives) re-issues the move every subsequent round on its own.
   // This loop only INITIATES exploration; it must never re-apply an order to a unit
   // already exploring, or that unit gets moved twice in the same round.
+  // #1704 (A2): before anything explores, station the home guard. A city with no unit in it gets the
+  // nearest free land combat unit, sent with the same `journey` standing order the player's own
+  // move-to command uses (an exploring unit is recalled); a unit standing guard does not explore.
+  const homeGuard = planHomeGuardStations(newState, civId, new Set([
+    ...Object.values(preparedForTurn.assignments.assignmentsByPlanId).flat(),
+    ...preparedForTurn.assignments.recoveryUnitIds,
+    ...Object.keys(preparedForTurn.portfolio.upgradeRoutesByUnitId),
+  ]));
+  for (const order of homeGuard.orders) {
+    const guard = newState.units[order.unitId];
+    const city = newState.cities[order.cityId];
+    if (!guard || !city) continue;
+    newState = {
+      ...newState,
+      units: {
+        ...newState.units,
+        [guard.id]: { ...guard, automation: { mode: 'journey', destination: { ...city.position } } },
+      },
+    };
+  }
+  const homeGuardUnitIds = new Set([...homeGuard.stationedUnitIds, ...homeGuard.orders.map(order => order.unitId)]);
+
   for (const unitId of getIdleExplorerUnitIds(civ, newState.units, preparedForTurn)) {
+    if (homeGuardUnitIds.has(unitId)) continue;
     const current = newState.units[unitId];
     if (!current || current.hasActed) continue;
     newState = {

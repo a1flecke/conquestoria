@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeAdministrativeExploreLeash, getIdleExplorerUnitIds } from '@/ai/ai-exploration';
+import { planHomeGuardStations } from '@/ai/ai-home-guard';
 import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
 import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
@@ -65,7 +66,71 @@ function prepared(overrides: Partial<{
   };
 }
 
+describe('planHomeGuardStations (#1704)', () => {
+  function world(cityAt: Array<{ q: number; r: number }>, units: Unit[]): GameState {
+    const cities = Object.fromEntries(cityAt.map((position, index) => [
+      `city-${index}`, { id: `city-${index}`, owner: CIV_ID, position } as unknown as City,
+    ]));
+    const owner = civ(units.map(entry => entry.id));
+    owner.cities = Object.keys(cities);
+    return {
+      civilizations: { [CIV_ID]: owner },
+      cities,
+      units: Object.fromEntries(units.map(entry => [entry.id, entry])),
+    } as unknown as GameState;
+  }
+  const NONE = new Set<string>();
+
+  it('sends the nearest free unit to each unguarded city, capital first, and keeps one roamer', () => {
+    const state = world(
+      [{ q: 0, r: 0 }, { q: 10, r: 0 }],
+      [unit('near-capital', 'warrior', { position: { q: 1, r: 0 } }),
+        unit('near-second', 'warrior', { position: { q: 9, r: 0 } }),
+        unit('far', 'warrior', { position: { q: 20, r: 0 } })],
+    );
+    const plan = planHomeGuardStations(state, CIV_ID, NONE);
+    expect(plan.orders).toEqual([
+      { unitId: 'near-capital', cityId: 'city-0' },
+      { unitId: 'near-second', cityId: 'city-1' },
+    ]);
+    expect(plan.stationedUnitIds).toEqual([]);
+  });
+
+  it('never stations the last free unit: something must keep exploring', () => {
+    const state = world([{ q: 0, r: 0 }], [unit('only', 'warrior', { position: { q: 3, r: 0 } })]);
+    expect(planHomeGuardStations(state, CIV_ID, NONE).orders).toEqual([]);
+  });
+
+  it('treats a unit standing in a city as its guard and sends nobody else there', () => {
+    const state = world(
+      [{ q: 0, r: 0 }],
+      [unit('home', 'warrior', { position: { q: 0, r: 0 } }), unit('roamer', 'warrior', { position: { q: 4, r: 0 } }),
+        unit('spare', 'warrior', { position: { q: 5, r: 0 } })],
+    );
+    const plan = planHomeGuardStations(state, CIV_ID, NONE);
+    expect(plan.stationedUnitIds).toEqual(['home']);
+    expect(plan.orders).toEqual([]);
+  });
+
+  it('ignores workers, units a plan has claimed, and keeps a unit already walking to the city', () => {
+    const state = world(
+      [{ q: 0, r: 0 }],
+      [unit('worker', 'worker', { position: { q: 1, r: 0 } }),
+        unit('claimed', 'warrior', { position: { q: 1, r: 0 } }),
+        unit('walking', 'warrior', { position: { q: 6, r: 0 }, automation: { mode: 'journey', destination: { q: 0, r: 0 } } }),
+        unit('closer', 'warrior', { position: { q: 2, r: 0 } })],
+    );
+    const plan = planHomeGuardStations(state, CIV_ID, new Set(['claimed']));
+    expect(plan.orders).toEqual([{ unitId: 'walking', cityId: 'city-0' }]);
+  });
+});
+
 describe('getIdleExplorerUnitIds', () => {
+  it('does not treat a unit on a journey as idle (#1704)', () => {
+    const units = { warrior: unit('warrior', 'warrior', { automation: { mode: 'journey', destination: { q: 3, r: 0 } } }) };
+    expect(getIdleExplorerUnitIds(civ(['warrior']), units, prepared())).toEqual([]);
+  });
+
   it('includes an idle combat-capable unit with movement left', () => {
     const units = { warrior: unit('warrior', 'warrior') };
     const result = getIdleExplorerUnitIds(civ(['warrior']), units, prepared());
