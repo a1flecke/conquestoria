@@ -113,6 +113,22 @@ export interface CampaignReport {
     gameOverReason: string | null;
     livingCivIdsAtEnd: string[];
     eliminatedCivIdsAtEnd: string[];
+    /** #419: campaign-level espionage activity, summed across the run. */
+    espionage: {
+      spyMissionsStarted: number;
+      spyMissionMix: Record<string, number>;
+      operationsLanded: number;
+      operationMix: Record<string, number>;
+      operationsSuffered: number;
+      incidentsTraced: number;
+      wentPublic: number;
+      spiesCaptured: number;
+      spiesTurned: number;
+      spiesExpelled: number;
+      spiesExecuted: number;
+      /** Event-type counts are a deterministic proxy for espionage notification volume. */
+      eventsByType: Record<string, number>;
+    };
   };
   // Per-civ END state (the whole block is "at end", so no `AtEnd` suffixes).
   perCiv: Array<{
@@ -131,6 +147,19 @@ export interface CampaignReport {
     peaceEventsInvolvingCiv: number;
     warDeclarationsInvolvingCiv: number;
     maxPlanNoProgressRounds: number;
+    // #419: cumulative espionage activity for this civ.
+    spyMissionsStarted: number;
+    operationsLanded: number;
+    operationsSuffered: number;
+    incidentsTraced: number;
+    wentPublic: number;
+    spiesCaptured: number;
+    spiesTurned: number;
+    spiesExpelled: number;
+    spiesExecuted: number;
+    spies: number;
+    maxSpies: number;
+    spyStatusCounts: Record<string, number>;
   }>;
   findings: CampaignFinding[];
   observations: CampaignObservation[];
@@ -550,6 +579,45 @@ function roundWorkObservations(
   return observations;
 }
 
+function addCounts(target: Record<string, number>, source: Record<string, number> | undefined): void {
+  for (const [key, count] of Object.entries(source ?? {})) {
+    target[key] = (target[key] ?? 0) + count;
+  }
+}
+
+function espionageSummary(samples: readonly CampaignRoundSample[]): CampaignReport['summary']['espionage'] {
+  const last = samples[samples.length - 1]!;
+  const summary: CampaignReport['summary']['espionage'] = {
+    spyMissionsStarted: 0,
+    spyMissionMix: {},
+    operationsLanded: 0,
+    operationMix: {},
+    operationsSuffered: 0,
+    incidentsTraced: 0,
+    wentPublic: 0,
+    spiesCaptured: 0,
+    spiesTurned: 0,
+    spiesExpelled: 0,
+    spiesExecuted: 0,
+    eventsByType: {},
+  };
+  for (const civ of last.civs) {
+    summary.spyMissionsStarted += civ.spyMissionsStarted ?? 0;
+    summary.operationsLanded += civ.operationsLanded ?? 0;
+    summary.operationsSuffered += civ.operationsSuffered ?? 0;
+    summary.incidentsTraced += civ.incidentsTraced ?? 0;
+    summary.wentPublic += civ.wentPublic ?? 0;
+    summary.spiesCaptured += civ.spiesCaptured ?? 0;
+    summary.spiesTurned += civ.spiesTurned ?? 0;
+    summary.spiesExpelled += civ.spiesExpelled ?? 0;
+    summary.spiesExecuted += civ.spiesExecuted ?? 0;
+    addCounts(summary.spyMissionMix, civ.spyMissionsStartedByType);
+    addCounts(summary.operationMix, civ.operationsLandedByType);
+  }
+  for (const sample of samples) addCounts(summary.eventsByType, sample.espionageEventCounts);
+  return summary;
+}
+
 export function analyzeCampaign(
   samples: readonly CampaignRoundSample[],
   config: CampaignAnalysisConfig = DEFAULT_CAMPAIGN_ANALYSIS_CONFIG,
@@ -587,6 +655,7 @@ export function analyzeCampaign(
       gameOverReason: last.gameOverReason,
       livingCivIdsAtEnd: last.civs.filter(c => c.living).map(c => c.civId).sort(),
       eliminatedCivIdsAtEnd: last.civs.filter(c => c.isEliminated).map(c => c.civId).sort(),
+      espionage: espionageSummary(samples),
     },
     perCiv: last.civs.map(civ => ({
       civId: civ.civId,
@@ -604,6 +673,18 @@ export function analyzeCampaign(
       peaceEventsInvolvingCiv: civ.peaceEventsInvolvingCiv,
       warDeclarationsInvolvingCiv: civ.warDeclarationsInvolvingCiv,
       maxPlanNoProgressRounds: civ.maxPlanNoProgressRounds,
+      spyMissionsStarted: civ.spyMissionsStarted ?? 0,
+      operationsLanded: civ.operationsLanded ?? 0,
+      operationsSuffered: civ.operationsSuffered ?? 0,
+      incidentsTraced: civ.incidentsTraced ?? 0,
+      wentPublic: civ.wentPublic ?? 0,
+      spiesCaptured: civ.spiesCaptured ?? 0,
+      spiesTurned: civ.spiesTurned ?? 0,
+      spiesExpelled: civ.spiesExpelled ?? 0,
+      spiesExecuted: civ.spiesExecuted ?? 0,
+      spies: civ.spies ?? 0,
+      maxSpies: civ.maxSpies ?? 0,
+      spyStatusCounts: { ...(civ.spyStatusCounts ?? {}) },
     })).sort((a, b) => a.civId.localeCompare(b.civId)),
     findings,
     observations: roundWorkObservations(samples, config),

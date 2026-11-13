@@ -106,6 +106,49 @@ describe('analyzeCampaign — healthy baseline', () => {
   });
 });
 
+describe('analyzeCampaign — espionage campaign metrics (#419)', () => {
+  it('summarizes mission mix, victim frequency, and event volume', () => {
+    const samples = series(3, round => [
+      healthyCiv('ai-1', round, round === 2 ? {
+        spyMissionsStarted: 2,
+        spyMissionsStartedByType: { gather_intel: 2 },
+        operationsLanded: 1,
+        operationsLandedByType: { cyber_attack: 1 },
+        incidentsTraced: 1,
+        wentPublic: 1,
+      } : {}),
+      healthyCiv('ai-2', round, round === 2 ? {
+        operationsSuffered: 1,
+        spyMissionsStarted: 1,
+        spyMissionsStartedByType: { monitor_troops: 1 },
+      } : {}),
+    ], () => ({
+      espionageEventCounts: { 'mission-started': 3, 'operation-landed': 1, 'went-public': 1 },
+    }));
+
+    const report = analyzeCampaign(samples, CONFIG);
+
+    expect(report.summary.espionage).toEqual({
+      spyMissionsStarted: 3,
+      spyMissionMix: { gather_intel: 2, monitor_troops: 1 },
+      operationsLanded: 1,
+      operationMix: { cyber_attack: 1 },
+      operationsSuffered: 1,
+      incidentsTraced: 1,
+      wentPublic: 1,
+      spiesCaptured: 0,
+      spiesTurned: 0,
+      spiesExpelled: 0,
+      spiesExecuted: 0,
+      eventsByType: { 'mission-started': 9, 'operation-landed': 3, 'went-public': 3 },
+    });
+    const ai1 = report.perCiv.find(civ => civ.civId === 'ai-1')!;
+    const ai2 = report.perCiv.find(civ => civ.civId === 'ai-2')!;
+    expect(ai1.spyMissionsStarted).toBe(2);
+    expect(ai2.operationsSuffered).toBe(1);
+  });
+});
+
 describe('analyzeCampaign — detectors fire on injected stalls', () => {
   it('detects no-research-choice', () => {
     // A real stall completes nothing: hold `completedTechs` flat from the round before the window, otherwise each
