@@ -991,9 +991,7 @@ export function prepareMajorCivStrategicPlan(
     portfolioResult.portfolio.primaryPlan,
     nationalIntent.current,
   ) ? [] : spyProcurementDemand(state, perception);
-  const forceDemands = mergePreparedForceDemands(
-    assignments.forceDemands,
-    [
+  const demandSeeds: PreparedForceDemandSeed[] = [
       // #1064: a readiness demand means "I own ZERO units of role R, so I cannot even
       // consider this objective". Owning one satisfies it. Before this it re-seeded
       // desired:1/assigned:0 every turn, and residualDemands only discounts QUEUED
@@ -1028,14 +1026,6 @@ export function prepareMajorCivStrategicPlan(
           !unit.transportId && getAIStrategicRoles(unit.type).includes('worker')).length,
         Math.min(perception.ownCities.length, WORKER_SOFT_CAP),
       ),
-      // #1704: a standing home guard, one unit at a time, so a civ at peace is not undefended.
-      ...incrementalDemandSeed(
-        'frontline',
-        HOME_GUARD_SOURCE_ID,
-        HOME_GUARD_PRIORITY,
-        countHomeGuardUnits(perception.ownUnits),
-        Math.min(perception.ownCities.length, HOME_GUARD_SOFT_CAP),
-      ),
       // #1480: the buyer half of the commerce pipeline needs a trader to exist before it can
       // spend anything, and nothing else ever asked production for one. Same incremental,
       // city-bounded shape as workers, and only while real work is material-blocked with at
@@ -1053,8 +1043,23 @@ export function prepareMajorCivStrategicPlan(
       })),
       ...observedArmorDemand(state, perception, getPreparedAssignmentProfile(state)),
       ...observedAirDefenseDemand(state, perception),
-    ],
-  );
+  ];
+  const plannedDemands = mergePreparedForceDemands(assignments.forceDemands, demandSeeds);
+  // #1704: a standing home guard, one unit at a time, so a civ at peace is not undefended. It is a
+  // floor, not an addition: while a plan or a threat is already short a frontline unit, that request
+  // stands alone, so one shortage never orders two units.
+  const forceDemands = plannedDemands.some(demand => demand.role === 'frontline' && demand.missing > 0)
+    ? plannedDemands
+    : mergePreparedForceDemands(assignments.forceDemands, [
+      ...demandSeeds,
+      ...incrementalDemandSeed(
+        'frontline',
+        HOME_GUARD_SOURCE_ID,
+        HOME_GUARD_PRIORITY,
+        countHomeGuardUnits(perception.ownUnits),
+        Math.min(perception.ownCities.length, HOME_GUARD_SOFT_CAP),
+      ),
+    ]);
   const preparedAssignments = {
     ...assignments,
     forceDemands,

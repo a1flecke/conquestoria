@@ -194,7 +194,12 @@ Expansion is a real strategic-plan objective, not an administrative side-channel
   `assigned = owned`, so `missing` is structurally 0 or 1. Never hand-roll this — the bug
   it replaces (`desired: 1, assigned: 0` re-seeded every turn) produced one unit per turn
   forever. Priorities: defense 500-1000 > observed threats 180 > objective-readiness and
-  settlement 90 > worker infrastructure 40.
+  settlement 90 > home guard 60 > worker infrastructure 40.
+- **Home guard (#1704).** A civ at peace asks for one land combat unit per city, up to
+  `HOME_GUARD_SOFT_CAP` (6), one at a time (`HOME_GUARD_SOURCE_ID`). It is a floor, not an
+  addition: while a plan or threat is already short a frontline unit the home guard is not
+  seeded, so one shortage never orders two units. Before it an unthreatened AI kept only its
+  starting warrior. Difficulty-invariant.
 - `expansionDrive` gates *whether* a civ expands in exactly one place —
   `getExpansionCitySoftCap`, a 2-to-6 city soft cap on new settling (not on empire size;
   conquest is unaffected). Everywhere else it only weights *how much*.
