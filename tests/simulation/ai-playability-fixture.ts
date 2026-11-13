@@ -385,6 +385,13 @@ export interface AICampaignOptions extends AISimulationOptions {
    */
   saveReloadAfterRounds?: readonly number[];
   /**
+   * Test-only injection point for focused campaign-instrumentation coverage (#1693).
+   * Runs once, after scenario setup and before the first round, so a test can hand the
+   * campaign an AI spy in a mission-ready position and observe the real counters. The
+   * scenario matrix never sets it, so it cannot move a checked-in campaign artifact.
+   */
+  prepareState?: (state: GameState) => GameState;
+  /**
    * Called once per completed round with a PLAIN-DATA reduction of the state —
    * never `GameState` itself. This is what keeps the campaign report
    * deterministic and keeps the analysis layer structurally unable to perturb
@@ -442,6 +449,7 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
       }
     }
   }
+  if (options.prepareState) state = options.prepareState(state);
 
   const metrics: AISimulationMetrics = {
     turns: 0,

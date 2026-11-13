@@ -431,11 +431,11 @@ describe('AI espionage decisions', () => {
       const bus = new EventBus();
       const started: string[] = [];
       bus.on('espionage:mission-started', event => started.push(event.missionType));
-      const after = processAITurn(state, 'ai-egypt', bus);
-      // The remote-capable path starts missions without emitting mission-started,
-      // so read the resulting assignment as well.
-      const assigned = after.espionage?.['ai-egypt']?.spies['spy-repeat']?.currentMission?.type;
-      return assigned ? [...started, assigned] : started;
+      processAITurn(state, 'ai-egypt', bus);
+      // #1693: every accepted AI start emits the event, so the event stream is the only
+      // source needed. This helper used to read the resulting assignment too, because the
+      // placed-spy and remote-capable paths omitted the event.
+      return started;
     }
 
     it('does not re-run a cyber attack while its full production lockout is active', () => {
@@ -503,6 +503,232 @@ describe('AI mission start consumes the typed start-mission result (#1222)', () 
     const result = processAITurn(state, 'ai-egypt', new EventBus());
 
     expect(result.espionage!['ai-egypt'].spies['spy-1'].currentMission).not.toBeNull();
+  });
+});
+
+// #1693: every successful AI mission start must emit exactly one
+// `espionage:mission-started`, and a refused start must emit none. The event must
+// describe the mission the canonical command actually accepted, not the first
+// candidate the AI considered.
+describe('AI mission start events (#1693)', () => {
+  type MissionStartedEvent = { civId: string; spyId: string; missionType: string };
+
+  function missionState(options: {
+    techs?: string[];
+    civType?: string;
+    spies: Array<{ id: string; overrides: Record<string, unknown> }>;
+  }): GameState {
+    const state = makeAiTestState();
+    state.civilizations['ai-egypt'].techState.completed =
+      options.techs ?? ['espionage-scouting', 'espionage-informants'];
+    if (options.civType) state.civilizations['ai-egypt'].civType = options.civType;
+    let aiEsp = { ...createEspionageCivState(), maxSpies: options.spies.length };
+    // Stage 3+ makes the defensive-stationing pass embed an idle spy in the capital
+    // before mission selection runs; a non-zero capital counter-intelligence stops it.
+    if (state.civilizations['ai-egypt'].techState.completed.includes('spy-networks')) {
+      aiEsp = { ...aiEsp, counterIntelligence: { 'city-egypt-1': 1 } };
+    }
+    for (const [index, spy] of options.spies.entries()) {
+      ({ state: aiEsp } = createSpyFromUnit(aiEsp, spy.id, 'ai-egypt', 'spy_agent', `seed-1693-${index}`));
+      aiEsp = {
+        ...aiEsp,
+        spies: {
+          ...aiEsp.spies,
+          [spy.id]: { ...aiEsp.spies[spy.id], currentMission: null, ...spy.overrides },
+        },
+      };
+    }
+    state.espionage = { ...state.espionage, 'ai-egypt': aiEsp };
+    return state;
+  }
+
+  function runTurn(state: GameState): { events: MissionStartedEvent[]; after: GameState } {
+    const bus = new EventBus();
+    const events: MissionStartedEvent[] = [];
+    bus.on('espionage:mission-started', event => events.push(event));
+    const after = processAITurn(state, 'ai-egypt', bus);
+    return { events, after };
+  }
+
+  function acceptedMission(state: GameState, spyId: string) {
+    return state.espionage!['ai-egypt'].spies[spyId].currentMission;
+  }
+
+  it('emits one event for an infiltrated spy, naming the accepted mission', () => {
+    const state = missionState({
+      spies: [{
+        id: 'spy-embedded',
+        overrides: {
+          status: 'stationed',
+          infiltrationCityId: 'city-player-1',
+          targetCivId: 'player',
+          targetCityId: 'city-player-1',
+        },
+      }],
+    });
+
+    const { events, after } = runTurn(state);
+
+    const mission = acceptedMission(after, 'spy-embedded');
+    expect(mission).not.toBeNull();
+    expect(events).toEqual([
+      { civId: 'ai-egypt', spyId: 'spy-embedded', missionType: mission!.type },
+    ]);
+  });
+
+  it('emits one event for a placed-spy mission started from a stationed spy', () => {
+    const state = missionState({
+      spies: [{
+        id: 'spy-placed',
+        overrides: {
+          status: 'stationed',
+          infiltrationCityId: null,
+          targetCivId: 'player',
+          targetCityId: 'city-player-1',
+        },
+      }],
+    });
+
+    const { events, after } = runTurn(state);
+
+    const mission = acceptedMission(after, 'spy-placed');
+    expect(mission).not.toBeNull();
+    expect(mission!.type).not.toBe('cyber_attack');
+    expect(events).toEqual([
+      { civId: 'ai-egypt', spyId: 'spy-placed', missionType: mission!.type },
+    ]);
+  });
+
+  it('emits one event for a remote-capable mission started from an idle spy', () => {
+    const state = missionState({
+      civType: 'annuvin',
+      techs: [
+        'espionage-scouting', 'espionage-informants', 'spy-networks',
+        'cold-war-networks', 'cyber-intelligence',
+      ],
+      spies: [{
+        id: 'spy-remote',
+        overrides: { status: 'idle', targetCivId: 'player', targetCityId: 'city-player-1' },
+      }],
+    });
+
+    const { events, after } = runTurn(state);
+
+    const mission = acceptedMission(after, 'spy-remote');
+    expect(mission!.type).toBe('cyber_attack');
+    expect(events).toEqual([
+      { civId: 'ai-egypt', spyId: 'spy-remote', missionType: 'cyber_attack' },
+    ]);
+  });
+
+  it('names the mission actually accepted when a fully active disruption is skipped', () => {
+    const state = missionState({
+      civType: 'annuvin',
+      techs: [
+        'espionage-scouting', 'espionage-informants', 'spy-networks',
+        'cold-war-networks', 'cyber-intelligence',
+      ],
+      spies: [{
+        id: 'spy-remote-alt',
+        overrides: { status: 'idle', targetCivId: 'player', targetCityId: 'city-player-1' },
+      }],
+    });
+    // A full-strength cyber-attack lockout cannot be improved by repeating it, so the
+    // AI falls through to the next ranked remote mission.
+    state.cities['city-player-1'].productionDisabledTurns = 3;
+
+    const { events, after } = runTurn(state);
+
+    const mission = acceptedMission(after, 'spy-remote-alt');
+    expect(mission!.type).toBe('misinformation_campaign');
+    expect(events).toEqual([
+      { civId: 'ai-egypt', spyId: 'spy-remote-alt', missionType: 'misinformation_campaign' },
+    ]);
+  });
+
+  it('emits nothing when the start command refuses the mission', () => {
+    // Half-recorded target: the AI's placed-spy guard passes, but `startMission`
+    // refuses with `target-missing` and must leave the spy without a mission.
+    const state = missionState({
+      spies: [{
+        id: 'spy-refused',
+        overrides: {
+          status: 'stationed',
+          infiltrationCityId: null,
+          targetCivId: 'player',
+          targetCityId: null,
+        },
+      }],
+    });
+
+    const { events, after } = runTurn(state);
+
+    expect(events).toEqual([]);
+    expect(acceptedMission(after, 'spy-refused')).toBeNull();
+  });
+
+  it('emits nothing for a spy already on a mission', () => {
+    const existingMission = {
+      type: 'gather_intel' as const,
+      turnsRemaining: 2,
+      turnsTotal: 3,
+      targetCivId: 'player',
+      targetCityId: 'city-player-1',
+    };
+    const state = missionState({
+      spies: [{
+        id: 'spy-busy',
+        overrides: {
+          status: 'stationed',
+          infiltrationCityId: 'city-player-1',
+          targetCivId: 'player',
+          targetCityId: 'city-player-1',
+          currentMission: existingMission,
+        },
+      }],
+    });
+
+    const { events, after } = runTurn(state);
+
+    expect(events).toEqual([]);
+    expect(acceptedMission(after, 'spy-busy')).toEqual(existingMission);
+  });
+
+  it('emits exactly one event per distinct spy', () => {
+    const state = missionState({
+      civType: 'annuvin',
+      techs: [
+        'espionage-scouting', 'espionage-informants', 'spy-networks',
+        'cold-war-networks', 'cyber-intelligence',
+      ],
+      spies: [
+        {
+          id: 'spy-a-embedded',
+          overrides: {
+            status: 'stationed',
+            infiltrationCityId: 'city-player-1',
+            targetCivId: 'player',
+            targetCityId: 'city-player-1',
+          },
+        },
+        {
+          id: 'spy-b-remote',
+          overrides: { status: 'idle', targetCivId: 'player', targetCityId: 'city-player-1' },
+        },
+      ],
+    });
+
+    const { events, after } = runTurn(state);
+
+    expect(events).toHaveLength(2);
+    const bySpy = new Map(events.map(event => [event.spyId, event.missionType]));
+    expect(bySpy.size).toBe(2);
+    for (const spyId of ['spy-a-embedded', 'spy-b-remote']) {
+      const mission = acceptedMission(after, spyId);
+      expect(mission).not.toBeNull();
+      expect(bySpy.get(spyId)).toBe(mission!.type);
+      expect(events.filter(event => event.spyId === spyId)).toHaveLength(1);
+    }
   });
 });
 
