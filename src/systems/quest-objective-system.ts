@@ -103,7 +103,8 @@ function queueTurnsThroughCaravan(state: GameState, cityId: string, productionPe
 
   let turns = 0;
   let progress = city.productionProgress;
-  for (const itemId of [...city.productionQueue, 'caravan']) {
+  for (let index = 0; index <= city.productionQueue.length; index++) {
+    const itemId = city.productionQueue[index] ?? 'caravan';
     const cost = priceInQueue(itemId);
     const itemTurns = Math.max(1, Math.ceil((cost - progress) / productionPerTurn));
     turns += itemTurns;

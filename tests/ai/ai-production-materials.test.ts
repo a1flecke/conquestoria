@@ -213,6 +213,17 @@ describe('#1506 MR09 task 10 — AI material-aware selection', () => {
     expect(getCityMaterialProjection(after, 'city-b').funded).toBe(true);
   });
 
+  it('counts funded replacements against the same residual demand across waiting cities', () => {
+    let state = withIron(setupState(['city-a', 'city-b']), 0);
+    state = queueHead(state, 'city-a', 'swordsman');
+    state = queueHead(state, 'city-b', 'swordsman');
+
+    const { state: after, report } = applyAIProductionWithReport(state, 'ai-1', [demand('frontline', 1)], calm);
+
+    expect(report.replacedWaiting).toHaveLength(2);
+    expect(['city-a', 'city-b'].filter(id => queued(after, id)[0] === 'spearman')).toHaveLength(1);
+  });
+
   it('never spends the human ledger for an AI with access but no stock', () => {
     let state = withIronAccessOnly(setupState());
     state.currentPlayer = 'player';
