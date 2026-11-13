@@ -200,6 +200,19 @@ describe('planning-system city queues', () => {
     expect(second.itemId).not.toBe(first.itemId);
   });
 
+  it('estimates the recommended build with carried progress and dormant idle conversion', () => {
+    const state = createNewGame(undefined, 'idle-choice-carry', 'small');
+    const playerId = state.currentPlayer;
+    const settlerId = state.civilizations[playerId].units.find(unitId => state.units[unitId]?.type === 'settler')!;
+    const city = foundCity(playerId, state.units[settlerId].position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations[playerId].cities.push(city.id);
+    city.idleProduction = 'science';
+    city.productionProgress = 15;
+
+    expect(getRecommendedIdleCityChoice(state, playerId, city.id)?.turns).toBe(1);
+  });
+
   it('asks for research only once the civilization has a city (#1692)', () => {
     const state = createNewGame(undefined, 'research-needs-city', 'small');
     const playerId = state.currentPlayer;

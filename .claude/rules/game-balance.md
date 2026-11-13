@@ -842,6 +842,13 @@ active item still erases stored progress (`planning-system.ts`), with the existi
 **Rule:** a new completion path asks `resolveCompletionCarry` rather than resetting or keeping progress itself, and a
 new overflow consequence is a row here.
 
+For production choices and ETAs, use `estimateCityBuildOutput` for the output a build could receive. The current
+yield projection reports where output goes now, including idle conversion. Starting a build makes that conversion
+dormant. An item entering an empty queue inherits the city's stored progress. A forecast through several queue
+entries must allow at least one turn per completion and pass the remaining progress through
+`resolveCompletionCarry` at each ordinary completion. Cover a converting city and a queue with enough stored
+progress to finish its head immediately when changing these forecasts.
+
 ## Production Cost Context (#984)
 
 Every production cost in the game is one function of one input:

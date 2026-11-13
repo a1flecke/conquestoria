@@ -10,8 +10,7 @@
 // word it as a guarantee. The query reads only the deciding civ's own city, never another civ's state.
 import type { GameState } from '@/core/types';
 import type { MaterialCostRow } from '@/core/types/commerce';
-import { resolveCivDefinition } from './civ-registry';
-import { calculateProjectedCityYields } from './city-work-system';
+import { estimateCityBuildOutput } from './city-work-system';
 import { resolveCompletionCarry } from './city-turn';
 import { getCityMaterialProjection } from './city-production-materials';
 import { getRushBuyQuote, type RushBuyDisabledReason } from './economy-system';
@@ -38,7 +37,7 @@ export interface ActiveProductionProjection {
  * Projects the owner's active production item. Returns null for a missing city, a city the civ does not own, an empty
  * queue or an unpriced item, so a caller never previews something it could not act on.
  *
- * `productionPerTurn` is an ESTIMATE: it is the same city-work projection AI scoring uses (`calculateProjectedCityYields`),
+ * `productionPerTurn` is an ESTIMATE: it is the same city-work projection AI scoring uses (`estimateCityBuildOutput`),
  * which leaves out empire-wide technology percentages and transient multipliers the turn applies. A caller that has a
  * more complete displayed figure (the city panel) passes it as `productionPerTurnOverride`; a lock still zeroes it.
  */
@@ -55,8 +54,7 @@ export function projectActiveProduction(
   const cost = getProductionCostForCivItem(state, civId, cityId, itemId);
   if (cost <= 0) return null;
   const locked = isCityProductionLocked(city);
-  const projected = productionPerTurnOverride
-    ?? calculateProjectedCityYields(state, cityId, resolveCivDefinition(state, state.civilizations[civId]?.civType ?? '')?.bonusEffect).production;
+  const projected = productionPerTurnOverride ?? estimateCityBuildOutput(state, cityId);
   return {
     itemId,
     cost,

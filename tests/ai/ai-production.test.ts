@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   applyAIProduction,
+  applyAIProductionWithReport,
   economyValue,
   generateAIProductionCandidates,
 } from '@/ai/ai-production';
@@ -29,6 +30,9 @@ import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { createEspionageCivState } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { getProductionCostForCivItem } from '@/systems/production-cost-context';
+import { buildReferenceEconomyCity } from '../systems/helpers/pacing-reference-economy';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject } from '@/systems/strategic-arsenal-system';
 import { getCapitalCityId } from '@/systems/capital-system';
@@ -100,6 +104,16 @@ function setupState(
   }
   civ.techState.completed = [...completed];
   civ.gold = 500;
+  return state;
+}
+
+function matureCityState(): GameState {
+  const reference = buildReferenceEconomyCity(9);
+  const state = setupState(reference.completedTechs);
+  state.map = reference.map;
+  const city = state.cities['city-a'] = { ...reference.city, id: 'city-a', owner: 'ai-1' };
+  for (const tile of Object.values(state.map.tiles)) tile.owner = 'ai-1';
+  city.productionProgress = calculateProjectedCityYields(state, city.id).production;
   return state;
 }
 
@@ -656,6 +670,97 @@ describe('AI strategic production', () => {
     const queued = structuredClone(carried);
     queued.cities['city-a'].productionQueue = ['shrine']; // a building, so the demand is still open
     expect(etaFor(queued)).toBe(fromNothing);
+  });
+
+  it('uses mature city capacity for a useful building before a low-priority worker', () => {
+    const state = matureCityState();
+    const city = state.cities['city-a'];
+    const demands = [demand('worker', 1, 40, ['worker-infrastructure'])];
+    const price = (id: string) => getProductionCostForCivItem(state, 'ai-1', city.id, id);
+    const workerCost = price('worker');
+    expect(city.productionProgress - workerCost).toBeGreaterThan(30);
+    const useful = generateAIProductionCandidates(state, 'ai-1', city.id, [], expansionist)
+      .filter(candidate => candidate.kind === 'building' && candidate.fundableNow
+        && candidate.score > 0 && price(candidate.itemId) >= city.productionProgress);
+    expect(useful.length).toBeGreaterThan(0);
+
+    const result = applyAIProduction(state, 'ai-1', demands, expansionist);
+    expect(useful.map(candidate => candidate.itemId)).toContain(result.cities['city-a'].productionQueue[0]);
+  });
+
+  it('estimates a proposed build using the output available after idle conversion goes dormant', () => {
+    const state = matureCityState();
+    const city = state.cities['city-a'];
+    city.productionProgress = 0;
+    const workerETA = () => generateAIProductionCandidates(state, 'ai-1', city.id, [demand('worker')], expansionist)
+      .find(candidate => candidate.itemId === 'worker')!.productionTurns;
+    const before = workerETA();
+    expect(before).toBe(1);
+    city.idleProduction = 'science';
+    expect(calculateProjectedCityYields(state, city.id).production).toBe(0);
+    expect(workerETA()).toBe(before);
+  });
+
+  it('keeps routine worker demand ahead in a small city and when stored progress fits the cap', () => {
+    const demands = [demand('worker', 1, 40, ['worker-infrastructure'])];
+    const small = setupState();
+    expect(applyAIProduction(small, 'ai-1', demands, expansionist).cities['city-a'].productionQueue).toEqual(['worker']);
+
+    const mature = matureCityState();
+    const city = mature.cities['city-a'];
+    const workerCost = getProductionCostForCivItem(mature, 'ai-1', city.id, 'worker');
+    for (const progress of [0, workerCost]) {
+      city.productionProgress = progress;
+      expect(applyAIProduction(mature, 'ai-1', demands, expansionist).cities[city.id].productionQueue).toEqual(['worker']);
+    }
+  });
+
+  it.each([
+    [60, 'home-guard'],
+    [700, 'defense-overflow:city-a'],
+  ])('preserves frontline demand at priority %i despite the carry at stake', (priority, source) => {
+    const state = matureCityState();
+    const resources = RESOURCE_DEFINITIONS.map(definition => definition.id as ResourceType);
+    grantResources(state, resources);
+    for (const resource of resources) grantStock(state, resource, 100);
+    const demands = [demand('frontline', 1, priority, [source])];
+    const defenders = generateAIProductionCandidates(state, 'ai-1', 'city-a', demands, aggressive)
+      .filter(candidate => candidate.fundableNow && candidate.fulfilledRole === 'frontline');
+    expect(defenders.length).toBeGreaterThan(0);
+    expect(defenders.some(candidate => candidate.roles.includes('frontline'))).toBe(false);
+    const result = applyAIProduction(state, 'ai-1', demands, aggressive);
+    expect(defenders.map(candidate => candidate.itemId)).toContain(result.cities['city-a'].productionQueue[0]);
+  });
+
+  it('uses a needed cheap worker when the only larger option lacks its hard recipe', () => {
+    const state = matureCityState();
+    const city = state.cities['city-a'];
+    state.civilizations['ai-1'].techState.completed.push('nuclear-weapons', 'nuclear-physics');
+    state.builtNationalProjects = { 'ai-1:manhattan_project': { civId: 'ai-1', cityId: city.id, eraBuilt: 10 } };
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    grantResources(state, ['uranium']);
+    city.buildings = Object.keys(BUILDINGS).filter(id => id !== 'warhead');
+    const demands = [demand('worker', 1, 40, ['worker-infrastructure'])];
+    const candidates = generateAIProductionCandidates(state, 'ai-1', city.id, demands, aggressive);
+    expect(candidates.find(candidate => candidate.itemId === 'warhead')).toMatchObject({ fundableNow: false });
+    expect(candidates.filter(candidate => candidate.fundableNow).map(candidate => candidate.itemId)).toEqual(['worker']);
+    expect(applyAIProduction(state, 'ai-1', demands, aggressive).cities[city.id].productionQueue).toEqual(['worker']);
+  });
+
+  it('uses idle conversion when its only legal build is an unneeded repeatable item', () => {
+    const state = setupState(['nuclear-weapons', 'nuclear-physics']);
+    const city = state.cities['city-a'];
+    city.buildings = Object.keys(BUILDINGS).filter(id => id !== 'warhead');
+    state.builtNationalProjects = { 'ai-1:manhattan_project': { civId: 'ai-1', cityId: city.id, eraBuilt: 10 } };
+    grantResources(state, ['uranium']);
+    grantStock(state, 'uranium');
+    expect(generateAIProductionCandidates(state, 'ai-1', city.id, [], aggressive))
+      .toMatchObject([{ itemId: 'warhead', fundableNow: true }]);
+
+    const result = applyAIProductionWithReport(state, 'ai-1', [], aggressive);
+    expect(result.state.cities[city.id].productionQueue).toEqual([]);
+    expect(result.report.converted[city.id]).toBe(result.state.cities[city.id].idleProduction);
+    expect(result.report.converted[city.id]).toMatch(/^(gold|science)$/);
   });
 
   it('does not duplicate unique recon or detection support without visible demand', () => {

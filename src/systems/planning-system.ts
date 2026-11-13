@@ -1,10 +1,9 @@
 import type { City, GameState, TechState } from '@/core/types';
 import { BUILDINGS, TRAINABLE_UNITS, getAvailableBuildings, getTrainableUnitsForCiv } from '@/systems/city-system';
 import { getQueueableProductionForCity } from '@/systems/city-production-eligibility';
-import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { estimateCityBuildOutput } from '@/systems/city-work-system';
 import { getAvailableTechs, startResearch, TECH_TREE } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
-import { resolveCivDefinition } from '@/systems/civ-registry';
 import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { getQueueableResearchIds } from '@/systems/tech-progression';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
@@ -368,9 +367,10 @@ export function getRecommendedIdleCityChoice(
   // #1220: the recommendation draws from the very list `enqueueCityProduction` validates against, so it can
   // never recommend something (a coastal unit for an inland city, an unreachable missionary) the queue refuses.
   const queueable = getQueueableProductionForCity(state, cityId) ?? { buildings: [], units: [] };
-  const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
   const productionCostContext = buildProductionCostContext(state, civId, cityId);
-  const productionPerTurn = Math.max(1, calculateProjectedCityYields(state, cityId, bonusEffect).production);
+  const productionPerTurn = Math.max(1, estimateCityBuildOutput(state, cityId));
+  const carried = city.productionQueue.length === 0 ? city.productionProgress : 0;
+  const turnsToBuild = (cost: number) => Math.max(1, Math.ceil((cost - carried) / productionPerTurn));
   const candidates = [
     ...queueable.buildings.map(building => {
       const cost = getContextualProductionCost(building.id, productionCostContext);
@@ -378,7 +378,7 @@ export function getRecommendedIdleCityChoice(
         itemId: building.id,
         label: building.name,
         cost,
-        turns: Math.ceil(cost / productionPerTurn),
+        turns: turnsToBuild(cost),
         priority: resolveBuildingPacingBand(building) === 'starter' ? 0 : 1,
         fundableNow: fundableNow(building.id),
       };
@@ -390,7 +390,7 @@ export function getRecommendedIdleCityChoice(
           itemId: unit.type,
           label: unit.name,
           cost,
-          turns: Math.ceil(cost / productionPerTurn),
+          turns: turnsToBuild(cost),
           priority: resolveUnitPacingBand(unit) === 'starter' ? 0 : 1,
           fundableNow: fundableNow(unit.type),
         };
