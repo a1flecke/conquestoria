@@ -101,6 +101,11 @@ describe('planHomeGuardStations (#1704)', () => {
     expect(planHomeGuardStations(state, CIV_ID, NONE).orders).toEqual([]);
   });
 
+  it('leaves a lone unit free to explore even when it stands in its city', () => {
+    const state = world([{ q: 0, r: 0 }], [unit('only', 'warrior', { position: { q: 0, r: 0 } })]);
+    expect(planHomeGuardStations(state, CIV_ID, NONE)).toEqual({ stationedUnitIds: [], orders: [] });
+  });
+
   it('treats a unit standing in a city as its guard and sends nobody else there', () => {
     const state = world(
       [{ q: 0, r: 0 }],

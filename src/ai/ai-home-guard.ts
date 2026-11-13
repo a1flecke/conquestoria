@@ -72,7 +72,8 @@ export function planHomeGuardStations(
     const key = hexKey(city.position);
     const standing = guards.find(unitId =>
       !stationedUnitIds.includes(unitId) && hexKey(state.units[unitId]!.position) === key);
-    if (standing) stationedUnitIds.push(standing);
+    // The roamer comes first: with no unit to spare, one standing in a city is free to go exploring.
+    if (standing && stationedUnitIds.length < guards.length - HOME_GUARD_ROAMERS) stationedUnitIds.push(standing);
     else unguarded.push(city);
   }
 
