@@ -2,32 +2,32 @@
   "__doc__": "#1007 machine-independent algorithmic baselines + budgets. Integers/ratios ONLY (contamination-tested). Regenerate with `UPDATE_PERF_BASELINE=1 yarn vitest run tests/perf/algorithmic-budgets.test.ts`. See .claude/rules/performance-budgets.md.",
   "areas": {
     "aiRound@e1": {
-      "blockingEntityAtCalls": 269,
+      "blockingEntityAtCalls": 233,
       "cityYieldCalls": 2866,
       "civEconomyCalls": 8,
       "economyStatusCalls": 2473,
-      "heapPops": 5602,
+      "heapPops": 2433,
       "ownedRoadConnectivityCalls": 32,
       "ownedRoadTileScans": 14,
-      "pathQueries": 182,
+      "pathQueries": 169,
       "projectedGrossGoldCalls": 0,
       "roadConnectivityCalls": 706,
       "structuredCloneWholeState": 9,
-      "structuredCloneWholeStateBytes": 31294155
+      "structuredCloneWholeStateBytes": 31208351
     },
     "aiRound@e2": {
-      "blockingEntityAtCalls": 507,
+      "blockingEntityAtCalls": 452,
       "cityYieldCalls": 5712,
       "civEconomyCalls": 9,
       "economyStatusCalls": 4773,
-      "heapPops": 10484,
+      "heapPops": 7154,
       "ownedRoadConnectivityCalls": 54,
       "ownedRoadTileScans": 15,
-      "pathQueries": 262,
+      "pathQueries": 238,
       "projectedGrossGoldCalls": 0,
       "roadConnectivityCalls": 2241,
       "structuredCloneWholeState": 8,
-      "structuredCloneWholeStateBytes": 41027311
+      "structuredCloneWholeStateBytes": 40915025
     },
     "findPath": {
       "heapPops": 70,
@@ -101,18 +101,18 @@
   "auditedCommit": "6be5a726",
   "budgets": {
     "aiRound": {
-      "blockingEntityAtCalls": 761,
+      "blockingEntityAtCalls": 678,
       "cityYieldCalls": 8568,
       "civEconomyCalls": 14,
       "economyStatusCalls": 7160,
-      "heapPops": 15726,
+      "heapPops": 10731,
       "ownedRoadConnectivityCalls": 81,
       "ownedRoadTileScans": 23,
-      "pathQueries": 393,
+      "pathQueries": 357,
       "projectedGrossGoldCalls": 0,
       "roadConnectivityCalls": 3362,
       "structuredCloneWholeState": 12,
-      "structuredCloneWholeStateBytes": 61540967
+      "structuredCloneWholeStateBytes": 61372538
     },
     "findPath": {
       "heapPops": 105,
@@ -150,8 +150,8 @@
   "ratios": {
     "aiRoundCityYieldCalls": 2.59,
     "aiRoundCloneBytes": 1.7,
-    "aiRoundHeapPops": 2.43,
-    "aiRoundPathQueries": 1.87,
+    "aiRoundHeapPops": 3.82,
+    "aiRoundPathQueries": 1.83,
     "aiRoundProjectionCalls": 2.51,
     "aiRoundRoadCalls": 3.99,
     "findPathPopsPerRouteStep": 3.64,
