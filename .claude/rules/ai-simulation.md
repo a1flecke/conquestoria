@@ -102,11 +102,16 @@ Each scenario writes two files under the gitignored `.verification/` tree:
 
 `findings` are liveness / progress / envelope violations from
 `campaign-analysis.ts` — a living AI that never expands, a city idle 12+ rounds,
-gold hoarded without spend, a unit count running away while the empire never
+uninterrupted net treasury growth, a unit count running away while the empire never
 grows, a wedged plan, a stagnant war, an eliminated civ regaining entities.
 Thresholds are in `DEFAULT_CAMPAIGN_ANALYSIS_CONFIG`, each measured against
 `main` and given headroom; a detector that would need a different threshold per
 challenge tier is a wrong detector — fix the detector.
+
+When investigating a treasury streak, compare actual spending with legal opportunities in
+the same rounds on both revisions. Record why a purchase was skipped, including a funded
+build that would finish that turn using production. The balance can grow during a round
+that includes a purchase.
 
 ### The known-gap ratchet
 
@@ -126,6 +131,9 @@ reported `new-civ`, a longer streak `worsened`, and each occurrence that stops r
 on its own (`staleOccurrences`). `scenarios: 'any'` needs a written `wildcardRationale`
 (`findInvalidGapRegistrations`, checked in `afterAll`). Prefer scoped entries; widen a budget only with
 a matrix run attached to the PR, never to make a run pass.
+
+After a filtered run, compare its findings with clean main and the scoped registry entries
+for the scenario. The filtered test checks campaign invariants and skips the matrix ratchet.
 
 When you fix an AI bug the suite was tracking, delete its register entry in the
 same change. When the suite finds something new, do **not** loosen a detector or
