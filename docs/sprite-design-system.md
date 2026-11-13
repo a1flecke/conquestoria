@@ -270,7 +270,7 @@ Improvement Marker asset contract (`viewBox 0 0 48 48`, no palette, no animation
 | world-pressure crisis — catastrophe | ✅ SVG marker (same file, #618) — jagged bolt | `worldPressureCrisis === 'catastrophe'` |
 | world-pressure crisis — hunt | ✅ SVG marker (same file, #618) — three claw slashes | `worldPressureCrisis === 'hunt'` |
 | world-pressure (load / unknown-archetype fallback) | `'⚠️'` emoji — **load fallback** only, drawn until the archetype's image is cached or for an archetype this build has no badge for | any active crisis |
-| loyalty-pressure | ⚠️ `'🙏'` emoji (tracked by the placeholder audit: #622) | active foreign-faith loyalty pressure (`loyaltyPressure`) |
+| loyalty-pressure | ✅ SVG marker (`src/renderer/improvements/loyalty-pressure-badge-marker.ts`, #1620) — pale loyalty crest split by a fissure and pinched by two inward pressure arrows; abstract invented-faith art, no real-world religious symbol. `'🙏'` remains only the while-loading / load-failure fallback | active foreign-faith loyalty pressure (`loyaltyPressure`) |
 | religion badge | ✅ SVG marker (`src/renderer/improvements/religion-badge-marker.ts`, #594 MR7), two variants (own-faith / foreign-faith) | city has a resolved `cityFaith` entry (`religionBadge`) |
 
 ### Legendary Wonders — `src/systems/legendary-wonder-definitions.ts`

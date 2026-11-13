@@ -7,6 +7,7 @@ import {
   type CityMapPresentation,
 } from '@/renderer/city-map-presentation';
 import { getCrisisBadgeMarkerImage } from '@/renderer/improvements/crisis-badge-markers';
+import { getLoyaltyPressureBadgeMarkerImage } from '@/renderer/improvements/loyalty-pressure-badge-marker';
 import { getReligionBadgeMarkerImage } from '@/renderer/improvements/religion-badge-marker';
 import { spriteCache } from '@/renderer/sprites/sprite-loader';
 import { getLegendaryWonderArtImage } from '@/renderer/wonders/legendary-wonder-art-loader';
@@ -587,16 +588,25 @@ export function drawCityLoyaltyPressureBadgePass(ctx: CanvasRenderingContext2D, 
   if (!item.projection.isLive || !item.city || !item.loyaltyPressure) return;
 
   const { center, bounds } = getCityBadgeLayout(item.screen, item.size).loyaltyPressure;
+
+  // #1620: the distinct fractured-crest marker reads as "another faith is eroding this
+  // city's allegiance" instead of the generic Faith glyph. The emoji below is only the
+  // while-loading / load-failure fallback, so the badge never disappears on decode failure.
+  const marker = getLoyaltyPressureBadgeMarkerImage();
+  if (marker) {
+    ctx.drawImage(marker, bounds.x, bounds.y, bounds.width, bounds.height);
+    return;
+  }
+
   ctx.beginPath();
   ctx.arc(center.x, center.y, bounds.width / 2, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(20,24,30,0.86)';
   ctx.fill();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  // Inline review fix: 🙏 matches the existing "Faith" iconography used elsewhere in this
-  // project (city-panel.ts) -- a real-world religious symbol (e.g. a specific faith's
-  // cross/crescent/etc.) was used in an earlier draft and would have broken this
-  // project's "invented faiths, never real-world religions" convention (see
+  // Kept only as the fallback: 🙏 matches the existing "Faith" iconography used elsewhere in
+  // this project (city-panel.ts). The shipped marker is abstract because this project invents
+  // its own faiths and never uses real-world religious symbols (see
   // religion-definitions.ts NAME_CANDIDATES doc comment).
   drawFittedText(ctx, CITY_BADGE_GLYPHS.loyaltyPressure, center.x, center.y, bounds.width, item.size * 0.2);
 }

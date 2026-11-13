@@ -8,6 +8,7 @@ import { createSelectionStore } from '@/app/selection-store';
 import { createPanelHost } from '@/app/panel-host';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import * as saveManager from '@/storage/save-manager';
+import * as loyaltyPressureBadgeMarker from '@/renderer/improvements/loyalty-pressure-badge-marker';
 import type { HudController } from '@/app/controllers/hud-controller';
 import {
   createGameSessionController,
@@ -244,6 +245,19 @@ describe('GameSessionController', () => {
       document.dispatchEvent(new Event('visibilitychange'));
       expect(saveManager.autoSave).toHaveBeenCalledWith(deps.session.getState());
       visibility.mockRestore();
+    });
+
+    it('#1620 preloads the loyalty-pressure city-badge marker with the other map assets', async () => {
+      const preloadSpy = vi.spyOn(loyaltyPressureBadgeMarker, 'preloadLoyaltyPressureBadgeMarker')
+        .mockResolvedValue(undefined);
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const gameSession = createGameSessionController(deps);
+
+      void gameSession.startGame();
+
+      expect(preloadSpy).toHaveBeenCalledTimes(1);
+      preloadSpy.mockRestore();
     });
 
     it('clears any previous game\'s ceremony/victory backlog before presenting this GameState (#993)', async () => {

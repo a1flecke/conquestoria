@@ -35,6 +35,16 @@ describe('city badge presentation', () => {
     }
   });
 
+  it('#1620 keeps the loyalty-pressure slot clear of faith and world pressure at map badge sizes', () => {
+    for (const size of [20, 32, 48]) {
+      const layout = getCityBadgeLayout({ x: 0, y: 0 }, size);
+      expect(intersects(layout.loyaltyPressure.bounds, layout.religion.bounds), `loyalty/religion @ ${size}`)
+        .toBe(false);
+      expect(intersects(layout.loyaltyPressure.bounds, layout.worldPressure.bounds), `loyalty/world-pressure @ ${size}`)
+        .toBe(false);
+    }
+  });
+
   it('does not treat intentionally exclusive badges as a collision pair', () => {
     expect(CITY_BADGE_SLOT_COEXISTENCE).not.toContainEqual(['production', 'idle']);
     expect(CITY_BADGE_GLYPH_COEXISTENCE).not.toContainEqual(['underSiege', 'unrest']);

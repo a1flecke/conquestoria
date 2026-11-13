@@ -55,6 +55,7 @@ import { preloadOutpostMarker } from '@/renderer/improvements/resource-outpost-m
 import { preloadFortMarker } from '@/renderer/improvements/fort-marker';
 import { preloadCrisisBadgeMarkers } from '@/renderer/improvements/crisis-badge-markers';
 import { preloadReligionBadgeMarker } from '@/renderer/improvements/religion-badge-marker';
+import { preloadLoyaltyPressureBadgeMarker } from '@/renderer/improvements/loyalty-pressure-badge-marker';
 import { preloadRailSegment } from '@/renderer/improvements/rail-segment-loader';
 import { preloadTerrainTiles } from '@/renderer/terrain/terrain-tile-loader';
 import { preloadNaturalWonderTiles } from '@/renderer/terrain/wonder-tile-loader';
@@ -267,6 +268,7 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     preloadFortMarker().catch(() => {});
     preloadCrisisBadgeMarkers().catch(() => {});
     preloadReligionBadgeMarker().catch(() => {});
+    preloadLoyaltyPressureBadgeMarker().catch(() => {});
     preloadRailSegment().catch(() => {});
     preloadTerrainTiles().catch(() => {});
     preloadNaturalWonderTiles().catch(() => {});
