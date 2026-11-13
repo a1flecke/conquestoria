@@ -217,6 +217,13 @@ Expansion is a real strategic-plan objective, not an administrative side-channel
   addition: while a plan or threat is already short a frontline unit the home guard is not
   seeded, so one shortage never orders two units. Before it an unthreatened AI kept only its
   starting warrior. Difficulty-invariant.
+- **Stationing the home guard (#1704 A2).** `planHomeGuardStations` (`src/ai/ai-home-guard.ts`,
+  pure, own units and cities only) gives each city without a unit in it the nearest free land
+  combat unit; `basic-ai.ts` sends it with the existing `journey` standing order and keeps
+  stationed units out of the administrative explore loop. Before it every idle combat unit
+  auto-explored forever and most AI cities stood empty. **One unit always stays free**
+  (`HOME_GUARD_ROAMERS`): exploration is load-bearing for expansion (above), and stationing a
+  civ's only soldier halved its city count by turn 50. The demand is therefore cities + 1.
 - `expansionDrive` gates *whether* a civ expands in exactly one place —
   `getExpansionCitySoftCap`, a 2-to-6 city soft cap on new settling (not on empire size;
   conquest is unaffected). Everywhere else it only weights *how much*.

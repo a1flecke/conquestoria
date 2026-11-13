@@ -41,7 +41,8 @@ export function getIdleExplorerUnitIds(
   return civ.units.filter(unitId => {
     const unit = units[unitId];
     if (!unit || unit.hasActed || unit.movementPointsLeft <= 0) return false;
-    if (unit.automation?.mode === 'auto-explore') return false;
+    // Any standing order (auto-explore, a journey home, a held siege) already owns this unit's move.
+    if (unit.automation) return false;
     // #1330: aircraft act through air missions and rebasing, never by walking off their base.
     if (unit.airBase) return false;
     if (UNIT_DEFINITIONS[unit.type].strength <= 0) return false;

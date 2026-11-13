@@ -1,5 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameMap, GameState, PersonalityTraits, UnitType } from '@/core/types';
+import { HOME_GUARD_ROAMERS } from '@/ai/ai-home-guard';
 import type { AiGameState } from '@/core/types/ai';
 import type {
   AIStrategicPlan,
@@ -1057,7 +1058,8 @@ export function prepareMajorCivStrategicPlan(
         HOME_GUARD_SOURCE_ID,
         HOME_GUARD_PRIORITY,
         countHomeGuardUnits(perception.ownUnits),
-        Math.min(perception.ownCities.length, HOME_GUARD_SOFT_CAP),
+        // One per city plus the roamer that keeps exploring (`HOME_GUARD_ROAMERS`, ai-home-guard.ts).
+        Math.min(perception.ownCities.length + HOME_GUARD_ROAMERS, HOME_GUARD_SOFT_CAP),
       ),
     ]);
   const preparedAssignments = {

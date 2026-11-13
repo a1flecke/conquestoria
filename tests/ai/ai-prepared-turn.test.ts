@@ -245,7 +245,7 @@ describe('prepared major-civilization planning', () => {
     });
   });
 
-  it('asks for a home guard at peace, one unit at a time, up to one per city (#1704)', () => {
+  it('asks for a home guard at peace, one unit at a time, up to one per city plus a roamer (#1704)', () => {
     const state = createNewGame(undefined, 'prepared-home-guard', 'small');
     const civ = state.civilizations['ai-1'];
     const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
@@ -263,10 +263,14 @@ describe('prepared major-civilization planning', () => {
       .find(entry => entry.sourcePlanIds.includes(HOME_GUARD_SOURCE_ID));
     expect(guard()).toMatchObject({ role: 'frontline', missing: 1, priority: HOME_GUARD_PRIORITY });
 
-    // One warrior for one city satisfies it: it never asks for a second.
-    const warrior = createUnit('warrior', civ.id, city.position, state.idCounters);
-    state.units[warrior.id] = warrior;
-    civ.units.push(warrior.id);
+    // One guard for the city plus one roamer that keeps exploring, then it stops asking.
+    for (const id of ['guard-a', 'guard-b']) {
+      expect(guard()?.missing).toBe(1);
+      const warrior = createUnit('warrior', civ.id, city.position, state.idCounters);
+      warrior.id = id;
+      state.units[id] = warrior;
+      civ.units.push(id);
+    }
     expect(guard()?.missing ?? 0).toBe(0);
   });
 
