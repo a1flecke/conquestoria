@@ -108,6 +108,41 @@ export interface AcceptedOccurrence {
  *     null as "made no choice". `campaign-analysis.ts` now requires the round to have completed nothing as well, and
  *     the entry was deleted.
  *
+ * What the 2026-11-13 replay of #1693 found (deterministic `lh-late-era-medium` on `main 9e623e37`,
+ * report preserved for the PR): the registered `gold-hoard` occurrence for ai-2 no longer reproduced
+ * (that civ spends). The replacement findings were `gold-hoard` for ai-3 (78 rounds, 140-217, +31,389
+ * gold) and `tech-frozen` for ai-2 (80 rounds, 0-79); both are re-scoped to the civ the replay names,
+ * with #1693 kept as the owner. The same replay recorded 3 spy recruitments, zero mission starts and
+ * zero landed operations with one embedded spy per AI at the end — the espionage deployment
+ * measurement #419 owns, not a registry finding.
+ *
+ * That replay predates #1707 (mature-city production valuation, `0306f60b`). After rebasing onto
+ * `138a5d7c` the same scenario moved again: `gold-hoard` returned for ai-2 (159-249, 91 rounds,
+ * +50,906) alongside ai-3 (139-209, 71 rounds, +29,902), and `tech-frozen` ran 0-80. A test-only trace
+ * at the spending decision over both windows (temporary instrumentation, reverted before commit; the
+ * simulation is unchanged) found real purchases — ai-2: 2 purchases / 653 gold across 90 treasury
+ * passes, ai-3: 4 / 1,767 across 71 — and no missed legal purchase: 240/243 and 167/171 city decisions
+ * were skipped only because the active item completes from the city's own production that turn
+ * (`completesFromOwnProduction`, #1415), no AI owned a trade unit, and every upgrade candidate had no
+ * safe city (0 upgraded, 0 blocked by reserve or cost). The acceptance therefore records structurally
+ * unavoidable mature-economy hoarding; it does not hide an ignored purchase.
+ *
+ * What the 2026-11-14 replay after #1704 A2/A3 found (`main 0bc148d0`, deterministic
+ * `lh-late-era-medium`): all three AIs now hoard — ai-1 177-249 (73 rounds, +35,348), ai-2 183-249
+ * (67, +40,184), ai-3 150-249 (100, +45,563) — and ai-2's `tech-frozen` no longer reproduces, so that
+ * entry is deleted by the ratchet's own rule. A fresh trace over the new windows (ai-1 8 purchases /
+ * 2,962 gold, ai-2 5 / 1,986 plus one 99-gold upgrade, ai-3 3 / 1,044; 119/92/218 city decisions
+ * skipped only because the active item completes from the city's own production; zero traders) found
+ * no missed legal purchase again. The replay recorded 3 spy recruitments, zero mission starts and zero
+ * landed operations — the espionage deployment measurement #419 owns.
+ *
+ * The 2026-11-15 replay after #1704 B1 (rush-bought buildings complete like produced ones, `baa237fa`):
+ * ai-2 150-249 (100 rounds, +58,620) and ai-3 148-249 (102, +47,147); ai-1 no longer hoards. A fresh
+ * trace (ai-2 4 purchases / 1,321 gold, 241 skips on `completes-this-turn`; ai-3 2 / 773, 215 skips;
+ * zero traders; 421 and 104 upgrade candidates, all without a safe city) found no missed legal
+ * purchase. The earlier #1709-era-1 off-map fix and the failed-infiltrator retreat are both in this
+ * tree and do not change these windows.
+ *
  * `lh-late-era-medium` uses `mapSeed: 'lh-1107-search-0'`; why that map was chosen (a recoverable 43-tile landmass
  * for `ai-1`) is in `docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md`.
  *
@@ -129,9 +164,12 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
     code: 'gold-hoard',
     issue: '#1693',
-    why: 'The late-era trader (ai-2) gained 41,803 gold over 78 consecutive rounds without a net treasury dip. The issue owns the remaining economy finding.',
+    why: 'Two late-era AIs kept net treasury growth after maturation: ai-2 100 rounds (150-249, +58,620) and ai-3 102 (148-249, +47,147); the trace shows every legal purchase was made and the rest were structurally blocked.',
     scenarios: ['lh-late-era-medium'],
-    accepted: [{ scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 78 }],
+    accepted: [
+      { scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 100 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-3', maxRounds: 102 },
+    ],
   },
 ];
 
