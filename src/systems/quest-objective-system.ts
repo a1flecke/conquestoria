@@ -2,9 +2,9 @@ import type { GameState, HexCoord, Quest, QuestAction, QuestTarget, QuestType } 
 import { calculateCivEconomy } from './economy-system';
 import { getCivAvailableResources } from './resource-acquisition-system';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
-import { calculateProjectedCityYields } from './city-work-system';
+import { estimateCityBuildOutput } from './city-work-system';
+import { resolveCompletionCarry } from './city-turn';
 import { getTrainableUnitsForCity, cityFollowsOwnFaith } from './city-system';
-import { resolveCivDefinition } from './civ-registry';
 import {
   buildProductionCostContext,
   getContextualProductionCost,
@@ -77,10 +77,10 @@ export function isQuestHostileOwner(state: GameState, majorCivId: string, ownerI
   return state.civilizations[majorCivId]?.diplomacy.atWarWith.includes(ownerId) ?? false;
 }
 
-function queueCostBeforeCaravan(state: GameState, cityId: string): number | null {
+function queueTurnsThroughCaravan(state: GameState, cityId: string, productionPerTurn: number): number {
   const city = state.cities[cityId];
   const civ = city ? state.civilizations[city.owner] : undefined;
-  if (!city || !civ) return null;
+  if (!city || !civ) return Number.POSITIVE_INFINITY;
   const productionCostContext = buildProductionCostContext(state, city.owner, cityId);
   // Herding Insight and Recovered Harnesses are single-use charges: `processCity`
   // spends one on the first qualifying unit and no other. Summing a whole queue
@@ -101,23 +101,18 @@ function queueCostBeforeCaravan(state: GameState, cityId: string): number | null
     return discounted;
   };
 
-  let remaining = 0;
-  let foundCaravan = false;
-
-  for (let index = 0; index < city.productionQueue.length; index++) {
-    const itemId = city.productionQueue[index];
+  let turns = 0;
+  let progress = city.productionProgress;
+  for (const itemId of [...city.productionQueue, 'caravan']) {
     const cost = priceInQueue(itemId);
-    remaining += index === 0 ? Math.max(0, cost - city.productionProgress) : cost;
-    if (itemId === 'caravan') {
-      foundCaravan = true;
-      break;
-    }
+    const itemTurns = Math.max(1, Math.ceil((cost - progress) / productionPerTurn));
+    turns += itemTurns;
+    if (itemId === 'caravan') return turns;
+    progress = itemId.startsWith('legendary:') ? 0 : resolveCompletionCarry(
+      progress + itemTurns * productionPerTurn - cost, productionPerTurn, undefined,
+    ).kept;
   }
-
-  if (!foundCaravan) {
-    remaining += priceInQueue('caravan');
-  }
-  return remaining;
+  return turns;
 }
 
 export function estimateCaravanReadyTurns(state: GameState, majorCivId: string, cityId: string): number {
@@ -137,10 +132,8 @@ export function estimateCaravanReadyTurns(state: GameState, majorCivId: string, 
   const queued = city.productionQueue.includes('caravan');
   if (!trainable && !queued) return Number.POSITIVE_INFINITY;
 
-  const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
-  const productionPerTurn = Math.max(1, calculateProjectedCityYields(state, cityId, bonusEffect).production);
-  const remainingProduction = queueCostBeforeCaravan(state, cityId);
-  return remainingProduction === null ? Number.POSITIVE_INFINITY : Math.ceil(remainingProduction / productionPerTurn);
+  const productionPerTurn = Math.max(1, estimateCityBuildOutput(state, cityId));
+  return queueTurnsThroughCaravan(state, cityId, productionPerTurn);
 }
 
 function hasRouteCapacity(state: GameState, cityId: string): boolean {

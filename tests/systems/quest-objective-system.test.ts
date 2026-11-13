@@ -6,6 +6,7 @@ import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey } from '@/systems/hex-utils';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
+import { buildReferenceEconomyCity } from './helpers/pacing-reference-economy';
 import {
   canReachGoldRequirement,
   createQuestTarget,
@@ -84,5 +85,34 @@ describe('quest objective feasibility', () => {
     state.civilizations.player.techState.completed.push('trade-routes', 'astronomy');
 
     expect(estimateCaravanReadyTurns(state, 'player', cityId)).toBeGreaterThan(20);
+  });
+
+  it('counts stored progress toward the first caravan in a converting city', () => {
+    const { state, city } = objectiveState('quest-caravan-carry');
+    city.owner = 'player';
+    state.civilizations.player.cities = [city.id];
+    state.civilizations.player.techState.completed.push('trade-routes');
+    city.productionQueue = [];
+    city.idleProduction = 'gold';
+    city.productionProgress = 100;
+
+    expect(estimateCaravanReadyTurns(state, 'player', city.id)).toBe(1);
+  });
+
+  it('takes a separate turn for each completion even when the caravan needs very little new production', () => {
+    const { state } = objectiveState('quest-caravan-serial');
+    const reference = buildReferenceEconomyCity(9);
+    state.map = reference.map;
+    const city = { ...reference.city, owner: 'player' };
+    state.cities = { [city.id]: city };
+    for (const tile of Object.values(state.map.tiles)) tile.owner = 'player';
+    state.civilizations.player.cities = [city.id];
+    state.civilizations.player.techState.completed = reference.completedTechs;
+    city.buildings.push('workshop', 'factory');
+    city.productionQueue = ['warrior', 'caravan'];
+    city.productionProgress = 1000;
+
+    // Pricing both items as one pool of work makes the ETA disagree with the turn's carry cap.
+    expect(estimateCaravanReadyTurns(state, 'player', city.id)).toBe(2);
   });
 });

@@ -7,6 +7,13 @@ paths:
 
 # AI Simulation Rules
 
+When production changes affect a force demand, verify a live queue choice with a fundable unit at the
+relevant era. Include the roster after an older unit becomes obsolete. Check that a substitute can fill
+the intended role and that queuing or buying it satisfies only one residual demand. For production
+efficiency comparisons, measure `forfeitedStored / produced` from production-disposition events.
+Stored losses are separate from the current turn's output accounting. Use identical campaign settings
+on both revisions and compare workers, defenses, expansion, research, treasury and idle streaks.
+
 ## The long-horizon campaign suite (`yarn test:ai-long`, #1005)
 
 `tests/simulation/ai-playability.test.ts` verifies the AI over 30 turns by

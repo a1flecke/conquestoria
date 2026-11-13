@@ -236,7 +236,8 @@ export function normalizeCityWorkAfterTerritoryChange(state: GameState, cityId: 
     : assignCityFocus(state, cityId, city.focus);
 }
 
-export function calculateProjectedCityYields(
+/** Output before assigning production to a build or to idle conversion. Still a city-work estimate. */
+function projectCityOutput(
   state: GameState,
   cityId: string,
   bonusEffect?: CivBonusEffect,
@@ -261,15 +262,24 @@ export function calculateProjectedCityYields(
   // Catastrophe-crisis recovery reward — must match turn-manager.ts's own +1/+1 so the
   // displayed projection never diverges from what processTurn actually applies.
   const resilienceBonus = (city.resilienceBonusUntilTurn ?? 0) > state.turn ? 1 : 0;
-  const yields = {
+  return {
     ...baseYields,
     food: baseYields.food + resilienceBonus,
     production: baseYields.production + resilienceBonus + networkBonus.production,
     gold: baseYields.gold,
     science: baseYields.science + networkBonus.science,
   };
+}
 
-  if (city.productionQueue.length === 0 && city.idleProduction) {
+/** Project the current destinations of the city's output, including idle conversion. */
+export function calculateProjectedCityYields(
+  state: GameState,
+  cityId: string,
+  bonusEffect?: CivBonusEffect,
+): ResourceYield {
+  const city = state.cities[cityId];
+  const yields = projectCityOutput(state, cityId, bonusEffect);
+  if (city?.productionQueue.length === 0 && city.idleProduction) {
     if (city.idleProduction === 'gold') {
       return { ...yields, production: 0, gold: yields.gold + yields.production };
     }
@@ -279,4 +289,9 @@ export function calculateProjectedCityYields(
   }
 
   return yields;
+}
+
+/** Estimate production for a build. Starting work makes the city's idle conversion dormant. */
+export function estimateCityBuildOutput(state: GameState, cityId: string): number {
+  return projectCityOutput(state, cityId).production;
 }

@@ -6,7 +6,9 @@ import {
   getTrainableUnitsForCity,
   cityFollowsOwnFaith,
 } from '@/systems/city-system';
-import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { estimateCityBuildOutput } from '@/systems/city-work-system';
+import { resolveCompletionCarry } from '@/systems/city-turn';
+import { isCityProductionLocked } from '@/systems/faction-unrest-model';
 import { getAllWorldRaceKinds, getWorldRaceDefinition } from '@/systems/world-race-definitions';
 import { hasCompletedWorldRaceComponent } from '@/systems/world-race-system';
 import {
@@ -18,7 +20,6 @@ import { getCivAvailableResources, getCivHappinessFromResources } from '@/system
 import { computeUnrestPressure } from '@/systems/faction-pressure';
 import { UNREST_RELIEF_SOURCES } from '@/systems/faction-relief';
 import { UNREST_TRIGGER_PRESSURE } from '@/systems/faction-unrest-model';
-import { resolveCivDefinition } from '@/systems/civ-registry';
 import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -31,7 +32,7 @@ import { getCityMaterialProjection, syncCityMaterialCommitment } from '@/systems
 import { getFuelRunway } from '@/systems/resource-fuel-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import type { AIForceDemand } from './ai-unit-assignment';
-import { getAIStrategicRoles } from './ai-unit-roles';
+import { canUnitFulfillAIStrategicRole, getAIStrategicRoles } from './ai-unit-roles';
 import { weightProductionRoles } from './ai-personality';
 import { NATIONAL_INTENT_POSTURE } from './ai-national-intent-posture';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -84,6 +85,14 @@ const COMBAT_CARGO_ROLES = new Set<AIStrategicRole>([
 ]);
 
 const UNIQUE_SUPPORT_ROLES = new Set<AIStrategicRole>(['recon', 'detection']);
+
+// One routine worker slot scores 192 before personality, ETA and upkeep. A large avoidable loss
+// can defer that request in a mature city. Home guard (60), readiness (90) and emergencies retain
+// their priority, as do demands for more than one missing unit.
+const PROTECTED_DEMAND_PRIORITY = 60;
+const MAX_ROUTINE_DEMAND_FORFEITURE_PENALTY = 200;
+const MAX_OTHER_FORFEITURE_PENALTY = 24;
+const FORFEITURE_TOLERANCE = 10;
 
 /**
  * #1480: how many missionaries one city's worth of faith spread justifies holding at once.
@@ -166,8 +175,12 @@ function canMeetProductionDemand(
   entry: AIForceDemand,
   unitType: UnitType,
   roles: readonly AIStrategicRole[],
+  allowFrontlineFallback = false,
 ): boolean {
-  return entry.missing > 0 && roles.includes(entry.role)
+  const frontlineFallback = allowFrontlineFallback && entry.role === 'frontline'
+    && roles.includes('capture') && (UNIT_DEFINITIONS[unitType].domain ?? 'land') === 'land'
+    && canUnitFulfillAIStrategicRole(unitType, entry.role);
+  return entry.missing > 0 && (roles.includes(entry.role) || frontlineFallback)
     && (!entry.sourcePlanIds.includes(ESPIONAGE_PROCUREMENT_SOURCE_ID) || isSpyUnitType(unitType));
 }
 
@@ -179,10 +192,7 @@ function residualDemands(
   const residual = cloneDemands(demands);
   for (const unitType of validQueuedUnitTypes(state, civId)) {
     const roles = getAIStrategicRoles(unitType);
-    const matching = residual
-      .filter(entry => canMeetProductionDemand(entry, unitType, roles))
-      .sort((left, right) =>
-        right.priority - left.priority || left.role.localeCompare(right.role))[0];
+    const matching = matchingDemand(unitType, roles, residual, true);
     if (matching) matching.missing -= 1;
   }
   return residual;
@@ -192,9 +202,10 @@ function matchingDemand(
   unitType: UnitType,
   roles: readonly AIStrategicRole[],
   demands: readonly AIForceDemand[],
+  allowFrontlineFallback = false,
 ): AIForceDemand | undefined {
   return demands
-    .filter(entry => canMeetProductionDemand(entry, unitType, roles))
+    .filter(entry => canMeetProductionDemand(entry, unitType, roles, allowFrontlineFallback))
     .sort((left, right) =>
       right.priority - left.priority
       || right.missing - left.missing
@@ -590,6 +601,13 @@ function projectedWaitingHeadFundable(state: GameState, civId: string, cityId: s
   return getCityMaterialProjection(projectOneResourcePhase(state, civId), cityId).funded;
 }
 
+function isUsefulProductionCandidate(candidate: AIProductionCandidate): boolean {
+  // Repeatable buildings need a reason to replenish them. Ordinary buildings can still be useful
+  // when their rank is negative because of build time or upkeep, especially in a new city.
+  return candidate.kind !== 'building' || !BUILDINGS[candidate.itemId]?.consumedOnCompletion
+    || candidate.strategicArsenalValueScore > 0;
+}
+
 /**
  * Selection for useful work: prefer a candidate whose full recipe is fundable now; otherwise keep a
  * legal plan only when the next resource phase can fund the whole recipe. A source-less item is
@@ -602,7 +620,8 @@ function pickCandidate(
   demands: readonly AIForceDemand[],
   personality: PersonalityTraits,
 ): AIProductionCandidate | undefined {
-  const candidates = generateWithResidual(state, civId, cityId, demands, personality);
+  const candidates = generateWithResidual(state, civId, cityId, demands, personality)
+    .filter(isUsefulProductionCandidate);
   const fundable = candidates.find(candidate => candidate.fundableNow);
   if (fundable) return fundable;
   return candidates.find(candidate => projectedRecipeFundable(state, civId, candidate.itemId));
@@ -623,21 +642,18 @@ function generateWithResidual(
   // successor's whole recipe is fundable), so a material-short AI still sees the free alternative.
   const offered = getQueueableProductionForCity(state, cityId);
   if (!offered) return [];
-  const civDefinition = resolveCivDefinition(state, civ.civType ?? '');
   // #1086: read-only lookup of this civ's already-persisted intent (written back by
   // ai-round-scheduler.ts's writePreparedPortfolios in the same round intent was
   // resolved) -- no new parameter threaded through every production caller.
   const posture = NATIONAL_INTENT_POSTURE[
     state.opponentAI?.nationalIntentByCiv[civId]?.current ?? 'develop'
   ];
-  const productionPerTurn = Math.max(
-    1,
-    calculateProjectedCityYields(state, cityId, civDefinition?.bonusEffect).production,
-  );
+  const buildOutput = estimateCityBuildOutput(state, cityId);
+  const productionPerTurn = Math.max(1, buildOutput);
   // #1426: an item enqueued into an empty queue starts from the city's stored progress (production carried over from
   // its last completion), so its estimate counts it. With a queue, a candidate would not become the head, so it does not.
-  const storedProgress = state.cities[cityId]?.productionQueue.length === 0
-    ? Math.max(0, state.cities[cityId]?.productionProgress ?? 0)
+  const storedProgress = city.productionQueue.length === 0
+    ? Math.max(0, city.productionProgress)
     : 0;
   const turnsToBuild = (cost: number): number =>
     Math.max(1, Math.ceil(Math.max(0, cost - storedProgress) / productionPerTurn));
@@ -667,12 +683,31 @@ function generateWithResidual(
   const airDefenseThreatenedCityIds = getVisibleAirDefenseThreatenedCityIds(state, civId);
   const hasSubmarineThreat = hasRememberedHostileSubmarineSighting(state, civId);
   const candidates: AIProductionCandidate[] = [];
+  const canAvoidForfeiture = storedProgress > FORFEITURE_TOLERANCE && !isCityProductionLocked(city);
+  const forfeitureByItem = new Map<string, { loss: number; maxPenalty: number }>();
+  const recordForfeiture = (itemId: string, cost: number, maxPenalty: number): void => {
+    if (!canAvoidForfeiture) return;
+    // Any positive forfeiture implies the item completes. Costs at or above stored progress
+    // cannot exceed the one-turn carry cap, even when the build takes more than one turn.
+    const loss = storedProgress > cost
+      ? resolveCompletionCarry(storedProgress + buildOutput - cost, buildOutput, undefined).forfeited
+      : 0;
+    forfeitureByItem.set(itemId, { loss, maxPenalty });
+  };
 
+  const supportDemandAllows = (roles: readonly AIStrategicRole[]) =>
+    !roles.some(role => UNIQUE_SUPPORT_ROLES.has(role))
+    || roles.some(role => demands.some(entry => entry.role === role && entry.missing > 0));
+  const hasFundableFrontline = demands.some(entry => entry.role === 'frontline' && entry.missing > 0)
+    && offered.units.some(unit => {
+      const roles = getAIStrategicRoles(unit.type);
+      return roles.includes('frontline') && supportDemandAllows(roles) && recipeFundableNow(state, civId, unit.type);
+    });
   for (const unit of offered.units) {
     if (UNIT_DEFINITIONS[unit.type].airOperation
       && !canCompleteAirUnitProduction(state, cityId, unit.type).ok) continue;
     const roles = getAIStrategicRoles(unit.type);
-    const fulfilled = matchingDemand(unit.type, roles, demands);
+    const fulfilled = matchingDemand(unit.type, roles, demands, !hasFundableFrontline);
     if (!fulfilled) continue;
     // Spy recruitment uses free queues. It cannot displace work waiting for materials.
     if (city.productionQueue.length > 0 && fulfilled.sourcePlanIds.includes(ESPIONAGE_PROCUREMENT_SOURCE_ID)) continue;
@@ -686,14 +721,7 @@ function generateWithResidual(
     ) {
       continue;
     }
-    if (
-      roles.some(role => UNIQUE_SUPPORT_ROLES.has(role))
-      && !roles.some(role =>
-        demands.some(entry =>
-          entry.role === role && entry.missing > 0))
-    ) {
-      continue;
-    }
+    if (!supportDemandAllows(roles)) continue;
     const emergency = isEmergencyDemand(fulfilled, cityId);
     const maintenanceImpact = projectedUnitMaintenanceImpact(
       state,
@@ -703,6 +731,9 @@ function generateWithResidual(
     );
     if (!reserveAllows(state, civId, maintenanceImpact, emergency, 0)) continue;
     const cost = getContextualProductionCost(unit.type, productionCostContext);
+    recordForfeiture(unit.type, cost,
+      emergency || fulfilled.priority >= PROTECTED_DEMAND_PRIORITY || fulfilled.missing > 1
+        ? 0 : MAX_ROUTINE_DEMAND_FORFEITURE_PENALTY);
     const productionTurns = turnsToBuild(cost);
     const roleDemandScore = fulfilled.missing * 40 + fulfilled.priority / 5;
     const emergencyDefenseScore = emergency ? 10 : 0;
@@ -773,6 +804,7 @@ function generateWithResidual(
       const maintenanceImpact = projectedUnitMaintenanceImpact(state, civId, cityId, 'missionary');
       if (reserveAllows(state, civId, maintenanceImpact, false, 1)) {
         const cost = getContextualProductionCost('missionary', productionCostContext);
+        recordForfeiture('missionary', cost, MAX_OTHER_FORFEITURE_PENALTY);
         const productionTurns = turnsToBuild(cost);
         const personalityScore = weightProductionRoles(personality, ['missionary'], posture);
         // Fervor-boon civs weight missionaries higher — their faith already spreads/
@@ -821,6 +853,7 @@ function generateWithResidual(
     );
     if (!reserveAllows(state, civId, maintenanceImpact, false, economyScore)) continue;
     const cost = getContextualProductionCost(building.id, productionCostContext);
+    recordForfeiture(building.id, cost, MAX_OTHER_FORFEITURE_PENALTY);
     const productionTurns = turnsToBuild(cost);
     const personalityScore = weightProductionRoles(personality, [], posture);
     const citySpecializationScore = building.category === city.focus ? 1 : 0;
@@ -878,6 +911,20 @@ function generateWithResidual(
       worldRaceScore: buildingWorldRaceScore,
       score,
     });
+  }
+
+  if (canAvoidForfeiture) {
+    let leastUsefulLoss = Infinity;
+    for (const candidate of candidates) {
+      if (!candidate.fundableNow || candidate.score <= 0 || !isUsefulProductionCandidate(candidate)) continue;
+      leastUsefulLoss = Math.min(leastUsefulLoss, forfeitureByItem.get(candidate.itemId)!.loss);
+    }
+    for (const candidate of candidates) {
+      if (!candidate.fundableNow || candidate.score <= 0) continue;
+      const { loss, maxPenalty } = forfeitureByItem.get(candidate.itemId)!;
+      const avoidableLoss = Math.max(0, loss - leastUsefulLoss - FORFEITURE_TOLERANCE);
+      candidate.score -= Math.min(maxPenalty, avoidableLoss * 5);
+    }
   }
 
   return candidates.sort((left, right) =>
@@ -1051,7 +1098,7 @@ export function refillAIQueuesEmptiedByPurchase(
   for (const { purchasedItemId } of emptied) {
     if (!Object.prototype.hasOwnProperty.call(UNIT_DEFINITIONS, purchasedItemId)) continue;
     const unitType = purchasedItemId as UnitType;
-    const matching = matchingDemand(unitType, getAIStrategicRoles(unitType), residual);
+    const matching = matchingDemand(unitType, getAIStrategicRoles(unitType), residual, true);
     if (matching) matching.missing -= 1;
   }
   return fillEmptyAIQueues(state, civId, idle, residual, personality).state;
@@ -1095,7 +1142,7 @@ export function applyAIProductionWithReport(
       if (projectedWaitingHeadFundable(nextState, civId, cityId)) continue;
 
       const candidates = generateWithResidual(nextState, civId, cityId, residual, personality);
-      const replacement = candidates.find(candidate => candidate.fundableNow);
+      const replacement = candidates.find(candidate => candidate.fundableNow && isUsefulProductionCandidate(candidate));
       const waitingItem = current.productionQueue[0];
       const progressLost = current.productionProgress;
       const removed = removeCityProductionCommand(
