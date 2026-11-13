@@ -80,7 +80,7 @@
   },
   {
    "pair": "app -> renderer",
-   "count": 10
+   "count": 11
   },
   {
    "pair": "app -> storage",
