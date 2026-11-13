@@ -4,6 +4,10 @@ import {
   incrementalDemandSeed,
   mergePreparedForceDemands,
   prepareMajorCivStrategicPlan,
+  countHomeGuardUnits,
+  HOME_GUARD_PRIORITY,
+  HOME_GUARD_SOFT_CAP,
+  HOME_GUARD_SOURCE_ID,
   WORKER_SOFT_CAP,
   TRADE_ROUTES_PER_CITIES,
   buildKnownPathMap,
@@ -239,6 +243,36 @@ describe('prepared major-civilization planning', () => {
       priority: 180,
       sourcePlanIds: ['observed-armor'],
     });
+  });
+
+  it('asks for a home guard at peace, one unit at a time, up to one per city (#1704)', () => {
+    const state = createNewGame(undefined, 'prepared-home-guard', 'small');
+    const civ = state.civilizations['ai-1'];
+    const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
+    const city = foundCity(civ.id, settler.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    civ.cities.push(city.id);
+    // No soldier at all: the civ still asks for its first, with nothing hostile in sight.
+    for (const unitId of [...civ.units]) {
+      if ((UNIT_DEFINITIONS[state.units[unitId]!.type].strength ?? 0) > 0) {
+        delete state.units[unitId];
+        civ.units = civ.units.filter(id => id !== unitId);
+      }
+    }
+    const guard = () => prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+      .find(entry => entry.sourcePlanIds.includes(HOME_GUARD_SOURCE_ID));
+    expect(guard()).toMatchObject({ role: 'frontline', missing: 1, priority: HOME_GUARD_PRIORITY });
+
+    // One warrior for one city satisfies it: it never asks for a second.
+    const warrior = createUnit('warrior', civ.id, city.position, state.idCounters);
+    state.units[warrior.id] = warrior;
+    civ.units.push(warrior.id);
+    expect(guard()?.missing ?? 0).toBe(0);
+  });
+
+  it('counts only land units that can hold ground toward the home guard (#1704)', () => {
+    expect(countHomeGuardUnits([{ type: 'warrior' }, { type: 'worker' }, { type: 'settler' }, { type: 'galley' }])).toBe(1);
+    expect(HOME_GUARD_SOFT_CAP).toBeGreaterThan(0);
   });
 
   it('does not create anti-armor demand from a peaceful civilization\'s visible Tank', () => {

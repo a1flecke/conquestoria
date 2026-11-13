@@ -186,6 +186,27 @@ export function incrementalDemandSeed(
 export const WORKER_SOFT_CAP = 4;
 
 /**
+ * #1704: one land combat unit per city, up to this many, is asked for even at peace. Before it, a
+ * combat unit was demanded only by a defense plan (a *visible* threat), an objective or an observed
+ * enemy capability, so an unthreatened AI kept its starting warrior for the whole game: a measured
+ * five-city empire fielded one warrior at turn 70 while its cities idled. Difficulty-invariant.
+ */
+export const HOME_GUARD_SOFT_CAP = 6;
+/** Below settlement and objective readiness (90), above worker infrastructure (40). */
+export const HOME_GUARD_PRIORITY = 60;
+export const HOME_GUARD_SOURCE_ID = 'home-guard';
+
+/** Land units that can hold or take ground: what a home guard is counted in. */
+export function countHomeGuardUnits(units: readonly { type: UnitType; transportId?: string }[]): number {
+  return units.filter(unit => {
+    const definition = UNIT_DEFINITIONS[unit.type];
+    if (!definition || definition.strength <= 0 || (definition.domain ?? 'land') !== 'land') return false;
+    const roles = getAIStrategicRoles(unit.type);
+    return roles.includes('frontline') || roles.includes('capture');
+  }).length;
+}
+
+/**
  * #1480: one trader per this many cities, matching `getAITradeRouteDemand`'s
  * `max(1, ceil(cities / 3))` procurement-route target.
  *
@@ -1006,6 +1027,14 @@ export function prepareMajorCivStrategicPlan(
         perception.ownUnits.filter(unit =>
           !unit.transportId && getAIStrategicRoles(unit.type).includes('worker')).length,
         Math.min(perception.ownCities.length, WORKER_SOFT_CAP),
+      ),
+      // #1704: a standing home guard, one unit at a time, so a civ at peace is not undefended.
+      ...incrementalDemandSeed(
+        'frontline',
+        HOME_GUARD_SOURCE_ID,
+        HOME_GUARD_PRIORITY,
+        countHomeGuardUnits(perception.ownUnits),
+        Math.min(perception.ownCities.length, HOME_GUARD_SOFT_CAP),
       ),
       // #1480: the buyer half of the commerce pipeline needs a trader to exist before it can
       // spend anything, and nothing else ever asked production for one. Same incremental,
