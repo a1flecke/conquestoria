@@ -334,7 +334,7 @@ describe('#709 industrial vehicle native sprites', () => {
 
 describe('#710 corrective native sprite contract', () => {
   const ISSUE_710_NATIVE = {
-    paratrooper: ['ranged', 'paratrooper', ['cq-parachute-canopy', 'cq-parachute-lines', 'cq-paratrooper-harness', 'cq-paratrooper-pack', 'cq-paratrooper-rifle', 'cq-arm-l', 'cq-arm-r', 'cq-leg-l', 'cq-leg-r']],
+    // paratrooper became a painted strip (#1627), which getUnitSpriteV2 resolves before the native SVG; its SVG art stays as the fallback.
     naval_strike_aircraft: ['civilian', 'naval-strike-aircraft', ['cq-strike-fuselage', 'cq-strike-cockpit', 'cq-strike-wing', 'cq-strike-tail', 'cq-strike-tailhook', 'cq-naval-strike-torpedo']],
     maritime_patrol_aircraft: ['civilian', 'maritime-patrol-aircraft', ['cq-patrol-fuselage', 'cq-patrol-wing', 'cq-patrol-nacelle-l', 'cq-patrol-nacelle-r', 'cq-patrol-prop-l', 'cq-patrol-prop-r', 'cq-patrol-radar-dome']],
     supercarrier: ['naval', 'supercarrier', ['cq-supercarrier-hull', 'cq-supercarrier-bow', 'cq-supercarrier-deck', 'cq-supercarrier-island', 'cq-supercarrier-mast', 'cq-supercarrier-aircraft', 'cq-supercarrier-wake']],
@@ -548,7 +548,7 @@ const COMBAT_UNITS_AWAITING_WOUND_ART: readonly string[] = [
   'swordsman', 'galley', 'trireme', 'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative',
   'spy_hacker', 'scout_hound', 'shadow_warden', 'war_hound', 'beast_handler', 'war_elephant',
   'armored_car', 'knight', 'cuirassier', 'catapult', 'trebuchet', 'ballista', 'rocket_artillery',
-  'mechanized_infantry', 'paratrooper', 'battleship', 'missile_cruiser', 'main_battle_tank',
+  'mechanized_infantry', 'battleship', 'missile_cruiser', 'main_battle_tank',
   'supercarrier', 'naval_strike_aircraft', 'combat_drone', 'autonomous_frigate', 'exosuit_infantry',
 ];
 

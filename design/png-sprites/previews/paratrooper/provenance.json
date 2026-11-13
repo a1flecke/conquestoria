@@ -1,0 +1,19 @@
+{
+  "id": "paratrooper",
+  "status": "shipped: registered in STRIP_UNITS and exported with strips.py export (#1627, #759)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-13",
+  "prompts": "Based on scripts/sprite-puppet/strip-rigs/paratrooper.json. One conversation drew the master; the damage sheet, the attack strip, the hit strip and the defeat strip were each drawn from the master as one prompt per image, all on flat magenta. Red appears only on the armband and the harness patch so the team tint lands only there; the camouflage smock, helmet netting and gear are olive, brown and tan. The attack, hit and defeat prompts keep the carbine in his hands in every frame, ask for a pale yellow (never red or orange) muzzle flash and ask for no blood, glow or halo. The prompts ChatGPT actually ran were written for this unit and were not captured verbatim.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/paratrooper). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all five passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "None: every sheet was accepted on its first draw (the master came back with a transparent background and the other four on flat magenta, no checkerboard). Known caveats: the probe warns that the figures on the defeat sheet are about 184 px tall (under 300), accepted because the other strips are drawn at a similar size, and that the damage, attack and hit sheets take 4-5% of the figure as team colour against 2% in the master; the extra is the camouflage browns close to red, checked in the strip viewer.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1024, 1536], "sha256": "3c39056397656c8a7d97ed8bee3f4c5d6eacc3a0fa0ea6f6c1748fbca31d1885" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1234, 1275], "sha256": "5d88d50d42608446c9378733d9a9036b5656dcd5de74846030ac90bafa208f06" },
+    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1536, 1024], "sha256": "d35e6073a89d63ca2062f70378e66d982397971b03ae2e9243f69e3e490bd896" },
+    { "role": "hit reaction, 5 frames (3 + 2)", "file": "d", "size": [1536, 1024], "sha256": "318ebfc0139e5e34660d281da247460261d7d1a85ecaff1f12df226e2f49cae4" },
+    { "role": "defeat, 5 frames (3 + 2)", "file": "e", "size": [1536, 1024], "sha256": "820c21a4ff7bc62c407b2a0b88e3d2dfc53ca399459a2ad17826f6ec6f0bb7b4" }
+  ]
+}

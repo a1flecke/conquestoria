@@ -1,0 +1,119 @@
+{
+  "id": "paratrooper",
+  "family": "biped",
+  "prompt": {
+    "name": "Paratrooper",
+    "look": "An airborne paratrooper: a friendly adult man in a sand-tan and olive-green camouflage jump smock, a rounded airborne helmet with a chin strap and a netting cover, a tan webbing harness with ammunition pouches and a small folded reserve parachute pack on his chest, a webbing belt, green knee pads, brown jump boots and tan gloves, carrying a compact assault carbine with a folding stock, a red armband on his left upper arm and a small red patch on the front of his harness.",
+    "team_area": "his armband and the patch on his harness",
+    "identity": "the same face, camouflage jump smock, rounded airborne helmet, tan harness and reserve pack, knee pads, brown boots, compact carbine, red armband and red harness patch",
+    "weapon_pose": "He stands ready with the compact carbine held across his chest in both hands, the barrel pointing right at about chest height. The carbine is well above his knees and nowhere near his boots.",
+    "attack_frames": 6,
+    "attack": "(1) ready, carbine across the chest; (2) raising the carbine to the shoulder, stepping slightly forward; (3) carbine at the shoulder, aiming down the sights; (4) firing: a pale yellow muzzle flash at the barrel tip, the carbine recoiling; (5) recoil recovering, a small puff of grey smoke at the muzzle; (6) lowering the carbine back to the ready stance.",
+    "damage_gear": "a scuffed smock and a scratched helmet",
+    "damage_gear_critical": "a ragged torn smock, a cracked helmet with a head bandage and a scorched harness hanging open",
+    "defeat_prop": "the carbine on the ground beside him"
+  },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 140
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0,
+        0.045
+      ],
+      [
+        0.955,
+        1
+      ]
+    ],
+    "min_sat": 0.45,
+    "min_val": 0.18
+  },
+  "states": [
+    {
+      "state": "idle",
+      "file": "a",
+      "cells": 1,
+      "fps": 4
+    },
+    {
+      "state": "damage",
+      "file": "b",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 1,
+      "loop": false,
+      "note": "idle pose at damage tiers 0-3"
+    },
+    {
+      "state": "walkrig",
+      "cells": 8,
+      "fps": 10,
+      "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": {
+        "sources": [
+          "a",
+          "b#0",
+          "b#1",
+          "b#2",
+          "b#3"
+        ],
+        "shafts": 0,
+        "stride_deg": 24,
+        "knee_bend": 14,
+        "foot_level": 0.7
+      }
+    },
+    {
+      "state": "attack",
+      "file": "c",
+      "cells": 6,
+      "grid": [
+        3,
+        3
+      ],
+      "fps": 9,
+      "loop": false,
+      "restFrames": [
+        0,
+        5
+      ]
+    },
+    {
+      "state": "hit",
+      "file": "d",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 8,
+      "restFrames": [
+        0,
+        4
+      ],
+      "loop": false
+    },
+    {
+      "state": "defeat",
+      "file": "e",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 5,
+      "restFrames": [
+        0
+      ],
+      "loop": false
+    }
+  ]
+}
