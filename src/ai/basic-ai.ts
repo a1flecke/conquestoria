@@ -1,4 +1,13 @@
-import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
+import type {
+  EspionageCivState,
+  GameState,
+  Unit,
+  HexCoord,
+  PersonalityTraits,
+  SpyMissionType,
+  City,
+  UnitType,
+} from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, wrappedHexDistance, hexDistance, mapDistance } from '@/systems/hex-utils';
 import { cityFollowsOwnFaith } from '@/systems/city-system';
@@ -186,6 +195,26 @@ function shouldAiStationDefensiveSpy(state: GameState, civId: string): boolean {
   if (!capitalId) return false;
 
   return (espState.counterIntelligence[capitalId] ?? 0) === 0;
+}
+
+/**
+ * #1693: the one place an AI spy mission start becomes observable.
+ *
+ * `startMission` is the only authority on whether a mission actually started, and the
+ * accepted spy record is the only authority on *which* mission — so the event is emitted
+ * from that result, never from the candidate the AI considered first. The payload stays
+ * `civId`/`spyId`/`missionType`: it never names the (hidden) target. A refused start
+ * leaves the record unchanged, so it emits nothing.
+ */
+function emitAiMissionStarted(
+  bus: EventBus,
+  civId: string,
+  spyId: string,
+  acceptedEspionage: EspionageCivState,
+): void {
+  const missionType = acceptedEspionage.spies[spyId]?.currentMission?.type;
+  if (!missionType) return;
+  bus.emit('espionage:mission-started', { civId, spyId, missionType });
 }
 
 function hasStationedSpyIntel(state: GameState, civId: string, targetCivId: string, targetCityId: string): boolean {
@@ -1685,7 +1714,7 @@ function processAITurnInternal(
             );
             if (!started.ok) continue; // not eligible for this mission — try the next best
             newState.espionage![civId] = started.state;
-            bus.emit('espionage:mission-started', { civId, spyId: spy.id, missionType });
+            emitAiMissionStarted(bus, civId, spy.id, started.state);
             break;
           }
         }
@@ -1715,7 +1744,10 @@ function processAITurnInternal(
             mission,
             resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect,
           );
-          if (started.ok) newState.espionage![civId] = started.state;
+          if (started.ok) {
+            newState.espionage![civId] = started.state;
+            emitAiMissionStarted(bus, civId, spy.id, started.state);
+          }
         }
         continue;
       }
@@ -1748,7 +1780,10 @@ function processAITurnInternal(
         target.civId,
         target.cityId,
       );
-      if (started.ok) newState.espionage![civId] = started.state;
+      if (started.ok) {
+        newState.espionage![civId] = started.state;
+        emitAiMissionStarted(bus, civId, spy.id, started.state);
+      }
     }
   }
 

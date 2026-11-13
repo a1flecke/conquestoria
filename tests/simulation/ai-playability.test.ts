@@ -1,10 +1,48 @@
 import { describe, expect, it } from 'vitest';
-import type { OpponentChallenge } from '@/core/types';
+import type { GameState, OpponentChallenge } from '@/core/types';
+import { createSpyFromUnit } from '@/systems/espionage-system';
 import {
+  runAICampaign,
   simulateAIRounds,
   simulateLateEraAIRounds,
   type AISimulationOptions,
 } from './ai-playability-fixture';
+import type { CampaignRoundSample } from './campaign-sample';
+
+/**
+ * #1693: hand the campaign an AI spy that is already in a mission-ready position.
+ * Nothing here fabricates an event — the only thing seeded is state the AI could
+ * have reached on its own, so the counters still come from the real AI turn.
+ */
+function seedMissionReadyAiSpy(state: GameState): GameState {
+  const spyOwner = Object.values(state.civilizations)
+    .filter(civ => !civ.isHuman)
+    .map(civ => civ.id)
+    .sort()[0]!;
+  const spyCiv = state.civilizations[spyOwner]!;
+  const target = Object.values(state.cities)
+    .filter(city => city.owner !== spyOwner)
+    .sort((left, right) => left.id.localeCompare(right.id))[0]!;
+  spyCiv.techState.completed = [
+    ...new Set([...spyCiv.techState.completed, 'espionage-scouting', 'espionage-informants']),
+  ];
+  const created = createSpyFromUnit(
+    state.espionage![spyOwner]!, 'unit-1693-spy', spyOwner, 'spy_agent', 'seed-1693-campaign',
+  );
+  state.espionage![spyOwner] = {
+    ...created.state,
+    spies: {
+      ...created.state.spies,
+      'unit-1693-spy': {
+        ...created.state.spies['unit-1693-spy']!,
+        status: 'stationed',
+        targetCivId: target.owner,
+        targetCityId: target.id,
+      },
+    },
+  };
+  return state;
+}
 
 const SHORT_SCENARIOS: AISimulationOptions[] = [
   {
@@ -132,4 +170,36 @@ describe('purposeful AI playability simulation', () => {
       expect(era).toBeGreaterThanOrEqual(9);
     }
   }, 120_000);
+
+  // #1693: `spyMissionsStarted` is derived from `espionage:mission-started` — it is not a
+  // second, end-of-round derivation. This drives one real AI turn whose only non-default
+  // input is a mission-ready spy, so a zero here means the instrumentation missed a start
+  // that actually happened.
+  it('records an actual AI mission start in the campaign counters (#1693)', () => {
+    const samples: CampaignRoundSample[] = [];
+    const result = runAICampaign({
+      seed: 'mission-metrics-1693',
+      challenge: 'explorer',
+      turns: 1,
+      mapSize: 'small',
+      humanCount: 1,
+      aiCount: 2,
+      personalitySet: ['diplomatic', 'trader'],
+      observe: sample => samples.push(sample),
+      prepareState: seedMissionReadyAiSpy,
+    });
+
+    const spyOwner = Object.values(result.finalState.civilizations)
+      .filter(civ => !civ.isHuman)
+      .map(civ => civ.id)
+      .sort()[0]!;
+    const mission = result.finalState.espionage![spyOwner]!.spies['unit-1693-spy']!.currentMission;
+    expect(mission).not.toBeNull();
+
+    expect(samples).toHaveLength(1);
+    expect(samples[0]!.espionageEventCounts?.['mission-started']).toBe(1);
+    const civSample = samples[0]!.civs.find(civ => civ.civId === spyOwner)!;
+    expect(civSample.spyMissionsStarted).toBe(1);
+    expect(civSample.spyMissionsStartedByType).toEqual({ [mission!.type]: 1 });
+  }, 60_000);
 });
