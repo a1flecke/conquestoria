@@ -134,6 +134,10 @@ export function processBeasts(
   // Optional, defaulting to none, so every pre-existing caller/test keeps its exact behavior;
   // `turn-manager.ts` is the one caller that must pass the real computed set.
   blockedHexKeys: ReadonlySet<string> = new Set(),
+  // #419: all map occupants for spawn-tile exclusion, including owners the beast
+  // does not attack (barbarians/pirates). Defaults to the pre-existing pair so
+  // every other caller keeps its exact behavior.
+  occupyingUnits: readonly Unit[] = [...beastUnits, ...intruderUnits],
 ): BeastProcessResult {
   const empty: BeastProcessResult = { updatedLairs: lairs, spawnOrders: [], moveOrders: [], attackOrders: [], awakenings: [], regenOrders: [] };
   if (mode === 'off') return empty;
@@ -147,7 +151,7 @@ export function processBeasts(
 
   const occupied = new Map<string, string>();
   // Air units hover above ground — they don't block spawn or beast movement
-  for (const u of [...beastUnits, ...intruderUnits]) {
+  for (const u of occupyingUnits) {
     if (UNIT_DEFINITIONS[u.type]?.domain !== 'air') occupied.set(hexKey(u.position), u.id);
   }
 

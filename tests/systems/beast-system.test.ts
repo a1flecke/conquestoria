@@ -96,6 +96,29 @@ describe('processBeasts', () => {
     expect(awakened).toBeLessThan(200);
   });
 
+  it('never spawns a beast onto a barbarian unit that is not an attack intruder', () => {
+    const barbarian = makeUnit({ id: 'barb-1', owner: 'barbarian', position: { q: 10, r: 10 } });
+    let sawSpawn = false;
+    for (let seed = 1; seed <= 200 && !sawSpawn; seed++) {
+      const result = processBeasts(
+        [makeLair()],
+        behaviorMap,
+        [], // the turn phase excludes barbarians from `intruders`
+        [],
+        1,
+        'wild',
+        seed,
+        new Set(),
+        [barbarian],
+      );
+      if (result.spawnOrders.length > 0) {
+        sawSpawn = true;
+        expect(result.spawnOrders.some(order => hexKey(order.position) === '10,10')).toBe(false);
+      }
+    }
+    expect(sawSpawn).toBe(true);
+  });
+
   it('never awakens before the awaken era', () => {
     for (let seed = 1; seed <= 40; seed++) {
       const result = processBeasts([makeLair()], behaviorMap, [], [], 0, 'wild', seed);

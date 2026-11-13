@@ -80,6 +80,7 @@ function runBeasts(state: GameState, context: RoundPhaseContext): GameState {
       newState.beasts!.mode,
       beastSeed,
       beastBlockedHexKeys,
+      Object.values(newState.units),
     );
     // Rebuild lairs map from updated results (immutable)
     let updatedLairs: Record<string, import('@/core/types').BeastLair> = {};

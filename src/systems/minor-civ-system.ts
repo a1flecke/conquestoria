@@ -45,6 +45,7 @@ import {
   reconcileMinorCivQuestTurn,
 } from './quest-chain-system';
 import { executeUnitMove } from './unit-movement-system';
+import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
 import { canUnitAttackTarget, resolveUnitVsUnitAttack } from './attack-targeting';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { buildCombatPresentation } from './viewer-event-presentation';
@@ -887,10 +888,11 @@ export function checkCampEvolution(
     if (startPositions.some(s => mapDistance(state.map, camp.position, s) < 6)) continue;
 
     const def = unusedDefs[0];
+    const minorCivId = `mc-${def.id}`;
     // #1001: a mid-game city-state spawn holds no relationship with an already-eliminated civ.
     const majorCivIds = Object.entries(state.civilizations).filter(([, civ]) => !civ.isEliminated).map(([id]) => id);
 
-    const city = foundCity(`mc-${def.id}`, camp.position, state.map, state.idCounters, {
+    const city = foundCity(minorCivId, camp.position, state.map, state.idCounters, {
       civType: def.id,
       namingPool: [def.name],
       civName: def.name,
@@ -898,21 +900,27 @@ export function checkCampEvolution(
     });
     city.population = 3;
 
-    const garrison = createUnit('warrior', `mc-${def.id}`, camp.position, state.idCounters);
+    const garrison = createUnit('warrior', minorCivId, camp.position, state.idCounters);
 
+    // The evolving camp is removed, but other camps still block the new city-state's units.
+    const remainingCamps = { ...state.barbarianCamps };
+    delete remainingCamps[camp.id];
+    const blockedHexes = getBlockingMapEntityKeysForOwner({ ...state, barbarianCamps: remainingCamps }, minorCivId);
     const transferIds: string[] = [];
     for (const [uid, unit] of Object.entries(state.units)) {
-      if (unit.owner === 'barbarian' && mapDistance(state.map, unit.position, camp.position) <= 3) {
+      if (unit.owner === 'barbarian'
+        && mapDistance(state.map, unit.position, camp.position) <= 3
+        && !blockedHexes.has(hexKey(unit.position))) {
         transferIds.push(uid);
       }
     }
 
     const mcState: MinorCivState = {
-      id: `mc-${def.id}`,
+      id: minorCivId,
       definitionId: def.id,
       cityId: city.id,
       units: [garrison.id, ...transferIds],
-      diplomacy: createDiplomacyState(majorCivIds, `mc-${def.id}`, 0),
+      diplomacy: createDiplomacyState(majorCivIds, minorCivId, 0),
       activeQuests: {},
       chainStatusByCiv: {},
       questCooldownUntilByCiv: {},
