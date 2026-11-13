@@ -16,8 +16,10 @@ import {
 } from '@/renderer/city-render-passes';
 import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
+import { getCityBadgeLayout } from '@/renderer/city-badge-presentation';
 import * as crisisBadgeMarkers from '@/renderer/improvements/crisis-badge-markers';
 import * as religionBadgeMarker from '@/renderer/improvements/religion-badge-marker';
+import * as loyaltyPressureBadgeMarker from '@/renderer/improvements/loyalty-pressure-badge-marker';
 import { spriteCache } from '@/renderer/sprites/sprite-loader';
 
 class MockCtx {
@@ -470,6 +472,56 @@ describe('city icon and badge text bounds', () => {
 
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
     expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('🙏');
+  });
+
+  it('#1620 — draws the cached loyalty-pressure marker in the canonical loyalty slot', () => {
+    const image = {} as HTMLImageElement;
+    const getMarkerSpy = vi.spyOn(loyaltyPressureBadgeMarker, 'getLoyaltyPressureBadgeMarkerImage')
+      .mockReturnValue(image);
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city, loyaltyPressure: true, screen: { x: 120, y: 80 }, size: 48 });
+    const { bounds } = getCityBadgeLayout(item.screen, item.size).loyaltyPressure;
+
+    drawCityLoyaltyPressureBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).drawImageCalls).toEqual([
+      [image, bounds.x, bounds.y, bounds.width, bounds.height],
+    ]);
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+    getMarkerSpy.mockRestore();
+  });
+
+  it('#1620 — falls back to the 🙏 emoji while the marker is not loaded', () => {
+    const getMarkerSpy = vi.spyOn(loyaltyPressureBadgeMarker, 'getLoyaltyPressureBadgeMarkerImage')
+      .mockReturnValue(null);
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city, loyaltyPressure: true });
+
+    drawCityLoyaltyPressureBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(0);
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('🙏');
+    getMarkerSpy.mockRestore();
+  });
+
+  it('#1620 — does not query the marker when loyalty pressure is absent', () => {
+    const getMarkerSpy = vi.spyOn(loyaltyPressureBadgeMarker, 'getLoyaltyPressureBadgeMarkerImage');
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+
+    drawCityLoyaltyPressureBadgePass(ctx, makeItem({ city }));
+
+    expect(getMarkerSpy).not.toHaveBeenCalled();
+    getMarkerSpy.mockRestore();
   });
 
   it('#593 MR6 — draws nothing when the item carries no loyalty pressure', () => {

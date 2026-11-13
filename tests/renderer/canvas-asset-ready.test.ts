@@ -68,6 +68,19 @@ describe('canvas image loaders announce readiness (#1439)', () => {
     expect(listener).toHaveBeenCalled();
     off();
   });
+
+  it('#1620 the loyalty-pressure badge preload notifies the canvas when its image is cached', async () => {
+    const listener = vi.fn();
+    const off = onCanvasAssetReady(listener);
+    const { preloadLoyaltyPressureBadgeMarker, getLoyaltyPressureBadgeMarkerImage } = await import(
+      '@/renderer/improvements/loyalty-pressure-badge-marker'
+    );
+    await preloadLoyaltyPressureBadgeMarker();
+    await Promise.resolve();
+    expect(getLoyaltyPressureBadgeMarkerImage()).not.toBeNull();
+    expect(listener).toHaveBeenCalled();
+    off();
+  });
 });
 
 describe('every canvas image cache is wired to the readiness signal (#1439)', () => {
@@ -99,6 +112,7 @@ describe('immutable canvas preloads survive campaign restarts', () => {
     ['improvements/rail-segment-loader', 'preloadRailSegment', () => import('../../src/renderer/improvements/rail-segment-loader') ],
     ['improvements/resource-outpost-marker', 'preloadOutpostMarker', () => import('../../src/renderer/improvements/resource-outpost-marker') ],
     ['improvements/religion-badge-marker', 'preloadReligionBadgeMarker', () => import('../../src/renderer/improvements/religion-badge-marker') ],
+    ['improvements/loyalty-pressure-badge-marker', 'preloadLoyaltyPressureBadgeMarker', () => import('../../src/renderer/improvements/loyalty-pressure-badge-marker') ],
     ['improvements/crisis-badge-markers', 'preloadCrisisBadgeMarkers', () => import('../../src/renderer/improvements/crisis-badge-markers') ],
     ['improvements/fort-marker', 'preloadFortMarker', () => import('../../src/renderer/improvements/fort-marker') ],
     ['improvements/farm-marker', 'preloadFarmMarker', () => import('../../src/renderer/improvements/farm-marker') ],
