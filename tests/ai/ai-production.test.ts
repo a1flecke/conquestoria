@@ -763,6 +763,21 @@ describe('AI strategic production', () => {
     expect(result.report.converted[city.id]).toMatch(/^(gold|science)$/);
   });
 
+  it('banks carried progress for future work when a developed city has only a low-value build', () => {
+    const state = matureCityState();
+    const city = state.cities['city-a'];
+    city.buildings = Object.keys(BUILDINGS).filter(id => id !== 'barracks');
+    const candidates = generateAIProductionCandidates(state, 'ai-1', city.id, [], expansionist);
+    expect(candidates.filter(candidate => candidate.fundableNow).map(candidate => candidate.itemId)).toEqual(['barracks']);
+    expect(city.productionProgress - getProductionCostForCivItem(state, 'ai-1', city.id, 'barracks'))
+      .toBeGreaterThan(city.productionProgress / 2);
+
+    const next = applyAIProduction(state, 'ai-1', [], expansionist);
+    expect(next.cities[city.id].productionQueue).toEqual([]);
+    expect(next.cities[city.id].idleProduction).toBe('science');
+    expect(next.cities[city.id].productionProgress).toBe(city.productionProgress);
+  });
+
   it('does not duplicate unique recon or detection support without visible demand', () => {
     const state = setupState(['balloon-corps', 'lookouts']);
     state.cities['city-a'].productionQueue = ['observation_balloon'];

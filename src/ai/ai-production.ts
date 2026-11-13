@@ -8,7 +8,6 @@ import {
 } from '@/systems/city-system';
 import { estimateCityBuildOutput } from '@/systems/city-work-system';
 import { resolveCompletionCarry } from '@/systems/city-turn';
-import { isCityProductionLocked } from '@/systems/faction-unrest-model';
 import { getAllWorldRaceKinds, getWorldRaceDefinition } from '@/systems/world-race-definitions';
 import { hasCompletedWorldRaceComponent } from '@/systems/world-race-system';
 import {
@@ -19,7 +18,7 @@ import {
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { computeUnrestPressure } from '@/systems/faction-pressure';
 import { UNREST_RELIEF_SOURCES } from '@/systems/faction-relief';
-import { UNREST_TRIGGER_PRESSURE } from '@/systems/faction-unrest-model';
+import { isCityProductionLocked, UNREST_TRIGGER_PRESSURE } from '@/systems/faction-unrest-model';
 import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -73,6 +72,9 @@ export interface AIProductionCandidate {
   unrestReliefScore: number;
   worldRaceScore: number;
   fulfilledRole?: AIStrategicRole;
+  /** Stored production that a useful, fundable alternative could keep in this city. */
+  avoidableForfeiture?: number;
+  deferForIdleConversion?: true;
   score: number;
 }
 
@@ -86,12 +88,13 @@ const COMBAT_CARGO_ROLES = new Set<AIStrategicRole>([
 
 const UNIQUE_SUPPORT_ROLES = new Set<AIStrategicRole>(['recon', 'detection']);
 
-// One routine worker slot scores 192 before personality, ETA and upkeep. A large avoidable loss
-// can defer that request in a mature city. Home guard (60), readiness (90) and emergencies retain
-// their priority, as do demands for more than one missing unit.
+// A routine worker slot scores 192 before personality, ETA and upkeep. An expedition can score
+// around 230 from an active resource plan. A large avoidable loss can defer either request in
+// a mature city. Home guard, settlement, emergencies and multi-unit shortages keep their priority.
 const PROTECTED_DEMAND_PRIORITY = 60;
-const MAX_ROUTINE_DEMAND_FORFEITURE_PENALTY = 200;
-const MAX_OTHER_FORFEITURE_PENALTY = 24;
+const MAX_ROUTINE_DEMAND_FORFEITURE_PENALTY = 240;
+const MAX_BUILDING_FORFEITURE_PENALTY = 64;
+const MAX_MISSIONARY_FORFEITURE_PENALTY = 24;
 const FORFEITURE_TOLERANCE = 10;
 
 /**
@@ -210,6 +213,14 @@ function matchingDemand(
       right.priority - left.priority
       || right.missing - left.missing
       || left.role.localeCompare(right.role))[0];
+}
+
+function countSelectedDemand(
+  candidate: AIProductionCandidate,
+  residual: AIForceDemand[],
+): void {
+  const fulfilled = residual.find(entry => entry.role === candidate.fulfilledRole);
+  if (fulfilled && fulfilled.missing > 0) fulfilled.missing -= 1;
 }
 
 function isEmergencyDemand(demand: AIForceDemand | undefined, cityId: string): boolean {
@@ -601,11 +612,15 @@ function projectedWaitingHeadFundable(state: GameState, civId: string, cityId: s
   return getCityMaterialProjection(projectOneResourcePhase(state, civId), cityId).funded;
 }
 
-function isUsefulProductionCandidate(candidate: AIProductionCandidate): boolean {
+function hasStrategicProductionValue(candidate: AIProductionCandidate): boolean {
   // Repeatable buildings need a reason to replenish them. Ordinary buildings can still be useful
   // when their rank is negative because of build time or upkeep, especially in a new city.
   return candidate.kind !== 'building' || !BUILDINGS[candidate.itemId]?.consumedOnCompletion
     || candidate.strategicArsenalValueScore > 0;
+}
+
+function isUsefulProductionCandidate(candidate: AIProductionCandidate): boolean {
+  return !candidate.deferForIdleConversion && hasStrategicProductionValue(candidate);
 }
 
 /**
@@ -731,9 +746,9 @@ function generateWithResidual(
     );
     if (!reserveAllows(state, civId, maintenanceImpact, emergency, 0)) continue;
     const cost = getContextualProductionCost(unit.type, productionCostContext);
-    recordForfeiture(unit.type, cost,
-      emergency || fulfilled.priority >= PROTECTED_DEMAND_PRIORITY || fulfilled.missing > 1
-        ? 0 : MAX_ROUTINE_DEMAND_FORFEITURE_PENALTY);
+    const canDefer = !emergency && fulfilled.missing === 1
+      && (fulfilled.priority < PROTECTED_DEMAND_PRIORITY || fulfilled.role === 'resource-expedition');
+    recordForfeiture(unit.type, cost, canDefer ? MAX_ROUTINE_DEMAND_FORFEITURE_PENALTY : 0);
     const productionTurns = turnsToBuild(cost);
     const roleDemandScore = fulfilled.missing * 40 + fulfilled.priority / 5;
     const emergencyDefenseScore = emergency ? 10 : 0;
@@ -804,7 +819,7 @@ function generateWithResidual(
       const maintenanceImpact = projectedUnitMaintenanceImpact(state, civId, cityId, 'missionary');
       if (reserveAllows(state, civId, maintenanceImpact, false, 1)) {
         const cost = getContextualProductionCost('missionary', productionCostContext);
-        recordForfeiture('missionary', cost, MAX_OTHER_FORFEITURE_PENALTY);
+        recordForfeiture('missionary', cost, MAX_MISSIONARY_FORFEITURE_PENALTY);
         const productionTurns = turnsToBuild(cost);
         const personalityScore = weightProductionRoles(personality, ['missionary'], posture);
         // Fervor-boon civs weight missionaries higher — their faith already spreads/
@@ -853,7 +868,7 @@ function generateWithResidual(
     );
     if (!reserveAllows(state, civId, maintenanceImpact, false, economyScore)) continue;
     const cost = getContextualProductionCost(building.id, productionCostContext);
-    recordForfeiture(building.id, cost, MAX_OTHER_FORFEITURE_PENALTY);
+    recordForfeiture(building.id, cost, MAX_BUILDING_FORFEITURE_PENALTY);
     const productionTurns = turnsToBuild(cost);
     const personalityScore = weightProductionRoles(personality, [], posture);
     const citySpecializationScore = building.category === city.focus ? 1 : 0;
@@ -916,14 +931,24 @@ function generateWithResidual(
   if (canAvoidForfeiture) {
     let leastUsefulLoss = Infinity;
     for (const candidate of candidates) {
+      const { loss } = forfeitureByItem.get(candidate.itemId)!;
+      // Idle conversion yields gold or science while preserving the banked work. Prefer it to a
+      // building with little marginal value that would consume most of the city's bank.
+      if (candidate.kind === 'building' && candidate.score < 5 && loss > storedProgress / 2) {
+        candidate.deferForIdleConversion = true;
+      }
       if (!candidate.fundableNow || candidate.score <= 0 || !isUsefulProductionCandidate(candidate)) continue;
-      leastUsefulLoss = Math.min(leastUsefulLoss, forfeitureByItem.get(candidate.itemId)!.loss);
+      leastUsefulLoss = Math.min(leastUsefulLoss, loss);
     }
     for (const candidate of candidates) {
       if (!candidate.fundableNow || candidate.score <= 0) continue;
       const { loss, maxPenalty } = forfeitureByItem.get(candidate.itemId)!;
       const avoidableLoss = Math.max(0, loss - leastUsefulLoss - FORFEITURE_TOLERANCE);
-      candidate.score -= Math.min(maxPenalty, avoidableLoss * 5);
+      candidate.avoidableForfeiture = avoidableLoss;
+      // A single routine unit request starts around 190 points. Buildings already score
+      // on a smaller scale and need a shallower slope to distinguish multiple cheap builds.
+      const scorePerProduction = candidate.fulfilledRole ? 5 : 1;
+      candidate.score -= Math.min(candidate.score, maxPenalty, avoidableLoss * scorePerProduction);
     }
   }
 
@@ -1021,9 +1046,13 @@ function fillEmptyAIQueues(
     const rightEmergency = residual.some(entry =>
       entry.missing > 0 && isEmergencyDemand(entry, right.id)) ? 1 : 0;
     if (leftEmergency !== rightEmergency) return rightEmergency - leftEmergency;
-    const leftEta = bestByCityId.get(left.id)?.productionTurns ?? Number.POSITIVE_INFINITY;
-    const rightEta = bestByCityId.get(right.id)?.productionTurns ?? Number.POSITIVE_INFINITY;
-    return leftEta - rightEta || left.id.localeCompare(right.id);
+    const leftChoice = bestByCityId.get(left.id);
+    const rightChoice = bestByCityId.get(right.id);
+    const leftEta = leftChoice?.productionTurns ?? Number.POSITIVE_INFINITY;
+    const rightEta = rightChoice?.productionTurns ?? Number.POSITIVE_INFINITY;
+    return leftEta - rightEta
+      || (leftChoice?.avoidableForfeiture ?? 0) - (rightChoice?.avoidableForfeiture ?? 0)
+      || left.id.localeCompare(right.id);
   });
   let nextState = state;
   let idleMode: AIIdleProductionMode | undefined;
@@ -1059,10 +1088,7 @@ function fillEmptyAIQueues(
       continue;
     }
     nextState = queued.state;
-    if (selected.fulfilledRole) {
-      const fulfilled = residual.find(entry => entry.role === selected.fulfilledRole);
-      if (fulfilled) fulfilled.missing = Math.max(0, fulfilled.missing - 1);
-    }
+    countSelectedDemand(selected, residual);
   }
   return { state: nextState, converted, enqueueRefused };
 }
@@ -1170,7 +1196,10 @@ export function applyAIProductionWithReport(
             );
             if (moved.ok) nextState = moved.state;
           }
-          replacementId = replacement.itemId;
+          if (nextState.cities[cityId].productionQueue[0] === replacement.itemId) {
+            replacementId = replacement.itemId;
+            countSelectedDemand(replacement, residual);
+          }
         }
       }
 
