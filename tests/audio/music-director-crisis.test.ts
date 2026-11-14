@@ -1,11 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MusicDirector } from '../../src/audio/music-director';
 import { worldAgeFromNumber } from '@/systems/era-types';
-import { STINGER } from '../../src/audio/audio-catalog';
 import type { AudioMixer } from '../../src/audio/audio-mixer';
 import type { AudioLoader } from '../../src/audio/audio-loader';
-
-const flushPromises = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
 const fakeBuffer = {} as AudioBuffer;
 
@@ -61,10 +58,4 @@ describe('MusicDirector crisis snapshot', () => {
     expect(director.resolveSnapshot()).toBe('at-war');
   });
 
-  it('plays the war-declared stinger placeholder on loss events without flipping atWar', async () => {
-    director.handleLossEvent();
-    await flushPromises();
-    expect(loader.get).toHaveBeenCalledWith(STINGER.warDeclared.file);
-    expect(director.resolveSnapshot()).not.toBe('at-war');
-  });
 });

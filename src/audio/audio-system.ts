@@ -6,8 +6,8 @@ import { MusicDirector, GAME_END_FADE_MS } from './music-director';
 import { worldAgeFromNumber } from '@/systems/era-types';
 import { NaturalWonderAudioDirector, type NaturalWonderAmbientStopReason } from './natural-wonder-audio-director';
 import { getFamilyForCiv } from './civ-audio-family';
-import { ERA_BASE, WAR_LAYER, ACCENT, resolveEra } from './audio-catalog';
-import { allSfxEntries, CRISIS_SFX, isCrisisToastCue, type CrisisToastCue } from './sfx-catalog';
+import { ERA_BASE, WAR_LAYER, ACCENT, resolveEra, type TrackEntry } from './audio-catalog';
+import { allSfxEntries, CRISIS_SFX, isCrisisToastCue, LOSS_SFX } from './sfx-catalog';
 import { SfxDirector } from './sfx-director';
 import { routeSfxComponents } from './sfx';
 import { PirateAudioDirector, type PirateAmbientStopReason } from './pirate-audio-director';
@@ -39,7 +39,7 @@ export class AudioSystem {
   private baseTrack: { file: string } | null = null;
   private accentTrack: { file: string } | null = null;
   private strategicWarningAudioKeys = new Set<string>();
-  private crisisCueTurns = new Map<string, number>();
+  private viewerStingerTurns = new Map<string, number>();
   private unrouteSfx: (() => void) | null = null;
 
   constructor(private readonly ctx: AudioContext) {
@@ -120,22 +120,23 @@ export class AudioSystem {
   }
 
   async playNotificationStinger(cue: string): Promise<void> {
-    if (isCrisisToastCue(cue)) {
-      await this.playCrisisToastCue(cue);
+    const entry = isCrisisToastCue(cue) ? CRISIS_SFX[cue]
+      : cue === 'wonder-lost' ? LOSS_SFX[cue] : undefined;
+    if (entry) {
+      await this.playViewerStingerOncePerTurn(entry, this.currentPlayerId);
       return;
     }
     await this.religionAudioDirector.playCue(cue);
   }
 
-  private async playCrisisToastCue(cue: CrisisToastCue): Promise<void> {
+  private async playViewerStingerOncePerTurn(entry: TrackEntry, viewerId: string): Promise<void> {
     const state = this.stateProvider?.();
     if (!state) return;
-    const viewerId = state.currentPlayer;
     const canPlay = () => this.canPlayViewerStinger(viewerId);
-    const key = `${viewerId}:${cue}`;
-    if (!canPlay() || this.crisisCueTurns.get(key) === state.turn) return;
-    this.crisisCueTurns.set(key, state.turn);
-    await this.director.playStingerWithDuck(CRISIS_SFX[cue].file, canPlay).catch(() => {});
+    const key = `${viewerId}:${entry.id}`;
+    if (!canPlay() || this.viewerStingerTurns.get(key) === state.turn) return;
+    this.viewerStingerTurns.set(key, state.turn);
+    await this.director.playStingerWithDuck(entry.file, canPlay).catch(() => {});
   }
 
   setMusicVolume(volume: number): void {
@@ -214,7 +215,7 @@ export class AudioSystem {
     this.isPresentationSuppressed = () => false;
     this.loopLoadRequestId += 1;
     this.strategicWarningAudioKeys.clear();
-    this.crisisCueTurns.clear();
+    this.viewerStingerTurns.clear();
     this.started = false;
   }
 
@@ -253,7 +254,7 @@ export class AudioSystem {
     isPresentationSuppressed: () => boolean,
   ): void {
     this.strategicWarningAudioKeys.clear();
-    this.crisisCueTurns.clear();
+    this.viewerStingerTurns.clear();
     this.mixer.stopStinger();
     this.bindCampaignState(state, getState, isPresentationSuppressed);
     this.applySettings(state);
@@ -418,21 +419,8 @@ export class AudioSystem {
         this.director.handleWonderBuilt();
       }),
 
-      // Loss/threat events whose only audio cue was the removed advisor voice
-      // line — rewired to the shared loss-event stinger placeholder (#616).
-      bus.on('wonder:legendary-lost', p => {
-        if (p.civId !== this.currentPlayerId) return;
-        this.director.handleLossEvent();
-      }),
-
       bus.on('city:captured', p => {
-        if (p.previousOwner !== this.currentPlayerId) return;
-        this.director.handleLossEvent();
-      }),
-
-      bus.on('civ:near-defeat', p => {
-        if (p.civId !== this.currentPlayerId) return;
-        this.director.handleLossEvent();
+        void this.playViewerStingerOncePerTurn(LOSS_SFX['city-lost'], p.previousOwner);
       }),
 
       // Spec 3: new stinger events
@@ -456,6 +444,7 @@ export class AudioSystem {
 
       bus.on('civ:near-defeat', p => {
         this.director.handleNearDefeat({ civId: p.civId });
+        void this.playViewerStingerOncePerTurn(LOSS_SFX['near-defeat'], p.civId);
       }),
 
       bus.on('civ:recovered-from-near-defeat', p => {

@@ -96,7 +96,7 @@ describe('wonder presentation', () => {
     registerWonderPresentation(bus, ctx);
     bus.emit('wonder:legendary-lost', { civId: 'rome', cityId: 'city-a', wonderId: 'oracle-of-delphi', goldRefund: 20, transferableProduction: 5 });
 
-    expect(ctx.deliver).toHaveBeenCalledWith('rome', expect.stringContaining('abandoned'), 'warning');
+    expect(ctx.deliver).toHaveBeenCalledWith('rome', expect.stringContaining('abandoned'), 'warning', undefined, undefined, 'wonder-lost');
   });
 
   it('notifies the observer of a revealed legendary wonder race', () => {

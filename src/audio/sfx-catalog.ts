@@ -111,6 +111,12 @@ export function isCrisisToastCue(cue: string): cue is CrisisToastCue {
   return Object.hasOwn(CRISIS_SFX, cue);
 }
 
+export const LOSS_SFX = {
+  'city-lost': real('stinger-city-lost', 'audio/stinger/loss/city-lost.ogg', 1.08, 'stinger'),
+  'wonder-lost': real('stinger-wonder-lost', 'audio/stinger/loss/wonder-lost.ogg', 1.38, 'stinger'),
+  'near-defeat': real('stinger-near-defeat', 'audio/stinger/loss/near-defeat.ogg', 1.26, 'stinger'),
+} as const;
+
 export const NETWORK_STRATEGIC_SFX = {
   'constructive-resolution': real('stinger-network-constructive-resolution', 'audio/stinger/network/constructive-resolution.ogg', 0.72, 'stinger'),
   'hostile-warning': real('stinger-network-hostile-warning', 'audio/stinger/network/hostile-warning.ogg', 0.82, 'stinger'),
@@ -686,6 +692,7 @@ export function allSfxEntries(): TrackEntry[] {
     ...Object.values(RELIGION_SFX),
     ...Object.values(FAMINE_SFX),
     ...Object.values(CRISIS_SFX),
+    ...Object.values(LOSS_SFX),
     ...Object.values(NETWORK_STRATEGIC_SFX),
     ...Object.values(COMBAT_OUTCOME_SFX),
     ...Object.values(GENERAL_COMMAND_SFX),
