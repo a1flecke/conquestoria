@@ -1,4 +1,4 @@
-# Crisis stingers (#616)
+# Crisis and loss stingers (#616)
 
 Six original Conquestoria cues live in `public/audio/stinger/crisis/`. Their source is
 the deterministic oscillator, resonance, and seeded-noise arrangements in
@@ -19,6 +19,15 @@ It measures the encoded files and rejects any cue outside −14 ±1 LUFS or abov
 | Catastrophe resolution | Measured knocks settle into a low foundation | 1.42 | −13.94 | −2.49 | `072f2c801d35d7dfa8fd991ade17e159aa2e270462a96effa3a7f8cb6915c089` |
 | Hunt onset | Two low footfalls followed by a descending growl | 1.28 | −14.00 | −4.29 | `e30653d74364dc13abc4bd06b54f4328d7f32cacfc0745b830781dc0d917cb1f` |
 | Hunt resolution | Grounded strike and a short rising answer | 1.19 | −13.99 | −3.16 | `8f746e24bf9709844ded94a79caf097ed5f0c6cb687cb6566e1550dc51545b88` |
+| City lost | Low strike followed by a falling resonance | 1.08 | −13.99 | −1.55 | `9856fa0e74cdbc6b27b3075edce7f754749b94e77902738e6cd2537550342acd` |
+| Wonder lost | Three descending bronze tones | 1.38 | −13.96 | −4.58 | `a2131c017c039bb00dca6796116922ec942b4bd9a8e976866ce2371cae5bc5cd` |
+| Near defeat | Three pulses ending on an unresolved interval | 1.26 | −13.96 | −7.39 | `dd2672e9ab16a2e91ac4d1911258d3354a638b7b8bcf3a950a508d751c4afc7b` |
+
+The three loss cues live in `public/audio/stinger/loss/` and use the same
+generator and validation. Wonder loss replaces its owner's toast chime.
+City capture cues the previous owner, and near defeat cues the affected
+civilization after the adaptive music state updates. All three use the same
+viewer checks, handoff handling, and per-turn coalescing as the crisis cues.
 
 The notification route uses the event's crisis flavor definition for onset and
 resolution. A Hunt onset uses the named `menacing` announcement and the active
@@ -32,7 +41,5 @@ Queued toasts are checked against the current viewer and presentation gate. An
 in-flight decode also rechecks those conditions, and the handoff stops the
 stinger bus. A failed load uses the existing silent buffer.
 
-Listening acceptance requires a human review in game. Check that each pair is
-recognizable without the toast, comfortable on speakers and headphones, and
-balanced with peaceful and wartime music. Check low and high mixer settings,
-successive cues, simultaneous crises, and a mobile browser if available.
+The measurements above establish file format and level. No in-game listening
+review was performed. Recognizability and balance during play remain unmeasured.

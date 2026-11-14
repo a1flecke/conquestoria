@@ -223,15 +223,6 @@ export class MusicDirector {
     this.applySnapshot(fadeMs);
   }
 
-  /**
-   * Loss/threat events that previously carried an advisor voice line and have
-   * no bespoke stinger (wonder-lost, city-lost, near-defeat warning). Reuses
-   * the war-declared stinger as the negative-event placeholder.
-   */
-  handleLossEvent(): void {
-    this.currentStingerPromise = this.playStingerWithDuck(STINGER.warDeclared.file);
-  }
-
   handleNearDefeat(p: CivNearDefeatPayload): void {
     if (p.civId !== this.currentCivId) return;
     this.nearDefeat = true;

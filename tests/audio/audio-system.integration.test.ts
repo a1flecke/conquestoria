@@ -733,30 +733,36 @@ describe('AudioSystem integration', () => {
     expect(oneShot).toHaveBeenCalledWith('stinger', expect.objectContaining({ length: 1 }));
   });
 
-  it('wonder-lost, city-lost, and near-defeat play the loss-event stinger for the current player', () => {
-    system.start(makeState(), busHelper.bus);
-    const handleLossEvent = vi.spyOn((system as any).director, 'handleLossEvent');
+  it('plays distinct city loss and near-defeat cues and coalesces duplicate city losses', async () => {
+    system.start(makeState({ turn: 5 }), busHelper.bus);
+    await ctx.resume();
+    const play = vi.spyOn((system as any).director, 'playStingerWithDuck').mockResolvedValue(undefined);
+
+    busHelper.emit('city:captured', { cityId: 'c1', newOwner: 'egypt', previousOwner: 'rome' });
+    busHelper.emit('city:captured', { cityId: 'c2', newOwner: 'egypt', previousOwner: 'rome' });
+    busHelper.emit('civ:near-defeat', { civId: 'rome' });
+    await flushPromises();
+
+    expect(play.mock.calls.map(([file]) => file)).toEqual([
+      'audio/stinger/loss/city-lost.ogg',
+      'audio/stinger/loss/near-defeat.ogg',
+    ]);
+  });
+
+  it('keeps loss events private and plays wonder loss only from its replacement toast', async () => {
+    system.start(makeState({ turn: 5 }), busHelper.bus);
+    await ctx.resume();
+    const play = vi.spyOn((system as any).director, 'playStingerWithDuck').mockResolvedValue(undefined);
 
     busHelper.emit('wonder:legendary-lost', {
       civId: 'rome', cityId: 'c1', wonderId: 'w1', goldRefund: 0, transferableProduction: 0,
     });
-    busHelper.emit('city:captured', { cityId: 'c1', newOwner: 'egypt', previousOwner: 'rome' });
-    busHelper.emit('civ:near-defeat', { civId: 'rome' });
-
-    expect(handleLossEvent).toHaveBeenCalledTimes(3);
-  });
-
-  it('loss events for other civs do not play the loss-event stinger (hot-seat privacy)', () => {
-    system.start(makeState(), busHelper.bus);
-    const handleLossEvent = vi.spyOn((system as any).director, 'handleLossEvent');
-
-    busHelper.emit('wonder:legendary-lost', {
-      civId: 'egypt', cityId: 'c1', wonderId: 'w1', goldRefund: 0, transferableProduction: 0,
-    });
     busHelper.emit('city:captured', { cityId: 'c1', newOwner: 'rome', previousOwner: 'egypt' });
     busHelper.emit('civ:near-defeat', { civId: 'egypt' });
 
-    expect(handleLossEvent).not.toHaveBeenCalled();
+    expect(play).not.toHaveBeenCalled();
+    await system.playNotificationStinger('wonder-lost');
+    expect(play.mock.calls.map(([file]) => file)).toEqual(['audio/stinger/loss/wonder-lost.ogg']);
   });
 
   // #1466: prepared streams hold a decoded window and encoded bytes; a superseded request must not leak one.

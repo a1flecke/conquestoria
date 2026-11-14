@@ -1,4 +1,4 @@
-"""Render the original #616 cues from deterministic oscillators and filtered noise.
+"""Render the original #616 crisis and loss cues from oscillators and filtered noise.
 
 Run with Python 3 and FFmpeg (libvorbis). No recordings or network inputs.
 """
@@ -16,6 +16,7 @@ import wave
 
 RATE = 44100
 DEST = Path(__file__).resolve().parents[1] / "public/audio/stinger/crisis"
+LOSS_DEST = DEST.with_name("loss")
 TAU = math.tau
 
 
@@ -108,6 +109,30 @@ def arrange():
     }
 
 
+def arrange_loss_cues():
+    city = Cue(1.08, 6167)
+    city.modal(0.01, 116, 1.05, 0.67, 0.022, 0.26,
+               [(1, 0.85, 0.5), (1.58, 0.36, 0.18), (2.44, 0.21, 0.09)])
+    city.noise(0.015, 0.30, 0.78, 0.02, 0.11, 170, 1900)
+    city.modal(0.32, 87, 0.65, 0.72, 0.046, 0.36,
+               [(1, 1, 0.6), (2.14, 0.35, 0.22)])
+
+    wonder = Cue(1.38, 6168)
+    bronze_modes = [(1, 0.82, 0.68), (2.74, 0.30, 0.23), (4.08, 0.13, 0.14)]
+    for start, pitch, level in [(0.008, 392, 0.69), (0.21, 349.23, 0.58), (0.46, 261.63, 0.62)]:
+        wonder.modal(start, pitch, level, 0.91, 0.027, 0.43, bronze_modes)
+    wonder.modal(0.48, 130.81, 0.28, 0.87, 0.08, 0.51, [(1, 1, 0.6), (2, 0.25, 0.28)])
+
+    brink = Cue(1.26, 6169)
+    for start, length in [(0.01, 0.33), (0.39, 0.29), (0.73, 0.50)]:
+        brink.voice(start, length, 0.86, 0.036, 0.4,
+                    lambda t: math.sin(TAU * (146 * t - 8 * t * t)
+                                       + 0.9 * math.sin(TAU * 293 * t)))
+        brink.noise(start, length, 0.33, 0.046, 0.2, 235, 1600)
+    brink.modal(0.72, 155.56, 0.24, 0.52, 0.08, 0.33, [(1, 1, 0.6), (2, 0.24, 0.2)])
+    return {"city-lost": city, "wonder-lost": wonder, "near-defeat": brink}
+
+
 def measure(path):
     result = subprocess.run(
         ["ffmpeg", "-hide_banner", "-i", str(path), "-af",
@@ -118,7 +143,7 @@ def measure(path):
     return float(data["input_i"]), float(data["input_tp"])
 
 
-def render(name, cue, pcm):
+def render(name, cue, pcm, dest):
     # Rounded saturation softens the earliest impacts without hard clipping.
     samples = array.array("h", (round(25000 * math.tanh(1.7 * sample)) for sample in cue.samples))
     if sys.byteorder != "little":
@@ -128,7 +153,7 @@ def render(name, cue, pcm):
         output.writeframes(samples)
     loudness, peak = measure(pcm)
     gain = min(-14 - loudness, -1.5 - peak)
-    path = DEST / f"{name}.ogg"
+    path = dest / f"{name}.ogg"
     subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(pcm),
          "-af", f"volume={gain:.3f}dB", "-map_metadata", "-1", "-ac", "1",
@@ -142,7 +167,8 @@ def render(name, cue, pcm):
 
 
 if __name__ == "__main__":
-    DEST.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as temp:
-        for name, cue in arrange().items():
-            render(name, cue, Path(temp) / "source.wav")
+        for dest, cues in ((DEST, arrange()), (LOSS_DEST, arrange_loss_cues())):
+            dest.mkdir(parents=True, exist_ok=True)
+            for name, cue in cues.items():
+                render(name, cue, Path(temp) / "source.wav", dest)

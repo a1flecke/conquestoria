@@ -8,6 +8,9 @@ import type { WorldAge } from '@/systems/era-types';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { getWorldRaceDefinition } from '@/systems/world-race-definitions';
 import type { NotificationSink } from './notification-sink';
+import type { LOSS_SFX } from '@/audio/sfx-catalog';
+
+const WONDER_LOSS_CUE = 'wonder-lost' satisfies keyof typeof LOSS_SFX;
 
 export function routeStrategicWarning(
   event: GameEvents['ai:strategic-warning'],
@@ -55,7 +58,12 @@ export function routeLegendaryWonder(
   }
   const target = event.type === 'wonder:legendary-race-revealed' ? event.observerId : event.civId;
   const notification = getLegendaryWonderNotification(state, target, event);
-  if (notification) sink(target, notification.message, notification.type);
+  if (!notification) return;
+  if (event.type === 'wonder:legendary-lost') {
+    sink(target, notification.message, notification.type, undefined, undefined, WONDER_LOSS_CUE);
+    return;
+  }
+  sink(target, notification.message, notification.type);
 }
 
 /**
