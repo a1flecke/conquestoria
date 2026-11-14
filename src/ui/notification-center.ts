@@ -23,7 +23,7 @@ export interface NotificationCenterDeps {
   readonly onFocusTarget: (target: NotificationEntry['target']) => void;
 }
 
-type QueuedToast = Pick<NotificationEntry, 'message' | 'type' | 'target'> & { sfxCue?: string };
+type QueuedToast = Pick<NotificationEntry, 'message' | 'type' | 'target'> & { sfxCue?: string; viewerId: string };
 
 const TOAST_COLORS: Record<NotificationEntry['type'], string> = {
   info: '#e8c170',
@@ -61,11 +61,15 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
   }
 
   function displayNext(): void {
-    const next = queue.shift();
+    const viewerId = deps.getState().currentPlayer;
+    if (deps.isSuppressed()) queue.length = 0;
+    let next = queue.shift();
+    while (next && next.viewerId !== viewerId) next = queue.shift();
     if (!next) {
       isShowingNotification = false;
       return;
     }
+    const { viewerId: toastViewerId, target } = next;
 
     isShowingNotification = true;
     const notif = document.createElement('div');
@@ -92,7 +96,9 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
     };
 
     notif.addEventListener('click', () => {
-      deps.onFocusTarget(next.target);
+      if (!deps.isSuppressed() && deps.getState().currentPlayer === toastViewerId) {
+        deps.onFocusTarget(target);
+      }
       dismiss();
     });
     deps.layer.innerHTML = '';
@@ -111,7 +117,7 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
     sfxCue?: string,
   ): void {
     if (deps.isSuppressed()) return;
-    queue.push({ message, type, target, sfxCue });
+    queue.push({ message, type, target, sfxCue, viewerId: deps.getState().currentPlayer });
     if (!isShowingNotification) displayNext();
     // A toast that was alone when it appeared must not hold the newcomers up for its full six seconds.
     else scheduleCurrentDismiss();

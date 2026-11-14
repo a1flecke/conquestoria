@@ -78,7 +78,7 @@ export type GameSessionRenderer = Pick<RenderLoop, 'setGameState' | 'setTouchHan
 export type GameSessionAudio = Pick<
   AudioSystem,
   'start' | 'setMasterVolume' | 'getSfxRoutingNode' | 'setMusicVolume' | 'setSfxVolume'
-  | 'setStingerVolume' | 'setMusicEnabled' | 'setSfxEnabled' | 'setStingerEnabled' | 'playReligionStinger'
+  | 'setStingerVolume' | 'setMusicEnabled' | 'setSfxEnabled' | 'setStingerEnabled' | 'playNotificationStinger'
 >;
 
 export interface GameSessionController {
@@ -421,11 +421,9 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
       getState: () => deps.session.getState(),
       isSuppressed: () => deps.roundPresentationGate.isSuppressed(),
       playCue: (cue) => {
-        // #594 MR7: religion toasts carry a bespoke sfxCue that replaces the generic
-        // synth chime -- see notification-routing.ts's routeReligionFounded/
-        // routeReligionCityConverted/routeLoyaltyWarning/routeCityDefected.
+        // A bespoke toast cue replaces the generic chime.
         if (cue) {
-          void deps.audio.playReligionStinger(cue).catch(() => {});
+          void deps.audio.playNotificationStinger(cue).catch(() => {});
         } else {
           SFX.notification();
         }

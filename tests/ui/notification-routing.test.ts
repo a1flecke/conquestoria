@@ -882,6 +882,7 @@ describe('crisis notification routing', () => {
     expect(calls[0]!.message).toContain('The Sweating Sickness');
     expect(calls[0]!.message).toContain('Thebes');
     expect(calls[0]!.message).toContain('Quarantine the city');
+    expect(calls[0]!.sfxCue).toBe('outbreak-onset');
   });
 
   it('uses the affected civilization personal era rather than World Age for crisis naming', () => {
@@ -905,6 +906,7 @@ describe('crisis notification routing', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.message).toContain('The Ground Trembles');
     expect(calls[0]!.message).toContain('Send workers to restore the land');
+    expect(calls[0]!.sfxCue).toBe('catastrophe-onset');
   });
 
   it('routes crisis:spread only to the target civ', () => {
@@ -947,7 +949,7 @@ describe('crisis notification routing', () => {
     routeCrisisStarted(state, { crisisId: 'crisis-1', flavorId: 'crop-blight', civId: 'p1', cityIds: ['c1'] }, sink);
     routeCrisisStarted(state, { crisisId: 'crisis-2', flavorId: 'plague', civId: 'p1', cityIds: ['c1'] }, sink);
     expect(calls[0]!.sfxCue).toBe('famine-onset');
-    expect(calls[1]!.sfxCue).toBeUndefined();
+    expect(calls[1]!.sfxCue).toBe('outbreak-onset');
   });
 
   it('#594 MR7: tags crisis:resolved with the famine-resolved sfx cue only for famine + a positive outcome', () => {
@@ -958,7 +960,19 @@ describe('crisis notification routing', () => {
     routeCrisisResolved(state, { crisisId: 'crisis-3', flavorId: 'plague', civId: 'p1', outcome: 'contained' }, sink);
     expect(calls[0]!.sfxCue).toBe('famine-resolved');
     expect(calls[1]!.sfxCue).toBeUndefined();
-    expect(calls[2]!.sfxCue).toBeUndefined();
+    expect(calls[2]!.sfxCue).toBe('outbreak-resolved');
+  });
+
+  it.each([
+    ['recovered', 'catastrophe-resolved'],
+    ['expired', undefined],
+    ['abandoned', undefined],
+  ] as const)('routes catastrophe resolution audio for %s', (outcome, cue) => {
+    const { sink, calls } = makeSink();
+    routeCrisisResolved(makeState(), {
+      crisisId: 'crisis-1', flavorId: 'earthquake', civId: 'p1', outcome,
+    }, sink);
+    expect(calls[0]!.sfxCue).toBe(cue);
   });
 
   it('falls back to a generic message for an unknown flavorId instead of throwing', () => {
@@ -998,6 +1012,7 @@ describe('crisis notification routing', () => {
     expect(calls[0]!.civId).toBe('p1');
     expect(calls[0]!.message).toContain('Giant Boar');
     expect(calls[0]!.message).toContain('Thebes');
+    expect(calls[0]!.sfxCue).toBe('hunt-onset');
   });
 
   it('routes crisis:escalated (stage assaulting) as the veteran escalation warning', () => {
@@ -1037,6 +1052,7 @@ describe('crisis notification routing', () => {
     expect(calls[1]!.civId).toBe('p1');
     expect(calls[1]!.message).toContain('Giant Boar');
     expect(calls[1]!.message).toContain('Egypt');
+    expect(calls.map(call => call.sfxCue)).toEqual(['hunt-resolved', 'hunt-resolved']);
   });
 
   it('routes crisis:resolved (hunted) with a single message when the target civ claimed its own hunt', () => {
@@ -1050,6 +1066,7 @@ describe('crisis notification routing', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.civId).toBe('p1');
     expect(calls[0]!.message).toContain('feast');
+    expect(calls[0]!.sfxCue).toBe('hunt-resolved');
   });
 });
 
