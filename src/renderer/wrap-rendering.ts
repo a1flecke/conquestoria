@@ -1,4 +1,4 @@
-import type { HexCoord } from '@/core/types';
+import type { HexCoord } from '@/core/types/hex';
 import { hexToPixel } from '@/systems/hex-utils';
 import { Camera } from './camera';
 
