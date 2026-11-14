@@ -32,7 +32,7 @@ changes.
 | ChatGPT image generation (unit strips) | 18 | `design/png-sprites/previews/<unit>/provenance.json` of each strip unit in the catalog | Sufficient evidence recorded (owner's statement of a paid plan) |
 | Public-domain artwork (General portraits) | 8 | `design/general-portraits/*.provenance.json` | Sufficient evidence recorded |
 | Kenney CC0 and credited audio | not counted here | `AUDIO-CREDITS.md`, `src/audio/*-audio-sources.ts` | Sufficient where reviewed; not re-audited here |
-| Original crisis stingers (#616) | 6 | [Synthesis and shipped hashes](audio/crisis-stingers.md) | Project-authored synthesis with no external source material |
+| Original crisis stingers (#616) | 6 | [Synthesis and shipped hashes](audio/crisis-stingers.md) | Sufficient evidence recorded (project-authored synthesis with no external source material) |
 | Wonder codex photographs and video | not counted here | `docs/wonder-codex-source-ledger.md` (test-enforced) | Sufficient where reviewed; not re-audited here |
 | Roster character names from copyrighted works | n/a | `src/systems/great-general-definitions.ts`, `great-general-profiles.ts` | Permission unresolved |
 
