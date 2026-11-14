@@ -7,6 +7,7 @@ import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { BEAST_DEFINITIONS } from './beast-definitions';
 import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { createUnit } from './unit-lifecycle';
+import { buildSpawnPlacementIndex, isLegalSpawnTile } from './unit-spawn-placement';
 import { createSimulationRng } from './simulation-rng';
 import { isPiratePressureEligible } from './world-pressure-eligibility';
 import { resolveCivilizationEra } from './tech-definitions';
@@ -551,9 +552,15 @@ export function createPirateFleetNear(
   rng: () => number,
 ): { state: GameState; fleetId: string | null } {
   const cityPositions = Object.values(state.cities).map(c => c.position);
+  const targetEra = resolveCivilizationEra(state.civilizations[civId]?.techState.completed ?? []);
+  const unitType = pirateUnitType(targetEra);
+  // The fleet's ship must be able to float there and must not share water with anyone's ship.
+  const spawnQuery = { ownerId: PIRATE_OWNER, unitType, stacking: 'empty-only' as const };
+  const spawnIndex = buildSpawnPlacementIndex(state, PIRATE_OWNER);
 
   const spawnCandidates = Object.values(state.map.tiles).filter(tile => {
     if (tile.terrain !== 'ocean') return false;
+    if (!isLegalSpawnTile(state, spawnQuery, tile.coord, spawnIndex)) return false;
     const nearLandmass = mapNeighbors(state.map, tile.coord).some(nb => {
       const t = state.map.tiles[hexKey(nb)];
       return t?.regionKey === landmassId;
@@ -569,8 +576,6 @@ export function createPirateFleetNear(
 
   const spawnTile = spawnCandidates[Math.floor(rng() * spawnCandidates.length)];
 
-  const targetEra = resolveCivilizationEra(state.civilizations[civId]?.techState.completed ?? []);
-  const unitType = pirateUnitType(targetEra);
   const pirateUnit = createUnit(unitType, PIRATE_OWNER, spawnTile.coord, state.idCounters);
   const fleetId = `fleet-${pirateUnit.id}`;
   const fleet: PirateFleet = {
