@@ -303,13 +303,12 @@ describe('#708 mounted and beast native sprites', () => {
 describe('#709 industrial vehicle native sprites', () => {
   const ISSUE_709_NATIVE = {
     armored_car: 'armored-car',
-    mechanized_infantry: 'mechanized-infantry',
+    // mechanized_infantry became a painted strip (#1627), which getUnitSpriteV2 resolves before the native vehicle SVG; the SVG stays as the fallback.
     main_battle_tank: 'main-battle-tank',
   } as const;
   const FACTIONS = ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate'];
   const REQUIRED_HOOKS: Record<keyof typeof ISSUE_709_NATIVE, readonly string[]> = {
     armored_car: ['cq-armored-car-body', 'cq-wheel', 'cq-armored-car-turret', 'cq-armored-car-cannon', 'cq-weapon'],
-    mechanized_infantry: ['cq-mech-soldier', 'cq-mech-rider', 'cq-arm-l', 'cq-arm-r', 'cq-mech-carrier', 'cq-wheel', 'cq-weapon'],
     main_battle_tank: ['cq-mbt-body', 'cq-mbt-tracks', 'cq-mbt-turret', 'cq-mbt-cannon', 'cq-weapon'],
   };
 
@@ -548,7 +547,7 @@ const COMBAT_UNITS_AWAITING_WOUND_ART: readonly string[] = [
   'swordsman', 'galley', 'trireme', 'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative',
   'spy_hacker', 'scout_hound', 'shadow_warden', 'war_hound', 'beast_handler', 'war_elephant',
   'armored_car', 'knight', 'cuirassier', 'catapult', 'trebuchet', 'ballista', 'rocket_artillery',
-  'mechanized_infantry', 'battleship', 'missile_cruiser', 'main_battle_tank',
+  'battleship', 'missile_cruiser', 'main_battle_tank',
   'supercarrier', 'naval_strike_aircraft', 'combat_drone', 'autonomous_frigate', 'exosuit_infantry',
 ];
 

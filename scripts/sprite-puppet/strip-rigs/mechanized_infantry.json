@@ -1,0 +1,109 @@
+{
+  "id": "mechanized_infantry",
+  "family": "vehicle",
+  "prompt": {
+    "name": "Mechanized Infantry",
+    "look": "A modern wheeled infantry carrier: a sleek, sloped desert-tan armoured body on four large rubber wheels, a small roof-mounted machine gun on a low swivel mount with a slim barrel pointing right, a rear troop door line, three small square side windows, and one soldier in a helmet looking out of a roof hatch near the back, his rifle held across his chest inside the hatch. A broad horizontal band is painted along the middle of the body side.",
+    "team_area": "the broad band along the body side",
+    "running_gear": "Four large black rubber wheels in a row, each with a lighter grey hub and a clearly visible round tyre, with a visible gap of body between the wheels and no tracks.",
+    "running_gear_check": "four separate wheels, no tracks",
+    "identity": "the same body shape, tan armour, wheels, roof machine gun, side windows, troop door, soldier in the roof hatch and red band",
+    "damage_gear": "a dented body panel and a scuffed tyre",
+    "damage_gear_critical": "a bent machine-gun barrel, a flat sagging tyre and a scorched, dented body"
+  },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 96
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0,
+        0.045
+      ],
+      [
+        0.955,
+        1
+      ]
+    ],
+    "min_sat": 0.45,
+    "min_val": 0.18
+  },
+  "states": [
+    {
+      "state": "idle",
+      "file": "a",
+      "cells": 1,
+      "fps": 4
+    },
+    {
+      "state": "damage",
+      "file": "b",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 1,
+      "loop": false,
+      "restFrames": [
+        0,
+        1
+      ],
+      "note": "idle pose at damage tiers 0-3"
+    },
+    {
+      "state": "move",
+      "cells": 8,
+      "fps": 12,
+      "note": "bounce and wheel spin built in code from the master and from each damage drawing",
+      "rig": {
+        "kind": "vehicle",
+        "action": "move",
+        "wheels": [[0.183, 0.843, 0.0945], [0.390, 0.843, 0.0945], [0.598, 0.843, 0.0945], [0.805, 0.843, 0.0945]],
+        "sources": [
+          "a",
+          "b#0",
+          "b#1",
+          "b#2",
+          "b#3"
+        ]
+      }
+    },
+    {
+      "state": "fire",
+      "cells": 8,
+      "fps": 8,
+      "loop": false,
+      "note": "recoil, muzzle flash and smoke built in code",
+      "rig": {
+        "kind": "vehicle",
+        "action": "fire",
+        "source": "a"
+      }
+    },
+    {
+      "state": "hit",
+      "cells": 4,
+      "fps": 8,
+      "loop": false,
+      "note": "the body rocked, built in code",
+      "rig": {
+        "kind": "vehicle",
+        "action": "hit",
+        "source": "a"
+      }
+    },
+    {
+      "state": "wreck",
+      "file": "c",
+      "cells": 3,
+      "fps": 4,
+      "loop": false,
+      "restFrames": [
+        0
+      ]
+    }
+  ]
+}
