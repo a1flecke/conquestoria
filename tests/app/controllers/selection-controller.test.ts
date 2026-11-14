@@ -712,11 +712,15 @@ describe('SelectionController', () => {
       expect(state.espionage!.player.spies[found!.uid].status).toBe('stationed');
     });
 
-    it('era-1 scout infiltration reveals tiles and marks the unit acted without removing it (era1ScoutResult branch)', () => {
-      const found = tryUntilInfiltrate('spy_scout', (state, uid) => state.units[uid]?.hasActed === true && state.units[uid] !== undefined);
+    it('era-1 scout infiltration embeds the spy off the map like every other type (#1693)', () => {
+      const found = tryUntilInfiltrate(
+        'spy_scout',
+        (state, uid) => state.units[uid] === undefined
+          && state.espionage!.player.spies[uid]?.status === 'stationed',
+      );
       expect(found).not.toBeNull();
       const state = found!.deps.session.getState();
-      expect(state.units[found!.uid].hasActed).toBe(true);
+      expect(state.civilizations.player.units).not.toContain(found!.uid);
       expect(state.espionage!.player.spies[found!.uid].infiltrationCityId).toBe('enemy-city');
     });
 

@@ -214,9 +214,15 @@ export function attemptInfiltration(
 
   if (roll < chance) {
     const era1 = unitType === 'spy_scout';
+    // #1693: a successful infiltration always embeds the spy off the map, including the
+    // era-1 scout. A scout left on the map could share its target city's tile with a unit
+    // the city later completes (e.g. a naval unit in port), producing an illegal
+    // mixed-owner stack (`assertNoIllegalBlockingOccupancy`). The espionage record is the
+    // spy from here on, exactly as for every other type; the scout still receives the
+    // era-1 result and city vision.
     const updatedSpy: Spy = {
       ...spy,
-      status: era1 ? 'idle' : 'stationed',
+      status: 'stationed',
       infiltrationCityId: targetCityId,
       cityVisionTurnsLeft: 5,
       cooldownTurns: 0,
@@ -225,7 +231,7 @@ export function attemptInfiltration(
     };
     return {
       civEsp: { ...state, spies: { ...state.spies, [spyId]: updatedSpy } },
-      removeUnitFromMap: !era1,
+      removeUnitFromMap: true,
       caught: false,
       era1ScoutResult: era1 ? { tilesToReveal: [] } : undefined,
     };

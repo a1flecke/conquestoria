@@ -1066,7 +1066,7 @@ describe('#994 assertNoIllegalBlockingOccupancy', () => {
     expect(() => assertNoIllegalBlockingOccupancy(state)).not.toThrow();
   });
 
-  it('permits an infiltrating scout to remain on a foreign city without permitting a mixed-owner stack', () => {
+  it('permits an infiltrated spy record on a foreign city without a map unit, but not a mixed-owner stack', () => {
     const { state, cityId } = stateWithPlayerCity('occ-foreign-spy');
     const city = state.cities[cityId];
     const scout = createUnit('spy_scout', 'ai-1', city.position, state.idCounters);
@@ -1078,12 +1078,16 @@ describe('#994 assertNoIllegalBlockingOccupancy', () => {
       espionage, scout.id, scout.type, cityId, city.position, 0, 'ai-infiltrate-unit-62-82',
     );
     expect(infiltration.era1ScoutResult).toBeDefined();
-    expect(infiltration.removeUnitFromMap).toBe(false);
+    // #1693: a successful infiltration embeds the spy off the map, so the caller removes
+    // the unit and the record alone proves the infiltration.
+    expect(infiltration.removeUnitFromMap).toBe(true);
     state.espionage = { ...state.espionage, [scout.owner]: infiltration.civEsp };
+    state.units = {};
     expect(() => assertNoIllegalBlockingOccupancy(state)).not.toThrow();
 
     const garrison = createUnit('warrior', city.owner, city.position, state.idCounters);
-    state.units[garrison.id] = garrison;
+    const leftoverSpy = createUnit('spy_scout', 'ai-1', city.position, state.idCounters);
+    state.units = { [garrison.id]: garrison, [leftoverSpy.id]: leftoverSpy };
     expect(() => assertNoIllegalBlockingOccupancy(state)).toThrow(/different owners/);
   });
 
