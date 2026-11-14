@@ -147,13 +147,15 @@ describe('attemptInfiltration', () => {
     expect(result!.caught).toBe(false);
   });
 
-  // #23: era1 scout success grants city vision and infiltrationCityId (not cooldown)
-  it('era1 spy_scout success: stays on map (idle), infiltrationCityId set, cityVisionTurnsLeft 5, era1ScoutResult defined', () => {
+  // #1693: every successful infiltration embeds the spy off the map. An era-1 scout used
+  // to stay on the map as an idle unit, which let a city complete a unit on the same tile
+  // and produce an illegal mixed-owner stack.
+  it('era1 spy_scout success: stationed off the map, infiltrationCityId set, cityVisionTurnsLeft 5, era1ScoutResult defined', () => {
     const civEsp = spyFromUnit(createEspionageCivState(), 'unit-1', 'player', 'spy_scout');
-    const result = tryUntil(civEsp, 'spy_scout', r => !r.removeUnitFromMap && !r.caught && r.era1ScoutResult !== undefined);
+    const result = tryUntil(civEsp, 'spy_scout', r => r.removeUnitFromMap && !r.caught && r.era1ScoutResult !== undefined);
     expect(result).not.toBeNull();
-    expect(result!.removeUnitFromMap).toBe(false);
-    expect(result!.civEsp.spies['unit-1'].status).toBe('idle');
+    expect(result!.removeUnitFromMap).toBe(true);
+    expect(result!.civEsp.spies['unit-1'].status).toBe('stationed');
     expect(result!.civEsp.spies['unit-1'].infiltrationCityId).toBe('city-enemy-1');
     expect(result!.civEsp.spies['unit-1'].cityVisionTurnsLeft).toBe(5);
     expect(result!.era1ScoutResult).toBeDefined();
