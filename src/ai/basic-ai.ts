@@ -154,6 +154,7 @@ import { applyPillageToState, canPillageTile } from '@/systems/pillage-system';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { processWorkerDevelopment } from './ai-worker-development';
 import { chooseAiBoon, chooseBoon } from '@/systems/religion-system';
+import { findSpyReturnTile } from '@/systems/unit-spawn-placement';
 import { removeUnits } from '@/systems/unit-removal-system';
 
 /** #988: how decisive a military advantage must be before the AI converts a
@@ -1839,11 +1840,16 @@ function processAITurnInternal(
           const updatedOwnerEsp = expelSpy(newState.espionage![victimCivId], capturedSpy.id, 15);
           let expelledSpyId = capturedSpy.id;
           const capital = getCapitalCity(newState, victimCivId);
-          if (capital) {
-            const newUnit = createUnit(capturedSpy.unitType, victimCivId, capital.position, newState.idCounters);
+          const homeTile = capital
+            ? findSpyReturnTile(newState, victimCivId, capturedSpy.unitType, capital.position)
+            : null;
+          if (homeTile) {
+            const idCounters = { ...newState.idCounters };
+            const newUnit = createUnit(capturedSpy.unitType, victimCivId, homeTile, idCounters);
             expelledSpyId = newUnit.id;
             newState = {
               ...newState,
+              idCounters,
               units: { ...newState.units, [newUnit.id]: newUnit },
               civilizations: {
                 ...newState.civilizations,

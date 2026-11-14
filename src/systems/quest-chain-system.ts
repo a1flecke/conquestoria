@@ -1,16 +1,18 @@
 import type {
   GameState,
+  HexCoord,
   MinorCivRelationshipStatus,
   Quest,
   QuestAction,
   QuestReward,
+  UnitType,
 } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { applyResearchBonus } from './tech-system';
 import { modifyRelationship } from './diplomacy-state';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
 import { createUnit } from './unit-lifecycle';
-import { hexKey, hexNeighbors } from './hex-utils';
+import { findLegalSpawnTile, spawnNeighbours } from './unit-spawn-placement';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import {
   getQuestChain,
@@ -121,12 +123,19 @@ function issueChainStep(
   };
 }
 
-function findFreeSpawnPosition(state: GameState, cityId: string) {
-  const city = state.cities[cityId];
-  if (!city) return null;
-  for (const position of [city.position, ...hexNeighbors(city.position)]) {
-    if (!state.map.tiles[hexKey(position)]) continue;
-    if (!Object.values(state.units).some(unit => hexKey(unit.position) === hexKey(position))) return position;
+/**
+ * Where a free-unit reward appears: the first of the civ's cities (roster order) whose centre or a
+ * neighbour can legally hold the new unit — the centre first, where it may join the civ's own
+ * garrison exactly as a trained unit does, then the neighbours. Never water, a camp, an enclave,
+ * a foreign city or a tile holding another owner's units. `null` grants no unit.
+ */
+function findRewardSpawnPosition(state: GameState, civId: string, unitType: UnitType): HexCoord | null {
+  const query = { ownerId: civId, unitType, stacking: 'same-owner' as const };
+  for (const cityId of state.civilizations[civId]?.cities ?? []) {
+    const city = state.cities[cityId];
+    if (!city) continue;
+    const position = findLegalSpawnTile(state, query, [city.position, ...spawnNeighbours(state, city.position)]);
+    if (position) return position;
   }
   return null;
 }
@@ -147,8 +156,7 @@ function applyReward(
     civ.techState = applyResearchBonus(civ.techState, reward.science).state;
   }
   if (reward.freeUnit) {
-    const cityId = civ.cities.find(candidate => findFreeSpawnPosition(nextState, candidate));
-    const position = cityId ? findFreeSpawnPosition(nextState, cityId) : null;
+    const position = findRewardSpawnPosition(nextState, majorCivId, reward.freeUnit);
     if (position) {
       const unit = createUnit(reward.freeUnit, majorCivId, position, nextState.idCounters);
       nextState.units[unit.id] = unit;

@@ -3,10 +3,11 @@
 // the Appease/Concede commands live in faction-pressure / faction-relief / faction-federalism /
 // faction-commands (callers import those directly); this module composes them once per round and owns
 // the unrest state machine. It is imported only by the round-phase that runs it.
-import type { GameState, City, HexCoord, UnitType } from '../core/types';
+import type { GameState, City, UnitType } from '../core/types';
 import type { EventBus } from '../core/event-bus';
 import { createRng } from './map-generator';
 import { createUnit } from './unit-lifecycle';
+import { REBEL_SPAWN_OFFSETS, filterLegalSpawnTiles, spawnNeighbours } from './unit-spawn-placement';
 import { hexDistance } from './hex-utils';
 import { createBreakawayFromCity } from './breakaway-system';
 import { getCivHappinessFromResources } from './resource-acquisition-system';
@@ -33,33 +34,29 @@ import {
 // legitimacy/breakaway mechanic, which does not exist in this codebase) is written out in full in
 // docs/superpowers/specs/2026-09-22-issue-1089-nonmajor-archetypes-design.md §6.
 
-function spawnRebelUnits(city: City, state: GameState, seed: string): GameState['units'] {
+function spawnRebelUnits(city: City, state: GameState, seed: string): Pick<GameState, 'units' | 'idCounters'> {
   const rng = createRng(seed);
-  const offsets: HexCoord[] = [
-    { q: 1, r: 0 }, { q: -1, r: 0 }, { q: 0, r: 1 },
-    { q: 0, r: -1 }, { q: 1, r: -1 }, { q: -1, r: 1 },
-  ];
   const unitType: UnitType = city.population >= 4 ? 'swordsman' : 'warrior';
   const spawnCount = 1 + Math.floor(rng() * 2); // 1-2 rebels
-  const occupied = new Set(Object.values(state.units).map(unit => `${unit.position.q},${unit.position.r}`));
-  const available = offsets
-    .map(offset => ({ q: city.position.q + offset.q, r: city.position.r + offset.r }))
-    .filter(pos => {
-      const key = `${pos.q},${pos.r}`;
-      return state.map.tiles[key] !== undefined && !occupied.has(key);
-    });
+  // Only tiles a rebel band could legally stand on: land it can enter, no camp/enclave/foreign
+  // city, nobody already there. With none, the revolt starts without a band.
+  const available = filterLegalSpawnTiles(
+    state,
+    { ownerId: 'rebels', unitType, stacking: 'empty-only' },
+    spawnNeighbours(state, city.position, REBEL_SPAWN_OFFSETS),
+  );
 
   let units = { ...state.units };
+  const idCounters = { ...state.idCounters };
   for (let i = 0; i < spawnCount; i++) {
     if (available.length === 0) break;
     const index = Math.floor(rng() * available.length);
     const [pos] = available.splice(index, 1);
     if (!pos) continue;
-    const rebel = createUnit(unitType, 'rebels', pos, state.idCounters);
+    const rebel = createUnit(unitType, 'rebels', pos, idCounters);
     units = { ...units, [rebel.id]: rebel };
-    occupied.add(`${pos.q},${pos.r}`);
   }
-  return units;
+  return { units, idCounters };
 }
 
 // --- Main faction tick ---
@@ -158,7 +155,7 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
           };
           nextState = {
             ...nextState,
-            units: spawnRebelUnits(updated, nextState, `revolt-${cityId}-${nextState.turn}`),
+            ...spawnRebelUnits(updated, nextState, `revolt-${cityId}-${nextState.turn}`),
           };
           bus.emit('faction:revolt-started', { cityId, owner: city.owner });
         } else {

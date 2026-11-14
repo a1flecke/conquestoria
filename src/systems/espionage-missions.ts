@@ -12,6 +12,7 @@ import type { Treaty } from '@/core/types/diplomacy';
 import type { OperationEffect, OperationMissionType } from '@/core/types/espionage-incident';
 import { createRng } from './map-generator';
 import { hexDistance } from './hex-utils';
+import { REBEL_SPAWN_OFFSETS, filterLegalSpawnTiles, spawnNeighbours, type SpawnPlacementQuery } from './unit-spawn-placement';
 import { getCapitalCityId } from './capital-system';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
 import { getActiveCrisisForCiv } from './crisis-interaction-definitions';
@@ -228,6 +229,9 @@ const BRIBE_GOLD_FRACTION = 0.15;
 const BRIBE_GOLD_CAP = 200;
 // expose_scandal's penalty, partner cap and partner selection live in espionage-scandal (shared with Go public, #419).
 export { EXPOSE_SCANDAL_PENALTY } from './espionage-scandal';
+
+/** The rebel band an arms-smuggling success arms (spawned in `espionage-turn.ts`). */
+export const ARMS_SMUGGLING_SPAWN: SpawnPlacementQuery = { ownerId: 'rebels', unitType: 'warrior', stacking: 'empty-only' };
 
 export function resolveMissionResult(
   missionType: SpyMissionType,
@@ -464,16 +468,17 @@ export function resolveMissionResult(
     case 'arms_smuggling': {
       const targetCity = gameState.cities[targetCityId];
       if (!targetCity) return {};
+      // The rebels are armed on a neighbouring tile they could legally stand on: never water,
+      // never a camp/enclave/foreign city, never on top of someone else's units. With no legal
+      // neighbour the mission still succeeds but arms nobody.
+      const legal = filterLegalSpawnTiles(
+        gameState,
+        ARMS_SMUGGLING_SPAWN,
+        spawnNeighbours(gameState, targetCity.position, REBEL_SPAWN_OFFSETS),
+      );
+      if (legal.length === 0) return {};
       const rng = createRng(`arms-${spyId}-${targetCityId}-${gameState.turn}`);
-      const offsets = [
-        { q: 1, r: 0 }, { q: -1, r: 0 }, { q: 0, r: 1 },
-        { q: 0, r: -1 }, { q: 1, r: -1 }, { q: -1, r: 1 },
-      ];
-      const offset = offsets[Math.floor(rng() * offsets.length)];
-      const spawnPosition: HexCoord = {
-        q: targetCity.position.q + offset.q,
-        r: targetCity.position.r + offset.r,
-      };
+      const spawnPosition: HexCoord = { ...legal[Math.floor(rng() * legal.length)] };
       return { spawnPosition };
     }
 
