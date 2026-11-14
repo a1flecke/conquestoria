@@ -9,7 +9,7 @@ import { RELIGION_SFX, FAMINE_SFX } from './sfx-catalog';
 // Notification-chime replacement happens for ALL SIX toast-routed cues (religion:founded,
 // religion:city-converted, religion:loyalty-warning, religion:city-defected, and famine
 // onset/resolved) via the sfxCue parameter threaded through the toast pipeline (see
-// AudioSystem.playReligionStinger and notification-routing.ts's routeReligionFounded/
+// AudioSystem.playNotificationStinger and notification-routing.ts's routeReligionFounded/
 // routeReligionCityConverted/routeLoyaltyWarning/routeCityDefected/routeCrisisStarted/
 // routeCrisisResolved), so the generic SFX.notification() synth chime and this director's
 // bespoke OGG never both fire for the same toast.
@@ -47,7 +47,7 @@ export class ReligionAudioDirector {
     );
   }
 
-  // Called by AudioSystem.playReligionStinger() for the 6 toast-replacement cues
+  // Called by AudioSystem.playNotificationStinger() for the 6 toast-replacement cues
   // (founded / city-converted / loyalty-warning / city-defected / famine-onset /
   // famine-resolved). Not bus-driven -- the toast pipeline already resolved
   // privacy/hot-seat delivery by the time this fires, so no currentPlayer re-check is

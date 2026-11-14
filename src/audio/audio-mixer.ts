@@ -210,6 +210,10 @@ export class AudioMixer {
     });
   }
 
+  stopStinger(): void {
+    this.getBus('stinger').source?.stop(this.ctx.currentTime);
+  }
+
   setAmbienceLoop(
     buffer: AudioBuffer | null,
     loopPoints: LoopPoints | null,

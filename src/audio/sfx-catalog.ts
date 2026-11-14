@@ -95,6 +95,22 @@ export const FAMINE_SFX = {
   resolved: real('stinger-famine-resolved', 'audio/stinger/famine/resolved.ogg', 1.30, 'stinger'),
 } as const;
 
+// #616: original synthesis, played when the associated private toast is shown.
+export const CRISIS_SFX = {
+  'outbreak-onset': real('stinger-outbreak-onset', 'audio/stinger/crisis/outbreak-onset.ogg', 1.18, 'stinger'),
+  'outbreak-resolved': real('stinger-outbreak-resolved', 'audio/stinger/crisis/outbreak-resolved.ogg', 1.34, 'stinger'),
+  'catastrophe-onset': real('stinger-catastrophe-onset', 'audio/stinger/crisis/catastrophe-onset.ogg', 1.12, 'stinger'),
+  'catastrophe-resolved': real('stinger-catastrophe-resolved', 'audio/stinger/crisis/catastrophe-resolved.ogg', 1.42, 'stinger'),
+  'hunt-onset': real('stinger-hunt-onset', 'audio/stinger/crisis/hunt-onset.ogg', 1.28, 'stinger'),
+  'hunt-resolved': real('stinger-hunt-resolved', 'audio/stinger/crisis/hunt-resolved.ogg', 1.19, 'stinger'),
+} as const;
+
+export type CrisisToastCue = keyof typeof CRISIS_SFX;
+
+export function isCrisisToastCue(cue: string): cue is CrisisToastCue {
+  return Object.hasOwn(CRISIS_SFX, cue);
+}
+
 export const NETWORK_STRATEGIC_SFX = {
   'constructive-resolution': real('stinger-network-constructive-resolution', 'audio/stinger/network/constructive-resolution.ogg', 0.72, 'stinger'),
   'hostile-warning': real('stinger-network-hostile-warning', 'audio/stinger/network/hostile-warning.ogg', 0.82, 'stinger'),
@@ -669,6 +685,7 @@ export function allSfxEntries(): TrackEntry[] {
     ...Object.values(TRANSPORT_SFX),
     ...Object.values(RELIGION_SFX),
     ...Object.values(FAMINE_SFX),
+    ...Object.values(CRISIS_SFX),
     ...Object.values(NETWORK_STRATEGIC_SFX),
     ...Object.values(COMBAT_OUTCOME_SFX),
     ...Object.values(GENERAL_COMMAND_SFX),

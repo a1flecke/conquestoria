@@ -61,23 +61,6 @@ describe('MusicDirector crisis snapshot', () => {
     expect(director.resolveSnapshot()).toBe('at-war');
   });
 
-  it('plays the war-declared stinger placeholder on crisis onset without flipping atWar', async () => {
-    director.handleCrisisStarted();
-    await flushPromises();
-    expect(loader.get).toHaveBeenCalledWith(STINGER.warDeclared.file);
-    expect(director.resolveSnapshot()).not.toBe('at-war');
-  });
-
-  it('plays the peace-signed stinger placeholder on crisis resolution without flipping inUnrest', async () => {
-    director.setCrisisActiveForCurrentPlayer(true);
-    director.handleCrisisResolved();
-    await flushPromises();
-    expect(loader.get).toHaveBeenCalledWith(STINGER.peaceSigned.file);
-    // crisisActiveForCurrentPlayer is a separate flag from the stinger — resolving the
-    // stinger doesn't clear it; main.ts's own recompute does that via setCrisisActiveForCurrentPlayer.
-    expect(director.resolveSnapshot()).toBe('unrest');
-  });
-
   it('plays the war-declared stinger placeholder on loss events without flipping atWar', async () => {
     director.handleLossEvent();
     await flushPromises();

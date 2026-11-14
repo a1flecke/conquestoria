@@ -7,7 +7,7 @@ import { worldAgeFromNumber } from '@/systems/era-types';
 import { NaturalWonderAudioDirector, type NaturalWonderAmbientStopReason } from './natural-wonder-audio-director';
 import { getFamilyForCiv } from './civ-audio-family';
 import { ERA_BASE, WAR_LAYER, ACCENT, resolveEra } from './audio-catalog';
-import { allSfxEntries } from './sfx-catalog';
+import { allSfxEntries, CRISIS_SFX, isCrisisToastCue, type CrisisToastCue } from './sfx-catalog';
 import { SfxDirector } from './sfx-director';
 import { routeSfxComponents } from './sfx';
 import { PirateAudioDirector, type PirateAmbientStopReason } from './pirate-audio-director';
@@ -39,6 +39,7 @@ export class AudioSystem {
   private baseTrack: { file: string } | null = null;
   private accentTrack: { file: string } | null = null;
   private strategicWarningAudioKeys = new Set<string>();
+  private crisisCueTurns = new Map<string, number>();
   private unrouteSfx: (() => void) | null = null;
 
   constructor(private readonly ctx: AudioContext) {
@@ -118,12 +119,23 @@ export class AudioSystem {
     this.pirateAudioDirector.setEnabled(enabled);
   }
 
-  // #594 MR7: entry point for the 4 toast-replacement religion cues (founded,
-  // city-converted, loyalty-warning, city-defected). See displayNextNotification in
-  // main.ts, which calls this instead of SFX.notification() when a toast carries a
-  // religion sfxCue.
-  async playReligionStinger(cue: string): Promise<void> {
+  async playNotificationStinger(cue: string): Promise<void> {
+    if (isCrisisToastCue(cue)) {
+      await this.playCrisisToastCue(cue);
+      return;
+    }
     await this.religionAudioDirector.playCue(cue);
+  }
+
+  private async playCrisisToastCue(cue: CrisisToastCue): Promise<void> {
+    const state = this.stateProvider?.();
+    if (!state) return;
+    const viewerId = state.currentPlayer;
+    const canPlay = () => this.canPlayViewerStinger(viewerId);
+    const key = `${viewerId}:${cue}`;
+    if (!canPlay() || this.crisisCueTurns.get(key) === state.turn) return;
+    this.crisisCueTurns.set(key, state.turn);
+    await this.director.playStingerWithDuck(CRISIS_SFX[cue].file, canPlay).catch(() => {});
   }
 
   setMusicVolume(volume: number): void {
@@ -202,6 +214,7 @@ export class AudioSystem {
     this.isPresentationSuppressed = () => false;
     this.loopLoadRequestId += 1;
     this.strategicWarningAudioKeys.clear();
+    this.crisisCueTurns.clear();
     this.started = false;
   }
 
@@ -240,6 +253,8 @@ export class AudioSystem {
     isPresentationSuppressed: () => boolean,
   ): void {
     this.strategicWarningAudioKeys.clear();
+    this.crisisCueTurns.clear();
+    this.mixer.stopStinger();
     this.bindCampaignState(state, getState, isPresentationSuppressed);
     this.applySettings(state);
     this.sfxDirector.replaceUnits(
@@ -358,6 +373,7 @@ export class AudioSystem {
           nearDefeat: p.nearDefeat,
           inBeastTerritory: p.inBeastTerritory,
         });
+        this.mixer.stopStinger();
         this.director.setCrisisActiveForCurrentPlayer(
           currentState ? this.hasActiveCrisisFor(this.currentPlayerId, currentState) : false,
         );
@@ -369,7 +385,6 @@ export class AudioSystem {
       bus.on('crisis:started', p => {
         if (p.civId !== this.currentPlayerId) return;
         this.director.setCrisisActiveForCurrentPlayer(true);
-        this.director.handleCrisisStarted();
       }),
 
       bus.on('crisis:resolved', p => {
@@ -378,11 +393,6 @@ export class AudioSystem {
         this.director.setCrisisActiveForCurrentPlayer(
           currentState ? this.hasActiveCrisisFor(this.currentPlayerId, currentState) : false,
         );
-        // 'hunted' (MR3) is just as much a triumphant resolution as containing an
-        // outbreak or recovering from a catastrophe — the player slew the foe.
-        if (p.outcome === 'contained' || p.outcome === 'recovered' || p.outcome === 'hunted') {
-          this.director.handleCrisisResolved();
-        }
       }),
 
       bus.on('game:over', p => {
@@ -454,7 +464,7 @@ export class AudioSystem {
     );
   }
 
-  private canPlayStrategicWarning(viewerId: string): boolean {
+  private canPlayViewerStinger(viewerId: string): boolean {
     const state = this.stateProvider?.();
     if (!state || viewerId !== this.currentPlayerId || state.currentPlayer !== viewerId) {
       return false;
@@ -477,12 +487,12 @@ export class AudioSystem {
   private playStrategicWarning(viewerId: string, turn: number): void {
     const key = `${viewerId}:${turn}`;
     if (this.strategicWarningAudioKeys.has(key)) return;
-    if (!this.canPlayStrategicWarning(viewerId)) return;
+    if (!this.canPlayViewerStinger(viewerId)) return;
     this.strategicWarningAudioKeys.add(key);
     const era = this.stateProvider?.().era ?? 1;
     this.director.handleStrategicWarning(
       era,
-      () => this.canPlayStrategicWarning(viewerId),
+      () => this.canPlayViewerStinger(viewerId),
     );
   }
 
