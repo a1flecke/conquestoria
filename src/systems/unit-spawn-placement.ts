@@ -1,4 +1,5 @@
-import type { GameState, HexCoord, UnitType } from '@/core/types';
+import type { GameState, UnitType } from '@/core/types';
+import type { HexCoord } from '@/core/types/hex';
 import { hexKey, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { isPassableForParams, movementStepCostParamsForType } from './unit-movement-cost';
 import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
