@@ -15,8 +15,8 @@ import {
   embedSpy, recallSpy, attemptSweep, getAvailableMissions, getMissionStartDenial, missionRequiresPlacedSpy,
   START_MISSION_FAILURE_MESSAGES, startMission, unembedSpy, verifyAgent,
 } from '@/systems/espionage-system';
-import { hexKey, hexesInRange } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { findSpyReturnTile } from '@/systems/unit-spawn-placement';
 import { removeUnits } from '@/systems/unit-removal-system';
 import type { PanelActionsCommonDeps, PanelActionsCrossCalls } from './panel-actions-shared';
 
@@ -186,26 +186,16 @@ export function createEspionagePanelActionsController(
         const capital = getCapitalCity(deps.session.getState(), deps.session.getState().currentPlayer);
         if (!capital) { deps.showNotification('Cannot exfiltrate — no capital found.', 'warning'); return; }
 
-        // Spawn occupancy: find a free tile at/near the capital
-        const existingPositions = new Set(
-          Object.values(deps.session.getState().units).map(u => `${u.position.q},${u.position.r}`),
-        );
-        let spawnPos = capital.position;
-        if (existingPositions.has(`${spawnPos.q},${spawnPos.r}`)) {
-          const adjacent = hexesInRange(capital.position, 1).filter(
-            c => !(c.q === capital.position.q && c.r === capital.position.r) &&
-                 !existingPositions.has(`${c.q},${c.r}`) &&
-                 deps.session.getState().map.tiles[hexKey(c)],
-          );
-          if (adjacent.length === 0) {
-            deps.showNotification('Cannot exfiltrate — no free tile near capital.', 'warning');
-            return;
-          }
-          spawnPos = adjacent[0];
+        const currentPlayer = deps.session.getState().currentPlayer;
+        // The capital itself (alongside its own garrison), else a neighbour the spy can stand on.
+        const spawnPos = findSpyReturnTile(deps.session.getState(), currentPlayer, spy.unitType, capital.position);
+        if (!spawnPos) {
+          deps.showNotification('Cannot exfiltrate — no free tile near capital.', 'warning');
+          return;
         }
 
-        const currentPlayer = deps.session.getState().currentPlayer;
-        const newUnit = createUnit(spy.unitType, currentPlayer, spawnPos, deps.session.getState().idCounters);
+        const idCounters = { ...deps.session.getState().idCounters };
+        const newUnit = createUnit(spy.unitType, currentPlayer, spawnPos, idCounters);
         const updatedSpy = {
           ...spy, id: newUnit.id, status: 'cooldown' as const,
           cooldownTurns: 8, infiltrationCityId: null, cityVisionTurnsLeft: 0, targetCivId: null, cooldownMode: undefined,
@@ -213,6 +203,7 @@ export function createEspionagePanelActionsController(
         const { [spyId]: _old, ...rest } = ownerEsp!.spies;
         deps.session.commit({
           ...deps.session.getState(),
+          idCounters,
           units: { ...deps.session.getState().units, [newUnit.id]: newUnit },
           civilizations: {
             ...deps.session.getState().civilizations,
@@ -251,12 +242,19 @@ export function createEspionagePanelActionsController(
         const city = deps.session.getState().cities[spy.targetCityId];
         if (!city) return;
         const currentPlayer = deps.session.getState().currentPlayer;
-        const newUnit = createUnit(spy.unitType, currentPlayer, city.position, deps.session.getState().idCounters);
+        const spawnPos = findSpyReturnTile(deps.session.getState(), currentPlayer, spy.unitType, city.position);
+        if (!spawnPos) {
+          deps.showNotification(`Cannot recall — no free tile near ${city.name}.`, 'warning');
+          return;
+        }
+        const idCounters = { ...deps.session.getState().idCounters };
+        const newUnit = createUnit(spy.unitType, currentPlayer, spawnPos, idCounters);
         const unembedded = unembedSpy(ownerEsp!, spyId);
         const rekeyed = { ...unembedded.spies[spyId], id: newUnit.id };
         const { [spyId]: _old, ...rest } = unembedded.spies;
         deps.session.commit({
           ...deps.session.getState(),
+          idCounters,
           units: { ...deps.session.getState().units, [newUnit.id]: newUnit },
           civilizations: {
             ...deps.session.getState().civilizations,

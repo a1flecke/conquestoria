@@ -60,7 +60,7 @@ import { saveSettings } from '@/storage/save-manager';
 import { createCityPanelView } from '@/ui/city-panel';
 import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { SFX } from '@/audio/sfx';
-import { hexKey } from '@/systems/hex-utils';
+import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 
 function mockedCallArg<T = unknown>(mockFn: unknown, callIndex: number, argIndex: number): T {
@@ -1442,8 +1442,37 @@ describe('PanelActionsController', () => {
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('exfiltrated'), 'info');
     });
 
+    it('exfiltrates into its own garrisoned capital, never onto the water beside it', () => {
+      const { state } = makeFixture('espionage-exfiltrate-coastal');
+      const capitalPos = { q: 5, r: 5 };
+      const setTerrain = (coord: HexCoord, terrain: 'grassland' | 'ocean') => {
+        state.map.tiles[hexKey(coord)] = {
+          coord, terrain, elevation: 'lowland', resource: null, improvement: 'none',
+          owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+        };
+      };
+      setTerrain(capitalPos, 'grassland');
+      for (const coord of hexNeighbors(capitalPos)) setTerrain(coord, 'ocean');
+      for (const unit of Object.values(state.units)) {
+        if (hexDistance(unit.position, capitalPos) <= 1) throw new Error('fixture tile is not clear');
+      }
+      state.cities['capital'] = makeCity('capital', { owner: 'player', position: capitalPos });
+      state.civilizations.player.cities = ['capital'];
+      placeUnit(state, 'warrior', 'garrison-1', capitalPos);
+      placeSpy(state, 'spy-1', { status: 'stationed', targetCivId: 'ai-1', targetCityId: 'foreign-city' });
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onExfiltrate: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onExfiltrate('spy-1');
+
+      const spyUnits = Object.values(deps.session.getState().units).filter(unit => unit.type === 'spy_scout');
+      expect(spyUnits.map(unit => unit.position)).toEqual([capitalPos]);
+    });
+
     it('onExfiltrate spawns a fresh unit at the capital, updates espionage state, and publishes', () => {
       const { state } = makeFixture('espionage-exfiltrate-publish');
+      state.map.tiles['5,5'] = { ...state.map.tiles['5,5'], terrain: 'grassland' };
       state.cities['capital'] = makeCity('capital', { owner: 'player', position: { q: 5, r: 5 } });
       state.civilizations.player.cities = ['capital'];
       placeSpy(state, 'spy-1', { status: 'stationed' });

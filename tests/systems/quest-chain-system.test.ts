@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { Quest } from '@/core/types';
+import type { GameState, Quest } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
-import { hexKey } from '@/systems/hex-utils';
+import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { foundCity } from '@/systems/city-lifecycle';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { assertNoIllegalBlockingOccupancy } from '../helpers/save-state-invariants';
 import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
 import {
   applyQuestGameplayAction,
@@ -212,5 +215,83 @@ describe('minor-civ quest-chain state machine', () => {
     });
 
     expect(result.transitions.filter(transition => transition.type === 'completed')).toHaveLength(2);
+  });
+});
+
+describe('free-unit quest reward placement', () => {
+  function rewardState(seed: string) {
+    const { state, minorCivId, minorCiv } = chainState(seed);
+    // A clean square of grassland far from everything, holding one player city.
+    const center = { q: Math.floor(state.map.width / 2), r: state.map.height - 3 };
+    state.barbarianCamps = {};
+    for (const unit of Object.values(state.units)) {
+      if (hexDistance(unit.position, center) <= 1) throw new Error('fixture tile is not clear');
+    }
+    for (const coord of [center, ...hexNeighbors(center)]) {
+      state.map.tiles[hexKey(coord)] = {
+        coord, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none',
+        owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+    }
+    const city = foundCity('player', center, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    minorCiv.diplomacy.relationships.player = 0;
+    minorCiv.activeQuests.player = { ...normalGiftQuest(state.turn, 5), reward: { relationshipBonus: 5, freeUnit: 'warrior' } };
+    const garrison = createUnit('warrior', 'player', center, state.idCounters);
+    state.units[garrison.id] = garrison;
+    state.civilizations.player.units.push(garrison.id);
+    return { state, minorCivId, center, garrisonId: garrison.id };
+  }
+
+  const reward = (state: GameState, minorCivId: string) => applyQuestGameplayAction(state, {
+    type: 'gift_gold', actorCivId: 'player', minorCivId, amount: 25, turn: state.turn,
+  }).state;
+
+  const newUnits = (before: GameState, after: GameState) =>
+    Object.values(after.units).filter(unit => !before.units[unit.id]);
+
+  it('joins its own garrison rather than walking onto water beside the city', () => {
+    const { state, minorCivId, center } = rewardState('quest-free-unit-water');
+    for (const coord of hexNeighbors(center)) state.map.tiles[hexKey(coord)].terrain = 'ocean';
+
+    const after = reward(state, minorCivId);
+
+    const created = newUnits(state, after);
+    expect(created.map(unit => [unit.type, unit.owner, unit.position])).toEqual([['warrior', 'player', center]]);
+    assertNoIllegalBlockingOccupancy(after);
+  });
+
+  it('never shares a tile with a foreign unit or a camp', () => {
+    const { state, minorCivId, center, garrisonId } = rewardState('quest-free-unit-foreign');
+    // The city centre holds a foreign unit only (its garrison left); the neighbours are a camp,
+    // water, and one open plain.
+    state.units[garrisonId] = { ...state.units[garrisonId], position: { q: 0, r: 0 } };
+    const rival = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const visitor = createUnit('warrior', rival, center, state.idCounters);
+    state.units[visitor.id] = visitor;
+    state.civilizations[rival].units.push(visitor.id);
+    const [campTile, ...rest] = hexNeighbors(center);
+    state.barbarianCamps = { ...state.barbarianCamps, 'camp-q': { id: 'camp-q', position: campTile, strength: 1, spawnCooldown: 5 } };
+    const open = rest[rest.length - 1];
+    for (const coord of rest.slice(0, -1)) state.map.tiles[hexKey(coord)].terrain = 'ocean';
+
+    const after = reward(state, minorCivId);
+
+    expect(newUnits(state, after).map(unit => unit.position)).toEqual([open]);
+  });
+
+  it('grants nothing when no tile near any city is legal', () => {
+    const { state, minorCivId, center, garrisonId } = rewardState('quest-free-unit-none');
+    state.units[garrisonId] = { ...state.units[garrisonId], position: { q: 0, r: 0 } };
+    const rival = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const visitor = createUnit('warrior', rival, center, state.idCounters);
+    state.units[visitor.id] = visitor;
+    for (const coord of hexNeighbors(center)) state.map.tiles[hexKey(coord)].terrain = 'ocean';
+
+    const after = reward(state, minorCivId);
+
+    expect(newUnits(state, after)).toEqual([]);
+    expect(after.minorCivs[minorCivId].diplomacy.relationships.player).toBe(5);
   });
 });
