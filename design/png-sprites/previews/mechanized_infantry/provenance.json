@@ -1,0 +1,17 @@
+{
+  "id": "mechanized_infantry",
+  "status": "shipped: registered in STRIP_UNITS and exported with strips.py export (#1627, #759)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-14",
+  "prompts": "Based on scripts/sprite-puppet/strip-rigs/mechanized_infantry.json (the vehicle family, like the Tank). One conversation drew the master; the damage sheet and the wreck row were each drawn from the master as one prompt per image, all on flat magenta. Red appears only on the broad band along the body side so the team tint lands only there; the body is desert tan, the tyres black, the roof gun dark grey. The prompts ChatGPT actually ran were written for this unit and were not captured verbatim.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/mechanized_infantry). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: every image passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "Three, all before the files below were chosen. (1) A first design drew an armoured soldier on foot (kept under ~/conquestoria-art-originals/strips/mechanized_infantry_on_foot, not shipped): the unit is a mobile carrier in most strategy games and the game's native art, so it was dropped. (2) The first vehicle master (a_try1, SHA-256 efe7a6586566b9e41ecf24463dff80ac859ee5931d3ce50b4ec7a200a4ea3c5a) was a tracked carrier with a turret cannon and read as a tank, so it was redrawn as a wheeled carrier with a roof machine gun and a soldier in the hatch. (3) The first wreck row (c_try1, SHA-256 4bc96846cb8c1eb93f37ee5dcd20e424cbc8c3631ff7d186276a25d71404aa02) drew the smoke semi-transparent over the magenta background, which left a purple halo after keying; it was redrawn with solid, opaque, outlined smoke and flames, and a pixel scan of the exported wreck row finds no magenta-like pixels. The damage sheet was accepted on its first draw.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1448, 1086], "sha256": "679e2075b1d43047bb9baca5cad5d6583ba46ebae64b9a4b54ac91b4ca3f8632" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1536, 1024], "sha256": "a1c29e8973558b559437fbce2d2ea95c3307dd1260404e6023808da9235fd7a4" },
+    { "role": "wreck, 3 frames in one row (hit, burning, burnt out)", "file": "c", "size": [2172, 724], "sha256": "df000c5d4544dd769a2f42fbbacc65f163e620073bed246984dc01097ac21396" }
+  ]
+}
