@@ -177,6 +177,8 @@ export function getCoastalEnclaveCandidates(state: GameState): PirateHabitatCand
   const headquartersPositions = getHeadquartersPositions(state);
   const headquartersKeys = new Set(headquartersPositions.map(position => hexKey(canonicalCoord(state, position))));
   const occupied = new Set(Object.values(state.units).filter(unit => !unit.transportId).map(unit => hexKey(canonicalCoord(state, unit.position))));
+  // #1704 (A3): a stronghold never shares a tile with a barbarian camp.
+  for (const camp of Object.values(state.barbarianCamps ?? {})) occupied.add(hexKey(canonicalCoord(state, camp.position)));
   const candidates: PirateHabitatCandidate[] = [];
 
   for (const tile of Object.values(state.map.tiles)) {

@@ -1,4 +1,5 @@
 import type { BarbarianCamp, City, PirateFleet, GameState, GameMap, HexCoord } from '@/core/types';
+import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
 import type { AIStrategicPlan, CivPressureLedger } from '@/core/types/ai';
 import type { EventBus } from '@/core/event-bus';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
@@ -436,8 +437,13 @@ export function processLandResurgence(
   // otherwise assertNoIllegalBlockingOccupancy trips for that unit the moment the camp exists.
   const occupiedHexKeys = buildUnitOccupancy(state.units).unitIdsByHex;
 
+  // #1704 (A3): nor on a structure that already holds the tile. A camp raised on a pirate stronghold
+  // later became a city-state, whose garrison then stood on the stronghold.
+  const structureHexKeys = getBlockingMapEntityKeysForOwner(state, 'barbarian');
+
   const candidates = landmassTiles.filter(tile => {
     if (NON_VIABLE_TERRAIN.has(tile.terrain)) return false;
+    if (structureHexKeys.has(hexKey(tile.coord))) return false;
     if (state.barbarianCamps[hexKey(tile.coord)]) return false;
     if (occupiedHexKeys[hexKey(tile.coord)]) return false;
     // Must be far from cities and existing camps
