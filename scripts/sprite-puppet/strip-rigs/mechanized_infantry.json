@@ -1,0 +1,119 @@
+{
+  "id": "mechanized_infantry",
+  "family": "biped",
+  "prompt": {
+    "name": "Mechanized Infantry",
+    "look": "A heavy mechanized infantryman: a friendly adult man in a dark slate-grey and blue-grey pixel-pattern uniform, a smooth rounded black helmet with a clear tinted visor and a headset, a black armoured vest with thick shoulder guards and a chest plate, black elbow guards and knee guards, black boots and gloves, a small flat black backpack, carrying a compact squad machine gun with a short box magazine and a folding two-legged stand, a red armband on his left upper arm and a small red patch on the front of his chest plate.",
+    "team_area": "his armband and the patch on his chest plate",
+    "identity": "the same face, slate-grey pixel-pattern uniform, black visor helmet with headset, black armour vest with shoulder guards, backpack, elbow and knee guards, black boots, squad machine gun, red armband and red chest patch",
+    "weapon_pose": "He stands ready with the squad machine gun held across his chest in both hands, the barrel pointing right at about chest height. The gun is well above his knees and nowhere near his boots.",
+    "attack_frames": 6,
+    "attack": "(1) ready, machine gun across the chest; (2) raising the machine gun to the shoulder, stepping slightly forward; (3) machine gun at the shoulder, aiming down the sights; (4) firing: a pale yellow muzzle flash at the barrel tip, the machine gun recoiling; (5) recoil recovering, a small puff of grey smoke at the muzzle; (6) lowering the machine gun back to the ready stance.",
+    "damage_gear": "a scuffed uniform and a scratched helmet",
+    "damage_gear_critical": "a ragged torn uniform, a cracked helmet and visor with a head bandage and a scorched armour vest hanging open",
+    "defeat_prop": "the machine gun on the ground beside him"
+  },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 140
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0,
+        0.045
+      ],
+      [
+        0.955,
+        1
+      ]
+    ],
+    "min_sat": 0.45,
+    "min_val": 0.18
+  },
+  "states": [
+    {
+      "state": "idle",
+      "file": "a",
+      "cells": 1,
+      "fps": 4
+    },
+    {
+      "state": "damage",
+      "file": "b",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 1,
+      "loop": false,
+      "note": "idle pose at damage tiers 0-3"
+    },
+    {
+      "state": "walkrig",
+      "cells": 8,
+      "fps": 10,
+      "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": {
+        "sources": [
+          "a",
+          "b#0",
+          "b#1",
+          "b#2",
+          "b#3"
+        ],
+        "shafts": 0,
+        "stride_deg": 24,
+        "knee_bend": 14,
+        "foot_level": 0.7
+      }
+    },
+    {
+      "state": "attack",
+      "file": "c",
+      "cells": 6,
+      "grid": [
+        3,
+        3
+      ],
+      "fps": 9,
+      "loop": false,
+      "restFrames": [
+        0,
+        5
+      ]
+    },
+    {
+      "state": "hit",
+      "file": "d",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 8,
+      "restFrames": [
+        0,
+        4
+      ],
+      "loop": false
+    },
+    {
+      "state": "defeat",
+      "file": "e",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 5,
+      "restFrames": [
+        0
+      ],
+      "loop": false
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "mechanized_infantry",
+  "status": "shipped: registered in STRIP_UNITS and exported with strips.py export (#1627, #759)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-14",
+  "prompts": "Based on scripts/sprite-puppet/strip-rigs/mechanized_infantry.json. One conversation drew the master; the damage sheet, the attack strip, the hit strip and the defeat strip were each drawn from the master as one prompt per image, all on flat magenta. Red appears only on the armband and the chest patch so the team tint lands only there; the pixel-pattern uniform is slate and blue-grey and the armour, helmet and gear are black and dark grey. The attack, hit and defeat prompts keep the machine gun in his hands in every frame, ask for a pale yellow (never red or orange) muzzle flash and ask for no blood, glow or halo. The master was drawn on flat magenta from a shortened, plainer prompt (the first, longer prompt was declined by ChatGPT); the prompts ChatGPT actually ran were written for this unit and were not captured verbatim.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/mechanized_infantry). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all six images passed. ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "One: the first master (a_try1, SHA-256 a384f7d9a64c2fa9657edce78e927ce8559e2be519ed700d4966c81799d4f72a) drew a soldier in green camouflage with a vest, radio and scoped rifle, which read as too close to Infantry, so it was not used; the master was redrawn with a heavier silhouette in a grey-blue palette. Every other sheet was accepted on its first draw (all on flat magenta, no checkerboard). Known caveats: the probe warns that the figures on the defeat sheet are about 200 px tall (under 300), accepted because the other strips are drawn at a similar size; and in the attack, hit and defeat strips the visor sits flatter on the helmet than in the master.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1024, 1536], "sha256": "f50c5856d40d00f6eab130885e53b24feadddcff240c640778038209859ea65c" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1254, 1254], "sha256": "359697856583329ae2c858fe32ed81b1fc6029e8685e6b4fbab4c15b9fb2797c" },
+    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1536, 1024], "sha256": "5a401d4de10b8e794209d84dd0eacbf9fec524c9b31d12d4d9babfb465ae7eda" },
+    { "role": "hit reaction, 5 frames (3 + 2)", "file": "d", "size": [1536, 1024], "sha256": "fe0279b369380c242c3715184170ea76d202255a36c2389179563ed7fb5957db" },
+    { "role": "defeat, 5 frames (3 + 2)", "file": "e", "size": [1536, 1024], "sha256": "e2ffc619ba31fd2a7279ae144695c067bba82e5ef6e5ee52088e451d9a04f00b" }
+  ]
+}
