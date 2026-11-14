@@ -6,6 +6,7 @@
 // archetype bodies dispatched to) is exactly the boundary #990 will generalize into a
 // reusable staged-lifecycle engine, with these archetype bodies becoming crisis's own
 // stage handlers rather than the only kind that can exist.
+import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
 import type { ActiveCrisis, BeastLair, City, GameState, HexCoord } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
@@ -491,7 +492,11 @@ function spawnBarbarianHunt(
   // signature, since #982 only requires the *root* seed to be gameId-rooted,
   // not every downstream consumer's parameter shape.
   const seed = Math.floor(rng() * 2147483647);
-  const occupiedHexKeys = new Set(Object.keys(buildUnitOccupancy(state.units).unitIdsByHex));
+  const occupiedHexKeys = new Set([
+    ...Object.keys(buildUnitOccupancy(state.units).unitIdsByHex),
+    // #1704 (A3): a camp never lands on a pirate stronghold or a city either.
+    ...getBlockingMapEntityKeysForOwner(state, 'barbarian'),
+  ]);
   const camp = spawnBarbarianCamp(state.map, cityPositions, existingCamps, seed, state.idCounters, occupiedHexKeys);
   if (!camp) return { crisis: null, state };
 

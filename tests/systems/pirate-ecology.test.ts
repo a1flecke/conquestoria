@@ -204,6 +204,15 @@ describe('pirate habitat candidates', () => {
     expect(getFlotillaCandidates(state).map(candidate => candidate.position)).toEqual([{ q: 8, r: 8 }]);
   });
 
+  it('never offers a tile a barbarian camp already holds (#1704)', () => {
+    const state = stateWithMap(mapWith([[3, 3, 'plains'], [3, 2, 'coast']]));
+    expect(getCoastalEnclaveCandidates(state)).toHaveLength(1);
+    state.barbarianCamps = {
+      'camp-1': { id: 'camp-1', position: { q: 3, r: 3 }, strength: 5, spawnCooldown: 5 },
+    } as typeof state.barbarianCamps;
+    expect(getCoastalEnclaveCandidates(state)).toHaveLength(0);
+  });
+
   it('requires every covert claimed-coast condition independently', () => {
     const makeClaimed = () => {
       const state = stateWithMap(mapWith([[5, 5, 'plains', 'player'], [5, 4, 'coast']]));

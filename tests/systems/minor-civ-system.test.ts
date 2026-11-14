@@ -326,6 +326,33 @@ describe('minor civ turn processing', () => {
     expect(UNIT_DEFINITIONS[result.units[garrison.id].type].strength).toBe(strengthBefore);
   });
 
+  it('never steps onto a tile a structure blocks, such as a camp or pirate stronghold (#1704)', () => {
+    const state = createNewGame(undefined, 'mc-purposeful-retreat', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    const city = state.cities[mc.cityId];
+    const garrison = state.units[mc.units[0]];
+    garrison.position = Object.values(state.map.tiles)
+      .map(tile => tile.coord)
+      .find(coord =>
+        hexDistance(coord, city.position) === 4
+        && !['ocean', 'coast', 'mountain'].includes(state.map.tiles[hexKey(coord)].terrain))!;
+    garrison.health = 10;
+
+    // Block every step it would choose, one at a time, until it has nowhere legal to go.
+    const blocked: string[] = [];
+    for (let guard = 0; guard < 6; guard++) {
+      const order = planPurposefulMinorCivTurn(state, mcId).moveOrders.find(entry => entry.unitId === garrison.id);
+      if (!order) break;
+      expect(blocked).not.toContain(hexKey(order.to));
+      blocked.push(hexKey(order.to));
+      state.barbarianCamps[`blocker-${guard}`] = {
+        id: `blocker-${guard}`, position: order.to, strength: 10, spawnCooldown: 3,
+      } as (typeof state.barbarianCamps)[string];
+    }
+    expect(blocked.length).toBeGreaterThan(0);
+  });
+
   it('abandons a persisted retaliation target after peace', () => {
     const state = createNewGame(undefined, 'mc-purposeful-peace', 'small');
     const mcId = Object.keys(state.minorCivs)[0]!;

@@ -318,6 +318,10 @@ function chooseMinorStep(
   const occupied = new Set(Object.values(state.units)
     .filter(candidate => candidate.id !== unit.id && !candidate.transportId)
     .map(candidate => hexKey(candidate.position)));
+  // #1704 (A3): the canonical blocker rule (foreign cities, barbarian camps, pirate enclaves). Without
+  // it a city-state unit walked onto a pirate stronghold's tile; see movement-actions.md, "World-actor
+  // step/spawn placement".
+  const blocked = getBlockingMapEntityKeysForOwner(state, unit.owner);
   const candidates = mapNeighbors(state.map, unit.position);
   return candidates
     .filter(coord => {
@@ -326,7 +330,8 @@ function chooseMinorStep(
         && terrain !== 'ocean'
         && terrain !== 'coast'
         && terrain !== 'mountain'
-        && !occupied.has(hexKey(coord));
+        && !occupied.has(hexKey(coord))
+        && !blocked.has(hexKey(coord));
     })
     .filter(coord =>
       minorDistance(state, coord, target) < minorDistance(state, unit.position, target))
