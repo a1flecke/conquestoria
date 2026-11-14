@@ -4,6 +4,8 @@ import { processCrisisTurn } from '@/systems/crisis-system';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { hexesInRange, hexKey, hexDistance } from '@/systems/hex-utils';
 import { BEAST_OWNER } from '@/systems/beast-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
+import { assertNoIllegalBlockingOccupancy } from '../helpers/save-state-invariants';
 import type { ActiveCrisis, City, GameState, HexCoord, HexTile, OpponentChallenge } from '@/core/types';
 
 const CITY_POS: HexCoord = { q: 0, r: 0 };
@@ -88,6 +90,12 @@ function makeHuntFixture({
     ...(lastHuntKillerCivId ? { lastHuntKillerCivId } : {}),
   };
 
+  // A corsair armada only targets a civ of era 4+ (its `eraBand`), whose fleet is an ocean-going
+  // trireme; give the target that era so the spawned hull can float on the open-ocean ring.
+  const targetTechs = flavorId === 'corsair-armada'
+    ? TECH_TREE.filter(tech => tech.era <= era && tech.countsForEraAdvancement !== false).map(tech => tech.id)
+    : [];
+
   const state: GameState = {
     turn, era, currentPlayer: civId, gameOver: false, winner: null,
     map: { width: 40, height: 40, tiles, wrapsHorizontally: false, rivers: [] },
@@ -97,7 +105,7 @@ function makeHuntFixture({
       [civId]: {
         id: civId, name: 'Player', color: '#4a90d9', isHuman: true, civType: 'egypt',
         cities: ['c1'], units: [],
-        techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+        techState: { completed: targetTechs, currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
         gold: 500, visibility: { tiles: {} }, score: 0,
         diplomacy: createDiplomacyState([civId, 'killer'], civId),
         challenge,
@@ -229,6 +237,34 @@ describe('hunt crisis — spawn orchestration (MR3)', () => {
     const fleet = next.pirateFleets![crisis.huntEntityId!];
     expect(fleet).toBeDefined();
     expect(next.units[fleet.unitId]).toBeDefined();
+  });
+
+  it('corsair-armada: never spawns the fleet onto another owner\'s ship', () => {
+    const { state, crisisId } = makeHuntFixture({ flavorId: 'corsair-armada', includePirateFleet: true });
+    // Every water tile the spawner may use (ocean touching the landmass, >= 5 from the city)…
+    const spawnWater = Object.values(state.map.tiles)
+      .filter(tile => tile.terrain === 'ocean'
+        && hexDistance(tile.coord, CITY_POS) >= 5
+        && hexesInRange(tile.coord, 1).some(nb => state.map.tiles[hexKey(nb)]?.regionKey === LANDMASS))
+      .map(tile => tile.coord)
+      .sort((a, b) => hexKey(a).localeCompare(hexKey(b)));
+    expect(spawnWater.length).toBeGreaterThan(2);
+    // …holds one of the player's ships, except one.
+    const [free, ...taken] = spawnWater;
+    taken.forEach((coord, index) => {
+      const id = `ship-${index}`;
+      state.units[id] = {
+        id, type: 'trireme', owner: 'p1', position: coord, movementPointsLeft: 0, health: 100,
+        experience: 0, hasMoved: false, hasActed: false, isResting: false, cargoUnitIds: [],
+      } as GameState['units'][string];
+      state.civilizations.p1.units.push(id);
+    });
+
+    const next = processCrisisTurn(state, new EventBus());
+
+    const fleet = next.pirateFleets![next.activeCrises![crisisId].huntEntityId!];
+    expect(next.units[fleet.unitId].position).toEqual(free);
+    assertNoIllegalBlockingOccupancy(next);
   });
 
   it('abandons the hunt when the target city no longer exists', () => {
