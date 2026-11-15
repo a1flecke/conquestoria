@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
-import { mapNeighbors } from '@/systems/hex-utils';
+import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import {
   applyStampedePillage,
   advanceStampedePressure,
@@ -82,6 +82,32 @@ describe('Stampede state', () => {
     expect(Object.values(next.crisisForces ?? {})).toHaveLength(1);
     expect(Object.values(next.crisisForces ?? {})[0]?.unitIds).toHaveLength(3);
     expect(Object.values(next.units).find(unit => unit.owner === 'crisis-force')?.combatStrengthOverride).toBe(28);
+  });
+
+  it('never spawns a herd on a barbarian camp or pirate stronghold beside the city', () => {
+    const state = createNewGame('rome', 'stampede-camps', 'small');
+    const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities = { [city.id]: city };
+    state.civilizations.player.cities = [city.id];
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'plains';
+    state.units = {};
+    for (const civ of Object.values(state.civilizations)) civ.units = [];
+    const [campA, campB, anchor] = mapNeighbors(state.map, city.position).sort((a, b) => hexKey(a).localeCompare(hexKey(b)));
+    state.barbarianCamps = {
+      'camp-a': { id: 'camp-a', position: campA, strength: 1, spawnCooldown: 5 },
+      'camp-b': { id: 'camp-b', position: campB, strength: 1, spawnCooldown: 5 },
+    };
+    state.pirates = {
+      ...state.pirates,
+      factions: { 'pirate-1': { id: 'pirate-1', headquarters: { kind: 'coastal-enclave', position: anchor } } },
+    } as never;
+
+    const next = startStampedeWarning(state, 'player', 'standard');
+
+    const herd = Object.values(next.units).filter(unit => unit.owner === 'crisis-force');
+    expect(herd).toHaveLength(3);
+    const structures = new Set([campA, campB, anchor].map(hexKey));
+    expect(herd.filter(unit => structures.has(hexKey(unit.position)))).toEqual([]);
   });
 
   it('uses a later eligible target city when the first city has no legal herd spawns', () => {

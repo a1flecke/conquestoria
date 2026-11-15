@@ -19,6 +19,7 @@ import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { getBlockingMapEntityKeysForOwner } from '@/systems/unit-movement-legality';
 
 export interface StampedeProfile {
   cooldownTurns: number;
@@ -155,12 +156,14 @@ export function processStampedeScheduling(state: GameState): GameState {
 function findStampedeSpawnPositions(state: GameState, targetCivId: string, herdCount: number) {
   const occupied = new Set(Object.values(state.units).filter(unit => !unit.transportId).map(unit => hexKey(unit.position)));
   const cityCenters = new Set(Object.values(state.cities).map(city => hexKey(city.position)));
+  // A herd never appears on a camp or pirate stronghold (#994: world actors consult the canonical blocker set).
+  const blocked = getBlockingMapEntityKeysForOwner(state, CRISIS_FORCE_OWNER);
   return Object.values(state.cities)
     .filter(candidate => candidate.owner === targetCivId)
     .sort((a, b) => a.id.localeCompare(b.id))
     .map(city => mapNeighbors(state.map, city.position)
       .filter(position => state.map.tiles[hexKey(position)]?.terrain === 'plains' || state.map.tiles[hexKey(position)]?.terrain === 'grassland')
-      .filter(position => !occupied.has(hexKey(position)) && !cityCenters.has(hexKey(position)))
+      .filter(position => !occupied.has(hexKey(position)) && !cityCenters.has(hexKey(position)) && !blocked.has(hexKey(position)))
       .sort((a, b) => hexKey(a).localeCompare(hexKey(b))))
     .find(positions => positions.length >= herdCount);
 }
