@@ -18,6 +18,7 @@ import { getTrainableUnitsForCiv } from '@/systems/city-system';
 import { commitHerdRouteForTurn } from '@/systems/stampede-route-system';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { getBlockingMapEntityKeysForOwner } from '@/systems/unit-movement-legality';
 
 export interface RogueElephantHostProfile {
   elephantCount: number;
@@ -78,6 +79,8 @@ function hasActiveTargetedWorldPressure(state: GameState, targetCivId: string): 
 
 function findHostSpawnPositions(state: GameState, targetCivId: string, unitCount: number) {
   const occupied = new Set(Object.values(state.units).filter(unit => !unit.transportId).map(unit => hexKey(unit.position)));
+  // The Host never appears on a camp or pirate stronghold (#994: world actors consult the canonical blocker set).
+  const blocked = getBlockingMapEntityKeysForOwner(state, CRISIS_FORCE_OWNER);
   return Object.values(state.cities)
     .filter(city => city.owner === targetCivId)
     .sort((left, right) => left.id.localeCompare(right.id))
@@ -86,7 +89,7 @@ function findHostSpawnPositions(state: GameState, targetCivId: string, unitCount
         const tile = state.map.tiles[hexKey(position)];
         return tile && tile.terrain !== 'ocean' && tile.terrain !== 'coast' && tile.terrain !== 'mountain';
       })
-      .filter(position => !occupied.has(hexKey(position)))
+      .filter(position => !occupied.has(hexKey(position)) && !blocked.has(hexKey(position)))
       .sort((left, right) => hexKey(left).localeCompare(hexKey(right))))
     .find(positions => positions.length >= unitCount);
 }

@@ -40,6 +40,33 @@ describe('Rogue Elephant Host definitions', () => {
     expect(getRogueElephantHostProfile(severity, true).elephantCount).toBe(elephantCount);
   });
 
+  it('never raises the Host on a barbarian camp beside the target city', () => {
+    const state = createNewGame('rome', 'rogue-host-camps', 'small');
+    const targetCivId = state.currentPlayer;
+    state.civilizations[targetCivId]!.techState.completed = TECH_TREE.filter(tech => tech.era <= 4).map(tech => tech.id);
+    const settler = Object.values(state.units).find(unit => unit.owner === targetCivId && unit.type === 'settler')!;
+    const city = foundCity(targetCivId, settler.position, state.map, state.idCounters);
+    state.cities = { [city.id]: city };
+    const neighbours = mapNeighbors(state.map, city.position).filter(position => state.map.tiles[hexKey(position)]);
+    for (const position of neighbours) {
+      const key = hexKey(position);
+      state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'plains' };
+    }
+    state.units = {};
+    for (const civ of Object.values(state.civilizations)) civ.units = [];
+    const camps = [...neighbours].sort((a, b) => hexKey(a).localeCompare(hexKey(b))).slice(0, 2);
+    state.barbarianCamps = Object.fromEntries(camps.map((position, index) => [
+      `camp-${index}`, { id: `camp-${index}`, position, strength: 1, spawnCooldown: 5 },
+    ]));
+
+    const warning = startRogueElephantHostWarning(state, targetCivId, 'standard');
+
+    const host = Object.values(warning.units).filter(unit => unit.owner === 'crisis-force');
+    expect(host).toHaveLength(3);
+    const campKeys = new Set(camps.map(hexKey));
+    expect(host.filter(unit => campKeys.has(hexKey(unit.position)))).toEqual([]);
+  });
+
   it('keeps AI-targeted Host pressure at Standard severity', () => {
     expect(getRogueElephantHostProfile('explorer', false).elephantCount).toBe(2);
     expect(getRogueElephantHostProfile('veteran', false).elephantCount).toBe(2);
