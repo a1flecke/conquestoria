@@ -415,6 +415,25 @@ describe('rush buy', () => {
     expect(quote.reason).toBe('not-owner');
   });
 
+  it('records a bought national project exactly as a built one, so it cannot be queued twice (#1704)', () => {
+    const state = makeState();
+    state.civilizations.player.gold = 9999;
+    city(state).productionQueue = ['tribal_muster_ground'];
+    const bus = new EventBus();
+    const built = vi.fn();
+    bus.on('city:national-project-built', built);
+
+    const result = rushBuyActiveProduction(state, 'player', 'capital', bus);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.state.cities.capital.buildings).toContain('tribal_muster_ground');
+    expect(result.state.builtNationalProjects?.['player:tribal_muster_ground']).toMatchObject({ civId: 'player', cityId: 'capital' });
+    expect(built).toHaveBeenCalledWith(expect.objectContaining({ civId: 'player', cityId: 'capital', buildingId: 'tribal_muster_ground' }));
+    // The input state is untouched.
+    expect(state.builtNationalProjects?.['player:tribal_muster_ground']).toBeUndefined();
+  });
+
   it('executes rush buy through the shared economy system and refreshes economy status', () => {
     const state = makeState();
     state.civilizations.player.gold = 100;

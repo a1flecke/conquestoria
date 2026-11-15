@@ -1,7 +1,8 @@
 import type { GameState, City } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
+import { completeBuildingProduction } from '@/systems/building-production-completion';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { processCity, BUILDINGS } from '@/systems/city-system';
+import { processCity } from '@/systems/city-system';
 import { canCompleteAirUnitProduction } from '@/systems/air-operations-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
@@ -13,16 +14,12 @@ import {
   getLowestCityScienceBonus,
 } from '@/systems/tech-yield-system';
 import {
-  chooseCircularManufacturingMaterial,
   getNationalProjectCivYieldBonus,
 } from '@/systems/national-project-system';
 import { buildProductionCostContext } from '@/systems/production-cost-context';
-import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-unrest-model';
 import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { getCrisisYieldMultiplier } from '@/systems/crisis-system';
-import { foundReligion } from '@/systems/religion-system';
-import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
 import { getLegendaryWonderCityYieldBonus } from '@/systems/legendary-wonder-system';
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
 import { beginCityMaterialOccurrence, consumeCityMaterialCommitment, getCityMaterialProjection, syncCityMaterialCommitment } from '@/systems/city-production-materials';
@@ -127,7 +124,7 @@ function calculateCityTurnYields(state: GameState, turn: CivTurn, cityId: string
  * Applies one city's `processCity` result: maturity, market disruption, growth, completed buildings and national
  * projects, dropped queue items, and a completed unit.
  */
-function applyCityTurnResult(state: GameState, turn: CivTurn, cityId: string, civEra: ReturnType<typeof resolveCivilizationEra>, result: ReturnType<typeof processCity>, income: CivIncome, bus: EventBus): GameState {
+function applyCityTurnResult(state: GameState, turn: CivTurn, cityId: string, result: ReturnType<typeof processCity>, income: CivIncome, bus: EventBus): GameState {
   let newState = state;
   const { civId, civ } = turn;
 
@@ -163,36 +160,8 @@ function applyCityTurnResult(state: GameState, turn: CivTurn, cityId: string, ci
       bus.emit('city:grew', { cityId, newPopulation: newState.cities[cityId].population });
     }
     if (result.completedBuilding) {
-      bus.emit('city:building-complete', { cityId, buildingId: result.completedBuilding });
-      const completedBldg = BUILDINGS[result.completedBuilding];
-      if (completedBldg?.nationalProject && completedBldg.uniquePerEmpire) {
-        const npKey = `${civId}:${result.completedBuilding}`;
-        newState = {
-          ...newState,
-          builtNationalProjects: {
-            ...(newState.builtNationalProjects ?? {}),
-            [npKey]: { civId, cityId, eraBuilt: civEra },
-          },
-        };
-        bus.emit('city:national-project-built', {
-          civId,
-          cityId,
-          buildingId: result.completedBuilding,
-          eraBuilt: civEra,
-        });
-        // A human chooses from the city panel and can carry that decision across
-        // a hot-seat handoff. AI uses the same canonical choice mutation, with
-        // rare-earth elements as the broadest Era-13 soft-material coverage.
-        if (!civ.isHuman && result.completedBuilding === 'circular_manufacturing_network') {
-          newState = chooseCircularManufacturingMaterial(newState, civId, 'rare-earth-elements');
-        }
-        if (result.completedBuilding === 'sacred_council') {
-          newState = foundReligion(newState, civId, cityId, bus);
-        }
-      }
-      if (result.completedBuilding === 'warhead') {
-        newState = addWarheadToArsenal(newState, civId);
-      }
+      // #1704: one completion for the turn path and the rush-buy (`building-production-completion.ts`).
+      newState = completeBuildingProduction(newState, { civId, cityId, buildingId: result.completedBuilding }, bus);
     }
     for (const item of result.droppedProductionItems) {
       bus.emit('city:production-item-dropped', {
@@ -236,7 +205,6 @@ export function runCityProduction(
   for (const cityId of civ.cities) {
     let city = newState.cities[cityId];
     if (!city) continue;
-    const civEra = resolveCivilizationEra(civ.techState.completed);
 
     const preYieldWorkResult = city.focus === 'custom'
       ? normalizeWorkedTilesForCity(newState, cityId)
@@ -282,7 +250,7 @@ export function runCityProduction(
     if (completed) {
       newState = consumeCityMaterialCommitment(newState, cityId);
     }
-    newState = applyCityTurnResult(newState, turn, cityId, civEra, result, income, bus);
+    newState = applyCityTurnResult(newState, turn, cityId, result, income, bus);
 
     // A completed head is a real occurrence transition — fund the promoted head. Any other head change
     // (round normalization) is repaired idempotently without churning the occurrence.
