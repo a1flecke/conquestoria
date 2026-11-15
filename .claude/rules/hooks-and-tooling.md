@@ -1128,6 +1128,25 @@ mismatch fails; the hooks CI job runs the script directly before installing depe
 artifact, and reinstall once so the lockfile's `__metadata.version` matches the CLI that wrote it
 (4.17.0 writes format 10).
 
+## Peer dependency requirements
+
+Yarn PnP provides a peer dependency from the package that *requests* it. For a root dependency that
+requester is the workspace root, so the root `package.json` must declare the peer itself; a peer that
+is only installed transitively does not count. `@axe-core/playwright` declared `playwright-core`
+(`>= 1.0.0`) while the project only got it through `@playwright/test` → `playwright` (#1459), so every
+`yarn install` reported `YN0002`/`YN0086` and the macOS run task echoed it on every build.
+
+Declare such a peer in `devDependencies` **pinned to the exact version the requesting toolchain
+already installed** (`playwright-core: "1.61.0"` alongside `@playwright/test`, whose `playwright`
+depends on `playwright-core` at an exact version). A range such as `^1.59.1` resolves to the newest
+matching release and adds a second 13 MiB copy of `playwright-core` next to the one Playwright
+actually uses. When `@playwright/test` is bumped, move the pin with it in the same change.
+
+`tests/hooks/yarn-install-clean.test.sh` runs `yarn install --immutable` on the real tree and fails
+on any `YN0002`/`YN0086`, so an unprovided peer is a hook failure rather than a warning every build
+prints. It deliberately asserts the install output instead of reimplementing Yarn's resolver: what
+must stay true is that installing this project reports no unmet peer, for any dependency.
+
 ## Local selections and CI shards (#608, #1075)
 
 Local selection keeps push feedback practical; CI sharding keeps complete merge coverage balanced. They are independent: a test in `intensive-simulations` still belongs to exactly one CI shard, and a regular test may land in either shard. `scripts/run-tests-by-local-tier.sh` owns local selection; `scripts/ci-test-shards.json` is the checked-in CI contract. Vitest discovers beneath `test.dir = tests`, so local focused filters stay root-relative. `tests/scripts/local-test-tier-selection.test.ts` proves the local selections are disjoint and exhaustive; `tests/scripts/ci-test-shard-selection.test.ts` proves the CI assignment is disjoint, exhaustive, and current against real discovery.
