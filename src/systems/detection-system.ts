@@ -41,7 +41,7 @@ export function processDetection(state: GameState, bus: EventBus): GameState {
       }
     }
 
-    // 2. Passive baseline detection — spy adjacent to or on an enemy city tile
+    // 2. Passive baseline detection — a spy next to an enemy city (spies never enter one)
     for (const city of Object.values(state.cities)) {
       if (city.owner === spyUnit.owner) continue;
       if (hexDistance(city.position, spyUnit.position) > 1) continue;

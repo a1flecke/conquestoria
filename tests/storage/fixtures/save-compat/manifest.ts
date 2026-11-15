@@ -444,6 +444,38 @@ const MATERIAL_RESERVES_V35_CASE: SaveCompatCase = {
   },
 };
 
+/**
+ * Schema 39 — a spy may no longer stand on a city its owner does not hold. A schema-38 save can
+ * hold one: here an ai-1 spy parked on the player's city. The migration moves it next to that city,
+ * and the save then plays three rounds under the invariant that now forbids the old position.
+ */
+const PARKED_SPY_V38_CASE: SaveCompatCase = {
+  sourceVersion: 38,
+  label: 'schema 38 — a spy parked on a foreign city tile',
+  kind: 'well-formed',
+  focus: ['espionage', 'spy on a foreign city', 'no mixed-owner stack'],
+  build: () => {
+    const baseline = buildBaselineSave('save-compat-parked-spy-v38');
+    const state = baseline.state;
+    const city = state.cities[baseline.playerCityId];
+    const spyId = 'unit-parked-spy';
+    state.units[spyId] = {
+      id: spyId, type: 'spy_agent', owner: 'ai-1', position: { ...city.position },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    };
+    state.civilizations['ai-1'].units.push(spyId);
+    return downgradeToVersion(state, 38);
+  },
+  afterMigrate: migrated => {
+    const spy = migrated.units['unit-parked-spy'];
+    if (!spy) throw new Error('migration deleted the parked spy');
+    const cityHere = Object.values(migrated.cities).find(city => hexKey(city.position) === hexKey(spy.position));
+    if (cityHere && cityHere.owner !== spy.owner) {
+      throw new Error(`spy still stands on foreign city ${cityHere.id}`);
+    }
+  },
+};
+
 function baselineCityId(state: GameState, owner: string): string {
   const city = Object.values(state.cities).find(candidate => candidate.owner === owner);
   if (!city) throw new Error(`no city owned by ${owner}`);
@@ -491,6 +523,7 @@ const HOT_SEAT_CASE: SaveCompatCase = {
 export const SAVE_COMPAT_MATRIX: readonly SaveCompatCase[] = [
   ...Array.from({ length: CURRENT_SAVE_SCHEMA_VERSION + 1 }, (_, version) => wellFormedCase(version)),
   MATERIAL_RESERVES_V35_CASE,
+  PARKED_SPY_V38_CASE,
   REAL_ARCHIVED_SAVE_CASE,
   HOT_SEAT_CASE,
   ...MALFORMED_CASES,

@@ -23,6 +23,7 @@ import { getNavalOperationsPresentation } from '@/ui/naval-operations-presentati
 import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/veterancy-tiers';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
+import { getInfiltrationTargetCity } from '@/systems/espionage-infiltration-target';
 import { getStrategicArsenal } from '@/systems/strategic-arsenal-system';
 import { evaluateUnitUpgrade, type UpgradeMissingRequirement } from '@/systems/unit-upgrade-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
@@ -1291,10 +1292,9 @@ export function renderSelectedUnitInfo(
       !spyRecord || spyRecord.status === 'idle' ||
       (spyRecord.status === 'cooldown' && (spyRecord.cooldownTurns ?? 1) === 0)
     );
-    const enemyCityHere = Object.values(state.cities).some(
-      c => c.owner !== unit.owner && c.position.q === unit.position.q && c.position.r === unit.position.r,
-    );
-    if (enemyCityHere) {
+    // Spies infiltrate from the tile next to a rival civilization's city; they never enter it.
+    const infiltrationTarget = getInfiltrationTargetCity(state, unit);
+    if (infiltrationTarget) {
       if (isAvailable) {
         actionsDiv.appendChild(makeButton('Infiltrate City', '#7c3aed', () => callbacks.onInfiltrate!(unitId)));
       } else if (spyRecord?.status === 'cooldown' && (spyRecord.cooldownTurns ?? 0) > 0) {

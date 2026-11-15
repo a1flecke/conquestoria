@@ -13,7 +13,7 @@ import { getPngUnitManifest } from './sprites/png/png-sprite-catalog';
 import { applyPngPlayback } from './sprites/png/png-sprite-playback';
 import type { PngUnitSprite } from './sprites/png/png-sprite-types';
 import type { Camera } from './camera';
-import type { HexCoord } from '@/core/types';
+import type { HexCoord } from '@/core/types/hex';
 import { applyUnitAnchorOffset, getUnitLayoutMetrics } from './unit-map-presentation';
 import type { UnitRoleMarker } from './unit-visual-resolver';
 import {

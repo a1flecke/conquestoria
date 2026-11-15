@@ -7,7 +7,7 @@ import {
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrapHexCoord, wrappedHexDistance } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getMovementCostForUnit } from '@/systems/unit-movement-cost';
-import { getBlockingMapEntityAt, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-movement-legality';
+import { getBlockingMapEntityAt, getBlockingMapEntityMessage } from '@/systems/unit-movement-legality';
 import { getTerritorialAccessDenial, TERRITORIAL_ACCESS_MESSAGE } from '@/systems/territorial-access';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 
@@ -148,7 +148,7 @@ function blockingStructureAt(state: GameState, cargo: Unit, destination: HexCoor
  */
 function unloadTileFailure(state: GameState, cargo: Unit, destination: HexCoord): TransportCheckResult | null {
   const blocker = blockingStructureAt(state, cargo, destination);
-  if (blocker) return failure(blocker.reason, BLOCKING_MAP_ENTITY_MESSAGES[blocker.reason]);
+  if (blocker) return failure(blocker.reason, getBlockingMapEntityMessage(cargo, blocker));
   const denial = getTerritorialAccessDenial(state, cargo, normalizeDestination(state, destination));
   return denial ? failure(denial.reason, TERRITORIAL_ACCESS_MESSAGE) : null;
 }

@@ -121,6 +121,21 @@ as a typed reason with player-facing copy, and the executor never re-derives leg
 position (`assertAirBaseIntegrity`), and only rebase / `baseNewAirUnit` / carrier sync write both together. A new
 generic mover needs no aircraft check of its own; it inherits this one from the resolver.
 
+## Spies never enter a city they do not own
+
+A spy unit treats every city its owner does not hold as a blocker, **allied cities included**
+(`getBlockingMapEntitiesByHex` adds them for `isSpyUnitType`), and the explicit city-entry
+exemption (`foreignCityEntryId`) never applies to a spy. So walking, pathing, the range BFS,
+transport unload and `assertNoIllegalBlockingOccupancy` all agree, and the refusal copy is
+`SPY_FOREIGN_CITY_MESSAGE` (`getBlockingMapEntityMessage`). Infiltration is an adjacent action:
+`getInfiltrationTargetCity` (`espionage-infiltration-target.ts`) is the one answer for the
+selected-unit panel's Infiltrate button, the player's command and the AI (a rival major
+civilization's city at distance 1). A failed, uncaught attempt leaves the spy where it stood.
+Before this, a parked foreign spy locked the owner out of its own city and stacked with whatever
+the city trained; schema 39 (`spies-leave-foreign-cities`) moves such a spy out of an older save.
+Pinned by `unit-movement-system.test.ts`, `save-state-invariants.test.ts`,
+`selection-controller.test.ts`, `ai-espionage.test.ts` and the save-compat matrix.
+
 ## Territorial access (#871)
 
 "May this unit enter territory owned by that polity?" is a **fourth, separate** legality question,

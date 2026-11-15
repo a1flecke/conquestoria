@@ -3,7 +3,6 @@ import { classifyOwner } from '@/core/owner-kind';
 import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getBlockingMapEntityAt } from '@/systems/unit-movement-legality';
-import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/systems/transport-system';
 import { isBasedAirUnit } from '@/systems/air-base-state';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
@@ -736,10 +735,10 @@ export function assertOpponentAIPortfolioIntegrity(state: GameState): void {
  * check, so a carrier's air wing or a transport's cargo manifest never double-reports the same
  * tile its hull already covers.
  *
- * Espionage can explicitly enter a foreign city: an idle spy may stand on one before it
- * infiltrates. A successful infiltration takes the spy off the map (#1693) and a failed,
- * uncaught one sends it back out to a neighbouring tile (`findInfiltrationExitTile`).
- * Spies still participate in the mixed-owner stacking check.
+ * A spy is no exception: it never stands on a city it does not own, allied or not. It works on a
+ * city from the adjacent tile, and a successful infiltration takes it off the map (#1693).
+ * `getBlockingMapEntityAt` already treats every such city as blocking a spy, so this check needs
+ * no spy branch of its own.
  */
 export function assertNoIllegalBlockingOccupancy(state: GameState): void {
   const problems: string[] = [];
@@ -748,13 +747,6 @@ export function assertNoIllegalBlockingOccupancy(state: GameState): void {
   for (const [unitId, unit] of Object.entries(state.units)) {
     if (unit.transportId || isBasedAirUnit(unit)) continue;
     const blocker = getBlockingMapEntityAt(state, unit, unit.position);
-    if (blocker?.reason === 'foreign-city' && isSpyUnitType(unit.type)) {
-      const spy = state.espionage?.[unit.owner]?.spies[unitId];
-      if (
-        spy?.owner === unit.owner && spy.unitType === unit.type
-        && (spy.status === 'idle' || spy.status === 'cooldown' || spy.status === 'on_mission')
-      ) continue;
-    }
     if (blocker) {
       problems.push(
         `unit "${unitId}" (owner "${unit.owner}") sits on tile (${unit.position.q},${unit.position.r}) blocked by ${blocker.reason} "${blocker.entityId}"`,

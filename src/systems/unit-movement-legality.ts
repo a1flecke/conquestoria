@@ -2,6 +2,7 @@ import type { City, GameState, HexCoord, Unit } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { isPirateOwner } from '@/core/owner-kind';
 import { hasAllianceTreaty } from './diplomacy-queries';
+import { isSpyUnitType } from './spy-unit-types';
 
 /**
  * Movement legality (#1010) — the single source of truth for "does a map entity
@@ -123,9 +124,32 @@ export function getBlockingMapEntitiesByOwner(
  */
 export function getBlockingMapEntitiesByHex(
   state: GameState,
-  unit: Unit,
+  unit: Pick<Unit, 'owner' | 'type'>,
 ): ReadonlyMap<string, BlockingMapEntity> {
-  return getBlockingMapEntitiesByOwner(state, unit.owner);
+  const byOwner = getBlockingMapEntitiesByOwner(state, unit.owner);
+  if (!isSpyUnitType(unit.type)) return byOwner;
+  // A spy never stands on a city it does not own, allied cities included: it works on a city from
+  // the tile next to it (infiltration is an adjacent action). Leaving a foreign spy on a city tile
+  // locked the owner out of its own city and stacked it with whatever the city trained.
+  const blockers = new Map(byOwner);
+  for (const city of Object.values(state.cities)) {
+    if (city.owner === unit.owner) continue;
+    const key = hexKey(city.position);
+    if (!blockers.has(key)) blockers.set(key, { reason: 'foreign-city', entityId: city.id });
+  }
+  return blockers;
+}
+
+/** Shown when a spy tries to enter a city it does not own. */
+export const SPY_FOREIGN_CITY_MESSAGE = 'Spies cannot enter a foreign city. Move next to it, then use Infiltrate.';
+
+/** The player-facing reason a blocker refuses `unit`, specialised for a spy at a foreign city. */
+export function getBlockingMapEntityMessage(
+  unit: Pick<Unit, 'type'>,
+  entity: BlockingMapEntity,
+): string {
+  if (entity.reason === 'foreign-city' && isSpyUnitType(unit.type)) return SPY_FOREIGN_CITY_MESSAGE;
+  return BLOCKING_MAP_ENTITY_MESSAGES[entity.reason];
 }
 
 /** `getBlockingMapEntityKeys`'s owner-keyed counterpart — see `getBlockingMapEntitiesByOwner`. */

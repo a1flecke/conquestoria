@@ -5,7 +5,8 @@ import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { canHullEnterOcean, getMovementCostForUnitInContext, getMovementStepCost } from '@/systems/unit-movement-cost';
-import { getBlockingMapEntityAt, getBlockingMapEntityKeys, BLOCKING_MAP_ENTITY_MESSAGES, type UnitMovementBlockerCode, type BlockingMapEntity } from '@/systems/unit-movement-legality';
+import { getBlockingMapEntityAt, getBlockingMapEntityKeys, getBlockingMapEntityMessage, type UnitMovementBlockerCode, type BlockingMapEntity } from '@/systems/unit-movement-legality';
+import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { findPath } from '@/systems/unit-pathfinding';
 import { getDeniedTerritoryOwners, isTileDeniedBy, TERRITORIAL_ACCESS_MESSAGE } from '@/systems/territorial-access';
 
@@ -169,16 +170,18 @@ export function validateUnitMove(
   if (!tile) return movementFailure(from, target, [from], 'unknown-tile', 'Too far away to spot.');
 
   const blockingEntity = getBlockingMapEntityAt(state, unit, target);
-  if (
-    blockingEntity
-    && (options.actor === 'world' || options.foreignCityEntryId !== blockingEntity.entityId)
-  ) {
+  // An explicit city entry (an assault or conquest) is never available to a spy: it works on a
+  // foreign city from the adjacent tile.
+  const mayEnterExplicitly = (entity: BlockingMapEntity) => options.actor !== 'world'
+    && options.foreignCityEntryId === entity.entityId
+    && !isSpyUnitType(unit.type);
+  if (blockingEntity && !mayEnterExplicitly(blockingEntity)) {
     return movementFailure(
       from,
       target,
       [from, target],
       blockingEntity.reason,
-      BLOCKING_MAP_ENTITY_MESSAGES[blockingEntity.reason],
+      getBlockingMapEntityMessage(unit, blockingEntity),
     );
   }
 
@@ -235,9 +238,7 @@ export function validateUnitMove(
     }
     const entity = getBlockingMapEntityAt(state, unit, coord);
     if (!entity) continue;
-    const isExplicitEntryToThisEntity = options.actor !== 'world'
-      && options.foreignCityEntryId === entity.entityId
-      && hexKey(coord) === hexKey(target);
+    const isExplicitEntryToThisEntity = mayEnterExplicitly(entity) && hexKey(coord) === hexKey(target);
     if (!isExplicitEntryToThisEntity) {
       blockedPathEntity = entity;
       break;
@@ -249,7 +250,7 @@ export function validateUnitMove(
       target,
       path,
       blockedPathEntity.reason,
-      BLOCKING_MAP_ENTITY_MESSAGES[blockedPathEntity.reason],
+      getBlockingMapEntityMessage(unit, blockedPathEntity),
     );
   }
 

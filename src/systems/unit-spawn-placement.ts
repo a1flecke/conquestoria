@@ -1,4 +1,4 @@
-import type { GameState, Unit, UnitType } from '@/core/types';
+import type { GameState, UnitType } from '@/core/types';
 import type { HexCoord } from '@/core/types/hex';
 import { hexKey, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { isPassableForParams, movementStepCostParamsForType } from './unit-movement-cost';
@@ -122,21 +122,3 @@ export function findSpyReturnTile(
   );
 }
 
-/**
- * Where a spy that failed to infiltrate a foreign city (and was not caught) waits out its
- * cooldown: a neighbouring tile it can stand on, chosen with the same rules as a new unit. The
- * city tile itself is never chosen (a foreign city blocks the spy's owner), so the spy no longer
- * shares that tile with whatever the city's owner moves in or trains there. `null` when every
- * neighbour is unusable; the spy then stays where it is.
- */
-export function findInfiltrationExitTile(
-  state: GameState,
-  spy: Pick<Unit, 'owner' | 'type'>,
-  cityPosition: HexCoord,
-): HexCoord | null {
-  return findLegalSpawnTile(
-    state,
-    { ownerId: spy.owner, unitType: spy.type, stacking: 'same-owner' },
-    spawnNeighbours(state, cityPosition),
-  );
-}

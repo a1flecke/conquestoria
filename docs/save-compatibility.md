@@ -5,7 +5,7 @@
      Regenerate: UPDATE_SAVE_COMPAT_DOC=1 yarn vitest run tests/storage/save-migration-registries.test.ts
      Enforced by: tests/storage/save-migration-registries.test.ts -->
 
-Current schema version: **38**
+Current schema version: **39**
 
 Save compatibility is three separate mechanisms (#1023). They are deliberately
 not interchangeable: a normalizer silently standing in for a migration that was
@@ -59,6 +59,7 @@ Never on an already-current save.
 | 36 | `material-reserves` | #1506 MR09 activated hard-material production: a save written before it has no reserve ledger, and its legacy-entitled active work must receive one bounded native seed plus finite imported assistance exactly once. The schema guard is what prevents a reload from granting again. |
 | 37 | `retired-market-access` | #1516 MR19 retired the instant access market. A pre-containment save may still carry purchased access entries; schema 36 already funded any active work they entitled, so this step converts a live luxury entry into delivered service coverage at its recorded expiry, drops a strategic entry without fabricating stock, and clears the list so no runtime branch reads it again. |
 | 38 | `minor-civ-founded-turn` | #497 records when each city-state came into being so graduation eligibility can read a survival age. A city-state in an older save has no founding record, so it is stamped once with the load turn: it starts ageing from the upgrade rather than being treated as ancient, which keeps a legacy campaign from graduating anyone the moment the system exists. |
+| 39 | `spies-leave-foreign-cities` | A spy may no longer stand on a city its owner does not hold: it infiltrates from the adjacent tile, and movement blocks every foreign city, allied ones included, for a spy. An older save can hold a spy parked on a foreign city (idle, or lying low after a failed attempt), which locked the owner out of its own city and stacked with what it trained. Each is moved once to a legal tile next to that city, else home to its capital; one with nowhere legal to go is kept, never deleted. |
 
 ## 2. Compatibility normalization
 

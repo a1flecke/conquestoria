@@ -33,7 +33,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   pirate_ironclad: 'An armored steam raider combining industrial protection with the mobility of an outlaw fleet.',
   pirate_fast_attack_craft: 'A modern high-speed strike boat used by breakaway forces and mercenary flotillas.',
   pirate_mothership: 'A converted command vessel that supports modern pirate craft while coordinating older warships.',
-  spy_scout: 'Lightly trained scout agent. Move to an enemy city and attempt to infiltrate. Era 1: infiltration and scouting resolve in one action.',
+  spy_scout: 'Lightly trained scout agent. Move next to an enemy city and attempt to infiltrate. Era 1: infiltration and scouting resolve in one action.',
   spy_informant: 'Experienced informant. Infiltrates cities for multi-turn intelligence operations. Unlocks disguise.',
   spy_agent: 'Skilled field operative. Conducts sabotage, tech theft, and disruption missions.',
   spy_operative: 'Elite spy. Capable of high-stakes operations — assassination, forgery, arms smuggling.',

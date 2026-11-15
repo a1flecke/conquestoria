@@ -5,6 +5,7 @@ import { foundCity } from '@/systems/city-system';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
 import { abandonWorkerTask, executeUnitMove } from '@/systems/unit-movement-system';
+import { SPY_FOREIGN_CITY_MESSAGE } from '@/systems/unit-movement-legality';
 import { makeAutoExploreFixture } from './helpers/auto-explore-fixture';
 import { makeEdgeMoveState } from './unit-movement-system.test-helpers';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
@@ -321,6 +322,35 @@ describe('unit-movement-system', () => {
     expect(captureMove.ok).toBe(true);
     if (!captureMove.ok) return;
     expect(captureMove.state.units.mover.position).toEqual(city.position);
+  });
+
+  it('never lets a spy enter a city it does not own, allied or with an explicit entry', () => {
+    const spy = createUnit('spy_agent', 'player', { q: 0, r: 0 }, mkC());
+    spy.id = 'spy';
+    const foreign = createUnit('worker', 'ai-1', { q: 7, r: 7 }, mkC());
+    foreign.id = 'foreign';
+    const state = movementState(spy, [tile({ q: 0, r: 0 }), tile({ q: 1, r: 0 })], { extraUnits: [foreign] });
+    const city = foundCity('ai-1', { q: 1, r: 0 }, state.map, state.idCounters);
+    city.id = 'foreign-city';
+    state.cities[city.id] = city;
+    state.civilizations['ai-1'].cities = [city.id];
+
+    const explicit = executeUnitMove(state, 'spy', city.position, {
+      actor: 'player', civId: 'player', foreignCityEntryId: city.id,
+    });
+    expect(explicit).toMatchObject({ ok: false, reason: 'foreign-city', message: SPY_FOREIGN_CITY_MESSAGE });
+
+    // An alliance opens the city to ordinary units, never to a spy.
+    const alliance = { type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: -1 } as never;
+    state.civilizations.player.diplomacy.treaties = [alliance];
+    state.civilizations['ai-1'].diplomacy.treaties = [alliance];
+    expect(executeUnitMove(state, 'spy', city.position, { actor: 'player', civId: 'player' }))
+      .toMatchObject({ ok: false, reason: 'foreign-city' });
+    const warrior = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    warrior.id = 'ally-visitor';
+    state.units[warrior.id] = warrior;
+    state.civilizations.player.units.push(warrior.id);
+    expect(executeUnitMove(state, 'ally-visitor', city.position, { actor: 'player', civId: 'player' }).ok).toBe(true);
   });
 
   it('does not path through a foreign city without an alliance', () => {
