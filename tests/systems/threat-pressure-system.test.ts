@@ -11,10 +11,6 @@ import {
   recordCombatForCiv,
   processIndependentThreatPressure,
   processLandResurgence,
-  processThreatPressure,
-  processPirateSpawn,
-  processPirateFleets,
-  PIRATE_OWNER,
 } from '@/systems/threat-pressure-system';
 import type { GameMap, GameState, HexTile, Civilization } from '@/core/types';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
@@ -259,18 +255,7 @@ describe('processLandResurgence', () => {
   });
 });
 
-describe('processThreatPressure — hot-seat isolation', () => {
-  it('excludes AI civs from resurgence when aiPressure is off', () => {
-    const state = makeTestState({ era: 3, turn: 30 });
-    state.civilizations['p1'].isHuman = false;
-    state.settings = { ...state.settings, aiPressure: 'off' };
-    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 10 };
-    const events: any[] = [];
-    const bus = { emit: (e: string, p: any) => events.push({ e, ...p }) } as any;
-    processThreatPressure(state, 'p1', bus);
-    expect(events.filter(e => e.e === 'threat:barbarian-resurgence').length).toBe(0);
-  });
-
+describe('computeThreatScore — multiple landmasses', () => {
   it('multi-landmass: evaluates each landmass independently', () => {
     const state = makeTestState({ era: 2, turn: 30 });
     // Add continent-1 tiles
@@ -644,178 +629,6 @@ describe('independent threat pressure governor', () => {
 
     expect(deriveActiveIndependentThreatIds(state, 'player-1'))
       .toEqual(['beast:lair-giant_boar']);
-  });
-});
-
-describe('processPirateSpawn', () => {
-  function makeCoastalState(era = 2): GameState {
-    const state = makeTestState({ era, turn: 40 });
-    // High idle — score ≥ 4.0 needed for pirate spawn
-    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 0 }; // 40 turns idle
-    // City at 0,0 (coast). Landmass tiles at 0,0 through 9,0 (from makeTestState).
-    // Ocean tiles at 10..15,0 — adjacent to 9,0 (continent-0), 10+ tiles from city.
-    state.map.tiles['0,0'] = { ...state.map.tiles['0,0'], terrain: 'coast', owner: 'p1' };
-    for (let q = 10; q <= 15; q++) {
-      state.map.tiles[`${q},0`] = {
-        coord: { q, r: 0 }, terrain: 'ocean', elevation: 'lowland', resource: null,
-        improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
-      };
-    }
-    state.cities['city-1'] = { ...state.cities['city-1'], position: { q: 0, r: 0 } } as any;
-    return state;
-  }
-
-  it('spawns a pirate fleet when score ≥ 4.0 and no cooldown', () => {
-    // Era 3: the fleet is a trireme, which can float on the open-ocean spawn water. An era-1/2
-    // galley is a coast-only hull and is never put on ocean.
-    const state = makeCoastalState(3);
-    const events: any[] = [];
-    const bus = { emit: (e: string, p: any) => events.push({ e, ...p }) } as any;
-    const updated = processPirateSpawn(state, 'p1', 'continent-0', bus);
-    expect(Object.keys(updated.pirateFleets ?? {}).length).toBe(1);
-    expect(events.some(e => e.e === 'threat:pirate-fleet-spawned')).toBe(true);
-  });
-
-  it('does not spawn when max 2 fleets already active for this civ+landmass', () => {
-    const state = makeCoastalState();
-    state.pirateFleets = {
-      'fleet-1': { id: 'fleet-1', unitId: 'u1', targetCivId: 'p1', targetCityId: 'city-1', landmassId: 'continent-0', era: 2, plunderCooldown: 0 },
-      'fleet-2': { id: 'fleet-2', unitId: 'u2', targetCivId: 'p1', targetCityId: 'city-1', landmassId: 'continent-0', era: 2, plunderCooldown: 0 },
-    };
-    const bus = { emit: () => {} } as any;
-    const updated = processPirateSpawn(state, 'p1', 'continent-0', bus);
-    expect(Object.keys(updated.pirateFleets ?? {}).length).toBe(2);
-  });
-
-  it('does not spawn when score < 4.0', () => {
-    const state = makeCoastalState();
-    // Low idle so score is low
-    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 39 }; // 1 turn idle
-    const bus = { emit: () => {} } as any;
-    const updated = processPirateSpawn(state, 'p1', 'continent-0', bus);
-    expect(Object.keys(updated.pirateFleets ?? {}).length).toBe(0);
-  });
-});
-
-describe('processPirateFleets', () => {
-  function makeFleetState(): GameState {
-    const state = makeTestState({ era: 2, turn: 50 });
-    // Add ocean path between spawn and target city
-    for (let r = 1; r <= 7; r++) {
-      state.map.tiles[`5,${r}`] = {
-        coord: { q: 5, r }, terrain: 'ocean', elevation: 'lowland', resource: null,
-        improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
-      };
-    }
-    state.map.tiles['5,0'] = { ...state.map.tiles['5,0'], terrain: 'coast' };
-    state.cities['city-1'] = { ...state.cities['city-1'], position: { q: 5, r: 0 } } as any;
-
-    const unit = {
-      id: 'u-pirate', type: 'galley' as const, owner: PIRATE_OWNER,
-      position: { q: 5, r: 7 }, health: 100, movementPointsLeft: 2,
-      hasMoved: false, experience: 0, isFortified: false,
-    } as any;
-    state.units['u-pirate'] = unit;
-    state.pirateFleets = {
-      'fleet-1': {
-        id: 'fleet-1', unitId: 'u-pirate', targetCivId: 'p1',
-        targetCityId: 'city-1', landmassId: 'continent-0', era: 2, plunderCooldown: 0,
-      },
-    };
-    return state;
-  }
-
-  it('moves pirate fleet toward target city', () => {
-    const state = makeFleetState();
-    const bus = { emit: () => {} } as any;
-    const updated = processPirateFleets(state, bus);
-    const unit = updated.units['u-pirate'];
-    // Should have moved closer to city at 5,0
-    expect(unit.position.r).toBeLessThan(7);
-  });
-
-  it('removes fleet from state when its unit is destroyed', () => {
-    const state = makeFleetState();
-    delete state.units['u-pirate']; // unit died in combat
-    const bus = { emit: () => {} } as any;
-    const updated = processPirateFleets(state, bus);
-    expect(Object.keys(updated.pirateFleets ?? {}).length).toBe(0);
-  });
-
-  it('plunder steals gold from target civ when adjacent', () => {
-    const state = makeFleetState();
-    state.civilizations['p1'].gold = 80;
-    // Place unit adjacent to city (distance ≤ 2)
-    state.units['u-pirate'] = { ...state.units['u-pirate'], position: { q: 5, r: 2 } } as any;
-    state.pirateFleets = { ...state.pirateFleets, 'fleet-1': { ...state.pirateFleets!['fleet-1'], plunderCooldown: 0 } };
-    const bus = { emit: () => {} } as any;
-    const updated = processPirateFleets(state, bus);
-    // era-2 plunder: Math.floor((1 + (2-1)*0.5) * 5) = Math.floor(1.5*5) = 7
-    expect(updated.civilizations['p1'].gold).toBeLessThan(80);
-  });
-
-  it('siege deals HP damage to city when adjacent (era ≥ 2)', () => {
-    const state = makeFleetState();
-    // Place unit adjacent to city
-    state.units['u-pirate'] = { ...state.units['u-pirate'], position: { q: 5, r: 2 } } as any;
-    state.pirateFleets = { ...state.pirateFleets, 'fleet-1': { ...state.pirateFleets!['fleet-1'], plunderCooldown: 1 } }; // suppress plunder
-    const bus = { emit: () => {} } as any;
-    const updated = processPirateFleets(state, bus);
-    const cityHp = updated.cities['city-1'].hp ?? 100;
-    expect(cityHp).toBeLessThan(100);
-    expect(cityHp).toBe(90); // era-2 siege: 10 HP lost
-  });
-
-  it('siege event fires exactly once per turn regardless of repeated calls', () => {
-    const state = makeFleetState();
-    state.units['u-pirate'] = { ...state.units['u-pirate'], position: { q: 5, r: 2 } } as any;
-    state.pirateFleets = { ...state.pirateFleets, 'fleet-1': { ...state.pirateFleets!['fleet-1'], plunderCooldown: 1 } };
-    const events: string[] = [];
-    const bus = { emit: (e: string) => events.push(e) } as any;
-    processPirateFleets(state, bus);
-    expect(events.filter(e => e === 'threat:pirate-siege').length).toBe(1);
-  });
-
-  it('retargets to the wrap-nearer city rather than the raw-nearer one across the seam (issue #520)', () => {
-    const state = makeTestState({ turn: 10, era: 2 });
-    state.map.wrapsHorizontally = true;
-    const width = state.map.width;
-    state.cities = {
-      'city-raw-near': { id: 'city-raw-near', owner: 'p1', position: { q: 5, r: 0 } } as any,
-      'city-wrap-near': { id: 'city-wrap-near', owner: 'p1', position: { q: width - 1, r: 0 } } as any,
-    };
-    state.civilizations.p1.cities = ['city-raw-near', 'city-wrap-near'];
-    state.units['u-pirate'] = {
-      id: 'u-pirate', type: 'galley', owner: PIRATE_OWNER,
-      position: { q: 0, r: 0 }, health: 100, movementPointsLeft: 2,
-      hasMoved: false, experience: 0, isFortified: false,
-    } as any;
-    state.pirateFleets = {
-      'fleet-1': {
-        id: 'fleet-1', unitId: 'u-pirate', targetCivId: 'p1',
-        targetCityId: 'stale-city', landmassId: 'continent-0', era: 2, plunderCooldown: 0,
-      },
-    };
-    const bus = { emit: () => {} } as any;
-
-    const updated = processPirateFleets(state, bus);
-
-    expect(updated.pirateFleets!['fleet-1'].targetCityId).toBe('city-wrap-near');
-  });
-});
-
-describe('pirate hot-seat behavior', () => {
-  it('fleet destruction sets cooldown for civ+landmass pair', () => {
-    const state = makeTestState({ era: 2, turn: 50 });
-    state.pirateFleets = {
-      'fleet-1': { id: 'fleet-1', unitId: 'u-gone', targetCivId: 'p1', targetCityId: 'city-1',
-        landmassId: 'continent-0', era: 2, plunderCooldown: 0 },
-    };
-    // Unit not present (already destroyed)
-    const bus = { emit: () => {} } as any;
-    const updated = processPirateFleets(state, bus);
-    expect(updated.pirateFleetCooldownByCivLandmass?.['p1:continent-0']).toBe(60); // turn 50 + 10
-    expect(Object.keys(updated.pirateFleets ?? {}).length).toBe(0);
   });
 });
 

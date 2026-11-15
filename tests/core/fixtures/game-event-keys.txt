@@ -176,10 +176,6 @@ tech:completed
 tech:started
 territory:tile-flipped
 threat:barbarian-resurgence
-threat:pirate-fleet-destroyed
-threat:pirate-fleet-spawned
-threat:pirate-plunder
-threat:pirate-siege
 trade:price-changed
 trade:route-cancelled
 trade:route-created

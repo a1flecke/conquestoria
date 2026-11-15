@@ -569,9 +569,6 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
     bus.on('barbarian:camp-destroyed', () => {
       metrics.campsResolved += 1;
     });
-    bus.on('threat:pirate-plunder', () => {
-      metrics.pirateRaids += 1;
-    });
     bus.on('pirate:audio-cue', event => {
       if (event.cue === 'raid') metrics.pirateRaids += 1;
     });

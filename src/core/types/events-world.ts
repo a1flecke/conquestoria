@@ -28,15 +28,10 @@ export interface WorldEvents {
   'beast:hoard-claimed': { lairId: string; beastId: BeastId; civId: string; choice: BeastHoardChoice };
   'barbarian:camp-destroyed': { campId: string; reward: number };
   'threat:barbarian-resurgence': { civId: string; landmassId: string; campId: string; position: HexCoord; isBanditLord: boolean; banditLordName?: string };
-  'threat:pirate-fleet-spawned': { fleetId: string; civId: string; landmassId: string; position: HexCoord };
-  'threat:pirate-plunder': { fleetId: string; cityId: string; goldStolen: number };
-  'threat:pirate-siege': { fleetId: string; cityId: string; hpLost: number };
-  'threat:pirate-fleet-destroyed': { fleetId: string; civId: string; landmassId: string };
   'barbarian:city-attacked': { attackerUnitId: string; cityId: string; hpLost: number };
   'barbarian:city-destroyed': { attackerUnitId: string; cityId: string; ownerId: string };
   // Pirate-faction naval siege (#522) mirror of the barbarian city-siege events above,
-  // emitted from pirate-system.ts's completed-round processing (not the dead
-  // threat-pressure-system.ts fleet path 'threat:pirate-siege' above).
+  // emitted from pirate-system.ts's completed-round processing.
   'pirate:city-destroyed': { cityId: string; ownerId: string; factionId: string };
   'village:visited': { civId: string; position: HexCoord; outcome: VillageOutcomeType; message: string };
   // Crisis events & revolutionary movements (#381, #354)
