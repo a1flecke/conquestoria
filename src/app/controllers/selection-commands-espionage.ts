@@ -5,7 +5,7 @@
 import type { UnitType } from '@/core/types';
 import { setDisguise, attemptInfiltration, getInfiltrationSuccessChance, resolveMissionResult, embedSpy } from '@/systems/espionage-system';
 import { removeUnits } from '@/systems/unit-removal-system';
-import { findInfiltrationExitTile } from '@/systems/unit-spawn-placement';
+import { getInfiltrationTargetCity } from '@/systems/espionage-infiltration-target';
 import type { GameState } from '@/core/types';
 import type { SelectionCommonDeps, SelectionCore, SelectedUnitCommands, SelectionCommandArgs } from './selection-shared';
 
@@ -41,11 +41,9 @@ export function createEspionageCommands(
       if (!unit || unit.owner !== session.getState().currentPlayer) return;
       const civEsp = session.getState().espionage?.[session.getState().currentPlayer];
       if (!civEsp) return;
-      const targetCity = Object.values(session.getState().cities).find(
-        c => c.owner !== session.getState().currentPlayer &&
-             c.position.q === unit.position.q && c.position.r === unit.position.r,
-      );
-      if (!targetCity) { deps.showNotification('No enemy city at this location.', 'info'); return; }
+      // Spies infiltrate from the tile next to a rival civilization's city; they never enter it.
+      const targetCity = getInfiltrationTargetCity(session.getState(), unit);
+      if (!targetCity) { deps.showNotification('Move the spy next to a rival civilization\'s city to infiltrate it.', 'info'); return; }
 
       const alreadyInside = Object.values(civEsp.spies).some(
         s => s.infiltrationCityId === targetCity.id &&
@@ -115,15 +113,9 @@ export function createEspionageCommands(
         };
       } else {
         const cooldown = result.civEsp.spies[uid]?.cooldownTurns ?? 3;
-        // A spy who failed to get in slips back out of the city, so the city's owner can still
-        // garrison and train there (no foreign unit is left standing on its tile).
-        const exit = findInfiltrationExitTile(session.getState(), unit, targetCity.position);
-        nextUnits = {
-          ...nextUnits,
-          [uid]: { ...unit, ...(exit ? { position: exit } : {}), hasActed: true, movementPointsLeft: 0 },
-        };
+        nextUnits = { ...nextUnits, [uid]: { ...unit, hasActed: true, movementPointsLeft: 0 } };
         runSideEffects = () => {
-          deps.showNotification(`Spy failed to infiltrate ${targetCity.name}. Lying low outside the city for ${cooldown} turns.`, 'info');
+          deps.showNotification(`Spy failed to infiltrate ${targetCity.name}. Lying low for ${cooldown} turns.`, 'info');
           core.selectUnit(uid);
         };
       }

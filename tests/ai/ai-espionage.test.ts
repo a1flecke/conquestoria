@@ -965,10 +965,10 @@ describe('AI grudges and Go public (#419 PR 3)', () => {
   });
 });
 
-// A failed, uncaught infiltration used to leave the AI's spy standing on the enemy city tile for
-// its whole cooldown: the owner could not move a unit into its own city, and anything the city
-// trained shared the tile with the foreign spy (a mixed-owner stack).
-describe('AI failed infiltration leaves the city tile', () => {
+// Spies infiltrate from the tile next to a city and never enter it. A failed, uncaught attempt used
+// to leave the AI's spy on the enemy city tile for its whole cooldown: the owner could not move into
+// its own city, and anything it trained there shared the tile with the foreign spy.
+describe('AI infiltration from the adjacent tile', () => {
   const CITY = { q: 0, r: 0 };
   const OPEN = { q: 1, r: 0 };
 
@@ -982,9 +982,9 @@ describe('AI failed infiltration leaves the city tile', () => {
         owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
       };
     }
-    // The spy has just walked into the city this turn, as the AI's own spy movement leaves it.
+    // The spy has just walked up next to the city this turn, as the AI's own spy movement leaves it.
     state.units['spy-ai'] = {
-      ...createUnit('spy_scout', 'ai-egypt', CITY, { ...state.idCounters }), id: 'spy-ai', hasMoved: true, movementPointsLeft: 0,
+      ...createUnit('spy_scout', 'ai-egypt', OPEN, { ...state.idCounters }), id: 'spy-ai', hasMoved: true, movementPointsLeft: 0,
     };
     state.civilizations['ai-egypt'].units = ['spy-ai'];
     let aiEsp: EspionageCivState = { ...createEspionageCivState(), maxSpies: 2, counterIntelligence: { 'city-egypt-1': 1 } };
@@ -993,11 +993,14 @@ describe('AI failed infiltration leaves the city tile', () => {
     return state;
   }
 
-  it('moves the spy to a tile it can stand on, and the owner can then train in its city', () => {
+  it('attempts from next to the city, stays there on failure, and the owner can still train', () => {
     let checked = 0;
+    let succeeded = 0;
     for (let turn = 1; turn <= 80; turn++) {
       const after = processAITurn(failedAttemptState(turn), 'ai-egypt', new EventBus());
-      const spy = after.espionage?.["ai-egypt"]?.spies["spy-ai"];
+      const spy = after.espionage?.['ai-egypt']?.spies['spy-ai'];
+      // A success embeds the spy off the map; the AI may start a mission at once.
+      if ((spy?.status === 'stationed' || spy?.status === 'on_mission') && !after.units['spy-ai']) succeeded++;
       if (spy?.status !== 'cooldown' || !after.units['spy-ai']) continue;
       checked++;
       expect(after.units['spy-ai'].position, `turn ${turn}`).toEqual(OPEN);
@@ -1006,5 +1009,6 @@ describe('AI failed infiltration leaves the city tile', () => {
       if (trained.ok) assertNoIllegalBlockingOccupancy(trained.state);
     }
     expect(checked).toBeGreaterThan(0);
+    expect(succeeded).toBeGreaterThan(0);
   });
 });

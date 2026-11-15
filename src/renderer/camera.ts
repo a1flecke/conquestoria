@@ -1,5 +1,5 @@
 import { hexToPixel, pixelToHex } from '@/systems/hex-utils';
-import type { HexCoord } from '@/core/types';
+import type { HexCoord } from '@/core/types/hex';
 
 type CameraListener = () => void;
 

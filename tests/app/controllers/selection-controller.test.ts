@@ -51,6 +51,8 @@ function findButtonByText(container: HTMLElement, text: string): HTMLButtonEleme
   return button as HTMLButtonElement;
 }
 
+const SPY_POST = { q: 1, r: 0 };
+
 function tryUntilInfiltrate(
   unitType: Unit['type'],
   predicate: (state: GameState, uid: string) => boolean,
@@ -60,8 +62,9 @@ function tryUntilInfiltrate(
     const uid = `infiltrator-${i}`;
     const state = makeFixture();
     const template = Object.values(state.cities)[0]!;
+    // Spies infiltrate from the tile next to the city; they never stand on it.
     state.cities['enemy-city'] = { ...template, id: 'enemy-city', owner: 'ai-1', position: { q: 0, r: 0 } };
-    placePlayerUnit(state, uid, { type: unitType, position: { q: 0, r: 0 } });
+    placePlayerUnit(state, uid, { type: unitType, position: SPY_POST });
     state.espionage = { player: createEspionageCivState() };
     state.espionage.player.spies[uid] = {
       id: uid, owner: 'player', name: 'Agent', unitType,
@@ -758,13 +761,12 @@ describe('SelectionController', () => {
     });
   });
 
-  describe('onInfiltrate leaves the city tile to its owner', () => {
-    // (0,0) is the enemy city. Its neighbours: one open plain, the rest water.
-    const OPEN = { q: 1, r: 0 };
+  describe('onInfiltrate works from the tile next to the city', () => {
+    // (0,0) is the enemy city and the spy stands at SPY_POST (1,0). The other neighbours are water.
     const landAroundCity = (deps: SelectionControllerDeps) => {
       const state = deps.session.getState();
       for (const coord of [{ q: 0, r: 0 }, ...hexNeighbors({ q: 0, r: 0 })]) {
-        const open = hexKey(coord) === hexKey(OPEN) || hexKey(coord) === '0,0';
+        const open = hexKey(coord) === hexKey(SPY_POST) || hexKey(coord) === '0,0';
         state.map.tiles[hexKey(coord)] = {
           coord, terrain: open ? 'plains' : 'ocean', elevation: 'lowland', resource: null, improvement: 'none',
           owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
@@ -772,7 +774,7 @@ describe('SelectionController', () => {
       }
     };
 
-    it('a failed, uncaught spy slips out of the city to a tile it can stand on', () => {
+    it('a failed, uncaught spy lies low where it stands, outside the city', () => {
       const found = tryUntilInfiltrate(
         'spy_scout',
         (state, uid) => state.units[uid] !== undefined && state.espionage!.player.spies[uid]?.status === 'cooldown',
@@ -780,20 +782,31 @@ describe('SelectionController', () => {
       );
       expect(found).not.toBeNull();
       const state = found!.deps.session.getState();
-      expect(state.units[found!.uid].position).toEqual(OPEN);
+      expect(state.units[found!.uid].position).toEqual(SPY_POST);
       expect(state.units[found!.uid].hasActed).toBe(true);
-    });
-
-    it('the enemy can then garrison its own city and train a unit there without a mixed stack', () => {
-      const found = tryUntilInfiltrate(
-        'spy_scout',
-        (state, uid) => state.units[uid] !== undefined && state.espionage!.player.spies[uid]?.status === 'cooldown',
-        landAroundCity,
-      );
-      const state = found!.deps.session.getState();
+      // The enemy can still train in its own city without a mixed-owner stack.
       const trained = completeUnitProduction(state, { civId: 'ai-1', cityId: 'enemy-city', unitType: 'warrior' });
       expect(trained.ok).toBe(true);
       if (trained.ok) assertNoIllegalBlockingOccupancy(trained.state);
+    });
+
+    it('offers no Infiltrate button to a spy that is not next to a rival city', () => {
+      const state = makeFixture();
+      const template = Object.values(state.cities)[0]!;
+      state.cities['enemy-city'] = { ...template, id: 'enemy-city', owner: 'ai-1', position: { q: 0, r: 0 } };
+      placePlayerUnit(state, 'far-spy', { type: 'spy_scout', position: { q: 3, r: 0 } });
+      state.espionage = { player: createEspionageCivState() };
+      state.espionage.player.spies['far-spy'] = {
+        id: 'far-spy', owner: 'player', name: 'Agent', unitType: 'spy_scout',
+        targetCivId: null, targetCityId: null, position: null,
+        status: 'idle', experience: 0, currentMission: null,
+        cooldownTurns: 0, promotion: undefined, promotionAvailable: false, feedsFalseIntel: false,
+      };
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const controller = createSelectionController(baseDeps(state));
+      controller.selectUnit('far-spy');
+      const labels = [...document.getElementById('info-panel')!.querySelectorAll('button')].map(b => b.textContent);
+      expect(labels.some(label => label?.startsWith('Infiltrate'))).toBe(false);
     });
 
     it('era-1 scout success still reveals the land around the city (#1693 regression)', () => {
@@ -804,7 +817,7 @@ describe('SelectionController', () => {
       );
       expect(found).not.toBeNull();
       const visibility = found!.deps.session.getState().civilizations.player.visibility.tiles;
-      expect(visibility[hexKey(OPEN)]).toBe('visible');
+      expect(visibility['0,0']).toBe('visible');
       expect(visibility['0,2']).toBe('visible');
     });
   });

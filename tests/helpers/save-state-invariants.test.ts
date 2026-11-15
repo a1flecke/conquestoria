@@ -1091,6 +1091,33 @@ describe('#994 assertNoIllegalBlockingOccupancy', () => {
     expect(() => assertNoIllegalBlockingOccupancy(state)).toThrow(/different owners/);
   });
 
+  it('rejects a spy standing on a city it does not own, even with a live idle or cooldown record', () => {
+    for (const status of ['idle', 'cooldown', 'on_mission'] as const) {
+      const { state, cityId } = stateWithPlayerCity(`occ-parked-spy-${status}`);
+      const city = state.cities[cityId];
+      const spyUnit = createUnit('spy_agent', 'ai-1', city.position, state.idCounters);
+      state.units = { [spyUnit.id]: spyUnit };
+      const { state: espionage } = createSpyFromUnit(createEspionageCivState(), spyUnit.id, 'ai-1', 'spy_agent', 'occ-parked');
+      espionage.spies[spyUnit.id] = { ...espionage.spies[spyUnit.id], status };
+      state.espionage = { ...state.espionage, 'ai-1': espionage };
+      expect(() => assertNoIllegalBlockingOccupancy(state), status).toThrow(/foreign-city/);
+    }
+  });
+
+  it('rejects a spy on an allied city, which an ordinary allied unit may enter', () => {
+    const { state, cityId } = stateWithPlayerCity('occ-allied-spy');
+    const city = state.cities[cityId];
+    const treaty = (civA: string, civB: string) => ({ type: 'alliance', civA, civB, turnsRemaining: -1 });
+    state.civilizations.player.diplomacy.treaties = [treaty('player', 'ai-1')] as never;
+    state.civilizations['ai-1'].diplomacy.treaties = [treaty('player', 'ai-1')] as never;
+    const ally = createUnit('warrior', 'ai-1', city.position, state.idCounters);
+    state.units = { [ally.id]: ally };
+    expect(() => assertNoIllegalBlockingOccupancy(state)).not.toThrow();
+    const spyUnit = createUnit('spy_agent', 'ai-1', city.position, state.idCounters);
+    state.units = { [spyUnit.id]: spyUnit };
+    expect(() => assertNoIllegalBlockingOccupancy(state)).toThrow(/foreign-city/);
+  });
+
   // #845: an undefended barbarian camp had zero representation in the movement system before
   // getBlockingMapEntityAt covered it. A unit walking onto (or being spawned onto) one is the
   // same illegal-final-state shape.

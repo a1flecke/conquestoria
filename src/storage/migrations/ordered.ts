@@ -3,6 +3,7 @@ import { migrateDominationIntel } from './steps/domination-intel';
 import { normalizeMinorCivLeagueState } from '@/storage/minor-civ-league-normalization';
 import type { OrderedMigration } from './types';
 import { migrateMinorCivFoundedTurn } from './steps/minor-civ-founded-turn';
+import { migrateSpiesLeaveForeignCities } from './steps/spies-leave-foreign-cities';
 import { migrateToEra13Foundation } from './steps/tech-identity';
 import { migrateLateResources } from './steps/late-resources';
 import { migrateAutonomyNetwork, migrateAutonomyNetworkPostures } from './steps/autonomy-network';
@@ -283,6 +284,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'minor-civ-founded-turn',
     reason: '#497 records when each city-state came into being so graduation eligibility can read a survival age. A city-state in an older save has no founding record, so it is stamped once with the load turn: it starts ageing from the upgrade rather than being treated as ancient, which keeps a legacy campaign from graduating anyone the moment the system exists.',
     apply: migrateMinorCivFoundedTurn,
+  },
+  {
+    version: 39,
+    id: 'spies-leave-foreign-cities',
+    reason: 'A spy may no longer stand on a city its owner does not hold: it infiltrates from the adjacent tile, and movement blocks every foreign city, allied ones included, for a spy. An older save can hold a spy parked on a foreign city (idle, or lying low after a failed attempt), which locked the owner out of its own city and stacked with what it trained. Each is moved once to a legal tile next to that city, else home to its capital; one with nowhere legal to go is kept, never deleted.',
+    apply: migrateSpiesLeaveForeignCities,
   },
 ];
 

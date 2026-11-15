@@ -3,7 +3,6 @@ import type { GameState, HexCoord, TerrainType } from '@/core/types';
 import { createUnit } from '@/systems/unit-lifecycle';
 import {
   filterLegalSpawnTiles,
-  findInfiltrationExitTile,
   findSpyReturnTile,
   isLegalSpawnTile,
   spawnNeighbours,
@@ -84,14 +83,16 @@ describe('unit spawn placement', () => {
     expect(filterLegalSpawnTiles(state, warrior, spawnNeighbours(state, { q: 0, r: 0 }))).toEqual([{ q: 9, r: 0 }]);
   });
 
-  it('returns a spy to its own city first, and an infiltrator never to the foreign city tile', () => {
-    const state = makeState({ '0,0': 'plains', '1,0': 'plains' });
+  it('returns a spy to its own city first, and never onto a city it does not own', () => {
+    const state = makeState({ '0,0': 'plains', '1,0': 'plains', '5,5': 'plains', '6,5': 'plains' });
     state.cities = {
       home: { id: 'home', owner: 'p1', position: { q: 0, r: 0 } },
+      ally: { id: 'ally', owner: 'p2', position: { q: 5, r: 5 } },
     } as unknown as GameState['cities'];
     expect(findSpyReturnTile(state, 'p1', 'spy_agent', { q: 0, r: 0 })).toEqual({ q: 0, r: 0 });
-    expect(findInfiltrationExitTile(state, { owner: 'p2', type: 'spy_agent' }, { q: 0, r: 0 })).toEqual({ q: 1, r: 0 });
-    state.map.tiles['1,0'].terrain = 'ocean';
-    expect(findInfiltrationExitTile(state, { owner: 'p2', type: 'spy_agent' }, { q: 0, r: 0 })).toBeNull();
+    // A spy is blocked by every city its owner does not hold, alliance or not.
+    expect(findSpyReturnTile(state, 'p1', 'spy_agent', { q: 5, r: 5 })).toEqual({ q: 6, r: 5 });
+    expect(isLegalSpawnTile(state, { ownerId: 'p1', unitType: 'warrior', stacking: 'same-owner' }, { q: 5, r: 5 }))
+      .toBe(false);
   });
 });

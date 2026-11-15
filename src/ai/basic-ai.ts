@@ -154,7 +154,8 @@ import { applyPillageToState, canPillageTile } from '@/systems/pillage-system';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { processWorkerDevelopment } from './ai-worker-development';
 import { chooseAiBoon, chooseBoon } from '@/systems/religion-system';
-import { findInfiltrationExitTile, findSpyReturnTile } from '@/systems/unit-spawn-placement';
+import { findSpyReturnTile } from '@/systems/unit-spawn-placement';
+import { getInfiltrationTargetCity } from '@/systems/espionage-infiltration-target';
 import { removeUnits } from '@/systems/unit-removal-system';
 
 /** #988: how decisive a military advantage must be before the AI converts a
@@ -1645,7 +1646,8 @@ function processAITurnInternal(
       if (candidates.length === 0) continue;
       const target = candidates[0];
       const targetPosition = target.position!;
-      if (spyUnit.position.q === targetPosition.q && spyUnit.position.r === targetPosition.r) continue;
+      // Spies work on a city from the tile next to it; one already there has arrived.
+      if (mapDistance(newState.map, spyUnit.position, targetPosition) <= 1) continue;
       const path = findPath(spyUnit.position, targetPosition, newState.map, 'land', {
         unit: spyUnit,
         completedTechs: newState.civilizations[civId].techState.completed ?? [],
@@ -1661,29 +1663,19 @@ function processAITurnInternal(
         newState,
         spyUnit.id,
         next,
-        {
-          actor: 'ai',
-          civId,
-          bus,
-          foreignCityEntryId: hexKey(next) === hexKey(targetPosition)
-            ? target.id
-            : undefined,
-        },
+        { actor: 'ai', civId, bus },
       );
       if (movement.ok) newState = movement.state;
     }
 
-    // 2) Attempt infiltration when a spy is on an enemy city tile
+    // 2) Attempt infiltration when a spy stands next to an enemy city
     const spyIdsThisTurn = (newState.civilizations[civId].units ?? []).filter(
       id => newState.units[id] && isSpyUnitType(newState.units[id].type),
     );
     for (const spyUnitId of spyIdsThisTurn) {
       const spyUnit = newState.units[spyUnitId];
       if (!spyUnit) continue;
-      const cityHere = Object.values(newState.cities).find(
-        c => c.owner !== civId &&
-             c.position.q === spyUnit.position.q && c.position.r === spyUnit.position.r,
-      );
+      const cityHere = getInfiltrationTargetCity(newState, spyUnit);
       if (!cityHere) continue;
       const civEspNow = newState.espionage?.[civId];
       if (!civEspNow) continue;
@@ -1712,12 +1704,8 @@ function processAITurnInternal(
           capturingCivId: cityHere.owner, spyOwner: civId, spyId: spyUnitId, cityId: cityHere.id,
         });
       } else {
-        // Failed but not caught: slip back out of the city, exactly as the player's spy does,
-        // so the city's owner is never left sharing its own tile with a foreign spy.
-        const exit = findInfiltrationExitTile(newState, spyUnit, cityHere.position);
-        newState.units[spyUnitId] = {
-          ...spyUnit, ...(exit ? { position: exit } : {}), hasActed: true, movementPointsLeft: 0,
-        };
+        // Failed but not caught: the spy lies low where it stands, next to the city.
+        newState.units[spyUnitId] = { ...spyUnit, hasActed: true, movementPointsLeft: 0 };
       }
     }
 
