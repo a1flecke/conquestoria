@@ -432,7 +432,7 @@ export function processLandResurgence(
   const allCamps = Object.values(state.barbarianCamps);
   const cityPositions = Object.values(state.cities).map(c => c.position);
   // #982: one resurgence roll per (civ, landmass) per invocation -- the caller
-  // (processThreatPressure) only visits each landmassId once per civ per turn.
+  // (processIndependentThreatPressure) only visits each landmassId once per civ per turn.
   const rng = createSimulationRng(state, { domain: 'threat-pressure-land-spawn', actorId: civId, targetId: landmassId });
   // A resurgent camp must never land on a tile a live unit already occupies (any owner) --
   // otherwise assertNoIllegalBlockingOccupancy trips for that unit the moment the camp exists.
@@ -511,39 +511,16 @@ export function processLandResurgence(
   return updatedState;
 }
 
-// ── Pirate fleet spawn ────────────────────────────────────────────────────────
-
-const PIRATE_FLEET_THRESHOLD = 4.0;
-const PIRATE_FLEET_CAP = 2;
-const PIRATE_FLEET_COOLDOWN = 10;
+// ── Pirate hunt fleet ─────────────────────────────────────────────────────────
 
 function pirateUnitType(era: number): 'galley' | 'trireme' {
   return era >= 3 ? 'trireme' : 'galley';
 }
 
-function findPirateSpawnTile(state: GameState, landmassId: string): HexCoord | null {
-  const cityPositions = Object.values(state.cities).map(c => c.position);
-  const candidates = Object.values(state.map.tiles).filter(tile => {
-    if (tile.terrain !== 'ocean') return false;
-    // Must be adjacent to a land tile on the target landmass
-    const nearLandmass = mapNeighbors(state.map, tile.coord).some(nb => {
-      const t = state.map.tiles[hexKey(nb)];
-      return t?.regionKey === landmassId;
-    });
-    if (!nearLandmass) return false;
-    // Must be ≥ 5 tiles from any city
-    for (const pos of cityPositions) {
-      if (mapDistance(state.map, tile.coord, pos) < 5) return false;
-    }
-    return true;
-  });
-  return candidates.length > 0 ? candidates[0].coord : null;
-}
-
-// Core fleet-creation shared by the organic (threshold-gated) spawn below and any
-// forced spawn (e.g. a Hunt crisis's corsair-armada flavor) — no threshold/cooldown
-// checks here; callers are responsible for those. `targetCity` is whichever coastal
-// city the caller has already chosen as the fleet's raid target.
+// The fleet a Hunt crisis's corsair-armada flavor raises. The organic pirate-fleet spawn and its
+// movement/plunder loop that used to live here were retired in favour of the pirate factions
+// (`pirate-system.ts`); no threshold or cooldown is checked here. `targetCity` is whichever
+// coastal city the caller has already chosen as the fleet's raid target.
 export function createPirateFleetNear(
   state: GameState,
   civId: string,
@@ -595,245 +572,6 @@ export function createPirateFleetNear(
   };
 
   return { state: updatedState, fleetId };
-}
-
-export function processPirateSpawn(
-  state: GameState,
-  civId: string,
-  landmassId: string,
-  bus: EventBus,
-): GameState {
-  const cooldownKey = `${civId}:${landmassId}`;
-  const cooldownUntil = state.pirateFleetCooldownByCivLandmass?.[cooldownKey] ?? 0;
-  if (state.turn < cooldownUntil) return state;
-
-  const score = computeThreatScore(state, civId, landmassId);
-  if (score < PIRATE_FLEET_THRESHOLD) return state;
-
-  // Check fleet cap for this civ+landmass
-  const activeFleets = Object.values(state.pirateFleets ?? {}).filter(
-    f => f.targetCivId === civId && f.landmassId === landmassId
-  );
-  if (activeFleets.length >= PIRATE_FLEET_CAP) return state;
-
-  const civ = state.civilizations[civId];
-  if (!civ) return state;
-
-  // Find coastal cities on landmass
-  const coastalCities = civ.cities.flatMap(cityId => {
-    const city = state.cities[cityId];
-    if (!city) return [];
-    const tile = state.map.tiles[hexKey(city.position)];
-    const isCoastal = tile?.terrain === 'coast'
-      || mapNeighbors(state.map, city.position).some(nb => {
-        const t = state.map.tiles[hexKey(nb)];
-        return t?.terrain === 'ocean' || t?.terrain === 'coast';
-      });
-    const onLandmass = tile?.regionKey === landmassId;
-    return isCoastal && onLandmass ? [city] : [];
-  });
-  if (coastalCities.length === 0) return state;
-
-  // Find spawn tile: ocean tile adjacent to landmass coastline, ≥ 5 tiles from any city.
-  // Target-city selection depends on it (nearest coastal city to the spawn point), so
-  // probe with a lightweight lookup before delegating fleet creation to the shared helper.
-  const spawnTile = findPirateSpawnTile(state, landmassId);
-  if (!spawnTile) return state;
-
-  const targetCity = coastalCities.reduce((nearest, city) => {
-    const d1 = mapDistance(state.map, city.position, spawnTile);
-    const d2 = mapDistance(state.map, nearest.position, spawnTile);
-    return d1 < d2 ? city : nearest;
-  });
-
-  // #982: one pirate-spawn roll per (civ, landmass) per invocation -- same call
-  // frequency as processLandResurgence above.
-  const rng = createSimulationRng(state, { domain: 'threat-pressure-pirate-spawn', actorId: civId, targetId: landmassId });
-  const { state: updatedState, fleetId } = createPirateFleetNear(state, civId, landmassId, targetCity, rng);
-  if (!fleetId) return state;
-
-  bus.emit('threat:pirate-fleet-spawned', {
-    fleetId, civId, landmassId, position: spawnTile,
-  });
-
-  return updatedState;
-}
-
-// ── Pirate fleet movement + plunder/siege ─────────────────────────────────────
-
-const PLUNDER_COOLDOWN_TURNS = 3;
-const ADJACENT_HEX_DIST = 2;
-
-function movePirateTowardCity(
-  state: GameState,
-  unitId: string,
-  targetCityId: string,
-): GameState {
-  const unit = state.units[unitId];
-  const city = state.cities[targetCityId];
-  if (!unit || !city) return state;
-  if (mapDistance(state.map, unit.position, city.position) <= ADJACENT_HEX_DIST) return state;
-
-  // BFS to find next step on ocean/coast path
-  const start = hexKey(unit.position);
-  const visited = new Set<string>([start]);
-  const queue: Array<{ key: string; path: HexCoord[] }> = [{ key: start, path: [] }];
-
-  while (queue.length > 0) {
-    const { key, path } = queue.shift()!;
-    const [q, r] = key.split(',').map(Number);
-    const coord = { q, r };
-    for (const nb of mapNeighbors(state.map, coord)) {
-      const nbKey = hexKey(nb);
-      if (visited.has(nbKey)) continue;
-      visited.add(nbKey);
-      const tile = state.map.tiles[nbKey];
-      if (!tile) continue;
-      const newPath = [...path, nb];
-      if (tile.terrain === 'ocean' || tile.terrain === 'coast') {
-        if (hexKey(nb) === hexKey(city.position) || mapDistance(state.map, nb, city.position) <= ADJACENT_HEX_DIST) {
-          // First step is our move
-          const nextPos = newPath[0] ?? nb;
-          return {
-            ...state,
-            units: { ...state.units, [unitId]: { ...unit, position: { ...nextPos } } },
-          };
-        }
-        queue.push({ key: nbKey, path: newPath });
-      }
-    }
-  }
-  return state;
-}
-
-export function processPirateFleets(state: GameState, bus: EventBus): GameState {
-  if (!state.pirateFleets || Object.keys(state.pirateFleets).length === 0) return state;
-
-  let nextState = state;
-
-  for (const [fleetId, fleet] of Object.entries(nextState.pirateFleets ?? {})) {
-    const unit = nextState.units[fleet.unitId];
-
-    // Fleet unit was destroyed — clean up and set cooldown
-    if (!unit) {
-      const cooldownKey = `${fleet.targetCivId}:${fleet.landmassId}`;
-      nextState = {
-        ...nextState,
-        pirateFleets: Object.fromEntries(
-          Object.entries(nextState.pirateFleets ?? {}).filter(([id]) => id !== fleetId)
-        ),
-        pirateFleetCooldownByCivLandmass: {
-          ...(nextState.pirateFleetCooldownByCivLandmass ?? {}),
-          [cooldownKey]: nextState.turn + PIRATE_FLEET_COOLDOWN,
-        },
-      };
-      bus.emit('threat:pirate-fleet-destroyed', {
-        fleetId, civId: fleet.targetCivId, landmassId: fleet.landmassId,
-      });
-      continue;
-    }
-
-    // Retarget if city no longer valid
-    let targetCity = nextState.cities[fleet.targetCityId];
-    let updatedFleet = fleet;
-    if (!targetCity || targetCity.owner !== fleet.targetCivId) {
-      const civ = nextState.civilizations[fleet.targetCivId];
-      const civCities = (civ?.cities ?? []).map(id => nextState.cities[id]).filter((c): c is City => !!c);
-      const newTarget: City | undefined = civCities.reduce<City | undefined>((nearest, city) => {
-        if (!nearest) return city;
-        const d1 = mapDistance(nextState.map, city.position, unit.position);
-        const d2 = mapDistance(nextState.map, nearest.position, unit.position);
-        return d1 < d2 ? city : nearest;
-      }, undefined);
-      if (!newTarget) continue;
-      targetCity = newTarget;
-      updatedFleet = { ...updatedFleet, targetCityId: newTarget.id };
-    }
-
-    // Move toward target
-    nextState = movePirateTowardCity(nextState, fleet.unitId, updatedFleet.targetCityId);
-    const updatedUnit = nextState.units[fleet.unitId];
-    if (!updatedUnit) continue;
-
-    const isAdjacent = mapDistance(nextState.map, updatedUnit.position, targetCity.position) <= ADJACENT_HEX_DIST;
-
-    // Plunder: once adjacent, steal gold on cooldown
-    if (isAdjacent && updatedFleet.plunderCooldown === 0) {
-      const targetCiv = nextState.civilizations[fleet.targetCivId];
-      if (targetCiv) {
-        const targetEra = resolveCivilizationEra(targetCiv.techState.completed);
-        const goldStolen = Math.floor((1 + (targetEra - 1) * 0.5) * 5);
-        nextState = {
-          ...nextState,
-          civilizations: {
-            ...nextState.civilizations,
-            [fleet.targetCivId]: { ...targetCiv, gold: Math.max(0, targetCiv.gold - goldStolen) },
-          },
-        };
-        bus.emit('threat:pirate-plunder', { fleetId, cityId: targetCity.id, goldStolen });
-        updatedFleet = { ...updatedFleet, plunderCooldown: PLUNDER_COOLDOWN_TURNS };
-      }
-    } else {
-      updatedFleet = { ...updatedFleet, plunderCooldown: Math.max(0, updatedFleet.plunderCooldown - 1) };
-    }
-
-    // Siege (era 2+): damage city hp every turn when adjacent
-    if (isAdjacent && fleet.era >= 2) {
-      const hpLost = fleet.era >= 3 ? 20 : 10;
-      const city = nextState.cities[fleet.targetCityId];
-      if (city) {
-        nextState = {
-          ...nextState,
-          cities: {
-            ...nextState.cities,
-            [fleet.targetCityId]: { ...city, hp: Math.max(0, (city.hp ?? 100) - hpLost) },
-          },
-        };
-      }
-      bus.emit('threat:pirate-siege', { fleetId, cityId: fleet.targetCityId, hpLost });
-    }
-
-    nextState = {
-      ...nextState,
-      pirateFleets: { ...(nextState.pirateFleets ?? {}), [fleetId]: updatedFleet },
-    };
-  }
-
-  return nextState;
-}
-
-// ── Spawn-phase dispatcher ────────────────────────────────────────────────────
-
-export function processThreatPressure(
-  state: GameState,
-  civId: string,
-  bus: EventBus,
-  options: { includeLegacyPirates?: boolean } = {},
-): GameState {
-  const civ = state.civilizations[civId];
-  if (!civ || !isPiratePressureEligible(state, civId)) return state;
-
-  // Collect unique landmass IDs where civ has cities
-  const landmassIds = new Set<string>();
-  for (const cityId of civ.cities) {
-    const city = state.cities[cityId];
-    if (!city) continue;
-    const tile = state.map.tiles[hexKey(city.position)];
-    if (tile?.regionKey) landmassIds.add(tile.regionKey);
-  }
-
-  let nextState = state;
-  for (const landmassId of landmassIds) {
-    const score = computeThreatScore(nextState, civId, landmassId);
-    if (score >= LAND_RESURGENCE_THRESHOLD) {
-      nextState = processLandResurgence(nextState, civId, landmassId, bus);
-    }
-    if (options.includeLegacyPirates !== false && score >= PIRATE_FLEET_THRESHOLD) {
-      nextState = processPirateSpawn(nextState, civId, landmassId, bus);
-    }
-  }
-
-  return nextState;
 }
 
 export function recordCombatForCiv(state: GameState, civId: string, position: HexCoord): GameState {
