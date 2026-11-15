@@ -1242,6 +1242,7 @@ __metadata:
     "@types/react-dom": "npm:^19"
     headroom-ai: "npm:^0.22.4"
     jsdom: "npm:^29.1.1"
+    playwright-core: "npm:1.61.0"
     react: "npm:^19.2.6"
     react-dom: "npm:^19.2.6"
     tsx: "npm:^4.22.0"
