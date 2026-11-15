@@ -4,6 +4,8 @@
 
 Updated 7 November 2026 with the subsequent exploration and water-engineering paper campaigns. Their accepted directions and constructed examples are preserved in the [exploration campaign checkpoint](2026-11-07-issue-1125-exploration-campaign.md) and [water-engineering checkpoint](2026-11-07-issue-1125-water-engineering.md). These checkpoints supersede earlier trial figures only where explicitly stated; no gameplay implementation is claimed.
 
+Updated 15 November 2026 with the [engineering-connections checkpoint](2026-11-15-issue-1125-engineering-connections.md) and [fixed passage rehearsal](2026-11-15-issue-1125-engineering-passage-rehearsal.md). Suez/Panama-scale functioning connections are required positive examples; neither majority world coverage nor one-third journey savings is a universal gate. A premature regional victory verdict was withdrawn. The latest rehearsal exposed weak strategic choices, not a validated win condition. The user accepted simplifying the experience around consequential national commitments, useful preparation and a recognizable finish; final measurements and competing-victory pacing remain open.
+
 ## Purpose and design standard
 
 Develop several satisfying ways to leave a world-changing legacy, supporting different personalities, independent leadership and genuine cooperation. Evaluate gameplay, fun, excitement, playability and lovability. The shared framework describes how an accomplishment qualifies; it must not force every candidate into the same research/build/deploy loop.

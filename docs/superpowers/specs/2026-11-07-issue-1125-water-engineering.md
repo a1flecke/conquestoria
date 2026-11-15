@@ -2,6 +2,8 @@
 
 7 November 2026. Advisory backup for [issue #1125](https://github.com/a1flecke/conquestoria/issues/1125), read with the [portfolio](2026-10-26-issue-1125-legacy-portfolio.md) and [exploration checkpoint](2026-11-07-issue-1125-exploration-campaign.md). Accepted directions are product candidates. All campaign outcomes, prices, percentages and physical assumptions below are paper-test constructions, not implemented gameplay, validated hydrology, calibrated economics or empirical proof of enjoyment.
 
+Subsequent direction and campaign state are recorded in the [15 November engineering-connections checkpoint](2026-11-15-issue-1125-engineering-connections.md), with a separate [passage rehearsal](2026-11-15-issue-1125-engineering-passage-rehearsal.md). The population-focused trial below is not a universal engineering requirement. The later regional victory claim was withdrawn, the mainland's remaining 28-gold investment is held, and Suez/Panama-like major connections can qualify through their demonstrated consequences without requiring newly created industry or majority world coverage.
+
 ## Accepted experience and qualification
 
 Water engineering changes where substantial civilization can thrive. A profitable terminal, famous dam, cheap power, many pipes or several successful local services is insufficient. Existing technology can enable extraordinary engineering; no compulsory scientific breakthrough or era floor is implied.
