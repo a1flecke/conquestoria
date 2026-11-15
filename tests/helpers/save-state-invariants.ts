@@ -736,9 +736,10 @@ export function assertOpponentAIPortfolioIntegrity(state: GameState): void {
  * check, so a carrier's air wing or a transport's cargo manifest never double-reports the same
  * tile its hull already covers.
  *
- * Espionage can explicitly enter a foreign city. A scout stays on the map after a
- * successful infiltration, and an uncaught spy stays on the map during cooldown.
- * These spies still participate in the mixed-owner stacking check.
+ * Espionage can explicitly enter a foreign city: an idle spy may stand on one before it
+ * infiltrates. A successful infiltration takes the spy off the map (#1693) and a failed,
+ * uncaught one sends it back out to a neighbouring tile (`findInfiltrationExitTile`).
+ * Spies still participate in the mixed-owner stacking check.
  */
 export function assertNoIllegalBlockingOccupancy(state: GameState): void {
   const problems: string[] = [];
