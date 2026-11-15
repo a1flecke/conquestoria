@@ -171,13 +171,51 @@ describe('prepared major-civilization planning', () => {
         .filter(itemId => isSpyUnitType(itemId as UnitType))).toEqual(['spy_informant']);
     });
 
-    it('counts an off-map spy against the peacetime roster limit', () => {
+    it('asks for a second operative so one can defend and one can operate (#1722)', () => {
       const { state, civ } = spyProcurementGame();
-      const created = createSpyFromUnit(state.espionage![civ.id], 'stationed-spy', civ.id, 'spy_informant', 'stationed');
+      const created = createSpyFromUnit(
+        state.espionage![civ.id], 'fielded-spy', civ.id, 'spy_informant', 'fielded',
+      );
       created.spy.status = 'stationed';
       state.espionage![civ.id] = created.state;
 
-      const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands.find(entry => entry.role === 'espionage');
+      const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+        .find(entry => entry.role === 'espionage');
+
+      expect(demand?.missing).toBe(1);
+    });
+
+    it('stops asking once the two-operative roster is full (#1722)', () => {
+      const { state, civ } = spyProcurementGame();
+      let aiEsp = state.espionage![civ.id];
+      ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'fielded-spy-1', civ.id, 'spy_informant', 'one'));
+      ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'fielded-spy-2', civ.id, 'spy_informant', 'two'));
+      state.espionage![civ.id] = {
+        ...aiEsp,
+        spies: {
+          ...aiEsp.spies,
+          'fielded-spy-1': { ...aiEsp.spies['fielded-spy-1'], status: 'stationed' },
+          'fielded-spy-2': { ...aiEsp.spies['fielded-spy-2'], status: 'stationed' },
+        },
+      };
+
+      const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+        .find(entry => entry.role === 'espionage');
+
+      expect(demand?.missing ?? 0).toBe(0);
+    });
+
+    it('never exceeds the tech-gated spy slot count', () => {
+      const { state, civ } = spyProcurementGame();
+      state.espionage![civ.id].maxSpies = 1;
+      const created = createSpyFromUnit(
+        state.espionage![civ.id], 'only-slot-spy', civ.id, 'spy_informant', 'only-slot',
+      );
+      created.spy.status = 'stationed';
+      state.espionage![civ.id] = created.state;
+
+      const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+        .find(entry => entry.role === 'espionage');
 
       expect(demand?.missing ?? 0).toBe(0);
     });
