@@ -56,7 +56,7 @@ function fakeAudio(overrides: Partial<GameSessionAudio> = {}): GameSessionAudio 
     setMusicEnabled: vi.fn(),
     setSfxEnabled: vi.fn(),
     setStingerEnabled: vi.fn(),
-    playReligionStinger: vi.fn().mockResolvedValue(undefined),
+    playNotificationStinger: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }

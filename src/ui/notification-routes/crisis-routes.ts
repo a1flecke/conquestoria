@@ -8,6 +8,9 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 import { getWitnessCivIds } from '@/systems/crisis-interaction-system';
 import type { NotificationSink } from './notification-sink';
+import type { CrisisToastCue } from '@/audio/sfx-catalog';
+
+type CrisisNotificationCue = CrisisToastCue | 'famine-onset' | 'famine-resolved';
 
 export function routeCrisisStarted(
   state: GameState,
@@ -27,13 +30,12 @@ export function routeCrisisStarted(
   const message = flavor.advisorLine
     .replace('{name}', name)
     .replace('{city}', city?.name ?? 'a city');
-  // #594 MR7: bespoke famine-onset stinger replaces the generic chime for this toast
-  // only -- other archetypes (outbreak/catastrophe) keep the generic SFX.notification().
+  const cue: CrisisNotificationCue = `${flavor.archetype}-onset`;
   sink(event.civId, message, 'warning', cityId && city ? {
     kind: 'map',
     coord: { ...city.position },
     label: name,
-  } : undefined, undefined, flavor.archetype === 'famine' ? 'famine-onset' : undefined);
+  } : undefined, undefined, cue);
 }
 
 export function routeCrisisEscalated(
@@ -56,7 +58,7 @@ export function routeCrisisEscalated(
     const message = flavor.advisorLine
       .replace('{name}', event.foeName)
       .replace('{city}', city?.name ?? 'a city');
-    sink(event.civId, message, 'warning', target);
+    sink(event.civId, message, 'warning', target, undefined, flavor.archetype === 'hunt' ? 'hunt-onset' : undefined);
   } else if (event.stage === 'assaulting') {
     sink(
       event.civId,
@@ -108,15 +110,21 @@ export function routeCrisisResolved(
   event: GameEvents['crisis:resolved'],
   sink: NotificationSink,
 ): void {
+  const flavor = getCrisisFlavor(event.flavorId);
+  const sfxCue: CrisisNotificationCue | undefined = flavor?.archetype === 'hunt'
+    ? (event.outcome === 'hunted' ? 'hunt-resolved' : undefined)
+    : (flavor && (event.outcome === 'contained' || event.outcome === 'recovered')
+      ? `${flavor.archetype}-resolved`
+      : undefined);
   // Hunt's 'hunted' outcome gets its own two-sided messaging (killer civ + target civ,
   // using the foe's real name) rather than the generic per-outcome line below — both
   // foeName and killerCivId are carried on the event itself for the same
   // same-tick-freshness reason as crisis:escalated (see core/types.ts).
   if (event.outcome === 'hunted' && event.foeName) {
     const killerCivId = event.killerCivId ?? event.civId;
-    sink(killerCivId, `The beast-slayer's feast begins! (+2 happiness, 5 turns)`, 'success');
+    sink(killerCivId, `The beast-slayer's feast begins! (+2 happiness, 5 turns)`, 'success', undefined, undefined, sfxCue);
     if (killerCivId !== event.civId) {
-      sink(event.civId, `${event.foeName} has been slain by ${state.civilizations[killerCivId]?.name ?? 'another civilization'}.`, 'success');
+      sink(event.civId, `${event.foeName} has been slain by ${state.civilizations[killerCivId]?.name ?? 'another civilization'}.`, 'success', undefined, undefined, sfxCue);
     }
     return;
   }
@@ -128,18 +136,10 @@ export function routeCrisisResolved(
     recovered: 'recovery is complete.',
     abandoned: 'no longer threatens your empire.',
   };
-  const type: NotificationEntry['type'] = event.outcome === 'abandoned' ? 'info' : 'success';
-  const flavor = getCrisisFlavor(event.flavorId);
+  const type: NotificationEntry['type'] = event.outcome === 'abandoned' || event.outcome === 'expired' ? 'info' : 'success';
   // Naming the resolved crisis matters once a player can have 2-3 concurrent crises
   // (veteran cap) — a bare "A crisis..." message would be ambiguous about which one.
   const name = flavor ? getCrisisDisplayName(flavor, resolveCivilizationEra(state.civilizations[event.civId]?.techState?.completed ?? [])) : 'A crisis';
-  // #594 MR7: bespoke famine-resolved stinger replaces the generic chime, but only for
-  // genuinely positive resolutions (contained/recovered) -- a passive 'expired' or
-  // 'abandoned' outcome keeps the generic chime, matching the pre-existing
-  // MusicDirector.handleCrisisResolved outcome filter's spirit.
-  const sfxCue = flavor?.archetype === 'famine' && (event.outcome === 'contained' || event.outcome === 'recovered')
-    ? 'famine-resolved'
-    : undefined;
   sink(event.civId, `${name} ${outcomeMessage[event.outcome]}`, type, undefined, undefined, sfxCue);
 }
 

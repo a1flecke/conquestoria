@@ -88,7 +88,7 @@ describe('faction and crisis presentation', () => {
     registerFactionCrisisPresentation(bus, ctx);
     bus.emit('crisis:started', { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', cityIds: ['city-a'] });
 
-    expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.any(String), 'warning', expect.anything(), undefined, undefined);
+    expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.any(String), 'warning', expect.anything(), undefined, 'outbreak-onset');
   });
 
   it('announces a crisis assaulting a city', () => {
@@ -123,7 +123,7 @@ describe('faction and crisis presentation', () => {
     registerFactionCrisisPresentation(bus, ctx);
     bus.emit('crisis:resolved', { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', outcome: 'contained' });
 
-    expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('contained'), 'success', undefined, undefined, undefined);
+    expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('contained'), 'success', undefined, undefined, 'outbreak-resolved');
   });
 
   it('tells a witnessing civ that an ally hunted a shared foe', () => {

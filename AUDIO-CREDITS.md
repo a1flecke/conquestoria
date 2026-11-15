@@ -1,5 +1,9 @@
 # Audio Credits
 
+The six #616 crisis stingers are original Conquestoria synthesis. See
+[Crisis stinger provenance](docs/audio/crisis-stingers.md) for the generator,
+measurements, and shipped file hashes.
+
 Audio in Conquestoria is licensed under CC0 (public domain dedication), CC-BY 3.0 or later (attribution required), or Soundimage.org free use with attribution — https://soundimage.org/attribution-info/.
 
 ## Music

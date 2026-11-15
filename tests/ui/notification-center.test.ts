@@ -3,6 +3,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createNotificationCenter, toastDurationMs } from '@/ui/notification-center';
 import type { GameState } from '@/core/types';
 import type { NotificationMapTarget } from '@/core/notification-log';
+import { EventBus } from '@/core/event-bus';
+import { registerFactionCrisisPresentation } from '@/presentation/register-faction-crisis-presentation';
+import { makePresentationContext } from '../helpers/presentation-context';
 
 const state = { turn: 3, currentPlayer: 'player', civilizations: {}, notificationLog: {}, idCounters: {} } as unknown as GameState;
 
@@ -85,6 +88,48 @@ describe('notification center queue', () => {
     center.toast('city captured', 'success', undefined, 'city-captured');
 
     expect(playCue).toHaveBeenCalledWith('city-captured');
+  });
+
+  it('drops a queued private crisis toast when the seat changes', () => {
+    const localState = { ...state, hotSeat: {} } as GameState;
+    const center = createNotificationCenter({
+      layer, getState: () => localState, isSuppressed: () => false, playCue, onFocusTarget,
+    });
+    center.toast('first', 'info');
+    center.toast('private outbreak', 'warning', undefined, 'outbreak-onset');
+
+    localState.currentPlayer = 'other';
+    vi.runAllTimers();
+
+    expect(layer.textContent).not.toContain('private outbreak');
+    expect(playCue.mock.calls).toEqual([[undefined]]);
+  });
+
+  it('plays one replacement cue per delivered crisis toast and keeps private crises off the other seat', () => {
+    const ctx = makePresentationContext({
+      state: {
+        hotSeat: {} as GameState['hotSeat'],
+        idCounters: {} as GameState['idCounters'],
+        civilizations: { player: { isHuman: true }, other: { isHuman: true } } as never,
+        activeCrises: { hunt: { flavorId: 'beast-awakening', cityIds: [] } } as never,
+      },
+    });
+    const notifier = createNotificationCenter({
+      layer, getState: ctx.session.getState, isSuppressed: () => false, playCue, onFocusTarget,
+    });
+    const bus = new EventBus();
+    registerFactionCrisisPresentation(bus, { ...ctx, notifier });
+
+    bus.emit('crisis:started', { crisisId: 'private', flavorId: 'plague', civId: 'other', cityIds: [] });
+    bus.emit('crisis:started', { crisisId: 'hunt', flavorId: 'beast-awakening', civId: 'player', cityIds: [] });
+    expect(playCue).not.toHaveBeenCalled();
+
+    bus.emit('crisis:escalated', { crisisId: 'hunt', stage: 'menacing', civId: 'player', foeName: 'Giant Boar' });
+    bus.emit('crisis:resolved', { crisisId: 'hunt', flavorId: 'beast-awakening', civId: 'player', outcome: 'hunted', foeName: 'Giant Boar' });
+    bus.emit('crisis:started', { crisisId: 'famine', flavorId: 'crop-blight', civId: 'player', cityIds: [] });
+    vi.runAllTimers();
+
+    expect(playCue.mock.calls).toEqual([['hunt-onset'], ['hunt-resolved'], ['famine-onset']]);
   });
 
   it('passes undefined (never a magic string) when no sfxCue is attached, so the wiring plays the generic chime', () => {

@@ -223,23 +223,10 @@ export class MusicDirector {
     this.applySnapshot(fadeMs);
   }
 
-  // Placeholder stingers (war-declared / peace-signed) until bespoke crisis-onset
-  // and crisis-resolved stingers exist. Deliberately do NOT touch atWar/inUnrest —
-  // crisis music state is governed only by setCrisisActiveForCurrentPlayer.
-  handleCrisisStarted(): void {
-    this.currentStingerPromise = this.playStingerWithDuck(STINGER.warDeclared.file);
-  }
-
-  handleCrisisResolved(): void {
-    this.currentStingerPromise = this.playStingerWithDuck(STINGER.peaceSigned.file);
-  }
-
   /**
    * Loss/threat events that previously carried an advisor voice line and have
    * no bespoke stinger (wonder-lost, city-lost, near-defeat warning). Reuses
-   * the war-declared stinger as the negative-event placeholder — same
-   * convention as handleCrisisStarted above; bespoke replacements are tracked
-   * in #616. Deliberately does not touch atWar/inUnrest/nearDefeat flags.
+   * the war-declared stinger as the negative-event placeholder.
    */
   handleLossEvent(): void {
     this.currentStingerPromise = this.playStingerWithDuck(STINGER.warDeclared.file);

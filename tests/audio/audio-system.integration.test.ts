@@ -5,8 +5,9 @@ import { AudioLoader } from '../../src/audio/audio-loader';
 import { PreparedStreamedLoop } from '../../src/audio/streamed-loop';
 import type { EventBus } from '../../src/core/event-bus';
 import type { GameState } from '../../src/core/types';
-import { ACCENT, ERA_BASE, WAR_LAYER, UNREST_LAYER, resolveEra } from '../../src/audio/audio-catalog';
+import { ACCENT, ERA_BASE, STINGER, WAR_LAYER, UNREST_LAYER, resolveEra } from '../../src/audio/audio-catalog';
 import { getFamilyForCiv } from '../../src/audio/civ-audio-family';
+import { CRISIS_SFX, FAMINE_SFX } from '../../src/audio/sfx-catalog';
 
 // Flush microtask queue so async loader/stinger chains complete
 const flushPromises = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
@@ -644,26 +645,92 @@ describe('AudioSystem integration', () => {
     expect(ctx.transcript.some(e => e.op === 'stop')).toBe(true);
   });
 
-  it('a Hunt crisis resolving "hunted" (MR3) gets the same triumphant resolution stinger as contained/recovered outcomes', () => {
+  it.each(['hunted', 'contained', 'recovered', 'expired', 'abandoned'])('crisis bus events do not play diplomacy stingers (%s)', (outcome) => {
     system.start(makeState(), busHelper.bus);
-    const handleCrisisResolved = vi.spyOn((system as any).director, 'handleCrisisResolved');
+    const play = vi.spyOn((system as any).director, 'playStingerWithDuck');
 
+    busHelper.emit('crisis:started', { crisisId: 'crisis-1', flavorId: 'beast-awakening', civId: 'rome', cityIds: [] });
     busHelper.emit('crisis:resolved', {
-      crisisId: 'crisis-1', flavorId: 'beast-awakening', civId: 'rome', outcome: 'hunted',
+      crisisId: 'crisis-1', flavorId: 'beast-awakening', civId: 'rome', outcome,
     });
 
-    expect(handleCrisisResolved).toHaveBeenCalled();
+    expect(play).not.toHaveBeenCalled();
   });
 
-  it('crisis:resolved "abandoned" does not play the triumphant resolution stinger', () => {
+  it('continues to use diplomacy stingers for war and peace', () => {
     system.start(makeState(), busHelper.bus);
-    const handleCrisisResolved = vi.spyOn((system as any).director, 'handleCrisisResolved');
+    const play = vi.spyOn((system as any).director, 'playStingerWithDuck');
+    busHelper.emit('diplomacy:war-declared', { attackerId: 'rome', defenderId: 'egypt', opponentKind: 'major' });
+    busHelper.emit('diplomacy:peace-made', { civA: 'rome', civB: 'egypt' });
+    expect(play.mock.calls).toEqual([[STINGER.warDeclared.file], [STINGER.peaceSigned.file]]);
+  });
 
-    busHelper.emit('crisis:resolved', {
-      crisisId: 'crisis-1', flavorId: 'beast-awakening', civId: 'rome', outcome: 'abandoned',
+  it('dispatches each bespoke toast cue and coalesces repeats in a turn', async () => {
+    const state = makeState({ turn: 5 });
+    system.start(state, busHelper.bus);
+    await ctx.resume();
+    const play = vi.spyOn((system as any).director, 'playStingerWithDuck').mockResolvedValue(undefined);
+
+    for (const cue of Object.keys(CRISIS_SFX)) {
+      await system.playNotificationStinger(cue);
+      await system.playNotificationStinger(cue);
+    }
+    await system.playNotificationStinger('famine-onset');
+    state.turn++;
+    await system.playNotificationStinger('outbreak-onset');
+
+    expect(play.mock.calls.map(([file]) => file)).toEqual([
+      ...Object.values(CRISIS_SFX).map(entry => entry.file),
+      FAMINE_SFX.onset.file,
+      CRISIS_SFX['outbreak-onset'].file,
+    ]);
+  });
+
+  it.each([{ soundEnabled: false }, { stingerEnabled: false }, { stingerVolume: 0 }])(
+    'suppresses crisis toast audio with settings %j',
+    async settings => {
+      const state = makeState({ turn: 1 });
+      Object.assign(state.settings, settings);
+      system.start(state, busHelper.bus);
+      await ctx.resume();
+      const play = vi.spyOn((system as any).director, 'playStingerWithDuck');
+      await system.playNotificationStinger('hunt-onset');
+      expect(play).not.toHaveBeenCalled();
+    },
+  );
+
+  it('does not start a pending crisis cue after a hot-seat handoff', async () => {
+    const state = makeState({ turn: 8 });
+    system.start(state, busHelper.bus);
+    await ctx.resume();
+    const mixer = (system as any).mixer;
+    const oneShot = vi.spyOn(mixer, 'playOneShot');
+    let finishLoad!: (buffer: AudioBuffer) => void;
+    const pending = new Promise<AudioBuffer>(resolve => { finishLoad = resolve; });
+    const loader = (system as any).loader as AudioLoader;
+    const get = loader.get.bind(loader);
+    vi.spyOn(loader, 'get').mockImplementation(path =>
+      path === CRISIS_SFX['hunt-onset'].file ? pending : get(path));
+
+    const result = system.playNotificationStinger('hunt-onset');
+    expect(loader.get).toHaveBeenCalledWith(CRISIS_SFX['hunt-onset'].file);
+    state.currentPlayer = 'egypt';
+    busHelper.emit('currentPlayer:changed-after-handoff', {
+      civId: 'egypt', atWarCount: 0, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false,
     });
+    finishLoad(ctx.createBuffer(1, 44100, 44100));
+    await result;
+    expect(oneShot).not.toHaveBeenCalled();
+  });
 
-    expect(handleCrisisResolved).not.toHaveBeenCalled();
+  it('handles a missing crisis cue with the silent audio buffer', async () => {
+    system.start(makeState({ turn: 1 }), busHelper.bus);
+    await ctx.resume();
+    const oneShot = vi.spyOn((system as any).mixer, 'playOneShot').mockResolvedValue(undefined);
+
+    await expect(system.playNotificationStinger('catastrophe-onset')).resolves.toBeUndefined();
+
+    expect(oneShot).toHaveBeenCalledWith('stinger', expect.objectContaining({ length: 1 }));
   });
 
   it('wonder-lost, city-lost, and near-defeat play the loss-event stinger for the current player', () => {
