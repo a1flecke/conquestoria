@@ -19,7 +19,15 @@ esac
 
 cd "$root_dir"
 
-APPLE_SIGNING_IDENTITY=- yarn tauri:build:mac-app
+# This task is the human entry point, so it owns its own dependency state. A checkout whose
+# generated Yarn PnP map predates package.json, or a linked worktree with no map at all, would
+# otherwise fail inside `tsc` with a "cannot find module" that says nothing about the app.
+# `--immutable` keeps a real manifest/lockfile disagreement a loud, reviewable failure instead of
+# silently rewriting yarn.lock; when they agree this only relinks (well under a second).
+printf 'Ensuring this checkout has a current dependency install...\n' >&2
+"$root_dir/scripts/run-with-mise.sh" yarn install --immutable
+
+APPLE_SIGNING_IDENTITY=- "$root_dir/scripts/run-with-mise.sh" yarn tauri:build:mac-app
 codesign --verify --deep --strict --verbose=2 "$app_path"
 xattr -cr "$app_path"
 
