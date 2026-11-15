@@ -195,6 +195,14 @@ function shouldAiStationDefensiveSpy(state: GameState, civId: string): boolean {
   const hasStage3Espionage = civ.techState.completed.includes('spy-networks') || civ.techState.completed.includes('sabotage');
   if (!hasStage3Espionage) return false;
 
+  // #1722: never garrison the civ's last mobile operative. An embedded spy cannot start a
+  // mission and the AI never unembeds one, so spending the only operative on the capital
+  // left the civ with no espionage at all. Counting non-embedded (not just non-captured)
+  // keeps the reserve true even if the capital moves after a capture.
+  const mobileSpies = Object.values(espState.spies)
+    .filter(spy => spy.status !== 'captured' && spy.status !== 'embedded').length;
+  if (mobileSpies < 2) return false;
+
   const capitalId = getCapitalCityId(state, civId);
   if (!capitalId) return false;
 

@@ -1809,29 +1809,53 @@ describe('processAITurn', () => {
     expect(result.units['unit-ai'].experience).toBe(0);
   });
 
-  it('AI stations a defensive spy in its capital by stage 3', () => {
+  it('keeps a lone operative mobile instead of embedding it in the capital (#1722)', () => {
     const state = makeAiDefenseSpyState();
-    // Pre-place an idle spy unit so AI can station it defensively this turn
     state.units['unit-spy-ai'] = {
       id: 'unit-spy-ai', type: 'spy_scout', owner: 'ai-1',
       position: { q: 0, r: 0 }, movement: 2, maxMovement: 2,
       health: 100, maxHealth: 100, status: 'idle',
     } as any;
     state.civilizations['ai-1'].units = ['unit-spy-ai'];
-    const { state: espWithSpy } = createSpyFromUnit(
-      state.espionage!['ai-1'], 'unit-spy-ai', 'ai-1', 'spy_scout', 'seed-defense-test',
-    );
-    state.espionage!['ai-1'] = espWithSpy;
+    state.espionage!['ai-1'] = createSpyFromUnit(
+      state.espionage!['ai-1'], 'unit-spy-ai', 'ai-1', 'spy_scout', 'seed-lone-operative',
+    ).state;
 
-    const bus = new EventBus();
-    const newState = processAITurn(state, 'ai-1', bus);
+    const newState = processAITurn(state, 'ai-1', new EventBus());
 
     const spies = Object.values(newState.espionage!['ai-1'].spies);
     expect(spies).toHaveLength(1);
-    expect(spies[0].status).toBe('embedded');
-    expect(spies[0].targetCivId).toBeNull();
-    expect(spies[0].targetCityId).toBe('city-ai');
+    // Embedding the only operative defends the capital for the rest of the game while
+    // preventing that spy from ever starting a mission.
+    expect(spies[0].status).toBe('idle');
+    expect(newState.espionage!['ai-1'].counterIntelligence['city-ai'] ?? 0).toBe(0);
+  });
+
+  it('stations a defensive spy in the capital only when a spare operative remains', () => {
+    const state = makeAiDefenseSpyState();
+    for (const unitId of ['unit-spy-ai', 'unit-spy-ai-2']) {
+      state.units[unitId] = {
+        id: unitId, type: 'spy_scout', owner: 'ai-1',
+        position: { q: 0, r: 0 }, movement: 2, maxMovement: 2,
+        health: 100, maxHealth: 100, status: 'idle',
+      } as any;
+    }
+    state.civilizations['ai-1'].units = ['unit-spy-ai', 'unit-spy-ai-2'];
+    let aiEsp = state.espionage!['ai-1'];
+    ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'unit-spy-ai', 'ai-1', 'spy_scout', 'seed-spare-1'));
+    ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'unit-spy-ai-2', 'ai-1', 'spy_scout', 'seed-spare-2'));
+    state.espionage!['ai-1'] = aiEsp;
+
+    const newState = processAITurn(state, 'ai-1', new EventBus());
+
+    const spies = Object.values(newState.espionage!['ai-1'].spies);
+    expect(spies).toHaveLength(2);
+    const embedded = spies.filter(spy => spy.status === 'embedded');
+    expect(embedded).toHaveLength(1);
+    expect(embedded[0].targetCivId).toBeNull();
+    expect(embedded[0].targetCityId).toBe('city-ai');
     expect(newState.espionage!['ai-1'].counterIntelligence['city-ai']).toBeGreaterThan(0);
+    expect(spies.some(spy => spy.status !== 'embedded')).toBe(true);
   });
 
   it('does not bypass strategic war gates for a newly seen secession state', () => {
