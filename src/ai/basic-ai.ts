@@ -154,7 +154,7 @@ import { applyPillageToState, canPillageTile } from '@/systems/pillage-system';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { processWorkerDevelopment } from './ai-worker-development';
 import { chooseAiBoon, chooseBoon } from '@/systems/religion-system';
-import { findSpyReturnTile } from '@/systems/unit-spawn-placement';
+import { findInfiltrationExitTile, findSpyReturnTile } from '@/systems/unit-spawn-placement';
 import { removeUnits } from '@/systems/unit-removal-system';
 
 /** #988: how decisive a military advantage must be before the AI converts a
@@ -1712,7 +1712,12 @@ function processAITurnInternal(
           capturingCivId: cityHere.owner, spyOwner: civId, spyId: spyUnitId, cityId: cityHere.id,
         });
       } else {
-        newState.units[spyUnitId] = { ...spyUnit, hasActed: true, movementPointsLeft: 0 };
+        // Failed but not caught: slip back out of the city, exactly as the player's spy does,
+        // so the city's owner is never left sharing its own tile with a foreign spy.
+        const exit = findInfiltrationExitTile(newState, spyUnit, cityHere.position);
+        newState.units[spyUnitId] = {
+          ...spyUnit, ...(exit ? { position: exit } : {}), hasActed: true, movementPointsLeft: 0,
+        };
       }
     }
 
