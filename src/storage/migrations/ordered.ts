@@ -4,6 +4,7 @@ import { normalizeMinorCivLeagueState } from '@/storage/minor-civ-league-normali
 import type { OrderedMigration } from './types';
 import { migrateMinorCivFoundedTurn } from './steps/minor-civ-founded-turn';
 import { migrateSpiesLeaveForeignCities } from './steps/spies-leave-foreign-cities';
+import { migrateUnitsLeaveImpassableTerrain } from './steps/units-leave-impassable-terrain';
 import { migrateToEra13Foundation } from './steps/tech-identity';
 import { migrateLateResources } from './steps/late-resources';
 import { migrateAutonomyNetwork, migrateAutonomyNetworkPostures } from './steps/autonomy-network';
@@ -290,6 +291,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'spies-leave-foreign-cities',
     reason: 'A spy may no longer stand on a city its owner does not hold: it infiltrates from the adjacent tile, and movement blocks every foreign city, allied ones included, for a spy. An older save can hold a spy parked on a foreign city (idle, or lying low after a failed attempt), which locked the owner out of its own city and stacked with what it trained. Each is moved once to a legal tile next to that city, else home to its capital; one with nowhere legal to go is kept, never deleted.',
     apply: migrateSpiesLeaveForeignCities,
+  },
+  {
+    version: 40,
+    id: 'units-leave-impassable-terrain',
+    reason: 'Every unit on the map must now stand on terrain it can enter (the units-on-enterable-terrain invariant). Before it, revolt and arms-smuggling rebels, quest reward units and returning spies were placed after checking only that the tile existed, so an older save can hold a land unit stranded on water. Each is moved once to the nearest legal tile within three tiles; one with nowhere to go is kept, never deleted.',
+    apply: migrateUnitsLeaveImpassableTerrain,
   },
 ];
 

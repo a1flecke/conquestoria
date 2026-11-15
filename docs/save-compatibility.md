@@ -5,7 +5,7 @@
      Regenerate: UPDATE_SAVE_COMPAT_DOC=1 yarn vitest run tests/storage/save-migration-registries.test.ts
      Enforced by: tests/storage/save-migration-registries.test.ts -->
 
-Current schema version: **39**
+Current schema version: **40**
 
 Save compatibility is three separate mechanisms (#1023). They are deliberately
 not interchangeable: a normalizer silently standing in for a migration that was
@@ -60,6 +60,7 @@ Never on an already-current save.
 | 37 | `retired-market-access` | #1516 MR19 retired the instant access market. A pre-containment save may still carry purchased access entries; schema 36 already funded any active work they entitled, so this step converts a live luxury entry into delivered service coverage at its recorded expiry, drops a strategic entry without fabricating stock, and clears the list so no runtime branch reads it again. |
 | 38 | `minor-civ-founded-turn` | #497 records when each city-state came into being so graduation eligibility can read a survival age. A city-state in an older save has no founding record, so it is stamped once with the load turn: it starts ageing from the upgrade rather than being treated as ancient, which keeps a legacy campaign from graduating anyone the moment the system exists. |
 | 39 | `spies-leave-foreign-cities` | A spy may no longer stand on a city its owner does not hold: it infiltrates from the adjacent tile, and movement blocks every foreign city, allied ones included, for a spy. An older save can hold a spy parked on a foreign city (idle, or lying low after a failed attempt), which locked the owner out of its own city and stacked with what it trained. Each is moved once to a legal tile next to that city, else home to its capital; one with nowhere legal to go is kept, never deleted. |
+| 40 | `units-leave-impassable-terrain` | Every unit on the map must now stand on terrain it can enter (the units-on-enterable-terrain invariant). Before it, revolt and arms-smuggling rebels, quest reward units and returning spies were placed after checking only that the tile existed, so an older save can hold a land unit stranded on water. Each is moved once to the nearest legal tile within three tiles; one with nowhere to go is kept, never deleted. |
 
 ## 2. Compatibility normalization
 

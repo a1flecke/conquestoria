@@ -119,6 +119,7 @@ meanings, name the roles — but only when misuse is plausible. The ranked audit
 | Disband confirmation names the extra units | `removePlayerUnitFromState` = `removeUnits` + liveness; the dialog previews it | `unit-lifecycle-system.test.ts`, `unit-turn-flow.test.ts` |
 | A finished unit gets every completion side effect, on both entry points | `completeUnitProduction` is the only completion (turn path + rush-buy) | `unit-production-completion.test.ts` matrix + footprint guard, architecture pin "#1202" |
 | Publication after a state write | `commit`/`batch`; no silent write | `session-publication.md` |
+| A unit conjured onto the map passes the placement rules | `unit-spawn-placement.ts` (terrain, blocker set, other owners' units); every `createUnit` caller listed with its reason | "unit placement" pin in `architecture-boundaries.test.ts`, `SAVE_STATE_INVARIANTS` `units-on-enterable-terrain` + `no-illegal-blocking-occupancy` |
 
 ## Open follow-ups (evidence in each issue)
 

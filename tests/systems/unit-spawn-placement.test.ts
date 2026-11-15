@@ -5,6 +5,7 @@ import {
   filterLegalSpawnTiles,
   findSpyReturnTile,
   isLegalSpawnTile,
+  isUnitOnEnterableTerrain,
   spawnNeighbours,
 } from '@/systems/unit-spawn-placement';
 
@@ -94,5 +95,20 @@ describe('unit spawn placement', () => {
     expect(findSpyReturnTile(state, 'p1', 'spy_agent', { q: 5, r: 5 })).toEqual({ q: 6, r: 5 });
     expect(isLegalSpawnTile(state, { ownerId: 'p1', unitType: 'warrior', stacking: 'same-owner' }, { q: 5, r: 5 }))
       .toBe(false);
+  });
+
+  it('judges a unit on its terrain: land, hull access, ports, and pirate hulls on any water', () => {
+    const state = makeState({ '0,0': 'plains', '1,0': 'coast', '2,0': 'ocean' });
+    state.cities = { home: { id: 'home', owner: 'p1', position: { q: 0, r: 0 } } } as unknown as GameState['cities'];
+    const at = (q: number) => ({ q, r: 0 });
+    expect(isUnitOnEnterableTerrain(state, { owner: 'p1', type: 'warrior', position: at(0) })).toBe(true);
+    expect(isUnitOnEnterableTerrain(state, { owner: 'p1', type: 'warrior', position: at(1) })).toBe(false);
+    expect(isUnitOnEnterableTerrain(state, { owner: 'p1', type: 'galley', position: at(1) })).toBe(true);
+    expect(isUnitOnEnterableTerrain(state, { owner: 'p1', type: 'galley', position: at(2) })).toBe(false);
+    expect(isUnitOnEnterableTerrain(state, { owner: 'p1', type: 'galley', position: at(0) })).toBe(true); // in port
+    expect(isUnitOnEnterableTerrain(state, { owner: 'p2', type: 'galley', position: at(0) })).toBe(false); // beached
+    expect(isUnitOnEnterableTerrain(state, { owner: 'pirate-1', type: 'pirate_corsair', position: at(2) })).toBe(true);
+    expect(isUnitOnEnterableTerrain(state, { owner: 'pirate-1', type: 'pirate_corsair', position: at(0) })).toBe(false);
+    expect(isUnitOnEnterableTerrain(state, { owner: 'p1', type: 'warrior', position: { q: 9, r: 9 } })).toBe(false);
   });
 });
