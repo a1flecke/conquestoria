@@ -483,7 +483,9 @@ describe('AI espionage decisions', () => {
         'espionage-scouting', 'espionage-informants', 'spy-networks', 'cyber-intelligence',
       ];
       // Suppress the capital-defender pass so this test isolates mission selection.
-      let aiEsp = { ...createEspionageCivState(), maxSpies: 2, counterIntelligence: { 'city-egypt-1': 1 } };
+      let aiEsp: EspionageCivState = {
+        ...createEspionageCivState(), maxSpies: 2, counterIntelligence: { 'city-egypt-1': 1 },
+      };
       ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'spy-mobile', 'ai-egypt', 'spy_agent', 'seed-1722'));
       aiEsp = {
         ...aiEsp,
