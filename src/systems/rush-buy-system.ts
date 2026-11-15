@@ -4,6 +4,7 @@
 // gold and completes the item, and so is the one place that needs unit completion (#1202). Moved verbatim out of
 // economy-system.ts so the economy model (read by pirates, quests, pricing and the AI treasury) no longer imports the
 // unit-production completion — which imports the air, espionage and world-actor systems — to answer an economy question.
+import { completeBuildingProduction } from './building-production-completion';
 import type { GameState } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { completeCityProductionItem } from './city-system';
@@ -134,14 +135,15 @@ export function rushBuyActiveProduction(
     // The purchased head is a real occurrence transition: fund the promoted head.
     nextState = beginCityMaterialOccurrence(nextState, cityId);
     if (completion.completedBuilding) {
-      bus.emit('city:building-complete', { cityId, buildingId: completion.completedBuilding });
+      nextState = completeBuildingProduction(nextState, { civId, cityId, buildingId: completion.completedBuilding }, bus);
     }
     // Announce only the accepted transaction.
     announceUnitProduction(bus, cityId, civId, made);
   } else {
     nextState = beginCityMaterialOccurrence(nextState, cityId);
     if (completion.completedBuilding) {
-      bus.emit('city:building-complete', { cityId, buildingId: completion.completedBuilding });
+      // #1704: the same completion the turn path runs, so a bought national project is recorded.
+      nextState = completeBuildingProduction(nextState, { civId, cityId, buildingId: completion.completedBuilding }, bus);
     }
   }
 
