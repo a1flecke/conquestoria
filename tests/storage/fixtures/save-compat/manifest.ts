@@ -477,33 +477,52 @@ const PARKED_SPY_V38_CASE: SaveCompatCase = {
 };
 
 /**
- * Schema 40 — no unit stands on terrain it cannot enter. A schema-39 save can hold a land unit the
- * old spawn paths stranded on water; the migration carries it to the nearest legal tile and the
- * save then plays three rounds under the invariant that forbids the old position.
+ * Schema 40 — every ship floats on water its hull can sail. A schema-39 save can hold a deep-sea
+ * pirate flotilla crewed by a coast-only corsair on open ocean; the migration refits it in place and
+ * the save then plays three rounds under the invariant that forbids the old hull there.
  */
-const STRANDED_UNIT_V39_CASE: SaveCompatCase = {
+const STRANDED_FLOTILLA_V39_CASE: SaveCompatCase = {
   sourceVersion: 39,
-  label: 'schema 39 — a land unit stranded on water',
+  label: 'schema 39 — a coast-only pirate hull crewing a deep-sea flotilla on open ocean',
   kind: 'well-formed',
-  focus: ['unit placement', 'land unit on water', 'units-on-enterable-terrain'],
+  focus: ['pirates', 'hull water access', 'units-on-enterable-terrain'],
   build: () => {
-    const baseline = buildBaselineSave('save-compat-stranded-v39');
+    const baseline = buildBaselineSave('save-compat-stranded-flotilla-v39');
     const state = baseline.state;
     const occupied = new Set(Object.values(state.units).map(unit => hexKey(unit.position)));
-    const water = Object.values(state.map.tiles).find(tile => tile.terrain === 'coast' && !occupied.has(hexKey(tile.coord)));
-    if (!water) throw new Error('baseline map has no free coast tile');
-    const unitId = 'unit-stranded-rebel';
-    state.units[unitId] = {
-      id: unitId, type: 'warrior', owner: 'rebels', position: { ...water.coord },
-      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    const oceans = Object.values(state.map.tiles)
+      .filter(tile => tile.terrain === 'ocean' && !occupied.has(hexKey(tile.coord)))
+      .sort((a, b) => hexKey(a.coord).localeCompare(hexKey(b.coord)));
+    if (oceans.length < 2) throw new Error('baseline map has too little free ocean');
+    // Two flotillas: a legacy one crewed by a coast-only corsair (refitted by the migration) and a
+    // legal frigate one (left alone).
+    const flotilla = (factionId: string, shipId: string, type: 'pirate_corsair' | 'pirate_frigate', at: { q: number; r: number }) => {
+      state.units[shipId] = {
+        id: shipId, type, owner: factionId, position: { ...at },
+        movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+      };
+      return {
+        id: factionId, name: `Legacy ${factionId}`, spawnedRound: 1, behavior: 'patrolling', maritimeStage: 2,
+        notoriety: 0, shipIds: [shipId],
+        headquarters: { kind: 'deep-sea-flotilla', flagshipUnitId: shipId, relocation: { planned: null, lastRelocatedRound: null } },
+        tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null, transitionGuards: { emittedEventKeys: [] },
+      };
     };
+    state.pirates = {
+      ...state.pirates!,
+      factions: {
+        ...state.pirates!.factions,
+        'pirate-8': flotilla('pirate-8', 'unit-legal-frigate', 'pirate_frigate', oceans[1]!.coord),
+        'pirate-9': flotilla('pirate-9', 'unit-stranded-corsair', 'pirate_corsair', oceans[0]!.coord),
+      },
+    } as GameState['pirates'];
     return downgradeToVersion(state, 39);
   },
   afterMigrate: migrated => {
-    const unit = migrated.units['unit-stranded-rebel'];
-    if (!unit) throw new Error('migration deleted the stranded unit');
-    const terrain = migrated.map.tiles[hexKey(unit.position)]?.terrain;
-    if (terrain === 'coast' || terrain === 'ocean') throw new Error(`stranded unit still on ${terrain}`);
+    const ship = migrated.units['unit-stranded-corsair'];
+    if (!ship) throw new Error('migration deleted the stranded flotilla hull');
+    if (ship.type !== 'pirate_frigate') throw new Error(`stranded flotilla hull was not refitted (${ship.type})`);
+    if (migrated.units['unit-legal-frigate']?.type !== 'pirate_frigate') throw new Error('a legal flotilla hull was changed');
   },
 };
 
@@ -555,7 +574,7 @@ export const SAVE_COMPAT_MATRIX: readonly SaveCompatCase[] = [
   ...Array.from({ length: CURRENT_SAVE_SCHEMA_VERSION + 1 }, (_, version) => wellFormedCase(version)),
   MATERIAL_RESERVES_V35_CASE,
   PARKED_SPY_V38_CASE,
-  STRANDED_UNIT_V39_CASE,
+  STRANDED_FLOTILLA_V39_CASE,
   REAL_ARCHIVED_SAVE_CASE,
   HOT_SEAT_CASE,
   ...MALFORMED_CASES,

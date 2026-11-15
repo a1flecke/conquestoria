@@ -97,7 +97,7 @@ describe('unit spawn placement', () => {
       .toBe(false);
   });
 
-  it('judges a unit on its terrain: land, hull access, ports, and pirate hulls on any water', () => {
+  it('judges a unit on its terrain: land, hull access and ports, pirates included', () => {
     const state = makeState({ '0,0': 'plains', '1,0': 'coast', '2,0': 'ocean' });
     state.cities = { home: { id: 'home', owner: 'p1', position: { q: 0, r: 0 } } } as unknown as GameState['cities'];
     const at = (q: number) => ({ q, r: 0 });
@@ -107,7 +107,9 @@ describe('unit spawn placement', () => {
     expect(isUnitOnEnterableTerrain(state, { owner: 'p1', type: 'galley', position: at(2) })).toBe(false);
     expect(isUnitOnEnterableTerrain(state, { owner: 'p1', type: 'galley', position: at(0) })).toBe(true); // in port
     expect(isUnitOnEnterableTerrain(state, { owner: 'p2', type: 'galley', position: at(0) })).toBe(false); // beached
-    expect(isUnitOnEnterableTerrain(state, { owner: 'pirate-1', type: 'pirate_corsair', position: at(2) })).toBe(true);
+    expect(isUnitOnEnterableTerrain(state, { owner: 'pirate-1', type: 'pirate_corsair', position: at(1) })).toBe(true);
+    expect(isUnitOnEnterableTerrain(state, { owner: 'pirate-1', type: 'pirate_corsair', position: at(2) })).toBe(false);
+    expect(isUnitOnEnterableTerrain(state, { owner: 'pirate-1', type: 'pirate_frigate', position: at(2) })).toBe(true);
     expect(isUnitOnEnterableTerrain(state, { owner: 'pirate-1', type: 'pirate_corsair', position: at(0) })).toBe(false);
     expect(isUnitOnEnterableTerrain(state, { owner: 'p1', type: 'warrior', position: { q: 9, r: 9 } })).toBe(false);
   });

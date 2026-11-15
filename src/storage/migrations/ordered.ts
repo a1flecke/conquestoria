@@ -4,7 +4,7 @@ import { normalizeMinorCivLeagueState } from '@/storage/minor-civ-league-normali
 import type { OrderedMigration } from './types';
 import { migrateMinorCivFoundedTurn } from './steps/minor-civ-founded-turn';
 import { migrateSpiesLeaveForeignCities } from './steps/spies-leave-foreign-cities';
-import { migrateUnitsLeaveImpassableTerrain } from './steps/units-leave-impassable-terrain';
+import { migrateShipsOnSailableWater } from './steps/ships-on-sailable-water';
 import { migrateToEra13Foundation } from './steps/tech-identity';
 import { migrateLateResources } from './steps/late-resources';
 import { migrateAutonomyNetwork, migrateAutonomyNetworkPostures } from './steps/autonomy-network';
@@ -294,9 +294,9 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
   },
   {
     version: 40,
-    id: 'units-leave-impassable-terrain',
-    reason: 'Every unit on the map must now stand on terrain it can enter (the units-on-enterable-terrain invariant). Before it, revolt and arms-smuggling rebels, quest reward units and returning spies were placed after checking only that the tile existed, so an older save can hold a land unit stranded on water. Each is moved once to the nearest legal tile within three tiles; one with nowhere to go is kept, never deleted.',
-    apply: migrateUnitsLeaveImpassableTerrain,
+    id: 'ships-on-sailable-water',
+    reason: 'Pirates now follow the same hull rules as every ship (no coast-only hull on open ocean), and the units-on-enterable-terrain invariant checks every ship. Deep-sea flotillas used to be crewed with coast-only galleys and corsairs on open ocean, where they could never sail. Such a flotilla hull is refitted in place as the lightest ocean-going pirate hull; any other ship on terrain it cannot enter moves once to the nearest water it can sail within three (a pirate hull with none is refitted too). Land units are left to their own designed recovery (#447); nothing is deleted.',
+    apply: migrateShipsOnSailableWater,
   },
 ];
 

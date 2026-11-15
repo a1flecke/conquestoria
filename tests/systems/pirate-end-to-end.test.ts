@@ -32,7 +32,10 @@ function scenarioState(): GameState {
     }
   }
   tiles['2,2'] = { ...tiles['2,2'], terrain: 'plains' };
-  tiles['2,1'] = { ...tiles['2,1'], terrain: 'coast' };
+  // Coastal water rings the land, as on a generated map: coast-only galleys launch there.
+  for (const [q, r] of [[3, 2], [3, 1], [2, 1], [1, 2], [1, 3], [2, 3]]) {
+    tiles[`${q},${r}`] = { ...tiles[`${q},${r}`], terrain: 'coast' };
+  }
   state.map = { width: 10, height: 10, wrapsHorizontally: false, rivers: [], tiles };
   state.turn = 1;
   state.units = {};

@@ -34,6 +34,7 @@ import {
   PIRATE_HULL_TYPES,
   PIRATE_MAX_FLOTILLA_FACTIONS,
   PIRATE_PRESSURE,
+  canPirateHullSail,
   composePirateFleet,
   type PirateHullType,
 } from './pirate-definitions';
@@ -244,25 +245,43 @@ export function getFlotillaCandidates(state: GameState): PirateHabitatCandidate[
   return sortCandidates(candidates);
 }
 
+/**
+ * Launch tiles for `fleet` around a habitat, one per ship and in fleet order: each ship takes the
+ * nearest free tile it can sail (`canPirateHullSail`), so a coast-only galley or corsair never
+ * starts on open ocean. A flotilla's flagship takes the habitat tile itself, and a flotilla stays on
+ * open ocean. Fewer positions than ships means the habitat cannot hold this fleet.
+ */
 function getSpawnWaterPositions(
   state: GameState,
   candidate: PirateHabitatCandidate,
-  count: number,
+  fleet: readonly PirateHullType[],
 ): HexCoord[] {
   const occupied = new Set(Object.values(state.units).filter(unit => !unit.transportId).map(unit => hexKey(canonicalCoord(state, unit.position))));
   const positions: HexCoord[] = [];
-  if (candidate.kind === 'deep-sea-flotilla') positions.push(candidate.position);
+  const flotilla = candidate.kind === 'deep-sea-flotilla';
+  let ships = fleet;
+  if (flotilla) {
+    const flagship = fleet[0];
+    const tile = state.map.tiles[hexKey(candidate.position)];
+    if (!flagship || !tile || !canPirateHullSail(flagship, tile.terrain)) return [];
+    positions.push(candidate.position);
+    ships = fleet.slice(1);
+  }
   const available = range(state, candidate.position, 2)
     .filter(coord => hexKey(coord) !== hexKey(candidate.position))
     .filter(coord => {
       const tile = state.map.tiles[hexKey(coord)];
       if (!tile || occupied.has(hexKey(coord))) return false;
-      return candidate.kind === 'deep-sea-flotilla' ? tile.terrain === 'ocean' : isWaterTerrain(tile.terrain);
+      return flotilla ? tile.terrain === 'ocean' : isWaterTerrain(tile.terrain);
     })
     .sort((a, b) => distance(state, a, candidate.position) - distance(state, b, candidate.position)
       || a.q - b.q || a.r - b.r);
-  for (const position of available) {
-    if (positions.length >= count) break;
+  const used = new Set<string>();
+  for (const hull of ships) {
+    const position = available.find(coord =>
+      !used.has(hexKey(coord)) && canPirateHullSail(hull, state.map.tiles[hexKey(coord)]!.terrain));
+    if (!position) break;
+    used.add(hexKey(position));
     positions.push(position);
   }
   return positions;
@@ -283,11 +302,15 @@ export function choosePirateSpawn(state: GameState, seed: string): PirateSpawnPl
   if (factions.length >= PIRATE_FACTION_CAP_BY_MAP_SIZE[state.settings.mapSize]) return null;
   const stage = getPirateMaritimeStage(state);
   const fleet = composePirateFleet(stage, 'patrolling', `${seed}:fleet`);
+  // A deep-sea flotilla is crewed only by ocean-going hulls: none exist before the frigate era, so
+  // the galley and corsair eras raise coastal havens only. (A coast-only flotilla used to be raised
+  // on open ocean, where it could neither sail nor relocate.)
+  const flotillaFleet = composePirateFleet(stage, 'patrolling', `${seed}:fleet`, 'ocean');
   const enclaves = getCoastalEnclaveCandidates(state)
-    .filter(candidate => getSpawnWaterPositions(state, candidate, fleet.length).length === fleet.length);
+    .filter(candidate => getSpawnWaterPositions(state, candidate, fleet).length === fleet.length);
   const flotillaCount = factions.filter(faction => faction.headquarters.kind === 'deep-sea-flotilla').length;
-  const flotillas = stage >= 2 && flotillaCount < PIRATE_MAX_FLOTILLA_FACTIONS
-    ? getFlotillaCandidates(state).filter(candidate => getSpawnWaterPositions(state, candidate, fleet.length).length === fleet.length)
+  const flotillas = stage >= 2 && flotillaFleet.length > 0 && flotillaCount < PIRATE_MAX_FLOTILLA_FACTIONS
+    ? getFlotillaCandidates(state).filter(candidate => getSpawnWaterPositions(state, candidate, flotillaFleet).length === flotillaFleet.length)
     : [];
   if (enclaves.length === 0 && flotillas.length === 0) return null;
 
@@ -297,12 +320,13 @@ export function choosePirateSpawn(state: GameState, seed: string): PirateSpawnPl
   const chooseEnclave = rng() * (enclaveWeight + flotillaWeight) < enclaveWeight;
   const pool = chooseEnclave ? enclaves : flotillas;
   const candidate = chooseWeightedCandidate(pool, rng);
+  const chosenFleet = candidate.kind === 'deep-sea-flotilla' ? flotillaFleet : fleet;
   return {
     habitat: candidate.kind,
     position: candidate.position,
     stage,
-    fleet,
-    unitPositions: getSpawnWaterPositions(state, candidate, fleet.length),
+    fleet: chosenFleet,
+    unitPositions: getSpawnWaterPositions(state, candidate, chosenFleet),
     ...(candidate.covertOwnerId ? { covertOwnerId: candidate.covertOwnerId } : {}),
   };
 }
@@ -369,10 +393,11 @@ function isSpawnPlanStillLegal(state: GameState, plan: PirateSpawnPlan): boolean
   const occupied = new Set(Object.values(state.units)
     .filter(unit => !unit.transportId)
     .map(unit => hexKey(canonicalCoord(state, unit.position))));
-  return plan.unitPositions.every(position => {
+  return plan.unitPositions.every((position, index) => {
     const canonical = canonicalCoord(state, position);
     const tile = state.map.tiles[hexKey(canonical)];
     if (!tile || occupied.has(hexKey(canonical))) return false;
+    if (!canPirateHullSail(plan.fleet[index]!, tile.terrain)) return false;
     return plan.habitat === 'deep-sea-flotilla' ? tile.terrain === 'ocean' : isWaterTerrain(tile.terrain);
   });
 }

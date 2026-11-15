@@ -10,6 +10,9 @@ vi.mock('@/storage/db', () => ({
 
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
+import { hexDistance } from '@/systems/hex-utils';
+import { isPassableForParams, movementStepCostParamsForType } from '@/systems/unit-movement-cost';
+import { isUnitOnEnterableTerrain } from '@/systems/unit-spawn-placement';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import type { City, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { processPiratesForCompletedRound, PIRATE_ROUND_TRACE } from '@/systems/pirate-system';
@@ -40,6 +43,11 @@ function fixture(): GameState {
     }
   }
   tiles['5,5'] = { ...tiles['5,5'], terrain: 'plains' };
+  // Coastal water rings the land, as on a generated map, so coast-only hulls (galleys, corsairs)
+  // have water they can sail near the haven.
+  for (const tile of Object.values(tiles)) {
+    if (tile.terrain === 'ocean' && hexDistance(tile.coord, { q: 5, r: 5 }) === 1) tile.terrain = 'coast';
+  }
   state.map = { width: 12, height: 12, wrapsHorizontally: false, rivers: [], tiles };
   state.units = {};
   state.cities = {};
@@ -272,7 +280,7 @@ describe('completed-round pirate coordinator', () => {
     const state = fixture();
     state.pirates!.nextSpawnCheckTurn = 99;
     state.civilizations.player.techState.completed = ['galleys', 'navigation', 'triremes'];
-    const oldShip = addUnit(state, 'old-galley', 'pirate_galley', 'pirate-1', { q: 6, r: 6 });
+    const oldShip = addUnit(state, 'old-galley', 'pirate_galley', 'pirate-1', { q: 6, r: 5 });
     const current = faction({
       kind: 'coastal-enclave', position: { q: 5, r: 5 }, integrity: 100, maxIntegrity: 100,
     }, [oldShip.id]);
@@ -294,6 +302,48 @@ describe('completed-round pirate coordinator', () => {
     expect(types).toContain('pirate_frigate');
     expect(createdIds.length).toBeGreaterThan(0);
     expect(createdIds.every(id => advanced.shipIds.includes(id))).toBe(true);
+  });
+
+  it('reinforces a deep-sea flotilla only with ocean-going hulls, each on water it can sail', () => {
+    for (let turn = 12; turn < 32; turn++) {
+      const state = fixture();
+      state.turn = turn;
+      state.pirates!.nextSpawnCheckTurn = 99;
+      state.civilizations.player.techState.completed = ['galleys', 'navigation', 'triremes', 'caravels'];
+      const flagship = addUnit(state, 'flagship', 'pirate_frigate', 'pirate-1', { q: 9, r: 9 });
+      const current = faction({
+        kind: 'deep-sea-flotilla', flagshipUnitId: flagship.id, relocation: { planned: null, lastRelocatedRound: null },
+      }, [flagship.id]);
+      current.behavior = 'blockading';
+      current.maritimeStage = 3;
+      state.pirates!.factions[current.id] = current;
+
+      const result = processPiratesForCompletedRound(state, new EventBus());
+      const advanced = result.state.pirates!.factions[current.id];
+      expect(advanced.maritimeStage, `turn ${turn}`).toBe(4);
+      for (const id of advanced.shipIds) {
+        const unit = result.state.units[id];
+        expect(isPassableForParams(movementStepCostParamsForType(unit.type), 'ocean'), `turn ${turn}: ${unit.type}`).toBe(true);
+        expect(isUnitOnEnterableTerrain(result.state, unit)).toBe(true);
+      }
+    }
+  });
+
+  it('reinforces a haven ringed only by open ocean with ocean-going ships instead of stalling', () => {
+    const state = fixture();
+    for (const tile of Object.values(state.map.tiles)) if (tile.terrain === 'coast') tile.terrain = 'ocean';
+    state.pirates!.nextSpawnCheckTurn = 99;
+    state.civilizations.player.techState.completed = ['galleys', 'navigation', 'triremes'];
+    const current = faction({ kind: 'coastal-enclave', position: { q: 5, r: 5 }, integrity: 100, maxIntegrity: 100 }, []);
+    current.behavior = 'blockading';
+    current.maritimeStage = 2;
+    state.pirates!.factions[current.id] = current;
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+    const advanced = result.state.pirates!.factions[current.id];
+    expect(advanced.maritimeStage).toBe(3);
+    expect(advanced.shipIds.length).toBeGreaterThan(0);
+    for (const id of advanced.shipIds) expect(isUnitOnEnterableTerrain(result.state, result.state.units[id])).toBe(true);
   });
 
   it('retires implausibly ancient hulls at Stage 5 while preserving aging frigates', () => {

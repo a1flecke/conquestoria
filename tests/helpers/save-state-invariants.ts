@@ -771,10 +771,15 @@ export function assertNoIllegalBlockingOccupancy(state: GameState): void {
 
 /**
  * Every unit on the map stands on terrain its type can enter (`isUnitOnEnterableTerrain`: the
- * movement step-cost model, plus a ship in its own port and pirate hulls on any water). Cargo
- * aboard a ship and based aircraft are not map units and are skipped, as for occupancy. Several
- * unit-placement bugs (rebels, quest rewards and returning spies put on water) produced exactly
- * this shape with nothing to catch it.
+ * movement step-cost model plus a ship in its own port): no ship on land, no coast-only hull on open
+ * ocean, pirates included. Cargo aboard a ship and based aircraft are not map units and are skipped,
+ * as for occupancy.
+ *
+ * One state is deliberately tolerated: a land unit on water. The game has a designed recovery for
+ * it (#447, `unit-water-recovery.ts`): the unit stays selectable and is guided to an amber land
+ * tile, so an older save that holds one plays on. The spawn paths that used to produce it are
+ * guarded where units are created (`unit-spawn-placement.ts` and the createUnit pin in
+ * `architecture-boundaries.test.ts`), not here.
  */
 export function assertUnitsOnEnterableTerrain(state: GameState): void {
   const problems: string[] = [];
@@ -782,6 +787,9 @@ export function assertUnitsOnEnterableTerrain(state: GameState): void {
     if (unit.transportId || isBasedAirUnit(unit)) continue;
     if (isUnitOnEnterableTerrain(state, unit)) continue;
     const terrain = state.map.tiles[hexKey(unit.position)]?.terrain ?? 'no tile';
+    const recoverableLandUnit = (UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'land'
+      && (terrain === 'coast' || terrain === 'ocean');
+    if (recoverableLandUnit) continue;
     problems.push(`unit "${unitId}" (${unit.owner} ${unit.type}) stands on ${terrain} at (${unit.position.q},${unit.position.r}), which it cannot enter`);
   }
   if (problems.length > 0) throw new InvariantError(`units-on-enterable-terrain invariant violated:\n  - ${problems.join('\n  - ')}`);
