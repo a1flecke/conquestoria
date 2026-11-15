@@ -15,7 +15,7 @@ import {
   AI_GRUDGE_OLDER_BONUS,
 } from '@/ai/ai-espionage-grudges';
 import { EXPOSE_SCANDAL_PENALTY } from '@/systems/espionage-missions';
-import type { GameState } from '@/core/types';
+import type { EspionageCivState, GameState } from '@/core/types';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { EventBus } from '@/core/event-bus';
 import { hexKey } from '@/systems/hex-utils';
@@ -987,7 +987,7 @@ describe('AI failed infiltration leaves the city tile', () => {
       ...createUnit('spy_scout', 'ai-egypt', CITY, { ...state.idCounters }), id: 'spy-ai', hasMoved: true, movementPointsLeft: 0,
     };
     state.civilizations['ai-egypt'].units = ['spy-ai'];
-    let aiEsp = { ...createEspionageCivState(), maxSpies: 2, counterIntelligence: { 'city-egypt-1': 1 } };
+    let aiEsp: EspionageCivState = { ...createEspionageCivState(), maxSpies: 2, counterIntelligence: { 'city-egypt-1': 1 } };
     ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'spy-ai', 'ai-egypt', 'spy_scout', `seed-${turn}`));
     state.espionage = { ...state.espionage, 'ai-egypt': aiEsp };
     return state;
