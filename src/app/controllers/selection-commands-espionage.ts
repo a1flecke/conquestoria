@@ -5,6 +5,7 @@
 import type { UnitType } from '@/core/types';
 import { setDisguise, attemptInfiltration, getInfiltrationSuccessChance, resolveMissionResult, embedSpy } from '@/systems/espionage-system';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { findInfiltrationExitTile } from '@/systems/unit-spawn-placement';
 import type { GameState } from '@/core/types';
 import type { SelectionCommonDeps, SelectionCore, SelectedUnitCommands, SelectionCommandArgs } from './selection-shared';
 
@@ -81,17 +82,12 @@ export function createEspionageCommands(
       let spyLeavesMap = false;
 
       if (result.removeUnitFromMap) {
-        // Era 2+: spy removed from map, stationed inside city
+        // Every successful infiltration embeds the spy off the map (#1693). An era-1 scout also
+        // reports the land around the city, as it did when it stayed on the map.
         spyLeavesMap = true;
-        runSideEffects = () => {
-          deps.showNotification(`Spy successfully infiltrated ${targetCity.name}. Open Intel panel to issue orders.`, 'success');
-          deps.bus.emit('espionage:spy-infiltrated', { civId: currentPlayer, spyId: uid, cityId: targetCity.id });
-          core.deselectUnit();
-        };
-      } else if (result.era1ScoutResult !== undefined) {
-        // Era 1 (spy_scout): spy stays on map, infiltrationCityId + 5-turn city vision already set
-        const missionResult = resolveMissionResult('scout_area', targetCity.owner, targetCity.id, session.getState(), currentPlayer, uid);
-        const tilesToReveal = missionResult.tilesToReveal ?? [];
+        const tilesToReveal = result.era1ScoutResult !== undefined
+          ? resolveMissionResult('scout_area', targetCity.owner, targetCity.id, session.getState(), currentPlayer, uid).tilesToReveal ?? []
+          : [];
         if (tilesToReveal.length > 0) {
           const visibilityTiles = { ...(nextCivilizations[currentPlayer].visibility?.tiles ?? {}) };
           for (const coord of tilesToReveal) {
@@ -102,10 +98,13 @@ export function createEspionageCommands(
             [currentPlayer]: { ...nextCivilizations[currentPlayer], visibility: { ...nextCivilizations[currentPlayer].visibility!, tiles: visibilityTiles } },
           };
         }
-        nextUnits = { ...nextUnits, [uid]: { ...unit, hasActed: true, movementPointsLeft: 0 } };
         runSideEffects = () => {
-          deps.showNotification(`Scout revealed ${tilesToReveal.length} tile${tilesToReveal.length !== 1 ? 's' : ''} around ${targetCity.name}.`, 'success');
-          core.selectUnit(uid);
+          const revealed = tilesToReveal.length > 0
+            ? ` Scout revealed ${tilesToReveal.length} tile${tilesToReveal.length !== 1 ? 's' : ''} around it.`
+            : '';
+          deps.showNotification(`Spy successfully infiltrated ${targetCity.name}.${revealed} Open Intel panel to issue orders.`, 'success');
+          deps.bus.emit('espionage:spy-infiltrated', { civId: currentPlayer, spyId: uid, cityId: targetCity.id });
+          core.deselectUnit();
         };
       } else if (result.caught) {
         // Caught: remove unit from map (spy lost)
@@ -116,9 +115,15 @@ export function createEspionageCommands(
         };
       } else {
         const cooldown = result.civEsp.spies[uid]?.cooldownTurns ?? 3;
-        nextUnits = { ...nextUnits, [uid]: { ...unit, hasActed: true, movementPointsLeft: 0 } };
+        // A spy who failed to get in slips back out of the city, so the city's owner can still
+        // garrison and train there (no foreign unit is left standing on its tile).
+        const exit = findInfiltrationExitTile(session.getState(), unit, targetCity.position);
+        nextUnits = {
+          ...nextUnits,
+          [uid]: { ...unit, ...(exit ? { position: exit } : {}), hasActed: true, movementPointsLeft: 0 },
+        };
         runSideEffects = () => {
-          deps.showNotification(`Spy failed to infiltrate ${targetCity.name}. Lying low for ${cooldown} turns.`, 'info');
+          deps.showNotification(`Spy failed to infiltrate ${targetCity.name}. Lying low outside the city for ${cooldown} turns.`, 'info');
           core.selectUnit(uid);
         };
       }

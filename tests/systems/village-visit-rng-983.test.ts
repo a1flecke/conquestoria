@@ -14,16 +14,65 @@
  * class was picked.
  */
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '@/core/game-state';
 import type { GameState, TribalVillage, Unit } from '@/core/types';
 import { createSimulationRng } from '@/systems/simulation-rng';
 import { visitVillage } from '@/systems/village-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 
+/**
+ * #983 test cost: `visitVillage` needs only a civ's gold/tech/units, a map and id
+ * counters. Building a full `createNewGame` per visit (this file used to generate
+ * ~425 maps, 200 in the free_tech sweep alone) made the fixed 5s per-test timeout
+ * expire under host load. The RNG stream depends only on gameId/turn/ids, so this
+ * minimal state exercises the same production path without map generation.
+ */
 function makeState(seed: string, turn: number): GameState {
-  const state = createNewGame(undefined, seed, 'small');
-  state.turn = turn;
-  return state;
+  return {
+    gameId: seed,
+    turn,
+    map: { width: 3, height: 3, tiles: {}, wrapsHorizontally: false, rivers: [] },
+    units: {},
+    cities: {},
+    civilizations: {
+      player: {
+        id: 'player',
+        name: 'Player',
+        color: '#4a90d9',
+        isHuman: true,
+        civType: 'rome',
+        cities: [],
+        units: [],
+        gold: 100,
+        techState: {
+          completed: [],
+          currentResearch: null,
+          researchProgress: 0,
+          researchQueue: [],
+          trackPriorities: {},
+        },
+        visibility: { tiles: {} },
+        diplomacy: {
+          relationships: {},
+          treaties: [],
+          events: [],
+          atWarWith: [],
+          treacheryScore: 0,
+          vassalage: {
+            overlord: null,
+            vassals: [],
+            protectionScore: 100,
+            protectionTimers: [],
+            peakCities: 1,
+            peakMilitary: 0,
+          },
+        },
+        score: 0,
+      },
+    },
+    tribalVillages: {},
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
+    legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
+  } as unknown as GameState;
 }
 
 function addVillage(state: GameState, villageId: string): void {

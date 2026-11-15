@@ -13,7 +13,9 @@ import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator
 import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
 import type { ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { completeUnitProduction } from '@/systems/unit-production-completion';
+import { assertNoIllegalBlockingOccupancy } from '../../helpers/save-state-invariants';
 import {
   createSelectionController,
   type SelectionControllerDeps,
@@ -753,6 +755,57 @@ describe('SelectionController', () => {
       );
       expect(found).not.toBeNull();
       expect(found!.deps.session.getState().units[found!.uid].hasActed).toBe(true);
+    });
+  });
+
+  describe('onInfiltrate leaves the city tile to its owner', () => {
+    // (0,0) is the enemy city. Its neighbours: one open plain, the rest water.
+    const OPEN = { q: 1, r: 0 };
+    const landAroundCity = (deps: SelectionControllerDeps) => {
+      const state = deps.session.getState();
+      for (const coord of [{ q: 0, r: 0 }, ...hexNeighbors({ q: 0, r: 0 })]) {
+        const open = hexKey(coord) === hexKey(OPEN) || hexKey(coord) === '0,0';
+        state.map.tiles[hexKey(coord)] = {
+          coord, terrain: open ? 'plains' : 'ocean', elevation: 'lowland', resource: null, improvement: 'none',
+          owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+        };
+      }
+    };
+
+    it('a failed, uncaught spy slips out of the city to a tile it can stand on', () => {
+      const found = tryUntilInfiltrate(
+        'spy_scout',
+        (state, uid) => state.units[uid] !== undefined && state.espionage!.player.spies[uid]?.status === 'cooldown',
+        landAroundCity,
+      );
+      expect(found).not.toBeNull();
+      const state = found!.deps.session.getState();
+      expect(state.units[found!.uid].position).toEqual(OPEN);
+      expect(state.units[found!.uid].hasActed).toBe(true);
+    });
+
+    it('the enemy can then garrison its own city and train a unit there without a mixed stack', () => {
+      const found = tryUntilInfiltrate(
+        'spy_scout',
+        (state, uid) => state.units[uid] !== undefined && state.espionage!.player.spies[uid]?.status === 'cooldown',
+        landAroundCity,
+      );
+      const state = found!.deps.session.getState();
+      const trained = completeUnitProduction(state, { civId: 'ai-1', cityId: 'enemy-city', unitType: 'warrior' });
+      expect(trained.ok).toBe(true);
+      if (trained.ok) assertNoIllegalBlockingOccupancy(trained.state);
+    });
+
+    it('era-1 scout success still reveals the land around the city (#1693 regression)', () => {
+      const found = tryUntilInfiltrate(
+        'spy_scout',
+        (state, uid) => state.units[uid] === undefined && state.espionage!.player.spies[uid]?.status === 'stationed',
+        landAroundCity,
+      );
+      expect(found).not.toBeNull();
+      const visibility = found!.deps.session.getState().civilizations.player.visibility.tiles;
+      expect(visibility[hexKey(OPEN)]).toBe('visible');
+      expect(visibility['0,2']).toBe('visible');
     });
   });
 

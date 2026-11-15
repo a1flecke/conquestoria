@@ -30,7 +30,8 @@ import {
   traceOperationIncidents,
   turnCapturedSpy,
 } from './espionage-counterintel';
-import { EXPOSE_SCANDAL_PENALTY, buildOperationEffect, isOperationMission, resolveMissionResult } from './espionage-missions';
+import { ARMS_SMUGGLING_SPAWN, EXPOSE_SCANDAL_PENALTY, buildOperationEffect, isOperationMission, resolveMissionResult } from './espionage-missions';
+import { isLegalSpawnTile } from './unit-spawn-placement';
 import { checkAndApplyPromotion } from './espionage-spy-lifecycle';
 
 /**
@@ -474,10 +475,11 @@ function applySpyTurnEvents(
         // arms_smuggling: spawn a hostile 'rebels' unit near the target city
         if (evt.missionType === 'arms_smuggling' && result.spawnPosition) {
           const pos = result.spawnPosition as HexCoord;
-          const key = `${pos.q},${pos.r}`;
-          if (state.map.tiles[key]) {
-            const hostileUnit = createUnit('warrior', 'rebels', pos, state.idCounters);
-            state = { ...state, units: { ...state.units, [hostileUnit.id]: hostileUnit } };
+          // Re-checked here: earlier consequences this turn may have changed the tile.
+          if (isLegalSpawnTile(state, ARMS_SMUGGLING_SPAWN, pos)) {
+            const idCounters = { ...state.idCounters };
+            const hostileUnit = createUnit(ARMS_SMUGGLING_SPAWN.unitType, ARMS_SMUGGLING_SPAWN.ownerId, pos, idCounters);
+            state = { ...state, idCounters, units: { ...state.units, [hostileUnit.id]: hostileUnit } };
             bus.emit('unit:created', { unit: hostileUnit });
           }
         }

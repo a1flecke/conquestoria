@@ -648,8 +648,8 @@ describe('independent threat pressure governor', () => {
 });
 
 describe('processPirateSpawn', () => {
-  function makeCoastalState(): GameState {
-    const state = makeTestState({ era: 2, turn: 40 });
+  function makeCoastalState(era = 2): GameState {
+    const state = makeTestState({ era, turn: 40 });
     // High idle — score ≥ 4.0 needed for pirate spawn
     state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 0 }; // 40 turns idle
     // City at 0,0 (coast). Landmass tiles at 0,0 through 9,0 (from makeTestState).
@@ -666,7 +666,9 @@ describe('processPirateSpawn', () => {
   }
 
   it('spawns a pirate fleet when score ≥ 4.0 and no cooldown', () => {
-    const state = makeCoastalState();
+    // Era 3: the fleet is a trireme, which can float on the open-ocean spawn water. An era-1/2
+    // galley is a coast-only hull and is never put on ocean.
+    const state = makeCoastalState(3);
     const events: any[] = [];
     const bus = { emit: (e: string, p: any) => events.push({ e, ...p }) } as any;
     const updated = processPirateSpawn(state, 'p1', 'continent-0', bus);

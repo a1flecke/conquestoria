@@ -481,6 +481,39 @@ describe('faction-system', () => {
     }
   });
 
+  it('raises the rebel band only on tiles a land unit can legally hold', () => {
+    const cityPos = { q: 5, r: 5 };
+    const state = makeState({
+      cityCount: 21,
+      cityPosition: cityPos,
+      unrestLevel: 1,
+      unrestTurns: REVOLT_UNREST_TURNS - 1,
+      spyUnrestBonus: 7,
+      atWarCount: 1,
+    });
+    const terrain: Array<[HexCoord, string]> = [
+      [{ q: 6, r: 5 }, 'ocean'],
+      [{ q: 4, r: 5 }, 'coast'],
+      [{ q: 5, r: 6 }, 'ocean'],
+      [{ q: 5, r: 4 }, 'plains'], // barbarian camp
+      [{ q: 6, r: 4 }, 'ocean'],
+      [{ q: 4, r: 6 }, 'grassland'], // the only legal tile
+    ];
+    for (const [coord, kind] of terrain) {
+      state.map.tiles[hexKey(coord)] = {
+        coord, terrain: kind as never, elevation: 'lowland', resource: null, improvement: 'none',
+        owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+    }
+    state.barbarianCamps = { 'camp-1': { id: 'camp-1', position: { q: 5, r: 4 }, strength: 3, spawnCooldown: 5 } };
+
+    const result = processFactionTurn(state, bus);
+
+    expect(result.cities['city-1'].unrestLevel).toBe(2);
+    const rebels = Object.values(result.units).filter(unit => unit.owner === 'rebels');
+    expect(rebels.map(unit => unit.position)).toEqual([{ q: 4, r: 6 }]);
+  });
+
   it('resolves revolt once rebel pressure is gone and the city pressure drops', () => {
     const state = makeState({
       cityCount: 2,

@@ -2,6 +2,7 @@
  * Espionage capture choice dialog (#1243), split out of `player-action-controller.ts`:
  * expel / execute / interrogate a captured spy. Body verbatim.
  */
+import { findSpyReturnTile } from '@/systems/unit-spawn-placement';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { modifyRelationship, recordSpyCaught } from '@/systems/diplomacy-state';
 import { getSpyCaptureRelationshipPenalty, expelSpy, executeSpy, startInterrogation } from '@/systems/espionage-system';
@@ -36,10 +37,16 @@ export function createPlayerEspionageCapture(deps: PlayerActionControllerDeps): 
           deps.session.batch(() => {
             const updatedOwnerEsp = expelSpy(deps.session.getState().espionage![spyOwner], spyId, 15);
             const capital = getCapitalCity(deps.session.getState(), spyOwner);
-            if (capital) {
-              const newUnit = createUnit(spy.unitType, spyOwner, capital.position, deps.session.getState().idCounters);
+            // The expelled spy walks home into its capital, or beside it if a foreign unit holds it.
+            const homeTile = capital
+              ? findSpyReturnTile(deps.session.getState(), spyOwner, spy.unitType, capital.position)
+              : null;
+            if (homeTile) {
+              const idCounters = { ...deps.session.getState().idCounters };
+              const newUnit = createUnit(spy.unitType, spyOwner, homeTile, idCounters);
               deps.session.commit({
                 ...deps.session.getState(),
+                idCounters,
                 units: { ...deps.session.getState().units, [newUnit.id]: newUnit },
                 civilizations: {
                   ...deps.session.getState().civilizations,
