@@ -18,6 +18,16 @@
     "428": "OPEN"
    }
   },
+  "docs/superpowers/specs/2026-11-15-issue-1722-ai-spy-doctrine-design.md": {
+   "category": "active",
+   "reason": "Design for the open AI offensive-espionage defect #1722: reserve one mobile spy operative.",
+   "issues": [
+    1722
+   ],
+   "issueStates": {
+    "1722": "OPEN"
+   }
+  },
   "docs/superpowers/specs/2026-07-07-hidden-city-state-economy-design.md": {
    "category": "active",
    "reason": "Foundation design cited by the open minor-civ graduation issue #497.",
