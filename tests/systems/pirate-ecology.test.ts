@@ -3,6 +3,7 @@ import type { City, GameMap, GameState, HexCoord, Unit } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
+import { canPirateHullSail } from '@/systems/pirate-definitions';
 import {
   applyRegionalSuppression,
   calculatePiratePressureGain,
@@ -339,18 +340,71 @@ describe('pirate spawn selection and creation', () => {
     expect(choosePirateSpawn(state, 'small-cap')).toBeNull();
   });
 
-  it('uses a stable 3:2 habitat weighting from Stage 2 onward', () => {
+  it('raises no deep-sea flotilla in the corsair era: its coast-only hulls could not sail open ocean', () => {
     const state = stateWithMap(mapWith([
       [3, 3, 'plains'], [3, 2, 'coast'], [4, 2, 'coast'], [4, 3, 'coast'],
       [8, 8, 'ocean'], [8, 7, 'ocean'], [9, 8, 'ocean'], [7, 9, 'ocean'],
     ], 12, 12), 'large');
     state.civilizations.player.techState.completed = ['galleys', 'navigation'];
+    const habitats = Array.from({ length: 60 }, (_, index) => choosePirateSpawn(state, `corsair-era-${index}`)?.habitat);
+    expect(new Set(habitats)).toEqual(new Set(['coastal-enclave']));
+  });
+
+  it('uses a stable 3:2 habitat weighting from the frigate era (Stage 3) onward', () => {
+    const state = stateWithMap(mapWith([
+      [3, 3, 'plains'], [3, 2, 'coast'], [4, 2, 'coast'], [4, 3, 'coast'],
+      [8, 8, 'ocean'], [8, 7, 'ocean'], [9, 8, 'ocean'], [7, 9, 'ocean'],
+    ], 12, 12), 'large');
+    state.civilizations.player.techState.completed = ['galleys', 'navigation', 'triremes'];
     const first = choosePirateSpawn(state, 'stable-habitat');
     expect(choosePirateSpawn(state, 'stable-habitat')).toEqual(first);
     const habitats = Array.from({ length: 200 }, (_, index) => choosePirateSpawn(state, `habitat-${index}`)?.habitat);
     const enclaveCount = habitats.filter(kind => kind === 'coastal-enclave').length;
     expect(enclaveCount).toBeGreaterThanOrEqual(105);
     expect(enclaveCount).toBeLessThanOrEqual(135);
+  });
+
+  it('launches every ship on water its hull can sail: flotillas are all ocean-going, havens mix', () => {
+    // A haven with both coastal and open water around it, and deep ocean for flotillas.
+    const entries: Array<[number, number, GameMap['tiles'][string]['terrain']]> = [];
+    for (let q = 0; q < 14; q++) {
+      for (let r = 0; r < 14; r++) entries.push([q, r, 'ocean']);
+    }
+    const land = [[3, 3], [4, 3], [3, 4]];
+    const terrainAt = new Map(entries.map(([q, r, terrain]) => [`${q},${r}`, terrain]));
+    for (const [q, r] of land) terrainAt.set(`${q},${r}`, 'plains');
+    for (const [q, r] of land) {
+      for (const [dq, dr] of [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]]) {
+        const key = `${q + dq},${r + dr}`;
+        if (terrainAt.get(key) === 'ocean') terrainAt.set(key, 'coast');
+      }
+    }
+    const state = stateWithMap(mapWith([...terrainAt].map(([key, terrain]) => {
+      const [q, r] = key.split(',').map(Number);
+      return [q, r, terrain];
+    }), 14, 14), 'large');
+    state.civilizations.player.techState.completed = ['galleys', 'navigation', 'triremes', 'caravels'];
+
+    let flotillas = 0;
+    let havens = 0;
+    for (let index = 0; index < 80; index++) {
+      const plan = choosePirateSpawn(state, `hull-water-${index}`);
+      if (!plan) continue;
+      plan.fleet.forEach((hull, ship) => {
+        const terrain = state.map.tiles[`${plan.unitPositions[ship].q},${plan.unitPositions[ship].r}`].terrain;
+        expect(canPirateHullSail(hull, terrain), `${plan.habitat} ${hull} on ${terrain}`).toBe(true);
+      });
+      if (plan.habitat === 'deep-sea-flotilla') {
+        flotillas++;
+        expect(plan.fleet.every(hull => canPirateHullSail(hull, 'ocean'))).toBe(true);
+      } else {
+        havens++;
+      }
+      const spawned = spawnPirateFaction(state, plan, new EventBus(), `hull-water-${index}`);
+      expect(Object.keys(spawned.pirates!.factions)).toHaveLength(1);
+    }
+    expect(flotillas).toBeGreaterThan(0);
+    expect(havens).toBeGreaterThan(0);
   });
 
   it('allocates a distinct faction and units, keeps them out of civ rosters, and emits typed events', () => {

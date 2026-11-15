@@ -228,16 +228,40 @@ function drawWeightedHull(
   return entries[entries.length - 1].hull;
 }
 
+/**
+ * Which water a pirate hull may sail: every hull sails `coast`; only an ocean-going hull
+ * (`waterAccess: 'ocean'`) sails open `ocean`. The same rule the movement step-cost model applies to
+ * every naval hull (`canHullEnterOcean`), kept here as data so the pirate spawners need no movement
+ * import. `pirate-definitions.test.ts` pins the parity.
+ */
+export function canPirateHullSail(type: PirateHullType, terrain: string): boolean {
+  if (terrain === 'coast') return true;
+  return terrain === 'ocean' && PIRATE_HULL_DEFINITIONS[type].waterAccess === 'ocean';
+}
+
+/**
+ * The water a fleet must be able to sail. A coastal haven's fleet may mix hulls (each launches on
+ * water it can sail); a deep-sea flotilla lives on open ocean, so it is crewed only by ocean-going
+ * hulls and a stage with none (the galley and corsair eras) raises no flotilla at all.
+ */
+export type PirateFleetWaters = 'any' | 'ocean';
+
 export function composePirateFleet(
   stage: PirateMaritimeStage,
   behavior: PirateBehavior,
   seed: string,
+  waters: PirateFleetWaters = 'any',
 ): PirateHullType[] {
   const definition = getPirateStageDefinition(stage);
+  const oceanOnly = waters === 'ocean';
+  if (oceanOnly && !canPirateHullSail(definition.anchorHull, 'ocean')) return [];
+  const roster = oceanOnly
+    ? definition.rosterWeights.filter(entry => canPirateHullSail(entry.hull, 'ocean'))
+    : definition.rosterWeights;
   const sizeRange = PIRATE_FLEET_SIZE_BY_BEHAVIOR[behavior];
   const rng = createPirateRng(`${stage}:${behavior}:${seed}`);
   const size = sizeRange.min + Math.floor(rng() * (sizeRange.max - sizeRange.min + 1));
   const fleet: PirateHullType[] = [definition.anchorHull];
-  while (fleet.length < size) fleet.push(drawWeightedHull(definition.rosterWeights, rng));
+  while (fleet.length < size) fleet.push(drawWeightedHull(roster, rng));
   return fleet;
 }

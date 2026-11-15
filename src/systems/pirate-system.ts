@@ -1,5 +1,5 @@
 import type { EventBus } from '@/core/event-bus';
-import type { CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
+import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
 import type { PirateFactionState } from '@/core/pirate-state';
 import { isMajorCivOwner } from '@/core/owner-kind';
 import { resolveCombatEra } from './era-resolution';
@@ -29,12 +29,14 @@ import {
 } from './pirate-behavior';
 import { destroyPirateFaction, recordPirateContractRaid, type PirateActionEvent } from './pirate-actions';
 import {
+  canPirateHullSail,
   composePirateFleet,
   getPirateStageDefinition,
   PIRATE_FLEET_SIZE_BY_BEHAVIOR,
   PIRATE_HULL_DEFINITIONS,
   PIRATE_NOTORIETY,
   PIRATE_SIEGE_MIN_STAGE,
+  type PirateHullType,
 } from './pirate-definitions';
 import { getPirateMaritimeStage, processPirateEcology } from './pirate-ecology';
 import {
@@ -500,11 +502,16 @@ function advanceStageAndReinforce(state: GameState, bus: EventBus): GameState {
       .map(id => nextState.units[id])
       .filter((unit): unit is Unit => Boolean(unit));
     const stageDefinition = getPirateStageDefinition(targetStage);
+    // A flotilla lives on open ocean, so it is only ever reinforced with ocean-going hulls; a coastal
+    // haven may mix hulls. Each new ship launches on water it can sail.
+    const flotilla = faction.headquarters.kind === 'deep-sea-flotilla';
     const targetFleet = composePirateFleet(
       targetStage,
       faction.behavior,
       `${nextState.gameId ?? 'game'}:${nextState.turn}:${factionId}:reinforcement`,
+      flotilla ? 'ocean' : 'any',
     );
+    const anchorFits = !flotilla || canPirateHullSail(stageDefinition.anchorHull, 'ocean');
     const targetSize = Math.min(
       targetFleet.length,
       PIRATE_FLEET_SIZE_BY_BEHAVIOR[faction.behavior].max,
@@ -514,7 +521,7 @@ function advanceStageAndReinforce(state: GameState, bus: EventBus): GameState {
       .map(unit => unit.id));
     let retained = activeUnits.filter(unit => !retiredIds.has(unit.id));
     const hasAnchor = retained.some(unit => unit.type === stageDefinition.anchorHull);
-    if (!hasAnchor && retained.length >= targetSize) {
+    if (anchorFits && !hasAnchor && retained.length >= targetSize) {
       const weakest = [...retained].sort((a, b) => {
         const aStage = PIRATE_HULL_DEFINITIONS[a.type as keyof typeof PIRATE_HULL_DEFINITIONS]?.introducedAtStage ?? 0;
         const bStage = PIRATE_HULL_DEFINITIONS[b.type as keyof typeof PIRATE_HULL_DEFINITIONS]?.introducedAtStage ?? 0;
@@ -526,8 +533,8 @@ function advanceStageAndReinforce(state: GameState, bus: EventBus): GameState {
       }
     }
 
-    const additions: UnitType[] = [];
-    if (!retained.some(unit => unit.type === stageDefinition.anchorHull)) additions.push(stageDefinition.anchorHull);
+    const additions: PirateHullType[] = [];
+    if (anchorFits && !retained.some(unit => unit.type === stageDefinition.anchorHull)) additions.push(stageDefinition.anchorHull);
     for (const type of targetFleet) {
       if (retained.length + additions.length >= targetSize) break;
       if (type === stageDefinition.anchorHull && additions.includes(type)) continue;
@@ -536,14 +543,32 @@ function advanceStageAndReinforce(state: GameState, bus: EventBus): GameState {
     const occupied = new Set(Object.values(nextState.units)
       .filter(unit => !retiredIds.has(unit.id) && !unit.transportId)
       .map(unit => hexKey(unit.position)));
-    const positions = Object.values(nextState.map.tiles)
+    const pool = Object.values(nextState.map.tiles)
       .filter(tile => tile.terrain === 'coast' || tile.terrain === 'ocean')
       .filter(tile => !occupied.has(hexKey(tile.coord)))
       .filter(tile => distance(nextState, reference, tile.coord) <= 3)
       .sort((a, b) => distance(nextState, reference, a.coord) - distance(nextState, reference, b.coord)
-        || a.coord.q - b.coord.q || a.coord.r - b.coord.r)
-      .slice(0, additions.length)
-      .map(tile => tile.coord);
+        || a.coord.q - b.coord.q || a.coord.r - b.coord.r);
+    // A coast-only addition with no coastal water in reach is swapped for the stage's ocean-going
+    // hull, so a haven ringed by open ocean is still reinforced (with different ships) rather than
+    // skipped. A stage with no ocean-going hull has nothing to swap in.
+    const oceanSubstitute = canPirateHullSail(stageDefinition.anchorHull, 'ocean')
+      ? stageDefinition.anchorHull
+      : stageDefinition.rosterWeights.find(entry => canPirateHullSail(entry.hull, 'ocean'))?.hull;
+    const positions: HexCoord[] = [];
+    const taken = new Set<string>();
+    const placeable = (type: PirateHullType) =>
+      pool.find(candidate => !taken.has(hexKey(candidate.coord)) && canPirateHullSail(type, candidate.terrain));
+    for (let index = 0; index < additions.length; index++) {
+      let tile = placeable(additions[index]!);
+      if (!tile && oceanSubstitute && !canPirateHullSail(additions[index]!, 'ocean')) {
+        tile = placeable(oceanSubstitute);
+        if (tile) additions[index] = oceanSubstitute;
+      }
+      if (!tile) break;
+      taken.add(hexKey(tile.coord));
+      positions.push(tile.coord);
+    }
     if (positions.length < additions.length) continue;
 
     const units = { ...removeUnits(nextState, retiredIds, { reason: 'consumed' }).state.units };

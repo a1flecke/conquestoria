@@ -1120,18 +1120,22 @@ describe('#994 assertNoIllegalBlockingOccupancy', () => {
     expect(() => assertNoIllegalBlockingOccupancy(state)).toThrow(/foreign-city/);
   });
 
-  it('rejects a land unit on water and a coast-only hull on open ocean, but not a ship in port or cargo', () => {
+  it('rejects a coast-only hull on open ocean and a beached ship, and tolerates a recoverable land unit on water (#447)', () => {
     const { state, cityId } = stateWithPlayerCity('terrain-invariant');
     const city = state.cities[cityId];
     const water = (terrain: 'coast' | 'ocean') => Object.values(state.map.tiles).find(tile => tile.terrain === terrain
       && !Object.values(state.units).some(unit => hexKey(unit.position) === hexKey(tile.coord)))!.coord;
     expect(() => assertUnitsOnEnterableTerrain(state)).not.toThrow();
 
+    // A land unit on water is the #447 recoverable state: guided ashore, never an invariant failure.
     const swimmer = createUnit('warrior', 'player', water('coast'), state.idCounters);
     state.units[swimmer.id] = swimmer;
-    expect(() => assertUnitsOnEnterableTerrain(state)).toThrow(/warrior\) stands on coast/);
-    state.units[swimmer.id] = { ...swimmer, transportId: 'some-ship' };
     expect(() => assertUnitsOnEnterableTerrain(state)).not.toThrow();
+
+    const corsair = createUnit('pirate_corsair', 'pirate-1', water('ocean'), state.idCounters);
+    state.units[corsair.id] = corsair;
+    expect(() => assertUnitsOnEnterableTerrain(state)).toThrow(/pirate_corsair\) stands on ocean/);
+    delete state.units[corsair.id];
 
     const galley = createUnit('galley', 'player', water('ocean'), state.idCounters);
     state.units[galley.id] = galley;

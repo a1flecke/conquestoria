@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { isPassableForParams, movementStepCostParamsForType } from '@/systems/unit-movement-cost';
 import {
   PIRATE_BOUNTY_BASE,
   PIRATE_FACTION_CAP_BY_MAP_SIZE,
@@ -15,6 +16,7 @@ import {
   PIRATE_STAGE_DEFINITIONS,
   PIRATE_STAGE_SURCHARGE,
   PIRATE_TRIBUTE_BASE,
+  canPirateHullSail,
   composePirateFleet,
   getPirateBounty,
   getPirateTributeCost,
@@ -136,5 +138,37 @@ describe('pirate definitions', () => {
     expect(sampled.has('pirate_ironclad')).toBe(true);
     expect(sampled.has('pirate_fast_attack_craft')).toBe(true);
     expect(sampled.has('pirate_mothership')).toBe(true);
+  });
+});
+
+describe('pirate hulls follow the same water rules as every ship', () => {
+  it('canPirateHullSail agrees with the movement step-cost model for every hull and terrain', () => {
+    for (const hull of PIRATE_HULL_TYPES) {
+      for (const terrain of ['coast', 'ocean', 'plains', 'mountain']) {
+        expect(canPirateHullSail(hull, terrain), `${hull} on ${terrain}`)
+          .toBe(isPassableForParams(movementStepCostParamsForType(hull), terrain));
+      }
+    }
+  });
+
+  it('crews an ocean fleet only with ocean-going hulls, and the galley and corsair eras have none', () => {
+    for (const stage of [1, 2] as const) {
+      expect(composePirateFleet(stage, 'blockading', 'ocean-seed', 'ocean')).toEqual([]);
+    }
+    for (const stage of [3, 4, 5] as const) {
+      for (let index = 0; index < 20; index++) {
+        const fleet = composePirateFleet(stage, 'blockading', `ocean-${index}`, 'ocean');
+        expect(fleet.length).toBeGreaterThan(0);
+        expect(fleet.every(hull => canPirateHullSail(hull, 'ocean')), `stage ${stage}: ${fleet.join(',')}`).toBe(true);
+      }
+    }
+    expect(new Set(composePirateFleet(3, 'blockading', 'frigates', 'ocean'))).toEqual(new Set(['pirate_frigate']));
+  });
+
+  it('leaves an all-ocean roster (the final stage) drawing exactly as before', () => {
+    for (let index = 0; index < 20; index++) {
+      expect(composePirateFleet(5, 'raiding', `same-${index}`, 'ocean'))
+        .toEqual(composePirateFleet(5, 'raiding', `same-${index}`));
+    }
   });
 });
