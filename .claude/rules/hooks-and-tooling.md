@@ -1097,6 +1097,20 @@ from the active worktree so it produces that worktree's PnP map. Keep focused
 test filters root-relative (`tests/foo.test.ts`) and cover this contract in
 `tests/hooks/run-with-mise-worktree.test.sh` whenever the adapter changes.
 
+The local macOS run task (`mise run macos:run` → `scripts/build-run-macos-app.sh`)
+is a human entry point rather than an agent wrapper call, so it provisions
+itself: it runs `yarn install --immutable` and then `tauri:build:mac-app`, both
+through `scripts/run-with-mise.sh`, so the active-worktree rules above apply to
+it too. Without that step a checkout whose `.pnp.cjs` predates `package.json`
+fails inside `tsc` with a "cannot find module" that says nothing about the app —
+which is exactly how a checkout installed before #1459 reported a missing
+`@axe-core/playwright` from `mise run macos:run`. `--immutable` is deliberate: a
+genuine manifest/lockfile disagreement stays a loud, reviewable failure instead
+of silently rewriting `yarn.lock`, while a merely out-of-date map relinks in
+well under a second. `tests/hooks/build-run-macos-app.test.sh` pins the order,
+the wrapper routing, that a failed install aborts before the build, and that
+`--no-open` never launches the bundle.
+
 ## Yarn version parity (#1460)
 
 `package.json` (`packageManager`), `mise.toml` (`[tools] yarn`) and `.yarnrc.yml` (`yarnPath` →
