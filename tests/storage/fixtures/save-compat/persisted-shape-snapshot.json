@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 39,
+  "schemaVersion": 40,
   "paths": [
     "autonomyByCiv",
     "autonomyByCiv.*.detections",

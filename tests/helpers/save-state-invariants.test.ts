@@ -3,6 +3,7 @@ import type { GameState, Unit } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { hexKey } from '@/systems/hex-utils';
 import { attemptInfiltration, createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import {
@@ -18,6 +19,7 @@ import {
   assertMarketplaceReferences,
   assertOpponentAIPortfolioIntegrity,
   assertNoIllegalBlockingOccupancy,
+  assertUnitsOnEnterableTerrain,
   assertNoEliminatedCivEntities,
   assertSaveStateInvariants,
   SAVE_STATE_INVARIANTS,
@@ -1118,6 +1120,29 @@ describe('#994 assertNoIllegalBlockingOccupancy', () => {
     expect(() => assertNoIllegalBlockingOccupancy(state)).toThrow(/foreign-city/);
   });
 
+  it('rejects a land unit on water and a coast-only hull on open ocean, but not a ship in port or cargo', () => {
+    const { state, cityId } = stateWithPlayerCity('terrain-invariant');
+    const city = state.cities[cityId];
+    const water = (terrain: 'coast' | 'ocean') => Object.values(state.map.tiles).find(tile => tile.terrain === terrain
+      && !Object.values(state.units).some(unit => hexKey(unit.position) === hexKey(tile.coord)))!.coord;
+    expect(() => assertUnitsOnEnterableTerrain(state)).not.toThrow();
+
+    const swimmer = createUnit('warrior', 'player', water('coast'), state.idCounters);
+    state.units[swimmer.id] = swimmer;
+    expect(() => assertUnitsOnEnterableTerrain(state)).toThrow(/warrior\) stands on coast/);
+    state.units[swimmer.id] = { ...swimmer, transportId: 'some-ship' };
+    expect(() => assertUnitsOnEnterableTerrain(state)).not.toThrow();
+
+    const galley = createUnit('galley', 'player', water('ocean'), state.idCounters);
+    state.units[galley.id] = galley;
+    expect(() => assertUnitsOnEnterableTerrain(state)).toThrow(/galley\) stands on ocean/);
+    state.units[galley.id] = { ...galley, position: { ...city.position } };
+    expect(() => assertUnitsOnEnterableTerrain(state)).not.toThrow();
+    // A ship in someone else's city is beached, not in port.
+    state.units[galley.id] = { ...galley, position: { ...city.position }, owner: 'ai-1' };
+    expect(() => assertUnitsOnEnterableTerrain(state)).toThrow(/galley\) stands on/);
+  });
+
   // #845: an undefended barbarian camp had zero representation in the movement system before
   // getBlockingMapEntityAt covered it. A unit walking onto (or being spawned onto) one is the
   // same illegal-final-state shape.
@@ -1350,7 +1375,7 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
     expect(() => check(overCommitted.state)).toThrow(/reserved more native/);
   });
 
-  it('SAVE_STATE_INVARIANTS lists exactly the sixteen documented checks', () => {
+  it('SAVE_STATE_INVARIANTS lists exactly the seventeen documented checks', () => {
     expect(SAVE_STATE_INVARIANTS.map(inv => inv.name).sort()).toEqual([
       'active-war-history',
       'air-base-integrity',
@@ -1367,6 +1392,7 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
       'opponent-ai-portfolio-integrity',
       'treaty-reciprocity',
       'unit-rosters',
+      'units-on-enterable-terrain',
       'vassalage-reciprocity',
     ]);
   });

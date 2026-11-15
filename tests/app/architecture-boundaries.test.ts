@@ -1560,6 +1560,59 @@ describe('#1202 — a finished trainable unit enters GameState through one compl
   });
 });
 
+describe('unit placement — every createUnit call site is reviewed against the placement rules', () => {
+  function walkTs(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+      const full = resolve(dir, e.name);
+      return e.isDirectory() ? walkTs(full) : /\.tsx?$/.test(e.name) ? [full] : [];
+    });
+  }
+  const root = resolve(__dirname, '../..');
+  const rel = (file: string) => file.slice(root.length + 1);
+
+  /**
+   * Every module that conjures a unit, and why the tile it uses is legal. A new caller fails here
+   * until it is added with its reason: place through `unit-spawn-placement.ts`, through the
+   * owner-keyed blocker set (`getBlockingMapEntityKeysForOwner`) for a world actor, or show why
+   * neither is needed. Units entering the map without the checks movement uses were the bug class
+   * behind the arms-smuggling, revolt, quest-reward, returning-spy and stampede fixes.
+   */
+  const REVIEWED_CREATE_UNIT_CALLERS: Record<string, string> = {
+    'src/ai/ai-production.ts': 'a forecast unit in a projected copy of the state, never committed',
+    'src/ai/basic-ai.ts': 'an expelled spy returns home through findSpyReturnTile',
+    'src/app/controllers/espionage-panel-actions-controller.ts': 'exfiltrate / recall return through findSpyReturnTile',
+    'src/app/controllers/player-espionage-capture.ts': 'an expelled spy returns home through findSpyReturnTile',
+    'src/core/game-state.ts': 'starting units on the generated start positions',
+    'src/core/round-phases/barbarians.ts': 'raiders on tiles barbarian-system chose with the barbarian blocker set',
+    'src/core/round-phases/beasts.ts': 'beasts on lair tiles chosen with the beast blocker set',
+    'src/systems/crisis-progression.ts': 'hunt beasts on unowned passable empty tiles away from cities',
+    'src/systems/espionage-turn.ts': 'arms-smuggled rebels through ARMS_SMUGGLING_SPAWN and isLegalSpawnTile',
+    'src/systems/faction-system.ts': 'revolt rebels through filterLegalSpawnTiles',
+    'src/systems/great-general-system.ts': 'a General in its own capital, beside the garrison',
+    'src/systems/minor-civ-economy-system.ts': 'city-state production through legalSpawnPositions (terrain + blocker set)',
+    'src/systems/minor-civ-system.ts': 'city-state garrisons and ally gifts on their own empty city tile',
+    'src/systems/pirate-ecology.ts': 'pirate fleets on empty water around a chosen habitat',
+    'src/systems/pirate-system.ts': 'pirate reinforcements on water tiles next to their own headquarters',
+    'src/systems/quest-chain-system.ts': 'quest rewards through findLegalSpawnTile',
+    'src/systems/rogue-elephant-host-system.ts': 'the Host on empty land next to a target city, minus the crisis-force blocker set',
+    'src/systems/stampede-system.ts': 'herds on empty plains next to a target city, minus the crisis-force blocker set',
+    'src/systems/threat-pressure-system.ts': 'the corsair-armada hunt fleet on ocean that passes isLegalSpawnTile',
+    'src/systems/unit-lifecycle.ts': 'defines createUnit',
+    'src/systems/unit-production-completion.ts': 'trained units in their own city (production stacks with the garrison)',
+    'src/systems/unit-system.ts': 'the deprecated shrink-only facade re-exports it; nothing imports the facade (#1010)',
+    'src/systems/village-system.ts': 'a village gift on the tile its own visitor stands on; village raiders through the barbarian blocker set',
+    'src/testing/scenario-steps/unit-step.ts': 'dev-only scenario seeding, validated by the scenario loader',
+  };
+
+  it('lists exactly the modules that call createUnit', () => {
+    const callers = walkTs(resolve(root, 'src'))
+      .filter(file => /\bcreateUnit\b/.test(stripComments(readFileSync(file, 'utf8'))))
+      .map(rel)
+      .sort();
+    expect(callers).toEqual(Object.keys(REVIEWED_CREATE_UNIT_CALLERS).sort());
+  });
+});
+
 describe('#1025 — the action-contract inventory is complete and every gap has an owner', () => {
   const root = resolve(__dirname, '../..');
   const inventory = readFileSync(resolve(root, 'docs/action-contract-inventory.md'), 'utf8');

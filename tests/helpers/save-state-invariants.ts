@@ -3,6 +3,8 @@ import { classifyOwner } from '@/core/owner-kind';
 import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getBlockingMapEntityAt } from '@/systems/unit-movement-legality';
+import { isUnitOnEnterableTerrain } from '@/systems/unit-spawn-placement';
+import { hexKey } from '@/systems/hex-utils';
 import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/systems/transport-system';
 import { isBasedAirUnit } from '@/systems/air-base-state';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
@@ -768,6 +770,24 @@ export function assertNoIllegalBlockingOccupancy(state: GameState): void {
 }
 
 /**
+ * Every unit on the map stands on terrain its type can enter (`isUnitOnEnterableTerrain`: the
+ * movement step-cost model, plus a ship in its own port and pirate hulls on any water). Cargo
+ * aboard a ship and based aircraft are not map units and are skipped, as for occupancy. Several
+ * unit-placement bugs (rebels, quest rewards and returning spies put on water) produced exactly
+ * this shape with nothing to catch it.
+ */
+export function assertUnitsOnEnterableTerrain(state: GameState): void {
+  const problems: string[] = [];
+  for (const [unitId, unit] of Object.entries(state.units)) {
+    if (unit.transportId || isBasedAirUnit(unit)) continue;
+    if (isUnitOnEnterableTerrain(state, unit)) continue;
+    const terrain = state.map.tiles[hexKey(unit.position)]?.terrain ?? 'no tile';
+    problems.push(`unit "${unitId}" (${unit.owner} ${unit.type}) stands on ${terrain} at (${unit.position.q},${unit.position.r}), which it cannot enter`);
+  }
+  if (problems.length > 0) throw new InvariantError(`units-on-enterable-terrain invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
+/**
  * An `isEliminated` civ holds no live entities and no active obligations
  * anywhere in `GameState` — not just no owned cities/units/wars, but nothing in
  * espionage, AI planning, crises, trade, the minor-civ layer, and so on. The
@@ -904,6 +924,7 @@ export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state:
   { name: 'opponent-ai-portfolio-integrity', check: assertOpponentAIPortfolioIntegrity },
   { name: 'no-eliminated-civ-entities', check: assertNoEliminatedCivEntities },
   { name: 'no-illegal-blocking-occupancy', check: assertNoIllegalBlockingOccupancy },
+  { name: 'units-on-enterable-terrain', check: assertUnitsOnEnterableTerrain },
   { name: 'minor-civ-graduation-integrity', check: assertMinorCivGraduationIntegrity },
 ];
 

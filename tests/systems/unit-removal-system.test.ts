@@ -75,7 +75,10 @@ describe('removeUnits (#1198) — the one unit-removal transition', () => {
   });
 
   it('removes an embarked unit from its SURVIVING transport manifest', () => {
-    const { state, civId, at } = fixture('removal-embarked');
+    const { state, civId } = fixture('removal-embarked');
+    // A transport floats: put it (and the cargo aboard it) on an empty coast tile.
+    const at = Object.values(state.map.tiles).find(tile => tile.terrain === 'coast'
+      && !Object.values(state.units).some(unit => unit.position.q === tile.coord.q && unit.position.r === tile.coord.r))!.coord;
     const transport = add(state, { ...createUnit('transport', civId, at, counters(530)), id: 't-1', cargoUnitIds: ['c-1', 'c-2'] });
     const cargo1 = add(state, { ...createUnit('warrior', civId, at, counters(531)), id: 'c-1', transportId: transport.id });
     add(state, { ...createUnit('warrior', civId, at, counters(532)), id: 'c-2', transportId: transport.id });

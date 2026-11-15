@@ -96,7 +96,14 @@ export function fixtureThreatenedNoWar(seed: string): MinorCivFixture {
   const city = fixture.state.cities[fixture.state.minorCivs[fixture.minorCivId].cityId];
   // A barbarian counts as an immediate threat regardless of formal war state
   // (hasImmediateCityThreat), which is exactly "hostile nearby, no war declared".
-  const raider = createUnit('warrior', 'barbarian', { q: city.position.q + 1, r: city.position.r }, fixture.state.idCounters);
+  // On a neighbouring tile a warrior can actually stand on (never water).
+  const post = hexNeighbors(city.position).find(coord => {
+    const tile = fixture.state.map.tiles[hexKey(coord)];
+    return tile !== undefined && tile.terrain !== 'ocean' && tile.terrain !== 'coast'
+      && !Object.values(fixture.state.units).some(unit => hexKey(unit.position) === hexKey(coord));
+  });
+  if (!post) throw new Error('fixtureThreatenedNoWar: the city has no land neighbour for the raider');
+  const raider = createUnit('warrior', 'barbarian', post, fixture.state.idCounters);
   raider.id = 'scenario-threat-raider';
   fixture.state.units[raider.id] = raider;
   return fixture;
@@ -201,8 +208,10 @@ export function fixtureBlockedSpawn(seed: string): MinorCivFixture {
   // this codebase's "never stack units on a tile" invariant (.claude/rules/game-systems.md,
   // "Spawn Occupancy") and produce a game state that can never occur in real play. Blocking every
   // neighbor is sufficient to make the city itself unspawnable-around.
+  // Water neighbours already refuse a (land-only) city-state spawn, and a warrior cannot stand on them.
   for (const [index, coord] of hexNeighbors(city.position).entries()) {
-    if (!fixture.state.map.tiles[hexKey(coord)]) continue;
+    const tile = fixture.state.map.tiles[hexKey(coord)];
+    if (!tile || tile.terrain === 'ocean' || tile.terrain === 'coast') continue;
     const blocker = createUnit('warrior', 'barbarian', coord, fixture.state.idCounters);
     blocker.id = `scenario-spawn-blocker-${index}`;
     fixture.state.units[blocker.id] = blocker;

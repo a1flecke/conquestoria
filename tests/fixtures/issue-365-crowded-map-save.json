@@ -1086,7 +1086,7 @@
               "q": 17,
               "r": 4
             },
-            "terrain": "coast",
+            "terrain": "grassland",
             "elevation": "lowland",
             "resource": null,
             "improvement": "none",
@@ -3545,7 +3545,7 @@
           "q": 17,
           "r": 4
         },
-        "terrain": "coast",
+        "terrain": "grassland",
         "elevation": "lowland",
         "resource": null,
         "improvement": "none",

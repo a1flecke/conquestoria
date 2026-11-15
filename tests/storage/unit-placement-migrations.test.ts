@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState } from '@/core/types';
 import { migrateSpiesLeaveForeignCities } from '@/storage/migrations/steps/spies-leave-foreign-cities';
-import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { hexDistance, hexKey, hexNeighbors, hexesInRange } from '@/systems/hex-utils';
+import { migrateUnitsLeaveImpassableTerrain } from '@/storage/migrations/steps/units-leave-impassable-terrain';
 import { createUnit } from '@/systems/unit-lifecycle';
-import { assertNoIllegalBlockingOccupancy } from '../helpers/save-state-invariants';
+import { assertNoIllegalBlockingOccupancy, assertUnitsOnEnterableTerrain } from '../helpers/save-state-invariants';
 import { buildBaselineSave } from './fixtures/save-compat/baseline';
 
 /**
- * Schema 39 — a spy may no longer stand on a city its owner does not hold. A save written before
- * that rule can hold one (parked idle, or lying low after a failed infiltration); it is moved once.
+ * The two unit-placement migrations. Schema 39: a spy may no longer stand on a city its owner does
+ * not hold (parked idle, or lying low after a failed infiltration). Schema 40: no unit stands on
+ * terrain it cannot enter (land units stranded on water by the old spawn paths). Each moves a unit
+ * once and never deletes one.
  */
 
 function withParkedSpy(seed: string): { state: GameState; spyId: string; cityId: string; homeId: string } {
@@ -58,5 +61,38 @@ describe('schema 39 — spies leave foreign cities', () => {
     const { state: cargoState, spyId: cargoId } = withParkedSpy('spy-migration-cargo');
     cargoState.units[cargoId] = { ...cargoState.units[cargoId], transportId: 'some-ship' };
     expect(migrateSpiesLeaveForeignCities(cargoState)).toBe(cargoState);
+  });
+});
+
+describe('schema 40 — units leave terrain they cannot enter', () => {
+  it('carries a stranded land unit to the nearest tile it may stand on', () => {
+    const { state, spyId } = withParkedSpy('stranded-migration');
+    // Strand a warrior on water: the old rebel and quest-reward spawns could do exactly this.
+    const water = Object.values(state.map.tiles).find(tile => tile.terrain === 'coast'
+      && hexesInRange(tile.coord, 1).some(nb => state.map.tiles[hexKey(nb)]?.terrain === 'grassland'
+        || state.map.tiles[hexKey(nb)]?.terrain === 'plains'))!;
+    const stranded = createUnit('warrior', 'player', water.coord, state.idCounters);
+    state.units[stranded.id] = stranded;
+    state.civilizations.player.units.push(stranded.id);
+    delete state.units[spyId];
+    state.civilizations['ai-1'].units = state.civilizations['ai-1'].units.filter(id => id !== spyId);
+    expect(() => assertUnitsOnEnterableTerrain(state)).toThrow(/cannot enter/);
+
+    const migrated = migrateUnitsLeaveImpassableTerrain(state);
+
+    const moved = migrated.units[stranded.id].position;
+    expect(hexDistance(moved, water.coord)).toBe(1);
+    expect(() => assertUnitsOnEnterableTerrain(migrated)).not.toThrow();
+    expect(migrateUnitsLeaveImpassableTerrain(migrated)).toBe(migrated);
+  });
+
+  it('keeps a ship in its own port where it is', () => {
+    const baseline = buildBaselineSave('stranded-migration-port');
+    const state = baseline.state;
+    const city = state.cities[baseline.playerCityId];
+    const ship = createUnit('trireme', 'player', city.position, state.idCounters);
+    state.units[ship.id] = ship;
+    state.civilizations.player.units.push(ship.id);
+    expect(migrateUnitsLeaveImpassableTerrain(state)).toBe(state);
   });
 });
