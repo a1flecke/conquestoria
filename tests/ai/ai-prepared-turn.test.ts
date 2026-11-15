@@ -28,12 +28,24 @@ import {
   MIN_CITY_CENTER_DISTANCE,
 } from '@/systems/city-territory-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { findPath } from '@/systems/unit-pathfinding';
 import type { GameState, HexCoord, TerrainType, UnitType } from '@/core/types';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { createEspionageCivState, createSpyFromUnit, isSpyUnitType } from '@/systems/espionage-system';
 import { enqueueCityProduction } from '@/systems/planning-system';
+
+/** #1704 (B7): a civ answers a pirate fleet only when it owns a warship to send. */
+function giveWarship(state: GameState, civId: string, position: HexCoord): string {
+  const type = (Object.keys(UNIT_DEFINITIONS) as UnitType[])
+    .filter(candidate => !candidate.startsWith('pirate') && getAIStrategicRoles(candidate).includes('naval-combat'))
+    .sort()[0]!;
+  const ship = createUnit(type, civId, position, state.idCounters);
+  state.units[ship.id] = ship;
+  state.civilizations[civId]!.units.push(ship.id);
+  return ship.id;
+}
 
 describe('remembered infrastructure in the AI path map', () => {
   it.each(['missing', 'legacy', 'unexplored'] as const)('does not route through %s observations', kind => {
@@ -618,6 +630,7 @@ describe('prepared major-civilization planning', () => {
     const civ = state.civilizations['ai-1'];
     const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
     const shipPosition = { q: anchor.q + 2, r: anchor.r };
+    giveWarship(state, 'ai-1', anchor);
     state.units['pirate-ship'] = {
       id: 'pirate-ship', type: 'pirate_frigate', owner: 'pirate-1', position: shipPosition,
       movementPointsLeft: 4, health: 100, experience: 0,
@@ -735,6 +748,14 @@ describe('prepared major-civilization planning', () => {
       },
     };
 
+    // #1704 (B7): with no warship the response is not a plan (nobody could be assigned to it, and it
+    // displaced the real primary plan every round); production is asked for a warship instead.
+    const unarmed = prepareMajorCivStrategicPlan(state, 'ai-1');
+    expect(unarmed.portfolio.primaryPlan?.objective).not.toBe('repel');
+    expect(unarmed.forceDemands.find(demand => demand.role === 'naval-combat'))
+      .toMatchObject({ missing: 1, sourcePlanIds: ['crisis-response-readiness'] });
+
+    giveWarship(state, 'ai-1', anchor);
     const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
 
     expect(prepared.portfolio.primaryPlan).toMatchObject({

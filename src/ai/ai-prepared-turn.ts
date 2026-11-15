@@ -742,21 +742,39 @@ function planCandidates(
 // same AIPlanCandidate shape objectiveCandidates() produces, so they compete
 // for primaryPlan through the existing selectPrimaryPlan scoring in
 // ai-plan-portfolio.ts rather than a parallel decision path.
-function crisisDispatchPlanCandidates(state: GameState, civId: string): AIPlanCandidate[] {
-  return getCrisisDispatchCandidates(state, civId).flatMap(candidate => {
+//
+// #1704 (B7): a response is a plan only when the civ owns a unit that can carry it out. A pirate ship
+// needs a `naval-combat` unit; a civ with no navy got a `repel` plan nobody could ever be assigned to,
+// and that plan displaced its real primary plan every round (measured: a capture plan chosen each round
+// and replaced by an unstaffed repel for 40+ rounds of a declared war). The missing role is reported in
+// `unstaffedRoles` instead, so production is still asked for one such unit.
+function crisisDispatchPlanCandidates(
+  state: GameState,
+  civId: string,
+  availableRoles: Partial<Record<AIStrategicRole, number>>,
+): { candidates: AIPlanCandidate[]; unstaffedRoles: AIStrategicRole[] } {
+  const unstaffedRoles = new Set<AIStrategicRole>();
+  const candidates = getCrisisDispatchCandidates(state, civId).flatMap((candidate): AIPlanCandidate[] => {
     const eligible = candidate.kind === 'stampede' || candidate.kind === 'rogue-elephant-host'
       ? isCrisisPressureEligible(state, civId)
       : isPiratePressureEligible(state, civId);
     if (!eligible) return [];
     const unit = state.units[candidate.targetUnitId];
     if (!unit) return [];
+    const role: AIStrategicRole = candidate.kind === 'stampede' || candidate.kind === 'rogue-elephant-host'
+      ? 'frontline'
+      : 'naval-combat';
+    if ((availableRoles[role] ?? 0) <= 0) {
+      unstaffedRoles.add(role);
+      return [];
+    }
     return [{
       objective: 'repel',
       target: { kind: 'unit', id: candidate.targetUnitId, lastKnownPosition: { ...unit.position } },
       theaterId: `local:${unit.position.q},${unit.position.r}`,
       score: candidate.score,
       reasonCodes: [candidate.kind === 'stampede' ? 'visible-stampede' : 'urgent-defense'],
-      requiredRoles: { [candidate.kind === 'stampede' || candidate.kind === 'rogue-elephant-host' ? 'frontline' : 'naval-combat']: 1 },
+      requiredRoles: { [role]: 1 },
       commitment: 0.25,
       targetValid: true,
       reasonValid: true,
@@ -764,6 +782,7 @@ function crisisDispatchPlanCandidates(state: GameState, civId: string): AIPlanCa
       progress: false,
     }];
   });
+  return { candidates, unstaffedRoles: [...unstaffedRoles].sort() };
 }
 
 function cityThreats(
@@ -889,6 +908,7 @@ export function prepareMajorCivStrategicPlan(
         && civ.techState.completed.includes(entry.obsoletedByTech))
       .map(entry => entry.type),
   );
+  const crisisDispatch = crisisDispatchPlanCandidates(state, civId, availableRoles);
   const portfolioResult = refreshMajorCivPortfolio({
     actorId: civId,
     turn: state.turn,
@@ -896,7 +916,7 @@ export function prepareMajorCivStrategicPlan(
     portfolio: previous,
     candidates: [
       ...planCandidates(candidates, choice, availableRoles, trainableInOwnedCities),
-      ...crisisDispatchPlanCandidates(state, civId),
+      ...crisisDispatch.candidates,
     ],
     cityThreats: threats,
     ownedCityIds: new Set(perception.ownCities.map(city => city.id)),
@@ -1027,6 +1047,9 @@ export function prepareMajorCivStrategicPlan(
           !unit.transportId && getAIStrategicRoles(unit.type).includes('worker')).length,
         Math.min(perception.ownCities.length, WORKER_SOFT_CAP),
       ),
+      // #1704 (B7): a crisis response nobody could carry out asks for its first unit instead.
+      ...crisisDispatch.unstaffedRoles.flatMap(role =>
+        incrementalDemandSeed(role, 'crisis-response-readiness', 90, 0, 1)),
       // #1480: the buyer half of the commerce pipeline needs a trader to exist before it can
       // spend anything, and nothing else ever asked production for one. Same incremental,
       // city-bounded shape as workers, and only while real work is material-blocked with at

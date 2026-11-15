@@ -217,6 +217,12 @@ Expansion is a real strategic-plan objective, not an administrative side-channel
   addition: while a plan or threat is already short a frontline unit the home guard is not
   seeded, so one shortage never orders two units. Before it an unthreatened AI kept only its
   starting warrior. Difficulty-invariant.
+- **A crisis response is a plan only if it can be staffed (#1704 B7).** `crisisDispatchPlanCandidates`
+  emits a `repel` candidate for a pirate fleet (needs `naval-combat`) or a stampede (needs
+  `frontline`) only when the civ owns a unit with that role. Otherwise the role is reported as
+  unstaffed and seeded as a `crisis-response-readiness` demand (one unit). Before it, a civ with no
+  navy held an unassignable `repel` as its primary plan for 40+ rounds, displacing the capture or
+  expand plan it had actually chosen.
 - **Stationing the home guard (#1704 A2).** `planHomeGuardStations` (`src/ai/ai-home-guard.ts`,
   pure, own units and cities only) gives each city without a unit in it the nearest free land
   combat unit; `basic-ai.ts` sends it with the existing `journey` standing order and keeps
