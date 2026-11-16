@@ -1,7 +1,6 @@
 import type { GameState, Unit, UnitType } from '@/core/types';
 import type { HexCoord } from '@/core/types/hex';
 import { hexKey, hexNeighbors, wrapHexCoord } from './hex-utils';
-import { UNIT_DEFINITIONS } from './unit-definitions';
 import { isPassableForParams, movementStepCostParamsForType } from './unit-movement-cost';
 import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
 import { buildUnitOccupancy, getUnitIdsAtCoord, type UnitOccupancyIndex } from './unit-occupancy';
@@ -126,10 +125,10 @@ export function findSpyReturnTile(
 
 /**
  * Does `unit` stand on terrain its type can enter? The movement step-cost model decides (no land
- * unit on water, no coast-only hull on open ocean), for every owner, pirates included. The one
- * sanctioned exception is a ship in port: a naval unit on a city tile its own owner holds (where a
- * coastal city trains it). Cargo aboard a ship and based aircraft are not on the map; callers skip
- * them.
+ * unit on water, no coast-only hull on open ocean), for every owner, pirates included.
+ * Ships in their own ports and traders inside a freight passage can remain on land tiles. A trader
+ * retains a legal position after the channel closes so it can sail out on a later turn. Cargo
+ * aboard a ship and based aircraft are not on the map; callers skip them.
  */
 export function isUnitOnEnterableTerrain(
   state: GameState,
@@ -138,7 +137,8 @@ export function isUnitOnEnterableTerrain(
   const key = hexKey(unit.position);
   const tile = state.map.tiles[key];
   if (!tile) return false;
-  if (isPassableForParams(movementStepCostParamsForType(unit.type), tile.terrain)) return true;
-  if ((UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') !== 'naval') return false;
+  const params = movementStepCostParamsForType(unit.type);
+  if (isPassableForParams(params, tile.terrain) || (tile.freightPassage && params.freightHull)) return true;
+  if (params.domain !== 'naval') return false;
   return Object.values(state.cities).some(city => city.owner === unit.owner && hexKey(city.position) === key);
 }

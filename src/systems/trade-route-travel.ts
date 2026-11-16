@@ -57,10 +57,14 @@ export function countPathRounds(stepCosts: readonly number[], allowance: number)
 
 /** Canonical per-step costs for a path, from the one movement cost model. */
 export function getRouteStepCosts(state: GameState, unit: Unit, path: readonly HexCoord[]): number[] {
-  const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
+  const civ = state.civilizations[unit.owner];
+  const movementContext = {
+    completedTechs: civ?.techState.completed ?? [],
+    freightPassageVisibility: civ?.visibility,
+  };
   const costs: number[] = [];
   for (let i = 1; i < path.length; i++) {
-    costs.push(getMovementStepCost(unit, state.map, path[i - 1]!, path[i]!, { completedTechs }));
+    costs.push(getMovementStepCost(unit, state.map, path[i - 1]!, path[i]!, movementContext));
   }
   return costs;
 }
@@ -93,7 +97,7 @@ export function getForeignOccupiedHexKeys(state: GameState, unit: Unit): Set<str
  */
 export function getRoutePathBetween(
   state: GameState,
-  unit: Unit,
+  unit: Pick<Unit, 'type' | 'owner'>,
   from: HexCoord,
   targetCityId: string,
   avoid?: { blockedHexKeys?: ReadonlySet<string> },
@@ -101,10 +105,11 @@ export function getRoutePathBetween(
   const target = state.cities[targetCityId];
   if (!target) return null;
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-  const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
+  const civ = state.civilizations[unit.owner];
   return findPathToCity(from, target.position, state.map, domain, {
     unit,
-    completedTechs,
+    completedTechs: civ?.techState.completed ?? [],
+    freightPassageVisibility: civ?.visibility,
     blockedHexKeys: avoid?.blockedHexKeys,
   });
 }
@@ -123,7 +128,7 @@ export function getRouteLegPath(
  * Where a trader serves a route endpoint. It stands on the city's own tile when it may: its own or
  * an ally's land city. It may not stand on a foreign city (the movement rules block that tile, and
  * a foreign unit left there would lock the owner out of its own city), and a ship never sails onto
- * a city tile at all, so it serves such a city from any tile next to it. Before this, a route to a
+ * a city tile at all, so it serves such a city from an adjacent water tile. Before this, a route to a
  * non-allied foreign city and every sea route stopped one tile short, every round, and never
  * delivered. The runner, the executor and the travel quote all ask this one rule.
  */
@@ -138,8 +143,49 @@ export function isAtRouteServicePoint(state: GameState, trader: Unit, cityId: st
   const city = state.cities[cityId];
   if (!city) return false;
   if (hexKey(trader.position) === hexKey(city.position)) return true;
+  const params = movementStepCostParamsForType(trader.type);
+  if (params.domain === 'naval' && !isPassableForParams(params, state.map.tiles[hexKey(trader.position)]?.terrain ?? '')) {
+    return false;
+  }
   return !canServeFromCityTile(state, trader, city.position)
     && mapDistance(state.map, trader.position, city.position) === 1;
+}
+
+/** Travel ends on the service tile, before the synthetic final step onto an unenterable city. */
+function getRouteWalkPath(
+  state: GameState,
+  unit: Unit,
+  from: HexCoord,
+  targetCityId: string,
+  avoid?: { blockedHexKeys?: ReadonlySet<string> },
+): HexCoord[] | null {
+  const path = getRoutePathBetween(state, unit, from, targetCityId, avoid);
+  if (!path || path.length === 0) return null;
+  // A trader serving from beside the city never walks the last step onto it.
+  const target = state.cities[targetCityId]!;
+  return path.length > 1 && !canServeFromCityTile(state, unit, target.position) ? path.slice(0, -1) : path;
+}
+
+/** Quote the two legs from the service points the runner will actually use. */
+export function getNavalRouteTripRounds(
+  state: GameState,
+  unit: Unit,
+  originCityId: string,
+  destinationCityId: string,
+): { outbound: number; inbound: number } | null {
+  const origin = isAtRouteServicePoint(state, unit, originCityId)
+    ? unit.position
+    : getRouteWalkPath(state, unit, unit.position, originCityId)?.at(-1);
+  if (!origin) return null;
+  const outbound = getRouteWalkPath(state, unit, origin, destinationCityId);
+  if (!outbound) return null;
+  const inbound = getRouteWalkPath(state, unit, outbound.at(-1)!, originCityId);
+  if (!inbound) return null;
+  const allowance = getRouteRunnerAllowance(unit);
+  return {
+    outbound: Math.max(1, countPathRounds(getRouteStepCosts(state, unit, outbound), allowance)),
+    inbound: Math.max(1, countPathRounds(getRouteStepCosts(state, unit, inbound), allowance)),
+  };
 }
 
 /** Rounds this trader needs to walk from `from` to `targetCityId`, or null when no path exists. */
@@ -150,12 +196,8 @@ export function getRouteRoundsBetween(
   targetCityId: string,
   avoid?: { blockedHexKeys?: ReadonlySet<string> },
 ): number | null {
-  const path = getRoutePathBetween(state, unit, from, targetCityId, avoid);
-  if (!path || path.length === 0) return null;
-  // A trader serving from beside the city never walks the last step onto it.
-  const target = state.cities[targetCityId]!;
-  const walked = path.length > 1 && !canServeFromCityTile(state, unit, target.position) ? path.slice(0, -1) : path;
-  return countPathRounds(getRouteStepCosts(state, unit, walked), getRouteRunnerAllowance(unit));
+  const path = getRouteWalkPath(state, unit, from, targetCityId, avoid);
+  return path ? countPathRounds(getRouteStepCosts(state, unit, path), getRouteRunnerAllowance(unit)) : null;
 }
 
 /** Rounds this trader still needs to reach `targetCityId`, or null when no path exists. */

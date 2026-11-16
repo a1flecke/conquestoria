@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import type { City, Civilization, GameState, TradeRoute } from '@/core/types';
+import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { hexKey } from '@/systems/hex-utils';
+import { getEntitledTradeDestinations } from '@/systems/commerce-projection';
 import { completeRouteLeg } from '@/systems/trade-route-runner';
 import { establishTradeRoute } from '@/systems/trade-route-contract';
 import { getTradeRouteQuote } from '@/systems/trade-route-economy';
 import { resetUnitTurn } from '@/systems/unit-lifecycle';
+import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { advanceRouteRunners, executeUnitMove } from '@/systems/unit-movement-system';
 import { deliverRouteManifest } from '@/systems/resource-shipment-system';
@@ -211,7 +214,6 @@ function routeOf(state: GameState, id = 'route-1'): TradeRoute {
 describe('#1125 engineering passage feasibility', () => {
   const traderId = 'caravan-1';
   const home = { q: 0, r: 1 };
-  const supplier = { q: 7, r: 1 };
   const passage = { q: 4, r: 1 };
   const request = {
     caravanUnitId: traderId,
@@ -220,31 +222,44 @@ describe('#1125 engineering passage feasibility', () => {
     toCityId: SELLER_CITY,
   };
 
-  function passageWorld(open: boolean): GameState {
+  function passageWorld(open: boolean, authorized = true, longer = false): GameState {
     const state = world({ unitType: 'naval_trader', target: 4 });
-    // Both runs have one water approach per port. Only the crossing tile changes.
     const rows = ['........', 'HoooXooS', '..o..o..', '..o..o..', '..o..o..', '..oooo..'];
+    if (longer) rows[1] = 'HoooXoooS';
+    const width = rows[1]!.length;
+    const supplier = { q: width - 1, r: 1 };
     const tiles: GameState['map']['tiles'] = {};
-    rows.forEach((row, r) => [...row].forEach((tile, q) => {
+    rows.forEach((row, r) => [...row.padEnd(width, '.')].forEach((tile, q) => {
       const coord = { q, r };
       tiles[hexKey(coord)] = {
         coord,
-        terrain: tile === 'o' || (tile === 'X' && open) ? 'coast' : 'grassland',
+        terrain: tile === 'o' ? 'coast' : 'grassland',
         elevation: 'lowland', resource: null, improvement: 'none', improvementTurnsLeft: 0,
         hasRiver: false, wonder: null,
         owner: tile === 'H' ? BUYER : tile === 'S' ? SELLER : null,
       };
     }));
+    tiles[hexKey(passage)] = {
+      ...tiles[hexKey(passage)]!,
+      freightPassage: {
+        id: 'isthmus',
+        ownerId: SELLER,
+        open,
+        allowedOperatorIds: authorized ? [BUYER] : [],
+        approaches: [{ q: 3, r: 1 }, { q: 5, r: 1 }],
+      },
+    };
     const visibility = {
       tiles: Object.fromEntries(Object.keys(tiles).map(key => [key, 'visible' as const])),
     };
-    state.map = { ...state.map, height: rows.length, tiles };
+    state.map = { ...state.map, width, height: rows.length, tiles };
+    state.minorCivs = {};
     state.tribalVillages = {};
     state.cities[BUYER_CITY] = { ...state.cities[BUYER_CITY]!, position: home, ownedTiles: [home] };
     state.cities[SELLER_CITY] = { ...state.cities[SELLER_CITY]!, position: supplier, ownedTiles: [supplier] };
     state.civilizations[BUYER]!.units = [traderId];
     state.civilizations[BUYER]!.visibility = visibility;
-    state.civilizations[SELLER]!.visibility = visibility;
+    state.civilizations[SELLER]!.visibility = { tiles: { ...visibility.tiles } };
     state.units[traderId] = resetUnitTurn({
       ...state.units[traderId]!, position: home, committedToRouteId: undefined, routeDirection: undefined,
     });
@@ -252,10 +267,14 @@ describe('#1125 engineering passage feasibility', () => {
   }
 
   it.each([
-    { open: true, legRounds: 2, crossings: ['outbound', 'loaded'] },
-    { open: false, legRounds: 4, crossings: [] },
-  ])('matches preview, execution, and shipment timing with passage open=$open', ({ open, legRounds, crossings }) => {
-    const fixture = passageWorld(open);
+    { name: 'authorized', open: true, authorized: true, longer: false, outbound: 2, inbound: 2 },
+    { name: 'closed', open: false, authorized: true, longer: false, outbound: 4, inbound: 4 },
+    { name: 'uninvited', open: true, authorized: false, longer: false, outbound: 4, inbound: 4 },
+    { name: 'different leg times', open: true, authorized: true, longer: true, outbound: 3, inbound: 2 },
+  ])('matches movement and delivery with an $name passage', ({ open, authorized, longer, outbound, inbound }) => {
+    const fixture = passageWorld(open, authorized, longer);
+    const shortcut = open && authorized;
+    expect(fixture.map.tiles[hexKey(passage)]!.terrain).toBe('grassland');
     const procurement = routeOf(fixture).procurement;
     fixture.marketplace!.tradeRoutes = [];
     const trader = fixture.units[traderId]!;
@@ -263,15 +282,22 @@ describe('#1125 engineering passage feasibility', () => {
       ...fixture,
       units: { [traderId]: { ...trader, position: { q: 3, r: 1 } } },
     };
-    expect(getMovementRangeDetails(besidePassage, traderId).reachable.some(
+    expect(buildSelectedUnitHighlights(besidePassage, traderId).movementRange.some(
       coord => hexKey(coord) === hexKey(passage),
-    )).toBe(open);
+    )).toBe(shortcut);
     const move = executeUnitMove(besidePassage, traderId, passage, { actor: 'player', civId: BUYER });
-    expect(move.ok).toBe(open);
+    expect(move.ok).toBe(shortcut);
     if (move.ok) expect(move.to).toEqual(passage);
+    const blocker = getMovementBlockerReason(besidePassage, traderId, passage);
+    expect(blocker?.message).toBe(!open
+      ? 'This freight passage is closed.'
+      : authorized ? undefined : 'Only authorized freight ships can use this passage.');
 
     const quote = getTradeRouteQuote(fixture, request);
-    expect(quote).toMatchObject({ legRounds, roundTripRounds: 2 * legRounds });
+    expect(quote).toMatchObject({ legRounds: outbound, roundTripRounds: outbound + inbound });
+    expect(getEntitledTradeDestinations(fixture, BUYER, traderId, { originCityId: BUYER_CITY })).toContainEqual(
+      expect.objectContaining({ cityId: SELLER_CITY, eligible: true, roundTripRounds: outbound + inbound }),
+    );
     const assignment = establishTradeRoute(fixture, { ...request, procurement });
     expect(assignment).toMatchObject({ ok: true });
     if (!assignment.ok) throw new Error(assignment.reason);
@@ -294,17 +320,17 @@ describe('#1125 engineering passage feasibility', () => {
     const incoming = () => getIncomingQuantity(state.materialReservesByCiv![BUYER]!, IRON);
     const position = () => state.units[traderId]!.position;
 
-    for (let round = 1; round <= legRounds; round++) {
+    for (let round = 1; round <= outbound; round++) {
       expect(routeOf(state).manifest).toBeUndefined();
       advance();
       expect(imported()).toBe(0);
     }
-    expect(position()).toEqual({ q: 6, r: 1 });
+    expect(position()).toEqual({ q: fixture.map.width - 2, r: 1 });
     expect(routeOf(state).manifest?.items).toMatchObject([{ goodId: IRON, quantity: 4, sellerCivId: SELLER }]);
     expect(incoming()).toBe(4);
     expect(getReserveBalance(state.materialReservesByCiv![SELLER]!, IRON).native).toBe(26);
 
-    for (let round = 1; round <= legRounds; round++) {
+    for (let round = 1; round <= inbound; round++) {
       expect(imported()).toBe(0);
       expect(incoming()).toBe(4);
       advance();
@@ -313,7 +339,61 @@ describe('#1125 engineering passage feasibility', () => {
     expect(routeOf(state).manifest).toBeUndefined();
     expect(incoming()).toBe(0);
     expect(imported()).toBe(4);
-    expect(observedCrossings).toEqual(crossings);
+    expect(observedCrossings).toEqual(shortcut ? ['outbound', 'loaded'] : []);
+    if (longer) {
+      expect(getTradeRouteQuote(state, request)).toMatchObject({ legRounds: 2, roundTripRounds: 4 });
+    }
+  });
+
+  it('admits the builder’s trader and retains land movement while excluding warships and unknown passages', () => {
+    const state = passageWorld(true, false);
+    const trader = state.units[traderId]!;
+    const approach = { q: 3, r: 1 };
+    const options = { actor: 'player', civId: SELLER } as const;
+    state.units[traderId] = { ...trader, owner: SELLER, position: approach };
+    expect(executeUnitMove(state, traderId, passage, options)).toMatchObject({ ok: true, to: passage });
+
+    state.units[traderId] = { ...state.units[traderId]!, type: 'destroyer' };
+    expect(getMovementRangeDetails(state, traderId).reachable).not.toContainEqual(passage);
+    expect(executeUnitMove(state, traderId, passage, options)).toMatchObject({ ok: false });
+
+    state.units[traderId] = { ...state.units[traderId]!, type: 'worker', position: { q: 4, r: 0 } };
+    expect(getMovementRangeDetails(state, traderId).reachable).toContainEqual(passage);
+    expect(executeUnitMove(state, traderId, passage, options)).toMatchObject({ ok: true, to: passage });
+
+    state.units[traderId] = { ...trader, owner: SELLER, position: approach };
+    state.civilizations[SELLER]!.visibility.tiles[hexKey(passage)] = 'unexplored';
+    expect(getMovementRangeDetails(state, traderId).reachable).not.toContainEqual(passage);
+    expect(executeUnitMove(state, traderId, passage, options)).toMatchObject({ ok: false });
+  });
+
+  it('lets a trader already in a closed passage sail out without allowing re-entry', () => {
+    const state = passageWorld(false);
+    const approach = { q: 3, r: 1 };
+    state.units[traderId] = { ...state.units[traderId]!, position: passage };
+    const options = { actor: 'player', civId: BUYER } as const;
+    const exit = executeUnitMove(state, traderId, approach, options);
+    expect(exit).toMatchObject({ ok: true, to: approach });
+    if (!exit.ok) throw new Error(exit.reason);
+    expect(executeUnitMove(exit.state, traderId, passage, options)).toMatchObject({ ok: false });
+  });
+
+  it('requires enough movement to sail around to a designated approach', () => {
+    const state = passageWorld(true);
+    const wrongSide = { q: 4, r: 2 };
+    state.map.tiles[hexKey(wrongSide)]!.terrain = 'coast';
+    state.units[traderId] = { ...state.units[traderId]!, position: wrongSide, movementPointsLeft: 1 };
+    expect(buildSelectedUnitHighlights(state, traderId).movementRange).not.toContainEqual(passage);
+    const options = { actor: 'player', civId: BUYER } as const;
+    expect(executeUnitMove(state, traderId, passage, options)).toMatchObject({
+      ok: false,
+      reason: 'insufficient-movement',
+    });
+    state.units[traderId]!.movementPointsLeft = 2;
+    expect(executeUnitMove(state, traderId, passage, options)).toMatchObject({
+      ok: true,
+      path: [wrongSide, { q: 5, r: 1 }, passage],
+    });
   });
 });
 

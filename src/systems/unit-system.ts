@@ -19,7 +19,7 @@
 //
 // Explicit named re-exports (never `export *`). The four sibling-only helpers in
 // unit-movement-cost.ts (terrainCostForParams, isPassableForParams,
-// hasRoadMovementDiscount, isPassableForUnitInContext) stay internal, and
+// hasRoadMovementDiscount, isEnterableMovementTile) stay internal, and
 // getMovementBlockerReason (unit-movement-explainer.ts) is not here because it
 // would cycle through this facade.
 export { UNIT_DEFINITIONS } from './unit-definitions';
