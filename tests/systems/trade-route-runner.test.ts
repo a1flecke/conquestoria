@@ -4,6 +4,7 @@ import { EventBus } from '@/core/event-bus';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { getTradeRouteQuote, getRouteOperatingStatus, settleTradeRouteForCiv } from '@/systems/trade-route-economy';
 import { getTradeRouteEligibility } from '@/systems/trade-route-contract';
+import { getRouteLegRounds } from '@/systems/trade-route-travel';
 import { applyRouteControl, getRouteControlOptions } from '@/systems/trade-route-lifecycle';
 
 /**
@@ -525,6 +526,23 @@ describe('a foreign route reaches its destination by real movement', () => {
     }
     expect(delivered).toBe(1);
     expect(current.units['trader-1']!.routeDirection).toBe('inbound');
+  });
+
+  it('arrives beside the foreign city in exactly the quoted number of rounds', () => {
+    const start = foreignRouteState();
+    const legRounds = getRouteLegRounds(start, start.units['trader-1']!, 'alpha-port');
+    // Three flat hexes to the tile beside the city, three movement: one round, never the extra step in.
+    expect(legRounds).toBe(1);
+    let current = start;
+    let rounds = 0;
+    let delivered = 0;
+    while (delivered === 0 && rounds < 12) {
+      rounds++;
+      const bus = new EventBus();
+      bus.on('trade:route-delivered', () => { delivered++; });
+      current = advanceRouteRunners(withResetAllowance({ ...current, turn: current.turn + 1 }), bus);
+    }
+    expect(rounds).toBe(legRounds);
   });
 
   it('a naval trader serves its own coastal cities from the water beside them', () => {

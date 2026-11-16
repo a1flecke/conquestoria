@@ -25,13 +25,13 @@ import { removeRouteById } from './trade-route-lifecycle';
 import { deliverRouteManifest, loadRouteManifest } from './resource-shipment-system';
 import {
   MAX_ROUTE_DETOUR_ROUNDS,
+  canServeFromCityTile,
   getForeignOccupiedHexKeys,
   getRouteLegPath,
   getRouteLegRounds,
+  isAtRouteServicePoint,
 } from './trade-route-travel';
-import { hexKey, mapDistance } from './hex-utils';
-import { getBlockingMapEntityAt } from './unit-movement-legality';
-import { isPassableForParams, movementStepCostParamsForType } from './unit-movement-cost';
+import { hexKey } from './hex-utils';
 
 /** The trader committed to this route, if it still exists. */
 export function getRouteRunner(state: GameState, routeId: string): Unit | null {
@@ -99,28 +99,7 @@ function plan(
  * the canonical path, detouring around an obstruction within the leg's allowance), or hold —
  * because the route is paused, the trader is gone, or no permitted path remains.
  */
-/**
- * Where a trader serves a route endpoint. It stands on the city's own tile when it may: its own or
- * an ally's land city. It may not stand on a foreign city (the movement rules block that tile, and
- * a foreign unit left there would lock the owner out of its own city), and a ship never sails onto
- * a city tile at all, so it serves such a city from any tile next to it. Before this, a route to a
- * non-allied foreign city and every sea route stopped one tile short, every round, and never
- * delivered.
- */
-function canServeFromCityTile(state: GameState, trader: Unit, cityPosition: HexCoord): boolean {
-  if (getBlockingMapEntityAt(state, trader, cityPosition)) return false;
-  const terrain = state.map.tiles[hexKey(cityPosition)]?.terrain;
-  return terrain !== undefined && isPassableForParams(movementStepCostParamsForType(trader.type), terrain);
-}
-
-/** Is the trader at a tile from which it serves `cityId` (see `canServeFromCityTile`)? */
-export function isAtRouteServicePoint(state: GameState, trader: Unit, cityId: string): boolean {
-  const city = state.cities[cityId];
-  if (!city) return false;
-  if (hexKey(trader.position) === hexKey(city.position)) return true;
-  return !canServeFromCityTile(state, trader, city.position)
-    && mapDistance(state.map, trader.position, city.position) === 1;
-}
+export { isAtRouteServicePoint };
 
 export function planRouteRunnerRound(state: GameState, route: TradeRoute): RouteRunnerPlan {
   const caravan = getRouteRunner(state, route.id);

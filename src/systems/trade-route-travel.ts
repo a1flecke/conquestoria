@@ -8,9 +8,10 @@
 import type { GameState, HexCoord, Unit } from '@/core/types';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { findPathToCity } from './unit-pathfinding';
-import { getMovementStepCost } from './unit-movement-cost';
+import { getMovementStepCost, isPassableForParams, movementStepCostParamsForType } from './unit-movement-cost';
+import { getBlockingMapEntityAt } from './unit-movement-legality';
 import { resetUnitTurn } from './unit-lifecycle';
-import { hexKey } from './hex-utils';
+import { hexKey, mapDistance } from './hex-utils';
 
 /**
  * The one movement allowance a trader gets per round: exactly what the canonical per-owner-turn
@@ -118,6 +119,29 @@ export function getRouteLegPath(
   return getRoutePathBetween(state, unit, unit.position, targetCityId, avoid);
 }
 
+/**
+ * Where a trader serves a route endpoint. It stands on the city's own tile when it may: its own or
+ * an ally's land city. It may not stand on a foreign city (the movement rules block that tile, and
+ * a foreign unit left there would lock the owner out of its own city), and a ship never sails onto
+ * a city tile at all, so it serves such a city from any tile next to it. Before this, a route to a
+ * non-allied foreign city and every sea route stopped one tile short, every round, and never
+ * delivered. The runner, the executor and the travel quote all ask this one rule.
+ */
+export function canServeFromCityTile(state: GameState, trader: Unit, cityPosition: HexCoord): boolean {
+  if (getBlockingMapEntityAt(state, trader, cityPosition)) return false;
+  const terrain = state.map.tiles[hexKey(cityPosition)]?.terrain;
+  return terrain !== undefined && isPassableForParams(movementStepCostParamsForType(trader.type), terrain);
+}
+
+/** Is the trader at a tile from which it serves `cityId` (see `canServeFromCityTile`)? */
+export function isAtRouteServicePoint(state: GameState, trader: Unit, cityId: string): boolean {
+  const city = state.cities[cityId];
+  if (!city) return false;
+  if (hexKey(trader.position) === hexKey(city.position)) return true;
+  return !canServeFromCityTile(state, trader, city.position)
+    && mapDistance(state.map, trader.position, city.position) === 1;
+}
+
 /** Rounds this trader needs to walk from `from` to `targetCityId`, or null when no path exists. */
 export function getRouteRoundsBetween(
   state: GameState,
@@ -128,7 +152,10 @@ export function getRouteRoundsBetween(
 ): number | null {
   const path = getRoutePathBetween(state, unit, from, targetCityId, avoid);
   if (!path || path.length === 0) return null;
-  return countPathRounds(getRouteStepCosts(state, unit, path), getRouteRunnerAllowance(unit));
+  // A trader serving from beside the city never walks the last step onto it.
+  const target = state.cities[targetCityId]!;
+  const walked = path.length > 1 && !canServeFromCityTile(state, unit, target.position) ? path.slice(0, -1) : path;
+  return countPathRounds(getRouteStepCosts(state, unit, walked), getRouteRunnerAllowance(unit));
 }
 
 /** Rounds this trader still needs to reach `targetCityId`, or null when no path exists. */
