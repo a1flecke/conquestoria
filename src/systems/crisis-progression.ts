@@ -430,6 +430,8 @@ function findHuntSpawnHex(
   rng: () => number,
 ): HexCoord | null {
   const occupancy = buildUnitOccupancy(state.units);
+  // A barbarian camp or pirate enclave blocks a beast exactly as it blocks movement (camps sit on unclaimed land).
+  const blocked = getBlockingMapEntityKeysForOwner(state, BEAST_OWNER);
   const candidates = mapHexesInRange(state.map, targetCity.position, 5)
     .filter(coord => mapDistance(state.map, coord, targetCity.position) >= 3)
     .filter(coord => {
@@ -437,6 +439,7 @@ function findHuntSpawnHex(
       if (!tile) return false;
       if (tile.owner !== null) return false;
       if (!isPassable(tile.terrain)) return false;
+      if (blocked.has(hexKey(coord))) return false;
       return getUnitIdsAtCoord(occupancy, coord).length === 0;
     });
   if (candidates.length === 0) return null;
