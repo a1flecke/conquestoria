@@ -1,6 +1,8 @@
 import type { BreakawayMetadata, Civilization, GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
+import { isSpyUnitType } from '@/systems/spy-unit-types';
+import { findLegalSpawnTile, spawnNeighbours } from '@/systems/unit-spawn-placement';
 import {
   emitCivilizationLivenessTransitions,
   reconcileCivilizationLiveness,
@@ -12,6 +14,27 @@ export const REABSORB_GOLD_COST = 200;
 
 export function isBreakawayCiv(civ: Civilization): boolean {
   return civ.breakaway !== undefined;
+}
+
+function moveLoyalSpiesOffCity(state: GameState, cityId: string, ownerId: string): GameState {
+  const city = state.cities[cityId];
+  if (!city) return state;
+  let next = state;
+  const spies = Object.values(state.units)
+    .filter(unit => unit.owner === ownerId && !unit.transportId && isSpyUnitType(unit.type)
+      && unit.position.q === city.position.q && unit.position.r === city.position.r)
+    .map(unit => unit.id)
+    .sort();
+  for (const spyId of spies) {
+    const spy = next.units[spyId]!;
+    const destination = findLegalSpawnTile(
+      next,
+      { ownerId, unitType: spy.type, stacking: 'same-owner' },
+      spawnNeighbours(next, city.position),
+    );
+    if (destination) next = { ...next, units: { ...next.units, [spyId]: { ...spy, position: { ...destination } } } };
+  }
+  return next;
 }
 
 export function createBreakawayFromCity(
@@ -39,8 +62,13 @@ export function createBreakawayFromCity(
   };
 
   const cityTerritory = new Set(city.ownedTiles.map(coord => `${coord.q},${coord.r}`));
+  // A spy is its owner's agent, not part of the local garrison: it stays loyal (its espionage
+  // record lives with the old owner, so a seceded spy unit would be a phantom that still fills a
+  // spy slot), and one standing on the seceding city steps out, since a spy never stands on a city
+  // its owner does not hold.
   const transferredUnitIds = Object.values(state.units)
     .filter(unit => unit.owner === previousOwner.id
+      && !isSpyUnitType(unit.type)
       && cityTerritory.has(`${unit.position.q},${unit.position.r}`))
     .map(unit => unit.id);
 
@@ -71,7 +99,10 @@ export function createBreakawayFromCity(
     }
   }
 
-  const newCivIds = [...Object.keys(state.civilizations), breakawayId];
+  // The new civilization meets only the living: an eliminated civ is never re-seeded a relationship
+  // (#1001), and every living civ gets an entry for the newcomer (Diplomacy Lifecycle).
+  const livingCivIds = Object.keys(state.civilizations).filter(id => !state.civilizations[id]!.isEliminated);
+  const newCivIds = [...livingCivIds, breakawayId];
   const breakawayCiv: Civilization = {
     id: breakawayId,
     name: `${city.name} Secession`,
@@ -95,6 +126,14 @@ export function createBreakawayFromCity(
   breakawayCiv.diplomacy.relationships[previousOwner.id] = -80;
 
   const updatedCivilizations = { ...state.civilizations };
+  for (const civId of livingCivIds) {
+    const civ = updatedCivilizations[civId]!;
+    if (civId === previousOwner.id || civ.diplomacy.relationships[breakawayId] !== undefined) continue;
+    updatedCivilizations[civId] = {
+      ...civ,
+      diplomacy: { ...civ.diplomacy, relationships: { ...civ.diplomacy.relationships, [breakawayId]: 0 } },
+    };
+  }
   updatedCivilizations[previousOwner.id] = {
     ...previousOwner,
     cities: previousOwner.cities.filter(id => id !== cityId),
@@ -129,7 +168,8 @@ export function createBreakawayFromCity(
     breakawayId,
   });
 
-  const liveness = reconcileCivilizationLiveness(state, nextState);
+  const withLoyalSpiesOut = moveLoyalSpiesOffCity(nextState, cityId, previousOwner.id);
+  const liveness = reconcileCivilizationLiveness(state, withLoyalSpiesOut);
   emitCivilizationLivenessTransitions(liveness, bus);
   return liveness.state;
 }
