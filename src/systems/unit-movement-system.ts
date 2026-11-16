@@ -11,7 +11,7 @@ import { getFreeStandingOwnedUnits } from '@/systems/unit-ownership';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { moveUnitWithZoneOfControl } from '@/systems/unit-low-level-move';
 import { getMovementStepCost } from '@/systems/unit-movement-cost';
-import { completeRouteLeg, getRouteRunner, planRouteRunnerRound } from '@/systems/trade-route-runner';
+import { completeRouteLeg, getRouteRunner, isAtRouteServicePoint, planRouteRunnerRound } from '@/systems/trade-route-runner';
 import {
   getOwnerCompletedTechs,
   isWorkerTaskInProgress,
@@ -325,10 +325,9 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
 
       const legTarget = plan.legTargetCityId ? newState.cities[plan.legTargetCityId] : undefined;
       if (!legTarget || !plan.target) break;
-      const atLegTarget = caravan.position.q === legTarget.position.q && caravan.position.r === legTarget.position.r;
-
-      // Already standing on the leg target: endpoint service with no walk needed.
-      if (atLegTarget) {
+      // Already at the leg target's service point (its tile, or beside a city the trader may not
+      // stand on): endpoint service with no walk needed.
+      if (isAtRouteServicePoint(newState, caravan, legTarget.id)) {
         newState = markProgress(completeRouteLeg(newState, route.id, caravan.id, bus), route.id);
         break;
       }
@@ -345,7 +344,8 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
       }
       newState = markProgress(move.state, route.id);
 
-      if (move.to.q === legTarget.position.q && move.to.r === legTarget.position.r) {
+      const moved = newState.units[caravan.id];
+      if (moved && isAtRouteServicePoint(newState, moved, legTarget.id)) {
         newState = completeRouteLeg(newState, route.id, caravan.id, bus);
         break;
       }

@@ -29,7 +29,9 @@ import {
   getRouteLegPath,
   getRouteLegRounds,
 } from './trade-route-travel';
-import { hexKey } from './hex-utils';
+import { hexKey, mapDistance } from './hex-utils';
+import { getBlockingMapEntityAt } from './unit-movement-legality';
+import { isPassableForParams, movementStepCostParamsForType } from './unit-movement-cost';
 
 /** The trader committed to this route, if it still exists. */
 export function getRouteRunner(state: GameState, routeId: string): Unit | null {
@@ -97,6 +99,29 @@ function plan(
  * the canonical path, detouring around an obstruction within the leg's allowance), or hold —
  * because the route is paused, the trader is gone, or no permitted path remains.
  */
+/**
+ * Where a trader serves a route endpoint. It stands on the city's own tile when it may: its own or
+ * an ally's land city. It may not stand on a foreign city (the movement rules block that tile, and
+ * a foreign unit left there would lock the owner out of its own city), and a ship never sails onto
+ * a city tile at all, so it serves such a city from any tile next to it. Before this, a route to a
+ * non-allied foreign city and every sea route stopped one tile short, every round, and never
+ * delivered.
+ */
+function canServeFromCityTile(state: GameState, trader: Unit, cityPosition: HexCoord): boolean {
+  if (getBlockingMapEntityAt(state, trader, cityPosition)) return false;
+  const terrain = state.map.tiles[hexKey(cityPosition)]?.terrain;
+  return terrain !== undefined && isPassableForParams(movementStepCostParamsForType(trader.type), terrain);
+}
+
+/** Is the trader at a tile from which it serves `cityId` (see `canServeFromCityTile`)? */
+export function isAtRouteServicePoint(state: GameState, trader: Unit, cityId: string): boolean {
+  const city = state.cities[cityId];
+  if (!city) return false;
+  if (hexKey(trader.position) === hexKey(city.position)) return true;
+  return !canServeFromCityTile(state, trader, city.position)
+    && mapDistance(state.map, trader.position, city.position) === 1;
+}
+
 export function planRouteRunnerRound(state: GameState, route: TradeRoute): RouteRunnerPlan {
   const caravan = getRouteRunner(state, route.id);
   if (!caravan) return plan(route, 'hold', null, { reason: 'no-trader' });
@@ -125,12 +150,14 @@ export function planRouteRunnerRound(state: GameState, route: TradeRoute): Route
   const target = state.cities[legTargetCityId];
   if (!target) return plan(discovered, 'hold', legTargetCityId, { reason: 'blocked' });
 
-  const path = getRouteLegPath(state, caravan, legTargetCityId);
-  if (!path || path.length === 0) return plan(discovered, 'hold', legTargetCityId, { reason: 'blocked' });
-  // Already standing on the leg target: endpoint service, no walk needed.
-  if (path.length === 1) {
+  // Already at the leg target's service point: endpoint service, no walk needed.
+  if (isAtRouteServicePoint(state, caravan, legTargetCityId)) {
     return plan(discovered, 'advance', legTargetCityId, { target: { ...caravan.position }, completesLeg: true });
   }
+  const path = getRouteLegPath(state, caravan, legTargetCityId);
+  if (!path || path.length <= 1) return plan(discovered, 'hold', legTargetCityId, { reason: 'blocked' });
+  // The final step onto a city the trader may not stand on is never walked; it serves from beside it.
+  const servesFromBeside = !canServeFromCityTile(state, caravan, target.position);
 
   // A foreign unit on the committed next step may be routed around — within the leg's allowance.
   const foreign = getForeignOccupiedHexKeys(state, caravan);
@@ -158,7 +185,7 @@ export function planRouteRunnerRound(state: GameState, route: TradeRoute): Route
   // the obstruction the detour exists to avoid.
   return plan(discovered, 'advance', legTargetCityId, {
     target: { ...walkPath[1]! },
-    completesLeg: walkPath.length === 2,
+    completesLeg: walkPath.length === (servesFromBeside ? 3 : 2),
     detoured,
   });
 }
