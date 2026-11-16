@@ -342,6 +342,10 @@ describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
     // config + an extra human civ existing alongside -- not a different economy.
     hotSeat.civilizations['ai-1'] = solo.civilizations['ai-1'];
     for (const cityId of FOUR_CITIES) hotSeat.cities[cityId] = solo.cities[cityId]!;
+    // #1724: those grafted cities stand at the solo map's coordinates, and a unit purchase
+    // now needs legal terrain there. Use the same map so the comparison isolates the
+    // economy question rather than a placement difference.
+    hotSeat.map = structuredClone(solo.map);
     hotSeat.currentPlayer = 'player-1';
     const hotSeatResult = applyAIGoldSpending(hotSeat, 'ai-1', new EventBus());
 

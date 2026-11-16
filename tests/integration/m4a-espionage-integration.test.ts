@@ -8,7 +8,7 @@ import {
   turnCapturedSpy,
   verifyAgent,
   } from '@/systems/espionage-system';
-import type { GameState, Spy } from '@/core/types';
+import type { GameState, HexCoord, HexTile, Spy } from '@/core/types';
 import { startMissionState } from '../helpers/espionage-mission';
 
 // MR1: legacy fixture helper — spies are now created via city production, not recruitSpy
@@ -29,6 +29,24 @@ function addSpy(esp: ReturnType<typeof createEspionageCivState>, spy: Spy): Retu
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
+import { hexKey, hexNeighbors } from '@/systems/hex-utils';
+
+/** #1724: the fixture's cities need real, enterable tiles; production is no longer
+ * allowed to create a unit on an absent or water city centre. */
+function fixtureTile(coord: HexCoord): HexTile {
+  return {
+    coord, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none',
+    owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+  };
+}
+
+function fixtureTilesAround(cities: HexCoord[]): Record<string, HexTile> {
+  const tiles: Record<string, HexTile> = {};
+  for (const city of cities) {
+    for (const coord of [city, ...hexNeighbors(city)]) tiles[hexKey(coord)] = fixtureTile(coord);
+  }
+  return tiles;
+}
 
 function makeTestGameState(): GameState {
   return {
@@ -37,7 +55,10 @@ function makeTestGameState(): GameState {
     currentPlayer: 'player',
     gameOver: false,
     winner: null,
-    map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+    map: {
+      width: 10, height: 10, wrapsHorizontally: false, rivers: [],
+      tiles: fixtureTilesAround([{ q: 1, r: 1 }, { q: 5, r: 3 }]),
+    },
     units: {
       'unit-eg-1': {
         id: 'unit-eg-1', type: 'warrior', owner: 'ai-egypt',

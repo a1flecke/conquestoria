@@ -3,6 +3,7 @@ import type { GameState, HexCoord, TerrainType } from '@/core/types';
 import { createUnit } from '@/systems/unit-lifecycle';
 import {
   filterLegalSpawnTiles,
+  findCityUnitSpawnTile,
   findSpyReturnTile,
   isLegalSpawnTile,
   isUnitOnEnterableTerrain,
@@ -111,6 +112,38 @@ describe('unit spawn placement', () => {
     expect(findSpyReturnTile(state, 'p1', 'spy_agent', { q: 5, r: 5 })).toEqual({ q: 6, r: 5 });
     expect(isLegalSpawnTile(state, { ownerId: 'p1', unitType: 'warrior', stacking: 'same-owner' }, { q: 5, r: 5 }))
       .toBe(false);
+  });
+
+  // #1724: city-generated units prefer the centre, fall back to a legal neighbour when a
+  // foreign occupant makes the centre illegal, and keep the port exception for hulls.
+  it('places a city unit at the centre, falls back to a neighbour, and preserves the port exception', () => {
+    const state = makeState({ '0,0': 'grassland', '1,0': 'grassland' });
+    state.cities = { c: { id: 'c', owner: 'p1', position: { q: 0, r: 0 } } } as unknown as GameState['cities'];
+    expect(findCityUnitSpawnTile(state, warrior, { q: 0, r: 0 })).toEqual({ q: 0, r: 0 });
+
+    // Friendly stacking stays legal at the centre.
+    const friend = createUnit('warrior', 'p1', { q: 0, r: 0 }, { ...state.idCounters });
+    state.units = { [friend.id]: friend };
+    expect(findCityUnitSpawnTile(state, warrior, { q: 0, r: 0 })).toEqual({ q: 0, r: 0 });
+
+    // A hull trained in its own port stands on the city centre even when that tile is land.
+    expect(findCityUnitSpawnTile(state, { ...warrior, unitType: 'galley' }, { q: 0, r: 0 }))
+      .toEqual({ q: 0, r: 0 });
+
+    const foreign = createUnit('warrior', 'p2', { q: 0, r: 0 }, { ...state.idCounters });
+    state.units = { [foreign.id]: foreign };
+    expect(findCityUnitSpawnTile(state, warrior, { q: 0, r: 0 })).toEqual({ q: 1, r: 0 });
+
+    // No legal centre or neighbour: the caller must report no placement, not force a stack.
+    state.map.tiles['1,0'].terrain = 'ocean';
+    expect(findCityUnitSpawnTile(state, warrior, { q: 0, r: 0 })).toBeNull();
+    expect(findCityUnitSpawnTile(state, { ...warrior, unitType: 'galley' }, { q: 0, r: 0 })).toBeNull();
+  });
+
+  it('does not place a city unit when the named city is not owned by the query owner', () => {
+    const state = makeState({ '0,0': 'grassland' });
+    state.cities = { c: { id: 'c', owner: 'p2', position: { q: 0, r: 0 } } } as unknown as GameState['cities'];
+    expect(findCityUnitSpawnTile(state, warrior, { q: 0, r: 0 })).toBeNull();
   });
 
   it('judges a unit on its terrain: land, hull access and ports, pirates included', () => {
