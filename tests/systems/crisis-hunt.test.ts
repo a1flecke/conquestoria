@@ -185,6 +185,27 @@ describe('hunt crisis — spawn orchestration (MR3)', () => {
     }
   });
 
+  it('beast-awakening: never spawns on a barbarian camp, which blocks a beast like any other foreign owner', () => {
+    const { state, crisisId } = makeHuntFixture({ flavorId: 'beast-awakening' });
+    // A camp on every tile of the spawn ring a beast could otherwise use.
+    const barbarianCamps: GameState['barbarianCamps'] = {};
+    for (const coord of hexesInRange(CITY_POS, 5)) {
+      const dist = hexDistance(coord, CITY_POS);
+      if (dist < 3 || dist > 5) continue;
+      const tile = state.map.tiles[hexKey(coord)];
+      if (!tile || tile.owner !== null || tile.terrain === 'ocean') continue;
+      const id = `camp-${hexKey(coord)}`;
+      barbarianCamps[id] = { id, position: coord, strength: 1, spawnCooldown: 4 };
+    }
+    const campState: GameState = { ...state, barbarianCamps };
+
+    const next = processCrisisTurn(campState, new EventBus());
+
+    // No camp-free wilderness is left in the ring, so the hunt is abandoned rather than placed on a camp.
+    expect(next.activeCrises?.[crisisId]).toBeUndefined();
+    assertNoIllegalBlockingOccupancy(next);
+  });
+
   it('beast-awakening: never spawns inside a rival civ\'s territory (would otherwise let the rival kill it before the target player gets a turn)', () => {
     const { state, crisisId } = makeHuntFixture({ flavorId: 'beast-awakening' });
     // Claim every tile in the entire 3-5 spawn ring for a rival civ — with the old
