@@ -17,6 +17,7 @@ import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { BEAST_OWNER } from '@/systems/beast-system';
 import { selectDefenderForAttack } from '@/systems/combat-defense-strength';
+import { assertAirBaseIntegrity, assertNoIllegalBlockingOccupancy } from '../helpers/save-state-invariants';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -1118,6 +1119,97 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.units.defender.type).toBe('worker');
     expect(applied.state.civilizations.player.units).toContain('defender');
     expect(applied.state.civilizations['ai-1'].units).not.toContain('defender');
+  });
+
+  it('a civilian captured out of a stack never leaves two owners on one tile', () => {
+    // A worker and a settler of ai-1 share a tile with no escort; the worker defends and is captured.
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, type: 'worker', owner: 'ai-1', health: 100 };
+    state.units['stack-mate'] = { ...createUnit('settler', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'stack-mate' };
+    state.civilizations['ai-1'].units = ['defender', 'stack-mate'];
+    expect(selectDefenderForAttack([state.units.defender, state.units['stack-mate']], state.map)?.id).toBe('defender');
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    // With no fighter left, the whole civilian stack is taken (a settler becomes a worker).
+    expect(applied.state.units['stack-mate']).toMatchObject({ owner: 'player', type: 'worker' });
+    expect(applied.state.civilizations.player.units).toContain('stack-mate');
+    expect(applied.state.civilizations['ai-1'].units).not.toContain('stack-mate');
+    expect(() => assertNoIllegalBlockingOccupancy(applied.state)).not.toThrow();
+  });
+
+  it('a Great General beside a captured civilian withdraws instead of changing sides', () => {
+    const state = makeRewardState();
+    for (const [q, r] of [[0, 0], [1, 0], [2, 0], [1, 1], [0, 1], [2, -1], [1, -1]]) {
+      state.map.tiles[`${q},${r}`] = {
+        coord: { q, r }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none',
+        owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+    }
+    state.units.defender = { ...state.units.defender, type: 'worker', owner: 'ai-1', health: 100 };
+    state.units.general = { ...createUnit('great_general', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'general', health: 50 };
+    state.civilizations['ai-1'].units = ['defender', 'general'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.defender.owner).toBe('player');
+    expect(applied.state.units.general.owner).toBe('ai-1');
+    expect(applied.state.units.general.position).not.toEqual({ q: 1, r: 0 });
+    expect(() => assertNoIllegalBlockingOccupancy(applied.state)).not.toThrow();
+  });
+
+  it('a captured carrier never leaves its air wing based on a ship of another owner', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...createUnit('frigate', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker', health: 100 };
+    state.units.defender = { ...createUnit('carrier', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender', health: 20 };
+    state.units.wing = {
+      ...createUnit('biplane', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'wing', airBase: { kind: 'carrier', unitId: 'defender' },
+    };
+    state.civilizations['ai-1'].units = ['defender', 'wing'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 60, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    // Like a loaded transport, a carrier with aircraft aboard is sunk, not taken as a prize.
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.state.units.defender).toBeUndefined();
+    expect(applied.state.units.wing).toBeUndefined();
+    expect(() => assertAirBaseIntegrity(applied.state)).not.toThrow();
+  });
+
+  it('still takes an empty carrier as a prize', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...createUnit('frigate', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker', health: 100 };
+    state.units.defender = { ...createUnit('carrier', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender', health: 20 };
+    state.civilizations['ai-1'].units = ['defender'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 60, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.state.units.defender.owner).toBe('player');
   });
 
   it('downgrades a captured settler to worker, keeping health/hasActed unchanged from before combat', () => {
