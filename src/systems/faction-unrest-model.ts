@@ -54,6 +54,12 @@ export function createUnrestEvaluationContext(): UnrestEvaluationContext {
   return { connectedOwnedRoadCityIdsByCivId: new Map() };
 }
 
+/**
+ * Does the owner keep a presence in the city that settles unrest and pauses a religious defection?
+ * Deliberately broader than a siege garrison (`getCityGarrisonUnit`): aircraft based at the city's
+ * airfield count here, because they are the owner's military (owner decision). They do not count
+ * against a capture or a siege, which only ground and naval units can resist.
+ */
 export function canGarrisonCity(cityId: string, state: GameState): boolean {
   const city = state.cities[cityId];
   if (!city) return false;
