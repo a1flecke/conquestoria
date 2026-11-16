@@ -22,6 +22,8 @@ import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { summarizeGeneralCareer } from '@/systems/great-general-career';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import type { GeneralHistoryEntry, Unit } from '@/core/types';
 import { simTimeout } from '../helpers/sim-timeout';
 
@@ -380,6 +382,54 @@ describe('spawnGeneralForCiv', () => {
     expect(result).toBe(state);
   });
 
+  // #1724: a blocked capital falls back to a legal neighbour; if no tile exists the choice
+  // still clears (no soft-lock) but the General is forfeited, with no history/progress credit.
+  it('falls back to a legal neighbour when the capital centre is occupied', () => {
+    const { state, capital } = makeStateWithCapital('gen-spawn-blocked-capital');
+    const foreignCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const foreign = { ...createUnit('warrior', foreignCivId, capital.position, state.idCounters), id: 'capital-blocker' };
+    state.units[foreign.id] = foreign;
+    state.civilizations[foreignCivId].units.push(foreign.id);
+    const occupied = new Set(Object.values(state.units).map(unit => hexKey(unit.position)));
+    const exit = mapNeighbors(state.map, capital.position).find(coord =>
+      Boolean(state.map.tiles[hexKey(coord)]) && !occupied.has(hexKey(coord)));
+    expect(exit, 'fixture needs a free neighbour').toBeDefined();
+    state.map.tiles[hexKey(exit!)] = { ...state.map.tiles[hexKey(exit!)]!, terrain: 'grassland', elevation: 'lowland' };
+    state.pendingGeneralCandidateChoices = [{ civId: 'player', candidateDefinitionIds: ['gen_caesar'], triggerEventLabel: 'x' }];
+
+    const result = spawnGeneralForCiv(state, 'player', 'gen_caesar');
+
+    const spawned = Object.values(result.units).find(unit => unit.type === 'great_general' && unit.owner === 'player');
+    expect(spawned?.position).toEqual(exit);
+    expect(result.civilizations.player.generalHistory).toHaveLength(1);
+    expect(result.pendingGeneralCandidateChoices ?? []).toHaveLength(0);
+  });
+
+  it('forfeits the General without progress or history when no legal capital tile exists', () => {
+    const { state, capital } = makeStateWithCapital('gen-spawn-no-tile');
+    const foreignCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const foreign = { ...createUnit('warrior', foreignCivId, capital.position, state.idCounters), id: 'capital-blocker' };
+    state.units[foreign.id] = foreign;
+    state.civilizations[foreignCivId].units.push(foreign.id);
+    for (const coord of mapNeighbors(state.map, capital.position)) {
+      const key = hexKey(coord);
+      if (state.map.tiles[key]) state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'ocean', elevation: 'lowland' };
+    }
+    state.civilizations.player = {
+      ...state.civilizations.player,
+      generalProgress: { points: 50, generalsEarned: 0 },
+      generalHistory: [],
+    };
+    state.pendingGeneralCandidateChoices = [{ civId: 'player', candidateDefinitionIds: ['gen_caesar'], triggerEventLabel: 'x' }];
+
+    const result = spawnGeneralForCiv(state, 'player', 'gen_caesar');
+
+    expect(Object.values(result.units).some(unit => unit.type === 'great_general')).toBe(false);
+    expect(result.civilizations.player.generalProgress).toEqual({ points: 50, generalsEarned: 0 });
+    expect(result.civilizations.player.generalHistory).toEqual([]);
+    expect(result.pendingGeneralCandidateChoices ?? []).toHaveLength(0);
+  });
+
   it('spawns no unit but still clears the pending choice when the civ has no capital (prevents an unresolvable soft-lock panel)', () => {
     const state = makeGeneralsTestState('gen-spawn-6');
     state.civilizations.player = { ...state.civilizations.player, cities: [] };
@@ -732,11 +782,19 @@ describe('#544 MR5 / #885 — chooseBestGeneralCandidate (now in ai-general-comm
   });
 });
 
+function findLandCapitalPosition(state: ReturnType<typeof createNewGame>): { q: number; r: number } {
+  const occupied = new Set(Object.values(state.units).map(unit => hexKey(unit.position)));
+  const tile = Object.values(state.map.tiles).find(candidate =>
+    candidate.terrain !== 'ocean' && candidate.terrain !== 'coast' && !occupied.has(hexKey(candidate.coord)));
+  if (!tile) throw new Error('fixture map has no free land tile');
+  return { ...tile.coord };
+}
+
 describe('#544 MR5 — AI civs acquire Generals automatically', () => {
   it('an AI civ that crosses the General threshold spawns a General without any human interaction', () => {
     const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ai-gen-1' });
     const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
-    const capital = foundCity(aiId, { q: 5, r: 5 }, state.map, state.idCounters);
+    const capital = foundCity(aiId, findLandCapitalPosition(state), state.map, state.idCounters);
     state.cities = { ...state.cities, [capital.id]: capital };
     state.civilizations[aiId] = {
       ...state.civilizations[aiId]!,
@@ -768,7 +826,7 @@ describe('#544 MR5 — AI civs acquire Generals automatically', () => {
   it('#888 — an AI civ that has exhausted the authored roster still spawns a General, backed by a persisted generated identity', () => {
     const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ai-gen-888' });
     const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
-    const capital = foundCity(aiId, { q: 5, r: 5 }, state.map, state.idCounters);
+    const capital = foundCity(aiId, findLandCapitalPosition(state), state.map, state.idCounters);
     state.cities = { ...state.cities, [capital.id]: capital };
     state.civilizations[aiId] = {
       ...state.civilizations[aiId]!,

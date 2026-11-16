@@ -11,6 +11,8 @@ import { createEspionageCivState } from '@/systems/espionage-system';
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { isNavalTransportUnit } from '@/systems/transport-system';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { assertAirBaseIntegrity, assertCargoReciprocity, assertUnitRosters } from '../helpers/save-state-invariants';
 
 /**
@@ -93,6 +95,50 @@ describe('completeUnitProduction (#1202) — every trainable unit, through the o
     for (const category of ['spy', 'air-based', 'carrier', 'transport', 'trade', 'missionary', 'settler', 'ordinary'] as Category[]) {
       expect(categories.has(category), `no trainable unit categorised as ${category}`).toBe(true);
     }
+  });
+
+  // #1724: city production is the last place a unit is placed unconditionally at
+  // `city.position`. A blocked centre must fall back to a legal neighbour, and when no
+  // legal tile exists the completion must not create a unit or consume an id.
+  it('falls back to a legal neighbour when the city centre cannot hold the unit', () => {
+    const { state, civId, cityId } = fixtureFor('warrior', 'spawn-blocked-city');
+    const city = state.cities[cityId];
+    const foreignCivId = Object.keys(state.civilizations).find(id => id !== civId)!;
+    const foreign = { ...createUnit('warrior', foreignCivId, city.position, state.idCounters), id: 'foreign-blocker' };
+    state.units[foreign.id] = foreign;
+    state.civilizations[foreignCivId].units.push(foreign.id);
+    const occupied = new Set(Object.values(state.units).map(unit => hexKey(unit.position)));
+    const exit = mapNeighbors(state.map, city.position).find(coord =>
+      Boolean(state.map.tiles[hexKey(coord)]) && !occupied.has(hexKey(coord)));
+    expect(exit, 'fixture needs a free neighbour').toBeDefined();
+    state.map.tiles[hexKey(exit!)] = { ...state.map.tiles[hexKey(exit!)]!, terrain: 'grassland', elevation: 'lowland' };
+
+    const completion = completeUnitProduction(state, { civId, cityId, unitType: 'warrior' });
+
+    if (!completion.ok) throw new Error(`warrior did not complete: ${completion.reason}`);
+    expect(completion.unit.position).toEqual(exit);
+    expect(completion.unit.position).not.toEqual(city.position);
+  });
+
+  it('reports no legal city spawn without creating a unit or consuming an id', () => {
+    const { state, civId, cityId } = fixtureFor('warrior', 'spawn-no-tile');
+    const city = state.cities[cityId];
+    const foreignCivId = Object.keys(state.civilizations).find(id => id !== civId)!;
+    const foreign = { ...createUnit('warrior', foreignCivId, city.position, state.idCounters), id: 'foreign-blocker' };
+    state.units[foreign.id] = foreign;
+    state.civilizations[foreignCivId].units.push(foreign.id);
+    for (const coord of mapNeighbors(state.map, city.position)) {
+      const key = hexKey(coord);
+      if (state.map.tiles[key]) state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'ocean', elevation: 'lowland' };
+    }
+    const idsBefore = { ...state.idCounters };
+    const unitsBefore = Object.keys(state.units).length;
+
+    const completion = completeUnitProduction(state, { civId, cityId, unitType: 'warrior' });
+
+    expect(completion).toEqual({ ok: false, reason: 'no-legal-city-spawn-tile' });
+    expect(state.idCounters).toEqual(idsBefore);
+    expect(Object.keys(state.units)).toHaveLength(unitsBefore);
   });
 
   it.each(TRAINABLE_UNITS.map(entry => [entry.type] as const))('%s: completes, rosters hold, companions exist, footprint is declared', type => {

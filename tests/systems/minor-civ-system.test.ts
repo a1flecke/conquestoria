@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { placeMinorCivs, processMinorCivTurn, planPurposefulMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, conquestMinorCiv, peacefullyAbsorbMinorCiv, processGuerrilla, processScuffles, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { createHotSeatGame, createNewGame } from '@/core/game-state';
-import { hexDistance, hexKey } from '@/systems/hex-utils';
+import { hexDistance, hexKey, mapNeighbors } from '@/systems/hex-utils';
+import { foundCity } from '@/systems/city-system';
 import { EventBus } from '@/core/event-bus';
 import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
 import { normalizeLoadedStateForTest } from '@/storage/save-manager';
@@ -24,6 +25,83 @@ function setNearbyPressureEra(state: ReturnType<typeof createNewGame>, minorCivI
   } as never;
   state.civilizations.player.cities = ['pressure-source'];
 }
+
+// #1724: an allied free-unit gift uses the same city-placement rule as every other
+// city-generated map unit, so it cannot stack on another owner's unit.
+describe('allied free-unit city placement', () => {
+  function alliedState(seed: string, blockNeighbours: boolean) {
+    const base = createNewGame(undefined, seed, 'small');
+    const placed = placeMinorCivs(base, 'small');
+    const state = {
+      ...base,
+      minorCivs: placed.minorCivs,
+      cities: { ...base.cities, ...placed.cities },
+      units: { ...base.units, ...placed.units },
+    };
+    const def = MINOR_CIV_DEFINITIONS.find(candidate => candidate.allyBonus.type === 'free_unit');
+    if (!def || def.allyBonus.type !== 'free_unit') throw new Error('no free-unit city-state definition');
+    const allyBonus = def.allyBonus;
+    const mc = Object.values(state.minorCivs).find(candidate => !candidate.isDestroyed);
+    if (!mc) throw new Error('fixture has no free-unit city-state');
+    // Use a known free-unit ally bonus while keeping the placed city-state identity/city.
+    mc.definitionId = def.id;
+    const civId = state.currentPlayer;
+    const land = Object.values(state.map.tiles).find(tile =>
+      tile.terrain !== 'ocean' && tile.terrain !== 'coast');
+    if (!land) throw new Error('fixture map has no land');
+    const city = foundCity(civId, { ...land.coord }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations[civId].cities = [city.id];
+    mc.chainStatusByCiv[civId] = { status: 'allied' } as never;
+    mc.diplomacy.relationships[civId] = 100;
+    state.turn = allyBonus.everyNTurns;
+    const foreignCivId = Object.keys(state.civilizations).find(id => id !== civId)!;
+    const blocker = { ...createUnit('warrior', foreignCivId, city.position, state.idCounters), id: 'city-blocker' };
+    state.units[blocker.id] = blocker;
+    state.civilizations[foreignCivId].units.push(blocker.id);
+    const occupied = new Set(Object.values(state.units).map(unit => hexKey(unit.position)));
+    const exit = mapNeighbors(state.map, city.position).find(coord =>
+      Boolean(state.map.tiles[hexKey(coord)]) && !occupied.has(hexKey(coord)));
+    for (const coord of mapNeighbors(state.map, city.position)) {
+      const key = hexKey(coord);
+      if (!state.map.tiles[key]) continue;
+      state.map.tiles[key] = blockNeighbours
+        ? { ...state.map.tiles[key], terrain: 'ocean', elevation: 'lowland' }
+        : coord === exit
+          ? { ...state.map.tiles[key], terrain: 'grassland', elevation: 'lowland' }
+          : state.map.tiles[key];
+    }
+    return { state, civId, allyBonus, city, exit };
+  }
+
+  it('grants the free unit on a legal neighbour when the city centre is blocked', () => {
+    const { state, civId, allyBonus, city, exit } = alliedState('free-unit-fallback', false);
+    const before = new Set(state.civilizations[civId].units);
+
+    const after = processMinorCivTurn(state, new EventBus());
+
+    const newUnits = after.civilizations[civId].units
+      .filter(id => !before.has(id))
+      .map(id => after.units[id]);
+    expect(newUnits).toHaveLength(1);
+    expect(newUnits[0]!.type).toBe(allyBonus.unitType);
+    expect(newUnits[0]!.position).toEqual(exit);
+    expect(newUnits[0]!.position).not.toEqual(city.position);
+  });
+
+  it('grants nothing this cadence when no legal city tile exists', () => {
+    const { state, civId, allyBonus } = alliedState('free-unit-no-tile', true);
+    const before = new Set(state.civilizations[civId].units);
+
+    const after = processMinorCivTurn(state, new EventBus());
+
+    const granted = after.civilizations[civId].units
+      .filter(id => !before.has(id))
+      .map(id => after.units[id])
+      .filter(unit => unit?.type === allyBonus.unitType);
+    expect(granted).toHaveLength(0);
+  });
+});
 
 describe('minor-civ relationship notification history', () => {
   it('emits the first status notice for a non-viewing hot-seat civ after save/reload', () => {

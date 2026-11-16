@@ -28,6 +28,7 @@ import {
 } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { createUnit, resetUnitTurn } from './unit-lifecycle';
+import { findCityUnitSpawnTile } from './unit-spawn-placement';
 import { foundCity } from './city-system';
 import { collectUsedCityNames } from './city-name-system';
 import { generateQuest } from './quest-system';
@@ -607,13 +608,22 @@ function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus:
       }
       case 'free_unit': {
         if (state.turn % def.allyBonus.everyNTurns === 0) {
-          const spawnCity = civ.cities
-            .map(id => state.cities[id])
-            .find(c => c && !Object.values(state.units).some(u => hexKey(u.position) === hexKey(c.position)));
-          if (spawnCity) {
-            const freeUnit = createUnitForCiv(state, def.allyBonus.unitType, civId, spawnCity.position, state.idCounters);
+          // #1724: the gift uses the same city-placement rule as every other city-generated
+          // map unit. If no city has a legal tile this cadence the gift is skipped; it is
+          // never stacked on another owner and never granted twice.
+          for (const cityId of civ.cities) {
+            const city = state.cities[cityId];
+            if (!city) continue;
+            const spawnPosition = findCityUnitSpawnTile(
+              state,
+              { ownerId: civId, unitType: def.allyBonus.unitType, stacking: 'same-owner' },
+              city.position,
+            );
+            if (!spawnPosition) continue;
+            const freeUnit = createUnitForCiv(state, def.allyBonus.unitType, civId, spawnPosition, state.idCounters);
             state = { ...state, units: { ...state.units, [freeUnit.id]: freeUnit } };
             civ.units.push(freeUnit.id);
+            break;
           }
         }
         break;

@@ -82,6 +82,48 @@ export function findLegalSpawnTile(
 }
 
 /**
+ * #1724: where a city-generated map unit may appear. The city centre is the intended tile
+ * and is preferred; when it cannot hold the unit (a foreign occupant, a blocking entity, or
+ * a hostile stack) the six neighbours are tried in their stable `spawnNeighbours` order.
+ *
+ * The city-centre exception is deliberate: a naval unit trained in a port stands on its
+ * own city tile even though that tile's terrain is land (`isUnitOnEnterableTerrain`). An
+ * adjacent fallback must still be genuine water/coast for a hull. Air units are based, not
+ * placed on the map, and callers skip this helper for them.
+ *
+ * `null` means no legal tile among the city centre and its neighbours; the caller must then
+ * report an explicit no-placement outcome rather than create a unit in an illegal stack.
+ */
+export function findCityUnitSpawnTile(
+  state: GameState,
+  query: SpawnPlacementQuery,
+  cityPosition: HexCoord,
+): HexCoord | null {
+  const city = Object.values(state.cities).find(candidate =>
+    candidate.owner === query.ownerId && hexKey(candidate.position) === hexKey(cityPosition));
+  if (!city) return null;
+
+  const index = buildSpawnPlacementIndex(state, query.ownerId);
+  const candidates = [city.position, ...spawnNeighbours(state, city.position)];
+  for (const coord of candidates) {
+    const key = hexKey(coord);
+    const tile = state.map.tiles[key];
+    if (!tile) continue;
+    if (index.blocked.has(key)) continue;
+    const occupants = getUnitIdsAtCoord(index.occupancy, coord);
+    const stackingOk = query.stacking === 'empty-only'
+      ? occupants.length === 0
+      : occupants.every(id => index.occupancy.ownersByUnitId[id] === query.ownerId);
+    if (!stackingOk) continue;
+    const terrainOk = key === hexKey(city.position)
+      ? isUnitOnEnterableTerrain(state, { owner: query.ownerId, type: query.unitType, position: coord })
+      : isPassableForParams(movementStepCostParamsForType(query.unitType), tile.terrain);
+    if (terrainOk) return coord;
+  }
+  return null;
+}
+
+/**
  * The legacy order the rebel spawners have always drawn from. Kept so a seeded draw over an
  * all-legal neighbourhood picks the same tile it did before legality was checked.
  */

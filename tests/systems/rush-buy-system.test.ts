@@ -3,7 +3,8 @@ import type { GameState } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { foundCity } from '@/systems/city-system';
-import { hexKey } from '@/systems/hex-utils';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { beginCityMaterialOccurrence } from '@/systems/city-production-materials';
 import { getRushBuyQuote } from '@/systems/economy-system';
 import { completesFromOwnProduction, rushBuyActiveProduction } from '@/systems/rush-buy-system';
@@ -88,6 +89,35 @@ describe('#1506 MR09 — rush-buy pays the hard recipe atomically', () => {
     // The input ledger/state is never mutated.
     expect(state.civilizations.player.gold).toBe(goldBefore);
     expect(ironBalance(state)).toEqual({ native: 10, imported: 0 });
+  });
+
+  // #1724: rush-buy is the same completion as the turn path. When no legal city spawn
+  // tile exists the transaction must fail before gold, materials or queue state change.
+  it('refuses a unit with no legal spawn tile and writes nothing', () => {
+    const { state, cityId } = fixture('rush-no-spawn-tile');
+    const city = state.cities[cityId];
+    const foreignCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const blocker = { ...createUnit('warrior', foreignCivId, city.position, state.idCounters), id: 'rush-blocker' };
+    state.units[blocker.id] = blocker;
+    state.civilizations[foreignCivId].units.push(blocker.id);
+    for (const coord of mapNeighbors(state.map, city.position)) {
+      const key = hexKey(coord);
+      if (state.map.tiles[key]) state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'ocean', elevation: 'lowland' };
+    }
+    const occurrence = state.cities[cityId].productionMaterials!.activeOccurrence;
+    const goldBefore = state.civilizations.player.gold;
+    const queueBefore = [...state.cities[cityId].productionQueue];
+    const ironBefore = ironBalance(state);
+
+    const result = rushBuyActiveProduction(state, 'player', cityId, new EventBus(), { expectedOccurrence: occurrence });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.reason).toBe('invalid-active-item');
+    expect(result.state).toBe(state);
+    expect(state.civilizations.player.gold).toBe(goldBefore);
+    expect(state.cities[cityId].productionQueue).toEqual(queueBefore);
+    expect(ironBalance(state)).toEqual(ironBefore);
   });
 
   it('refuses without gold and writes nothing', () => {

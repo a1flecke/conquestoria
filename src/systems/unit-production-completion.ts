@@ -12,6 +12,7 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
+import { findCityUnitSpawnTile } from '@/systems/unit-spawn-placement';
 import { getTrainedMovementBonus } from '@/systems/unit-trained-movement-bonus';
 
 /**
@@ -26,6 +27,9 @@ import { getTrainedMovementBonus } from '@/systems/unit-trained-movement-bonus';
  *
  * Pure: returns the new state plus what was made; events are announced by `announceUnitProduction` so the two
  * entry points cannot disagree about them either. Removal is the mirror image: `unit-removal-system.ts`.
+ *
+ * #1724: a map-occupying unit is placed through `findCityUnitSpawnTile` (city centre, then a
+ * legal neighbour). No legal tile returns `no-legal-city-spawn-tile` before an id is consumed.
  */
 export type UnitProductionCompletion =
   | { ok: true; state: GameState; unit: Unit; spy?: Spy }
@@ -47,9 +51,16 @@ export function completeUnitProduction(
   }
 
   let next: GameState = consumeRecoveredHarnesses(consumeHerdingInsight(state, civId, unitType), civId, unitType);
+  // #1724: a map-occupying unit gets the city centre when it is legal, else a legal
+  // neighbour. A based aircraft is not a map occupant and keeps its city base. Nothing is
+  // created (and no id is consumed) when no legal tile exists.
+  const spawnPosition = unitDef?.airOperation
+    ? city.position
+    : findCityUnitSpawnTile(next, { ownerId: civId, unitType, stacking: 'same-owner' }, city.position);
+  if (!spawnPosition) return { ok: false, reason: 'no-legal-city-spawn-tile' };
   const idCounters = { ...next.idCounters };
   const civDef = resolveCivDefinition(next, civ.civType ?? '');
-  const unit = createUnit(unitType, civId, city.position, idCounters, civDef?.bonusEffect);
+  const unit = createUnit(unitType, civId, spawnPosition, idCounters, civDef?.bonusEffect);
   next = { ...next, idCounters };
 
   if (unitType === 'missionary') {

@@ -5,6 +5,7 @@ import { generateFallbackGeneralCandidates } from '@/systems/great-general-fallb
 import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { findCityUnitSpawnTile } from '@/systems/unit-spawn-placement';
 import { mapDistance } from '@/systems/hex-utils';
 import { getOwnedUnits } from '@/systems/unit-ownership';
 import {
@@ -238,6 +239,11 @@ export function getPendingGeneralChoiceForViewer(
  * (deliberately dismiss-less, matching the hoard-choice precedent) reopen
  * forever every time it's checked -- an unrecoverable soft-lock. No General
  * is created in that case; the candidate is simply forfeited.
+ *
+ * #1724: the same contract covers a capital whose centre and neighbours are
+ * all unusable. A blocked centre normally falls back to a legal neighbour; if
+ * there is none, no General, progress or history entry is created and the
+ * pending choice is still cleared.
  */
 export function spawnGeneralForCiv(
   state: GameState,
@@ -256,9 +262,26 @@ export function spawnGeneralForCiv(
     };
   }
 
+  // #1724: the capital centre is the intended tile; a blocked capital falls back to a
+  // legal neighbour. If the capital and all its neighbours are unusable, the choice is
+  // resolved (no soft-lock) but no General, progress or history entry is created — the
+  // same forfeiture contract the no-capital case already uses.
+  const spawnPosition = findCityUnitSpawnTile(
+    state,
+    { ownerId: civId, unitType: 'great_general', stacking: 'same-owner' },
+    capital.position,
+  );
+  if (!spawnPosition) {
+    return {
+      ...state,
+      pendingGeneralCandidateChoices: (state.pendingGeneralCandidateChoices ?? [])
+        .filter(choice => choice.civId !== civId),
+    };
+  }
+
   const idCounters = { ...state.idCounters };
   const newUnit = {
-    ...createUnit('great_general', civId, capital.position, idCounters),
+    ...createUnit('great_general', civId, spawnPosition, idCounters),
     generalDefinitionId,
     generalNoCommandThisTurn: true as const,
   };
