@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/event-bus';
-import { createBreakawayFromCity } from '@/systems/breakaway-system';
+import { createBreakawayFromCity, tryReabsorbBreakaway } from '@/systems/breakaway-system';
 import { foundCity } from '@/systems/city-lifecycle';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { hexDistance } from '@/systems/hex-utils';
@@ -71,5 +71,35 @@ describe('breakaway secession carries owner-keyed unit records with its units', 
       expect(civ.diplomacy.relationships[breakawayId], id).toBeDefined();
       expect(after.civilizations[breakawayId].diplomacy.relationships[id], id).toBeDefined();
     }
+  });
+
+  it('reabsorbing a breakaway leaves no war or treaty naming the vanished civilization', () => {
+    const { state, cityId } = breakawayWithOwnedRecords('reabsorb-scrubs-diplomacy');
+    const seceded = createBreakawayFromCity(state, cityId, new EventBus());
+    const breakawayId = `breakaway-${cityId}`;
+    // A third civilization went to war with the breakaway, and the breakaway signed a treaty.
+    const third = Object.keys(seceded.civilizations).find(id =>
+      id !== 'ai-1' && id !== breakawayId && !seceded.civilizations[id].isEliminated)!;
+    seceded.civilizations[third].diplomacy.atWarWith = [...seceded.civilizations[third].diplomacy.atWarWith, breakawayId];
+    seceded.civilizations[breakawayId].diplomacy.atWarWith = [third];
+    const otherThird = Object.keys(seceded.civilizations).find(id =>
+      id !== 'ai-1' && id !== breakawayId && id !== third && !seceded.civilizations[id].isEliminated);
+    if (otherThird) {
+      const pact = { type: 'non_aggression_pact', civA: breakawayId, civB: otherThird, turnsRemaining: 10 } as never;
+      seceded.civilizations[breakawayId].diplomacy.treaties = [pact];
+      seceded.civilizations[otherThird].diplomacy.treaties = [...seceded.civilizations[otherThird].diplomacy.treaties, pact];
+    }
+    seceded.civilizations['ai-1'].diplomacy.relationships[breakawayId] = 80;
+    seceded.civilizations['ai-1'].gold = 1000;
+    assertSaveStateInvariants(seceded, 'after the secession');
+
+    const reabsorbed = tryReabsorbBreakaway(seceded, 'ai-1', breakawayId, new EventBus());
+
+    expect(reabsorbed.civilizations[breakawayId]).toBeUndefined();
+    for (const [id, civ] of Object.entries(reabsorbed.civilizations)) {
+      expect(civ.diplomacy.atWarWith, id).not.toContain(breakawayId);
+      expect(civ.diplomacy.treaties.some(t => t.civA === breakawayId || t.civB === breakawayId), id).toBe(false);
+    }
+    assertSaveStateInvariants(reabsorbed, 'after the reabsorption');
   });
 });

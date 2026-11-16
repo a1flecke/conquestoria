@@ -4,6 +4,7 @@ import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { findLegalSpawnTile, spawnNeighbours } from '@/systems/unit-spawn-placement';
 import {
+  eliminateCivilization,
   emitCivilizationLivenessTransitions,
   reconcileCivilizationLiveness,
 } from '@/systems/civilization-elimination-system';
@@ -245,7 +246,6 @@ export function tryReabsorbBreakaway(
   const transferredCityIds = transferredCities.map(city => city.id);
 
   const updatedCivilizations = { ...state.civilizations };
-  delete updatedCivilizations[breakawayId];
   const transferredUnitIds = Object.values(state.units)
     .filter(unit => unit.owner === breakawayId)
     .map(unit => unit.id);
@@ -254,24 +254,9 @@ export function tryReabsorbBreakaway(
     gold: owner.gold - REABSORB_GOLD_COST,
     cities: [...owner.cities, ...transferredCityIds.filter(cityId => !owner.cities.includes(cityId))],
     units: [...owner.units, ...transferredUnitIds.filter(unitId => !owner.units.includes(unitId))],
-    diplomacy: {
-      ...owner.diplomacy,
-      relationships: {
-        ...owner.diplomacy.relationships,
-      },
-    },
   };
-  delete updatedCivilizations[ownerId].diplomacy.relationships[breakawayId];
-
-  for (const [civId, civ] of Object.entries(updatedCivilizations)) {
-    if (civId === ownerId || civ.diplomacy.relationships[breakawayId] === undefined) continue;
-    const relationships = { ...civ.diplomacy.relationships };
-    delete relationships[breakawayId];
-    updatedCivilizations[civId] = {
-      ...civ,
-      diplomacy: { ...civ.diplomacy, relationships },
-    };
-  }
+  // The breakaway keeps its record until the teardown below has scrubbed it from everyone else.
+  updatedCivilizations[breakawayId] = { ...breakaway, cities: [], units: [] };
 
   const updatedUnits = { ...state.units };
   for (const unitId of transferredUnitIds) {
@@ -304,7 +289,15 @@ export function tryReabsorbBreakaway(
     },
     civilizations: updatedCivilizations,
   };
-  const liveness = reconcileCivilizationLiveness(state, nextState);
+  // Removing a civilization must scrub it from every other civ's relationships, wars, treaties,
+  // vassalage, embargoes, leagues, pending requests, espionage and AI plans in the same operation
+  // (Diplomacy Lifecycle). That is exactly the elimination teardown; the breakaway now holds
+  // nothing, so it removes nothing else. Its record is then dropped, as reabsorption always did,
+  // and no elimination is announced: a reabsorption is not a defeat.
+  const tornDown = eliminateCivilization(nextState, breakawayId, ownerId).state;
+  const { [breakawayId]: _reabsorbed, ...remainingCivilizations } = tornDown.civilizations;
+  const withoutBreakaway: GameState = { ...tornDown, civilizations: remainingCivilizations };
+  const liveness = reconcileCivilizationLiveness(state, withoutBreakaway);
   if (bus) emitCivilizationLivenessTransitions(liveness, bus);
   return liveness.state;
 }
