@@ -14,16 +14,17 @@ export function getTrainedMovementBonus(state: GameState, civId: string, unitTyp
   if (!civ) return 0;
   const bonusEffect = resolveCivDefinition(state, civ.civType ?? '')?.bonusEffect;
   const domain = UNIT_DEFINITIONS[unitType]?.domain;
+  const completed = civ.techState?.completed ?? [];
   let bonus = getCreationMovementBonus(unitType, bonusEffect);
   if (domain === 'naval') {
     if (state.completedLegendaryWonders?.['navigators-compass']?.ownerId === civId) bonus += 1;
-    if (civ.techState.completed.includes('trade-winds')) bonus += 1;
+    if (completed.includes('trade-winds')) bonus += 1;
   }
   // Mongolia "Horse Lords" / the custom Expansionist trait (#1692 A2).
   if (bonusEffect?.type === 'mounted_movement' && UNIT_CLASS_BY_TYPE[unitType].includes('mounted')) {
     bonus += bonusEffect.bonus;
   }
-  if (domain === 'air' && civ.techState.completed.includes('private-spaceflight')) bonus += 1;
+  if (domain === 'air' && completed.includes('private-spaceflight')) bonus += 1;
   return bonus;
 }
 

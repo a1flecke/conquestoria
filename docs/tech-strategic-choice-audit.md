@@ -287,7 +287,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `social-contract` | 6 | philosophy | KEEP | 2 | effect-valued | +2 gold per city with a market | - |
 | `baroque-music` | 6 | arts | KEEP | 2 | unlock+effect-valued | +2 gold per concert hall | - |
 | `portrait-art` | 6 | arts | KEEP | 2 | effect-valued | +1 gold per art gallery in empire | - |
-| `trade-winds` | 6 | maritime | KEEP | 3 | era-only | - | systems/unit-production-completion |
+| `trade-winds` | 6 | maritime | KEEP | 3 | era-only | - | systems/unit-trained-movement-bonus |
 | `frigate-construction` | 6 | maritime | KEEP | 3 | unlock-valued | - | - |
 | `precision-casting` | 6 | metallurgy | KEEP | 3 | effect-valued | combatStrength +5 (units:cannon; always; none) | systems/unrest-guidance |
 | `steel-plate-armor` | 6 | metallurgy | KEEP | 3 | effect-valued | combatStrength +3 (class:melee; defending; none) | - |
@@ -465,7 +465,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `digital-rights` | 12 | civics | KEEP | 2 | effect-valued | +1 science per espionage building empire-wide | - |
 | `network-governance` | 12 | civics | KEEP | 3 | unlock+effect-valued | +2 science to your lowest-science city | - |
 | `gps-navigation` | 12 | exploration | KEEP | 3 | era-only | - | systems/unit-movement-cost |
-| `private-spaceflight` | 12 | exploration | KEEP | 3 | unlock-valued | - | systems/unit-production-completion |
+| `private-spaceflight` | 12 | exploration | KEEP | 3 | unlock-valued | - | systems/unit-trained-movement-bonus |
 | `precision-agriculture` | 12 | agriculture | KEEP | 3 | unlock-valued | - | - |
 | `lab-grown-food` | 12 | agriculture | KEEP | 2 | effect-valued | +2 food all cities | - |
 | `gene-therapy` | 12 | medicine | KEEP | 3 | unlock-valued | - | systems/tech-completion-system, systems/unit-production-completion |
