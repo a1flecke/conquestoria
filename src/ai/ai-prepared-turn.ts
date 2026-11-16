@@ -232,6 +232,15 @@ export function blocksSpyProcurement(
   return atWarWith.length > 0 || primaryPlan?.objective === 'capture' || intent === 'dominate';
 }
 
+/**
+ * #1722: the AI's espionage roster ceiling. One operative can defend the capital while a
+ * second operates, but the roster stays deliberately small: #1699 restored bounded peacetime
+ * recruitment after an unbounded demand produced a spy farm, and `incrementalDemandSeed`
+ * already asks for at most one unit per round. The tech-gated `maxSpies` still applies, so a
+ * civ that has not researched a second slot never asks for one.
+ */
+export const AI_SPY_ROSTER_CAP = 2;
+
 function spyProcurementDemand(
   state: Readonly<GameState>,
   perception: MajorCivPerception,
@@ -240,10 +249,17 @@ function spyProcurementDemand(
   if (!espionage?.maxSpies || perception.ownCities.length === 0) return [];
   if (hasQueuedAISpy(perception.ownCities)) return [];
 
-  // One operative gives the AI access to its mission pipeline. Stationed spies
-  // still satisfy demand after their units leave the map.
+  // One operative gives the AI access to its mission pipeline. Stationed spies still satisfy
+  // demand after their units leave the map -- but a permanently embedded defender must never
+  // be the only operative (#1722), so the roster target is two.
   const activeSpies = Object.values(espionage.spies).filter(spy => spy.status !== 'captured').length;
-  return incrementalDemandSeed('espionage', ESPIONAGE_PROCUREMENT_SOURCE_ID, 35, activeSpies, 1);
+  return incrementalDemandSeed(
+    'espionage',
+    ESPIONAGE_PROCUREMENT_SOURCE_ID,
+    35,
+    activeSpies,
+    Math.min(espionage.maxSpies, AI_SPY_ROSTER_CAP),
+  );
 }
 
 /**

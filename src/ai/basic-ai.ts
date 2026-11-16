@@ -195,6 +195,14 @@ function shouldAiStationDefensiveSpy(state: GameState, civId: string): boolean {
   const hasStage3Espionage = civ.techState.completed.includes('spy-networks') || civ.techState.completed.includes('sabotage');
   if (!hasStage3Espionage) return false;
 
+  // #1722: never garrison the civ's last mobile operative. An embedded spy cannot start a
+  // mission and the AI never unembeds one, so spending the only operative on the capital
+  // left the civ with no espionage at all. Counting non-embedded (not just non-captured)
+  // keeps the reserve true even if the capital moves after a capture.
+  const mobileSpies = Object.values(espState.spies)
+    .filter(spy => spy.status !== 'captured' && spy.status !== 'embedded').length;
+  if (mobileSpies < 2) return false;
+
   const capitalId = getCapitalCityId(state, civId);
   if (!capitalId) return false;
 
@@ -1757,64 +1765,39 @@ function processAITurnInternal(
   // #419 PR 3: tell the world who struck us while the evidence is fresh (same paired command the player's button uses).
   newState = applyAiGoPublic(newState, civId, bus);
 
-  // Start missions for stationed spies without active missions
+  // Start missions for spies that are actually free to run one (#1722). `embedded`,
+  // `captured` and `cooldown` spies can start nothing, so ranking a mission for them only
+  // repeated a placed-spy request every round that could never be accepted.
   const espState = newState.espionage?.[civId];
   if (espState) {
+    const rankedMissions = rankAiMissions(newState, civId);
     for (const spy of Object.values(espState.spies)) {
-      if (spy.currentMission) {
-        continue;
-      }
-      const mission = chooseAiMission(newState, civId);
-      if (!mission) {
-        continue;
-      }
-      if (missionRequiresPlacedSpy(mission)) {
-        if (spy.status === 'stationed' && spy.targetCivId) {
-          const started = startMission(
-            newState.espionage![civId],
-            spy.id,
-            mission,
-            resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect,
-          );
-          if (started.ok) {
-            newState.espionage![civId] = started.state;
-            emitAiMissionStarted(bus, civId, spy.id, started.state);
-          }
-        }
-        continue;
-      }
-      if (!['idle', 'stationed'].includes(spy.status)) {
-        continue;
-      }
+      if (spy.currentMission) continue;
+      if (!['idle', 'stationed'].includes(spy.status)) continue;
       const target = spy.targetCivId && spy.targetCityId
         ? { civId: spy.targetCivId, cityId: spy.targetCityId }
-        : chooseAiSpyTarget(
-            newState,
-            civId,
-            administrativePerception,
-          );
+        : chooseAiSpyTarget(newState, civId, administrativePerception);
       if (!target) continue;
-      // #419: repeating a fully active lockout/penalty only overwrites the timer
-      // with the same value. Fall through to the next ranked remote mission.
-      let chosenMission: SpyMissionType | null = mission;
-      if (isOperationEffectFullyActive(newState, chosenMission, target.civId, target.cityId)) {
-        chosenMission = rankAiMissions(newState, civId).find(candidate =>
-          !missionRequiresPlacedSpy(candidate)
-          && !isOperationEffectFullyActive(newState, candidate, target.civId, target.cityId),
-        ) ?? null;
-      }
-      if (!chosenMission) continue;
-      const started = startMission(
-        newState.espionage![civId],
-        spy.id,
-        chosenMission,
-        resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect,
-        target.civId,
-        target.cityId,
-      );
-      if (started.ok) {
+      for (const missionType of rankedMissions) {
+        // A placed-spy mission needs the spy already inside a foreign city; a remote-capable
+        // one can be run from home. Walking the ranking is what lets a mobile spy work at all
+        // when its favourite mission is placed -- a refused top choice falls through instead
+        // of idling the spy.
+        if (missionRequiresPlacedSpy(missionType) && !(spy.status === 'stationed' && spy.targetCivId)) continue;
+        // Repeating a fully active lockout/penalty only overwrites the timer with the same value.
+        if (isOperationEffectFullyActive(newState, missionType, target.civId, target.cityId)) continue;
+        const started = startMission(
+          newState.espionage![civId],
+          spy.id,
+          missionType,
+          resolveCivDefinition(newState, newState.civilizations[civId]?.civType ?? '')?.bonusEffect,
+          target.civId,
+          target.cityId,
+        );
+        if (!started.ok) continue;
         newState.espionage![civId] = started.state;
         emitAiMissionStarted(bus, civId, spy.id, started.state);
+        break;
       }
     }
   }

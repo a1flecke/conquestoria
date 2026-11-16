@@ -1,6 +1,7 @@
 import type { City, GameState, Unit } from '@/core/types';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { canUnitOccupyCity } from '@/systems/city-capture-system';
+import { isBasedAirUnit } from '@/systems/air-base-state';
 import { canUnitBombardCity, previewUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { calculateCityAssaultStrengths, getCityIntrinsicStrength, getCityOwnerBonus } from '@/systems/city-siege-system';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
@@ -170,12 +171,16 @@ function resolveCaptureDenial(state: GameState, unit: Unit, city: City): string 
 
   if (distanceFor(state, unit.position, city.position) !== 1) return 'Move next to the city to capture it.';
 
-  // Matches beginMajorCityAssault's `city-defended` check exactly: ANY unit standing on the
+  // Matches beginMajorCityAssault's `city-defended` check exactly: ANY map unit standing on the
   // city tile blocks occupation, not only the owner's. A direct scan rather than
   // buildUnitOccupancy, because Phase 2 calls this per candidate tile while building
-  // highlights and allocating a whole occupancy index each time would be wasteful.
+  // highlights and allocating a whole occupancy index each time would be wasteful; it skips
+  // exactly what that index skips (cargo aboard a ship, aircraft based at the city), which are
+  // not map units. Counting a based aircraft here made a city with planes at its airfield and no
+  // garrison uncapturable from the preview, while the executor accepted the same assault.
   const cityKey = hexKey(city.position);
   for (const occupant of Object.values(state.units)) {
+    if (occupant.transportId || isBasedAirUnit(occupant)) continue;
     if (occupant.id !== unit.id && hexKey(occupant.position) === cityKey) {
       return 'Defeat the defenders first.';
     }

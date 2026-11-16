@@ -16,7 +16,7 @@ import {
 } from '@/ai/ai-espionage-grudges';
 import { EXPOSE_SCANDAL_PENALTY } from '@/systems/espionage-missions';
 import type { EspionageCivState, GameState } from '@/core/types';
-import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
+import { createEspionageCivState, createSpyFromUnit, missionRequiresPlacedSpy } from '@/systems/espionage-system';
 import { EventBus } from '@/core/event-bus';
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -469,6 +469,77 @@ describe('AI espionage decisions', () => {
       const started = startedMissions(state);
       expect(started).not.toContain('misinformation_campaign');
       expect(started.length).toBeGreaterThan(0); // falls through to another legal embedded mission
+    });
+  });
+
+  // #1722: a mobile spy must start something even when the civ's favourite mission needs a
+  // spy already inside a foreign city. The old loop took only the top-ranked mission and
+  // skipped the whole spy when it was not eligible for it.
+  describe('mobile-spy mission selection (#1722)', () => {
+    function remoteFallbackState(): GameState {
+      const state = makeAiTestState();
+      state.turn = 42;
+      state.civilizations['ai-egypt'].techState.completed = [
+        'espionage-scouting', 'espionage-informants', 'spy-networks', 'cyber-intelligence',
+      ];
+      // Suppress the capital-defender pass so this test isolates mission selection.
+      let aiEsp: EspionageCivState = {
+        ...createEspionageCivState(), maxSpies: 2, counterIntelligence: { 'city-egypt-1': 1 },
+      };
+      ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'spy-mobile', 'ai-egypt', 'spy_agent', 'seed-1722'));
+      aiEsp = {
+        ...aiEsp,
+        spies: {
+          'spy-mobile': {
+            ...aiEsp.spies['spy-mobile'],
+            status: 'idle',
+            targetCivId: 'player',
+            targetCityId: 'city-player-1',
+            currentMission: null,
+          },
+        },
+      };
+      state.espionage = { ...state.espionage, 'ai-egypt': aiEsp };
+      return state;
+    }
+
+    it('starts a remote mission when the top-ranked mission needs a placed spy', () => {
+      const state = remoteFallbackState();
+      const ranked = rankAiMissions(state, 'ai-egypt');
+      expect(missionRequiresPlacedSpy(ranked[0]!)).toBe(true);
+      expect(ranked).toContain('cyber_attack');
+
+      const bus = new EventBus();
+      const started: string[] = [];
+      bus.on('espionage:mission-started', event => started.push(event.missionType));
+
+      const after = processAITurn(state, 'ai-egypt', bus);
+
+      expect(after.espionage!['ai-egypt'].spies['spy-mobile'].currentMission?.type).toBe('cyber_attack');
+      expect(started).toEqual(['cyber_attack']);
+    });
+
+    it('leaves an embedded defender out of mission selection', () => {
+      const state = remoteFallbackState();
+      const aiEsp = state.espionage!['ai-egypt'];
+      state.espionage!['ai-egypt'] = {
+        ...aiEsp,
+        spies: {
+          ...aiEsp.spies,
+          'spy-embedded': {
+            ...aiEsp.spies['spy-mobile'],
+            id: 'spy-embedded',
+            status: 'embedded',
+            targetCityId: 'city-egypt-1',
+          },
+        },
+      };
+
+      const after = processAITurn(state, 'ai-egypt', new EventBus());
+
+      expect(after.espionage!['ai-egypt'].spies['spy-embedded'].status).toBe('embedded');
+      expect(after.espionage!['ai-egypt'].spies['spy-embedded'].currentMission).toBeNull();
+      expect(after.espionage!['ai-egypt'].spies['spy-mobile'].currentMission?.type).toBe('cyber_attack');
     });
   });
 });

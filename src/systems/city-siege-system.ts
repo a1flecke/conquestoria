@@ -10,6 +10,9 @@ import { isAtWar } from '@/systems/diplomacy-queries';
 import { getRiverDefensePenalty, isRiverBetween } from '@/systems/river-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { CITY_BREACH_ASSAULT_MULTIPLIER, isCityBreachExpired, isCityBreachedBy } from '@/systems/city-breach';
+import { resolveAirBaseLoss } from '@/systems/air-base-loss';
+import { findLegalSpawnTile, spawnNeighbours } from '@/systems/unit-spawn-placement';
+import { syncTransportCargoPositions } from '@/systems/transport-system';
 
 // Retuned from the design doc's original 5/3 (#522 pre-merge review): a population-1
 // unwalled outpost at 5+1*3=8 put a warrior (strength 10, the cheapest and most common
@@ -310,18 +313,40 @@ export function applyCitySiegeOutcome(state: GameState, cityId: string, result: 
   if (!city) return state;
 
   if (result.outcome === 'destroyed') {
-    const { [cityId]: _removed, ...remainingCities } = state.cities;
-    const ownerCiv = state.civilizations[city.owner];
-    return {
-      ...state,
+    // The city's airfield goes with it: its aircraft rebase or are lost (`facility-removed`), as
+    // when a city is razed. Ships in its port are left on land once the city is gone, so each moves
+    // to the nearest water it can sail (cargo with it); a ship with none stays.
+    let next = resolveAirBaseLoss(state, { kind: 'city', cityId }, { kind: 'facility-removed' }).state;
+    const { [cityId]: _removed, ...remainingCities } = next.cities;
+    const ownerCiv = next.civilizations[city.owner];
+    next = {
+      ...next,
       cities: remainingCities,
       civilizations: ownerCiv
         ? {
-          ...state.civilizations,
+          ...next.civilizations,
           [city.owner]: { ...ownerCiv, cities: ownerCiv.cities.filter(id => id !== cityId) },
         }
-        : state.civilizations,
+        : next.civilizations,
     };
+    const cityKey = hexKey(city.position);
+    const shipsInPort = Object.values(next.units)
+      .filter(unit => !unit.transportId && (UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'naval'
+        && hexKey(unit.position) === cityKey)
+      .map(unit => unit.id)
+      .sort();
+    for (const shipId of shipsInPort) {
+      const ship = next.units[shipId]!;
+      const water = findLegalSpawnTile(
+        next,
+        { ownerId: ship.owner, unitType: ship.type, stacking: 'same-owner' },
+        spawnNeighbours(next, city.position),
+      );
+      if (!water) continue;
+      next = { ...next, units: { ...next.units, [shipId]: { ...ship, position: { ...water } } } };
+      if (ship.cargoUnitIds?.length) next = syncTransportCargoPositions(next, shipId);
+    }
+    return next;
   }
 
   const ownerCiv = state.civilizations[city.owner];
@@ -337,10 +362,15 @@ export function applyCitySiegeOutcome(state: GameState, cityId: string, result: 
   };
 }
 
-// A city tile is "garrisoned" if any living unit owned by the city's owner occupies it.
+// A city tile is "garrisoned" if a map unit owned by the city's owner occupies it. Aircraft based at
+// its airfield and cargo aboard a ship are not map units and never garrison it, exactly as they never
+// defend it against a capture (`beginMajorCityAssault`). Counting a based aircraft made a city with
+// planes at its airfield immune to barbarian and pirate sieges (the raider found nothing it could
+// attack and simply stood beside the city) and halved every bombardment of it.
 export function getCityGarrisonUnit(units: Record<string, Unit>, city: Pick<City, 'owner' | 'position'>): Unit | undefined {
   const cityKey = hexKey(city.position);
-  return Object.values(units).find(unit => unit.owner === city.owner && hexKey(unit.position) === cityKey);
+  return Object.values(units).find(unit =>
+    unit.owner === city.owner && !unit.transportId && !unit.airBase && hexKey(unit.position) === cityKey);
 }
 
 export function hasCityGarrison(units: Record<string, Unit>, city: Pick<City, 'owner' | 'position'>): boolean {

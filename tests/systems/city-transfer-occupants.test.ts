@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Unit } from '@/core/types';
-import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
+import { resolveMajorCityCapture, transferCapturedCityOwnership } from '@/systems/city-capture-system';
+import { applyCitySiegeOutcome } from '@/systems/city-siege-system';
 import { foundCity } from '@/systems/city-lifecycle';
 import { EventBus } from '@/core/event-bus';
 import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
@@ -92,5 +93,45 @@ describe('a city that changes hands without a battle leaves no foreign units ins
     expect(after.units[ship.id]?.position).toEqual(water);
     expect(after.units[rider.id]).toMatchObject({ position: water, transportId: ship.id });
     assertSaveStateInvariants(after, 'after the transfer');
+  });
+
+  it('razing a city with aircraft at its airfield leaves none based at a city that is gone', () => {
+    const { state, cityId, garrisonId, planeId } = cededCityWithOccupants('razed-airfield');
+    // A raze, like any capture, needs the city's ground defenders gone first.
+    delete state.units[garrisonId];
+    state.civilizations['ai-1'].units = state.civilizations['ai-1'].units.filter(id => id !== garrisonId);
+    assertSaveStateInvariants(state, 'before the raze');
+
+    const result = resolveMajorCityCapture(state, cityId, 'player', 'raze', state.turn);
+
+    expect(result.outcome).toBe('razed');
+    expect(result.state.cities[cityId]).toBeUndefined();
+    const plane = result.state.units[planeId];
+    if (plane?.airBase?.kind === 'city') expect(result.state.cities[plane.airBase.cityId]).toBeDefined();
+    assertSaveStateInvariants(result.state, 'after the raze');
+  });
+
+  it('a city destroyed by a siege leaves no aircraft based at it and no ship beached on its land', () => {
+    const { state, cityId, garrisonId, planeId, cityPosition } = cededCityWithOccupants('siege-destroyed-city');
+    delete state.units[garrisonId];
+    state.civilizations['ai-1'].units = state.civilizations['ai-1'].units.filter(id => id !== garrisonId);
+    // A ship in port: the city tile is land, so once the city is gone the ship must be on water.
+    const water = hexNeighbors(cityPosition)[0]!;
+    state.map.tiles[hexKey(water)] = { ...state.map.tiles[hexKey(water)]!, terrain: 'coast' };
+    for (const unit of Object.values(state.units)) {
+      if (hexKey(unit.position) === hexKey(water)) unit.position = { ...cityPosition };
+    }
+    const ship = createUnit('galley', 'ai-1', cityPosition, state.idCounters);
+    state.units[ship.id] = ship;
+    state.civilizations['ai-1'].units.push(ship.id);
+    assertSaveStateInvariants(state, 'before the siege');
+
+    const after = applyCitySiegeOutcome(state, cityId, { hpLost: 100, newHp: 0, outcome: 'destroyed', goldLost: 0 });
+
+    expect(after.cities[cityId]).toBeUndefined();
+    const plane = after.units[planeId];
+    if (plane?.airBase?.kind === 'city') expect(after.cities[plane.airBase.cityId]).toBeDefined();
+    expect(after.units[ship.id]?.position).toEqual(water);
+    assertSaveStateInvariants(after, 'after the siege');
   });
 });
