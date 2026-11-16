@@ -3,7 +3,7 @@
  * `handleHexLongPress` and the territory-inspection-panel lifecycle (with its
  * natural-wonder ambient). Normalizes wrapped coordinates at its own input boundary.
  */
-import type { HexCoord } from '@/core/types';
+import type { HexCoord } from '@/core/types/hex';
 import { hexKey } from '@/systems/hex-utils';
 import { wrapHexCoord } from '@/systems/hex-utils';
 import { resolveNaturalWonderAudioFocus } from '@/input/natural-wonder-audio-focus';

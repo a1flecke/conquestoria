@@ -12,6 +12,11 @@ import { getNavalOperationsMovementPenalty } from './naval-endurance';
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
 
+/** The civ bonus every created unit of `type` carries (Viking raiders' +1), whatever made it. */
+export function getCreationMovementBonus(type: UnitType, bonusEffect?: CivBonusEffect): number {
+  return bonusEffect?.type === 'naval_raiding' && VIKING_MOBILITY_UNITS.has(type) ? bonusEffect.movementBonus : 0;
+}
+
 export function createUnit(
   type: UnitType,
   owner: string,
@@ -19,10 +24,7 @@ export function createUnit(
   counters: IdCounters,
   bonusEffect?: CivBonusEffect,
 ): Unit {
-  const movementBonus =
-    bonusEffect?.type === 'naval_raiding' && VIKING_MOBILITY_UNITS.has(type)
-      ? bonusEffect.movementBonus
-      : 0;
+  const movementBonus = getCreationMovementBonus(type, bonusEffect);
   const definition = UNIT_DEFINITIONS[type];
   return {
     id: `unit-${counters.nextUnitId++}`,

@@ -53,19 +53,30 @@ export type AirBaseCheck =
   | { ok: true; base: Extract<AirBaseRef, { kind: 'city' }> }
   | { ok: false; reason: AirBaseFailureReason };
 
-export function canCompleteAirUnitProduction(state: GameState, cityId: string, type: UnitType): AirBaseCheck {
+/**
+ * May a new aircraft of `type` be based at `cityId`? `replacingUnitId` names an aircraft that becomes the new one
+ * (an in-place upgrade): it already holds a slot, so it is not counted against the capacity.
+ */
+export function canCompleteAirUnitProduction(
+  state: GameState,
+  cityId: string,
+  type: UnitType,
+  replacingUnitId?: string,
+): AirBaseCheck {
   const definition = UNIT_DEFINITIONS[type].airOperation;
   if (!definition) return { ok: false, reason: 'not-based-aircraft' };
   const city = state.cities[cityId];
   if (!city) return { ok: false, reason: 'base-missing' };
   const base: Extract<AirBaseRef, { kind: 'city' }> = { kind: 'city', cityId };
   if (!isCompatibleBase(state, { type } as Unit, base)) return { ok: false, reason: 'incompatible-base' };
-  if (getAirBaseRoster(state, base).length >= getAirBaseCapacity(state, base)) return { ok: false, reason: 'base-full' };
+  const occupied = getAirBaseRoster(state, base).filter(unit => unit.id !== replacingUnitId).length;
+  if (occupied >= getAirBaseCapacity(state, base)) return { ok: false, reason: 'base-full' };
   return { ok: true, base };
 }
 
 export function baseNewAirUnit(state: GameState, cityId: string, unit: Unit): AirOperationResult {
-  const check = canCompleteAirUnitProduction(state, cityId, unit.type);
+  // `unit` may already be in `state` (an upgrade); its own slot is then not a competitor.
+  const check = canCompleteAirUnitProduction(state, cityId, unit.type, unit.id);
   if (!check.ok) return { ok: false, state, reason: check.reason };
   const city = state.cities[cityId]!;
   return {
