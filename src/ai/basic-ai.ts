@@ -76,6 +76,7 @@ import {
   getAvailableMissions,
   embedSpy,
   attemptInfiltration,
+  resolveMissionResult,
   expelSpy,
   executeSpy,
   startInterrogation,
@@ -1695,6 +1696,19 @@ function processAITurnInternal(
         spies: { ...result.civEsp.spies, [spyUnitId]: { ...spyAfterAttempt, targetCivId: cityHere.owner } },
       };
       if (result.removeUnitFromMap) {
+        // An era-1 scout also reports the land around the city, exactly as the player's does.
+        if (result.era1ScoutResult !== undefined) {
+          const tilesToReveal = resolveMissionResult('scout_area', cityHere.owner, cityHere.id, newState, civId, spyUnitId).tilesToReveal ?? [];
+          const civNow = newState.civilizations[civId];
+          if (tilesToReveal.length > 0 && civNow?.visibility?.tiles) {
+            const tiles = { ...civNow.visibility.tiles };
+            for (const coord of tilesToReveal) tiles[`${coord.q},${coord.r}`] = 'visible';
+            newState = {
+              ...newState,
+              civilizations: { ...newState.civilizations, [civId]: { ...civNow, visibility: { ...civNow.visibility, tiles } } },
+            };
+          }
+        }
         newState = removeUnits(newState, [spyUnitId], { reason: 'consumed' }).state;
         bus.emit('espionage:spy-infiltrated', { civId, spyId: spyUnitId, cityId: cityHere.id });
       } else if (result.caught) {
