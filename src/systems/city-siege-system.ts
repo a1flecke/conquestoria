@@ -362,10 +362,15 @@ export function applyCitySiegeOutcome(state: GameState, cityId: string, result: 
   };
 }
 
-// A city tile is "garrisoned" if any living unit owned by the city's owner occupies it.
+// A city tile is "garrisoned" if a map unit owned by the city's owner occupies it. Aircraft based at
+// its airfield and cargo aboard a ship are not map units and never garrison it, exactly as they never
+// defend it against a capture (`beginMajorCityAssault`). Counting a based aircraft made a city with
+// planes at its airfield immune to barbarian and pirate sieges (the raider found nothing it could
+// attack and simply stood beside the city) and halved every bombardment of it.
 export function getCityGarrisonUnit(units: Record<string, Unit>, city: Pick<City, 'owner' | 'position'>): Unit | undefined {
   const cityKey = hexKey(city.position);
-  return Object.values(units).find(unit => unit.owner === city.owner && hexKey(unit.position) === cityKey);
+  return Object.values(units).find(unit =>
+    unit.owner === city.owner && !unit.transportId && !unit.airBase && hexKey(unit.position) === cityKey);
 }
 
 export function hasCityGarrison(units: Record<string, Unit>, city: Pick<City, 'owner' | 'position'>): boolean {
