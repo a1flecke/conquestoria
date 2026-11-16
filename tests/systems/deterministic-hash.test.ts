@@ -36,7 +36,7 @@ const LEGACY = {
   fnvXorThenMul(value: string): number { let hash = 2166136261; for (let i = 0; i < value.length; i++) { hash ^= value.charCodeAt(i); hash = Math.imul(hash, 16777619); } return hash; },
   // stampede-route / stampede / rogue-elephant / great-general / pirate-definitions (multiply the xor)
   fnvImul(seed: string): number { let hash = 2166136261; for (let index = 0; index < seed.length; index++) hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619); return hash; },
-  // pirate-actions.ts deterministicRoll, air-operations-system.ts stableAirLossRoll
+  // pirate-actions.ts deterministicRoll, air-base-loss.ts stableAirLossRoll
   fnvCodePointLead(seed: string): number { let hash = 2166136261; for (const character of seed) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619); return hash; },
   // round-phases/per-civ/general-candidates.ts deriveGeneralCandidateSeed, combat-reward-system.ts seededRoll
   lehmer(initial: number, source: string): number { let seed = initial; for (const char of source) { seed = (seed * 48271 + char.charCodeAt(0)) % 2147483647; } return seed; },
@@ -214,7 +214,8 @@ const SITES: Array<[path: string, uses: string[]]> = [
   ['src/core/round-phases/per-civ/general-candidates.ts', ['lehmerFoldByCodePoint']],
   ['src/renderer/sprite-overlay.ts', ['djb2XorUnsigned']],
   ['src/systems/ai-roster-selection.ts', ['fnv1a32']],
-  ['src/systems/air-operations-system.ts', ['fnv1a32CodePointLead']],
+  // stableAirLossRoll moved verbatim with resolveAirBaseLoss into the air-base-loss leaf.
+  ['src/systems/air-base-loss.ts', ['fnv1a32CodePointLead']],
   ['src/systems/barbarian-system.ts', ['rolling31UnsignedByCodePoint']],
   ['src/systems/combat-reward-system.ts', ['lehmerFoldByCodePoint']],
   ['src/systems/combat-system.ts', ['fnv1a32']],
