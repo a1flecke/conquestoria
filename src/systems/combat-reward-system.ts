@@ -26,7 +26,9 @@ import { resolveBoundedSplash } from '@/systems/combat-system';
 import { recordCampPressureFromCombatOutcome } from '@/systems/barbarian-pressure';
 import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { resolveRogueElephantHostHandlerDeaths } from '@/systems/rogue-elephant-host-system';
-import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
+import { getWrappedHexesInRange, hexDistance, hexesInRange, hexKey, mapDistance, wrappedHexDistance } from '@/systems/hex-utils';
+import { findLegalSpawnTile } from '@/systems/unit-spawn-placement';
+import { syncTransportCargoPositions } from '@/systems/transport-system';
 import { recordBeastSlain, type BeastSlainPayload } from '@/systems/beast-system';
 import { normalizedExperience } from '@/systems/veterancy-tiers';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
@@ -434,6 +436,16 @@ function applyCombatVictoryProduction(state: GameState, victorCivId: string, pos
   };
 }
 
+/**
+ * Does this hull carry based aircraft (a carrier's air wing)? Like a loaded transport, a carrier
+ * with aircraft aboard is never taken as a prize: it is sunk instead, which removes its air wing
+ * with it (`removeUnits`). A prize crew would otherwise leave the aircraft based on a ship of
+ * another owner.
+ */
+function hasAirWing(units: Record<string, Unit>, hullId: string): boolean {
+  return Object.values(units).some(unit => unit.airBase?.kind === 'carrier' && unit.airBase.unitId === hullId);
+}
+
 export function applyCombatOutcomeToState(
   state: GameState,
   result: CombatResult,
@@ -588,6 +600,7 @@ export function applyCombatOutcomeToState(
     && isCapturableNavalMilitary(attackerBefore.type)
     && !isPirateFlagship(state, attackerBefore)
     && !attackerBefore.cargoUnitIds?.length
+    && !hasAirWing(state.units, attackerBefore.id)
     // Prize crew moves the ship between two civilizations[] rosters (unlike civilian
     // capture, naval military ships can legitimately be pirate-owned on either side —
     // e.g. a player's frigate vs. a pirate_frigate — so both the old and new owner must
@@ -674,6 +687,7 @@ export function applyCombatOutcomeToState(
     && isCapturableNavalMilitary(defenderBefore.type)
     && !isPirateFlagship(state, defenderBefore)
     && !defenderBefore.cargoUnitIds?.length
+    && !hasAirWing(state.units, defenderBefore.id)
     // Mirror of the attacker-side branch above — both old and new owner must be major civs.
     && canCaptureDefeatedUnits(attackerBefore.owner)
     && canCaptureDefeatedUnits(defenderBefore.owner)
@@ -762,6 +776,63 @@ export function applyCombatOutcomeToState(
       };
     }
   }
+
+  // A capture changes one unit's owner on a tile its former owner's other units may share. With no
+  // fighter left there (the captured unit was the tile's chosen defender), every other capturable
+  // civilian of the former owner is taken along with it, and anything else of theirs withdraws to
+  // the nearest tile it may legally stand on (it stays only if there is none; nothing is deleted).
+  // Without this an unescorted civilian stack ended as two owners on one tile.
+  const settleCapturedStack = (capturedId: string, formerOwnerId: string, position: Unit['position']): void => {
+    const captured = units[capturedId];
+    if (!captured || captured.owner === formerOwnerId) return;
+    const newOwnerId = captured.owner;
+    const key = hexKey(position);
+    const formerStackMates = () => Object.values(units)
+      .filter(unit => unit.id !== capturedId && !unit.transportId && !unit.airBase
+        && unit.owner === formerOwnerId && hexKey(unit.position) === key)
+      .map(unit => unit.id)
+      .sort();
+    for (const mateId of formerStackMates()) {
+      const mate = units[mateId]!;
+      if (
+        !UNIT_CLASS_BY_TYPE[mate.type].includes('civilian')
+        || mate.type === 'great_general' // a General is never taken along with a stack; it withdraws
+        || mate.cargoUnitIds?.length
+        || !canCaptureDefeatedUnits(newOwnerId)
+        || !civilizations[formerOwnerId]
+      ) continue;
+      units[mateId] = { ...mate, type: mate.type === 'settler' ? 'worker' : mate.type, owner: newOwnerId };
+      civilizations = {
+        ...civilizations,
+        [formerOwnerId]: {
+          ...civilizations[formerOwnerId]!,
+          units: civilizations[formerOwnerId]!.units.filter(id => id !== mateId),
+        },
+        [newOwnerId]: {
+          ...civilizations[newOwnerId]!,
+          units: [...(civilizations[newOwnerId]?.units ?? []), mateId],
+        },
+      };
+      releaseCaptured(mateId);
+    }
+    const ring = (state.map.wrapsHorizontally
+      ? getWrappedHexesInRange(position, 2, state.map.width)
+      : hexesInRange(position, 2))
+      .filter(coord => hexKey(coord) !== key)
+      .sort((a, b) => mapDistance(state.map, position, a) - mapDistance(state.map, position, b)
+        || hexKey(a).localeCompare(hexKey(b)));
+    for (const mateId of formerStackMates()) {
+      const mate = units[mateId]!;
+      let working: GameState = { ...state, units, civilizations, minorCivs };
+      const destination = findLegalSpawnTile(working, { ownerId: mate.owner, unitType: mate.type, stacking: 'same-owner' }, ring);
+      if (!destination) continue;
+      working = { ...working, units: { ...units, [mateId]: { ...mate, position: { ...destination } } } };
+      if (mate.cargoUnitIds?.length) working = syncTransportCargoPositions(working, mateId);
+      units = { ...working.units };
+    }
+  };
+  if (attackerCaptured) settleCapturedStack(result.attackerId, attackerBefore.owner, attackerBefore.position);
+  if (defenderCaptured) settleCapturedStack(result.defenderId, defenderBefore.owner, defenderBefore.position);
 
   let nextState: GameState = {
       ...state,
