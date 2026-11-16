@@ -8,7 +8,7 @@
  * Composition-root rules: CLAUDE.md ("`src/main.ts` is a composition root only") and
  * `tests/app/architecture-boundaries.test.ts`.
  */
-import type { HexCoord } from '@/core/types';
+import type { HexCoord } from '@/core/types/hex';
 import type { PendingMapIntent, SelectionSnapshot, SelectionStore } from '@/app/ports';
 import type { LandUnitWaterRecovery } from '@/systems/unit-water-recovery';
 import { NO_LAND_UNIT_WATER_RECOVERY } from '@/systems/unit-water-recovery';
