@@ -10,6 +10,7 @@ import {
 } from './production-cost-context';
 import { getCivAvailableResources } from './resource-acquisition-system';
 import { baseNewAirUnit, canCompleteAirUnitProduction } from './air-operations-system';
+import { getTrainedMovementBonus } from './unit-trained-movement-bonus';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { evaluateProductionPrerequisites } from './production-prerequisites';
 import {
@@ -142,7 +143,7 @@ export function evaluateUnitUpgrade(
     missing.push({ kind: 'gold', required: cost, available: civ?.gold ?? 0 });
   }
   if (city && UNIT_DEFINITIONS[target.type].airOperation) {
-    const airBase = canCompleteAirUnitProduction(state, city.id, target.type);
+    const airBase = canCompleteAirUnitProduction(state, city.id, target.type, unit.id);
     if (!airBase.ok && airBase.reason !== 'not-based-aircraft') {
       missing.push({ kind: 'air-base', reason: airBase.reason });
     }
@@ -278,10 +279,14 @@ export function getCanonicalUpgradeTarget(
 // does not take the gold, and it used to be an exported function whose comment asked the caller
 // to deduct `getUpgradeCost(targetType)` itself. `applyUnitUpgradeToState` is the one command
 // that validates, pays and upgrades together.
-function applyUpgrade(unit: Unit, targetType: UnitType): Unit {
+// The persistent movement bonus depends on the type (mounted, naval, air), so it is recomputed for the new type
+// exactly as training it would give it, never carried over from the old one.
+function applyUpgrade(state: GameState, unit: Unit, targetType: UnitType): Unit {
+  const movementBonus = getTrainedMovementBonus(state, unit.owner, targetType);
   return {
     ...unit,
     type: targetType,
+    movementBonus: movementBonus || undefined,
     movementPointsLeft: 0,
     hasActed: true,
   };
@@ -342,7 +347,7 @@ export function applyUnitUpgradeToState(
     ...next.civilizations[unit.owner],
     gold: next.civilizations[unit.owner].gold - evaluation.cost,
   };
-  next.units[unitId] = applyUpgrade(next.units[unitId], targetType);
+  next.units[unitId] = applyUpgrade(next, next.units[unitId], targetType);
   if (UNIT_DEFINITIONS[targetType].airOperation) {
     const based = baseNewAirUnit(next, city.id, next.units[unitId]);
     if (!based.ok) return { state, upgraded: false, reason: based.reason };

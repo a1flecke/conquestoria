@@ -736,3 +736,64 @@ describe('obsolescence notifications', () => {
     expect(spies.filter(s => s.unitType === 'spy_scout')).toHaveLength(0);
   });
 });
+
+describe('an upgrade carries only the bonuses its new type would be trained with', () => {
+  /** A player city on the starting tile holding one unit of `type`; every tech known, gold to spare. */
+  function upgradeWorld(seed: string, type: Unit['type'], civType = 'mongolia') {
+    const state = createNewGame(undefined, seed, 'small');
+    const civ = state.civilizations.player;
+    civ.civType = civType;
+    const anchor = civ.units.map(id => state.units[id]).find(Boolean)!;
+    const city = foundCity(civ.id, anchor.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    civ.cities = [city.id];
+    const unit = { ...anchor, id: 'upgrade-unit', type, movementBonus: undefined, hasActed: false };
+    state.units = { [unit.id]: unit };
+    civ.units = [unit.id];
+    civ.techState.completed = TECH_TREE.map(tech => tech.id);
+    civ.gold = 100_000;
+    return { state, city };
+  }
+
+  it('a Mongol horseman upgraded to a tank loses the mounted +1 (tanks are not mounted)', () => {
+    const { state } = upgradeWorld('upgrade-mongol-tank', 'horseman');
+    state.units['upgrade-unit'] = { ...state.units['upgrade-unit']!, movementBonus: 1 };
+
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'tank');
+
+    expect(result.upgraded).toBe(true);
+    expect(result.state.units['upgrade-unit']!.movementBonus ?? 0).toBe(0);
+  });
+
+  it('a Mongol beast handler upgraded to a war elephant gains the mounted +1 a trained one has', () => {
+    const { state } = upgradeWorld('upgrade-mongol-elephant', 'beast_handler');
+
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'war_elephant');
+
+    expect(result.upgraded).toBe(true);
+    expect(result.state.units['upgrade-unit']!.movementBonus).toBe(1);
+  });
+
+  it('a non-Mongol upgrade gains no mounted bonus', () => {
+    const { state } = upgradeWorld('upgrade-plain-elephant', 'beast_handler', 'egypt');
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'war_elephant');
+    expect(result.upgraded).toBe(true);
+    expect(result.state.units['upgrade-unit']!.movementBonus ?? 0).toBe(0);
+  });
+
+  it('upgrades an aircraft in place even when its airfield is full', () => {
+    const { state, city } = upgradeWorld('upgrade-full-airfield', 'biplane', 'egypt');
+    state.cities[city.id] = { ...city, buildings: [...city.buildings, 'airfield'] };
+    const base = { kind: 'city' as const, cityId: city.id };
+    for (const id of ['upgrade-unit', 'wing-2', 'wing-3']) {
+      state.units[id] = { ...state.units['upgrade-unit']!, id, airBase: base };
+      if (!state.civilizations.player.units.includes(id)) state.civilizations.player.units.push(id);
+    }
+
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'wwii_fighter');
+
+    // Three of three slots are taken, one of them by the very aircraft being upgraded.
+    expect(result).toMatchObject({ upgraded: true });
+    expect(result.state.units['upgrade-unit']).toMatchObject({ type: 'wwii_fighter', airBase: base });
+  });
+});
