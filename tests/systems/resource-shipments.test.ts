@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { EventBus } from '@/core/event-bus';
 import type { City, Civilization, GameState, TradeRoute } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
 import { completeRouteLeg } from '@/systems/trade-route-runner';
+import { establishTradeRoute } from '@/systems/trade-route-contract';
+import { getTradeRouteQuote } from '@/systems/trade-route-economy';
+import { resetUnitTurn } from '@/systems/unit-lifecycle';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
+import { advanceRouteRunners, executeUnitMove } from '@/systems/unit-movement-system';
 import { deliverRouteManifest } from '@/systems/resource-shipment-system';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { removeRouteById } from '@/systems/trade-route-lifecycle';
@@ -200,6 +207,115 @@ function world(options: {
 function routeOf(state: GameState, id = 'route-1'): TradeRoute {
   return state.marketplace!.tradeRoutes.find(candidate => candidate.id === id)!;
 }
+
+describe('#1125 engineering passage feasibility', () => {
+  const traderId = 'caravan-1';
+  const home = { q: 0, r: 1 };
+  const supplier = { q: 7, r: 1 };
+  const passage = { q: 4, r: 1 };
+  const request = {
+    caravanUnitId: traderId,
+    actingCivId: BUYER,
+    originCityId: BUYER_CITY,
+    toCityId: SELLER_CITY,
+  };
+
+  function passageWorld(open: boolean): GameState {
+    const state = world({ unitType: 'naval_trader', target: 4 });
+    // Both runs have one water approach per port. Only the crossing tile changes.
+    const rows = ['........', 'HoooXooS', '..o..o..', '..o..o..', '..o..o..', '..oooo..'];
+    const tiles: GameState['map']['tiles'] = {};
+    rows.forEach((row, r) => [...row].forEach((tile, q) => {
+      const coord = { q, r };
+      tiles[hexKey(coord)] = {
+        coord,
+        terrain: tile === 'o' || (tile === 'X' && open) ? 'coast' : 'grassland',
+        elevation: 'lowland', resource: null, improvement: 'none', improvementTurnsLeft: 0,
+        hasRiver: false, wonder: null,
+        owner: tile === 'H' ? BUYER : tile === 'S' ? SELLER : null,
+      };
+    }));
+    const visibility = {
+      tiles: Object.fromEntries(Object.keys(tiles).map(key => [key, 'visible' as const])),
+    };
+    state.map = { ...state.map, height: rows.length, tiles };
+    state.tribalVillages = {};
+    state.cities[BUYER_CITY] = { ...state.cities[BUYER_CITY]!, position: home, ownedTiles: [home] };
+    state.cities[SELLER_CITY] = { ...state.cities[SELLER_CITY]!, position: supplier, ownedTiles: [supplier] };
+    state.civilizations[BUYER]!.units = [traderId];
+    state.civilizations[BUYER]!.visibility = visibility;
+    state.civilizations[SELLER]!.visibility = visibility;
+    state.units[traderId] = resetUnitTurn({
+      ...state.units[traderId]!, position: home, committedToRouteId: undefined, routeDirection: undefined,
+    });
+    return state;
+  }
+
+  it.each([
+    { open: true, legRounds: 2, crossings: ['outbound', 'loaded'] },
+    { open: false, legRounds: 4, crossings: [] },
+  ])('matches preview, execution, and shipment timing with passage open=$open', ({ open, legRounds, crossings }) => {
+    const fixture = passageWorld(open);
+    const procurement = routeOf(fixture).procurement;
+    fixture.marketplace!.tradeRoutes = [];
+    const trader = fixture.units[traderId]!;
+    const besidePassage: GameState = {
+      ...fixture,
+      units: { [traderId]: { ...trader, position: { q: 3, r: 1 } } },
+    };
+    expect(getMovementRangeDetails(besidePassage, traderId).reachable.some(
+      coord => hexKey(coord) === hexKey(passage),
+    )).toBe(open);
+    const move = executeUnitMove(besidePassage, traderId, passage, { actor: 'player', civId: BUYER });
+    expect(move.ok).toBe(open);
+    if (move.ok) expect(move.to).toEqual(passage);
+
+    const quote = getTradeRouteQuote(fixture, request);
+    expect(quote).toMatchObject({ legRounds, roundTripRounds: 2 * legRounds });
+    const assignment = establishTradeRoute(fixture, { ...request, procurement });
+    expect(assignment).toMatchObject({ ok: true });
+    if (!assignment.ok) throw new Error(assignment.reason);
+
+    const bus = new EventBus();
+    const observedCrossings: string[] = [];
+    let state = assignment.state;
+    bus.on('unit:move', ({ unitId, to }) => {
+      if (unitId !== traderId || hexKey(to) !== hexKey(passage)) return;
+      observedCrossings.push(routeOf(state).manifest ? 'loaded' : 'outbound');
+    });
+    const advance = () => {
+      state = advanceRouteRunners({
+        ...state,
+        turn: state.turn + 1,
+        units: { [traderId]: resetUnitTurn(state.units[traderId]!) },
+      }, bus);
+    };
+    const imported = () => getReserveBalance(state.materialReservesByCiv![BUYER]!, IRON).imported;
+    const incoming = () => getIncomingQuantity(state.materialReservesByCiv![BUYER]!, IRON);
+    const position = () => state.units[traderId]!.position;
+
+    for (let round = 1; round <= legRounds; round++) {
+      expect(routeOf(state).manifest).toBeUndefined();
+      advance();
+      expect(imported()).toBe(0);
+    }
+    expect(position()).toEqual({ q: 6, r: 1 });
+    expect(routeOf(state).manifest?.items).toMatchObject([{ goodId: IRON, quantity: 4, sellerCivId: SELLER }]);
+    expect(incoming()).toBe(4);
+    expect(getReserveBalance(state.materialReservesByCiv![SELLER]!, IRON).native).toBe(26);
+
+    for (let round = 1; round <= legRounds; round++) {
+      expect(imported()).toBe(0);
+      expect(incoming()).toBe(4);
+      advance();
+    }
+    expect(position()).toEqual({ q: 1, r: 1 });
+    expect(routeOf(state).manifest).toBeUndefined();
+    expect(incoming()).toBe(0);
+    expect(imported()).toBe(4);
+    expect(observedCrossings).toEqual(crossings);
+  });
+});
 
 describe('#1509 MR12 — route manifests', () => {
   it('loads once at the supplier and delivers exactly the manifest at home', () => {
