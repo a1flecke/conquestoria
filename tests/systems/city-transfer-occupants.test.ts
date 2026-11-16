@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Unit } from '@/core/types';
-import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
+import { resolveMajorCityCapture, transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { foundCity } from '@/systems/city-lifecycle';
 import { EventBus } from '@/core/event-bus';
 import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
@@ -92,5 +92,21 @@ describe('a city that changes hands without a battle leaves no foreign units ins
     expect(after.units[ship.id]?.position).toEqual(water);
     expect(after.units[rider.id]).toMatchObject({ position: water, transportId: ship.id });
     assertSaveStateInvariants(after, 'after the transfer');
+  });
+
+  it('razing a city with aircraft at its airfield leaves none based at a city that is gone', () => {
+    const { state, cityId, garrisonId, planeId } = cededCityWithOccupants('razed-airfield');
+    // A raze, like any capture, needs the city's ground defenders gone first.
+    delete state.units[garrisonId];
+    state.civilizations['ai-1'].units = state.civilizations['ai-1'].units.filter(id => id !== garrisonId);
+    assertSaveStateInvariants(state, 'before the raze');
+
+    const result = resolveMajorCityCapture(state, cityId, 'player', 'raze', state.turn);
+
+    expect(result.outcome).toBe('razed');
+    expect(result.state.cities[cityId]).toBeUndefined();
+    const plane = result.state.units[planeId];
+    if (plane?.airBase?.kind === 'city') expect(result.state.cities[plane.airBase.cityId]).toBeDefined();
+    assertSaveStateInvariants(result.state, 'after the raze');
   });
 });
