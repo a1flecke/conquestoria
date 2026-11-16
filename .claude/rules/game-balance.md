@@ -82,7 +82,7 @@ gating a preview on `profile.range` instead produces an offer the executor refus
 | `CITY_HP_DEFENSE_FLOOR` | `0.4` | Remaining HP scales assault defense: `0.4 + 0.6 × hp/100`. **Exactly 1.0 at full HP**, so no pre-#974 tuned number moves. A wrecked metropolis is much easier to storm but never free. |
 | `CITY_BOMBARDMENT_COEFFICIENT` | `0.4` | Per-shot damage `strength × health% × 0.4`. Per-shot naval damage is unchanged from before #974. |
 | `CITY_BOMBARDMENT_MAX_HP_LOSS_PER_TURN` | `20` | Per city, per turn, across **all** attackers and domains. Friendly stacking is uncapped in this codebase, so without it a stack of cheap units floors any city in one turn. 99/20 ⇒ a siege takes ≥5 turns at every era. |
-| `CITY_BOMBARDMENT_GARRISON_MITIGATION` | `0.5` | A garrison halves bombardment rather than nullifying it, keeping "station a defender" real counterplay. |
+| `CITY_BOMBARDMENT_GARRISON_MITIGATION` | `0.5` | A garrison halves bombardment rather than nullifying it, keeping "station a defender" real counterplay. A garrison is a map unit of the owner on the city tile (`getCityGarrisonUnit`): aircraft based at its airfield and cargo aboard a ship never count, here, for barbarian and pirate sieges, or for capture. |
 | `CITY_BOMBARDMENT_REGEN_SUPPRESSION_TURNS` | `1` | A bombarded city does not repair. Regen is otherwise only suppressed within 1 hex, so a unit shelling from range 2 would never out-pace 5 HP/turn. |
 
 **Ambient siege vs an aimed shot.** A unit deliberately spending its action bombards

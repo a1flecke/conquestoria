@@ -11,6 +11,7 @@ import { generateMap } from '@/systems/map-generator';
 import { hexKey, hexDistance, mapDistance } from '@/systems/hex-utils';
 import { checkCampEvolution, conquestMinorCiv } from '@/systems/minor-civ-system';
 import { createNewGame } from '@/core/game-state';
+import { hasCityGarrison } from '@/systems/city-siege-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { minorCivsPhase } from '@/core/round-phases/minor-civs';
 import { createRoundPhaseContext } from '@/core/round-phases';
@@ -581,6 +582,28 @@ describe('processPurposefulBarbarians', () => {
     expect(result.cityAttackOrders).toHaveLength(0);
     expect(result.attackOrders).toHaveLength(1);
     expect(result.attackOrders[0]).toMatchObject({ attackerUnitId: 'raider', defenderUnitId: 'garrison' });
+  });
+
+  it('treats a city whose only occupants are aircraft at its airfield as undefended, as a capture does', () => {
+    const state = purposefulState();
+    const raider = createUnit('warrior', 'barbarian', { q: 11, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    const plane = { ...createUnit('biplane', 'player', { q: 12, r: 5 }, state.idCounters), id: 'plane', airBase: { kind: 'city' as const, cityId: 'town' } };
+    state.units = { raider, plane };
+    state.cities.town = {
+      id: 'town', owner: 'player', position: { q: 12, r: 5 }, hp: 30, buildings: ['airfield'],
+    } as never;
+    state.civilizations.player.cities = ['town'];
+    state.civilizations.player.units = ['plane'];
+
+    const result = processPurposefulBarbarians(state);
+
+    // A based aircraft is not a garrison (it never defends a city against capture either), so the
+    // raider sieges the city instead of standing beside it with nothing it can attack.
+    expect(hasCityGarrison(state.units, state.cities.town)).toBe(false);
+    expect(result.cityAttackOrders).toHaveLength(1);
+    expect(result.cityAttackOrders[0]).toMatchObject({ attackerUnitId: 'raider', cityId: 'town' });
+    expect(result.attackOrders).toHaveLength(0);
   });
 
   it('does not let a high-era raider threaten an adjacent civilization that has not reached its roster tier', () => {
