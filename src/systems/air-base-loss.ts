@@ -3,6 +3,7 @@ import { appendNotification } from '@/core/notification-log';
 import { fnv1a32CodePointLead } from './deterministic-hash';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-definitions';
+import { withNewOwner } from './unit-trained-movement-bonus';
 import { removeUnits } from '@/systems/unit-removal-system';
 
 /**
@@ -153,7 +154,7 @@ export function resolveAirBaseLoss(
         const previousOwner = current.owner;
         nextState = {
           ...nextState,
-          units: { ...nextState.units, [unit.id]: { ...current, owner: cause.victorId } },
+          units: { ...nextState.units, [unit.id]: withNewOwner(nextState, current, cause.victorId) },
           civilizations: Object.fromEntries(Object.entries(nextState.civilizations).map(([civId, civilization]) => [
             civId,
             civId === previousOwner

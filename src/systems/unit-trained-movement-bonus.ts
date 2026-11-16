@@ -1,4 +1,4 @@
-import type { GameState, UnitType } from '@/core/types';
+import type { GameState, Unit, UnitType } from '@/core/types';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getCreationMovementBonus } from '@/systems/unit-lifecycle';
@@ -25,4 +25,15 @@ export function getTrainedMovementBonus(state: GameState, civId: string, unitTyp
   }
   if (domain === 'air' && civ.techState.completed.includes('private-spaceflight')) bonus += 1;
   return bonus;
+}
+
+/**
+ * `unit` handed to `ownerId` (a capture, a secession, a reabsorption), optionally as another type: the bonus is
+ * the new owner's for that type, since every source of it (civ trait, wonder, tech) belongs to an owner. An owner
+ * with no civilization record keeps the unit's bonus as it was.
+ */
+export function withNewOwner(state: GameState, unit: Unit, ownerId: string, type: UnitType = unit.type): Unit {
+  if (!state.civilizations[ownerId]) return { ...unit, owner: ownerId, type };
+  const movementBonus = getTrainedMovementBonus(state, ownerId, type);
+  return { ...unit, owner: ownerId, type, movementBonus: movementBonus || undefined };
 }

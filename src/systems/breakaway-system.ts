@@ -3,6 +3,7 @@ import { EventBus } from '@/core/event-bus';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { findLegalSpawnTile, spawnNeighbours } from '@/systems/unit-spawn-placement';
+import { withNewOwner } from './unit-trained-movement-bonus';
 import {
   eliminateCivilization,
   emitCivilizationLivenessTransitions,
@@ -73,14 +74,6 @@ export function createBreakawayFromCity(
       && cityTerritory.has(`${unit.position.q},${unit.position.r}`))
     .map(unit => unit.id);
 
-  const updatedUnits = { ...state.units };
-  for (const unitId of transferredUnitIds) {
-    updatedUnits[unitId] = {
-      ...updatedUnits[unitId],
-      owner: breakawayId,
-    };
-  }
-
   const updatedCity = {
     ...city,
     owner: breakawayId,
@@ -148,6 +141,13 @@ export function createBreakawayFromCity(
     },
   };
   updatedCivilizations[breakawayId] = breakawayCiv;
+
+  // Each unit takes the breakaway's own bonuses, so they are computed once its record exists.
+  const withBreakaway: GameState = { ...state, civilizations: updatedCivilizations };
+  const updatedUnits = { ...state.units };
+  for (const unitId of transferredUnitIds) {
+    updatedUnits[unitId] = withNewOwner(withBreakaway, updatedUnits[unitId]!, breakawayId);
+  }
 
   const nextState: GameState = {
     ...state,
@@ -260,10 +260,7 @@ export function tryReabsorbBreakaway(
 
   const updatedUnits = { ...state.units };
   for (const unitId of transferredUnitIds) {
-    updatedUnits[unitId] = {
-      ...updatedUnits[unitId],
-      owner: ownerId,
-    };
+    updatedUnits[unitId] = withNewOwner(state, updatedUnits[unitId]!, ownerId);
   }
 
   const updatedMapTiles = { ...state.map.tiles };

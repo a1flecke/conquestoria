@@ -35,6 +35,7 @@ import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { appendLegendaryWonderMilitaryFacts } from '@/systems/legendary-wonder-history';
 import { getFortificationTier } from '@/systems/fortification-system';
+import { withNewOwner } from './unit-trained-movement-bonus';
 import {
   emitCivilizationLivenessTransitions,
   reconcileCivilizationLiveness,
@@ -580,7 +581,7 @@ export function applyCombatOutcomeToState(
     // so a loaded transport still falls through to the destroy branch below, which
     // already cascades cargo cleanup correctly.
     const capturedType = attackerBefore.type === 'settler' ? 'worker' : attackerBefore.type;
-    units[result.attackerId] = { ...attackerBefore, type: capturedType, owner: defenderBefore.owner };
+    units[result.attackerId] = withNewOwner(state, attackerBefore, defenderBefore.owner, capturedType);
     civilizations = {
       ...civilizations,
       [attackerBefore.owner]: {
@@ -610,7 +611,7 @@ export function applyCombatOutcomeToState(
     && meetsCaptureMargin(result.attackerStrength, result.defenderStrength, Math.max(1, defenderBefore.health - result.defenderDamage))
   ) {
     // Prize crew: a decisive naval defeat captures the hull instead of sinking it.
-    units[result.attackerId] = { ...attackerBefore, owner: defenderBefore.owner };
+    units[result.attackerId] = withNewOwner(state, attackerBefore, defenderBefore.owner);
     civilizations = {
       ...civilizations,
       [attackerBefore.owner]: {
@@ -667,7 +668,7 @@ export function applyCombatOutcomeToState(
     // Civilian capture: mirror of the attacker-side branch above (same cargo exclusion,
     // same major-civ-only capturing-side requirement).
     const capturedType = defenderBefore.type === 'settler' ? 'worker' : defenderBefore.type;
-    units[result.defenderId] = { ...defenderBefore, type: capturedType, owner: attackerBefore.owner };
+    units[result.defenderId] = withNewOwner(state, defenderBefore, attackerBefore.owner, capturedType);
     civilizations = {
       ...civilizations,
       [defenderBefore.owner]: {
@@ -694,7 +695,7 @@ export function applyCombatOutcomeToState(
     && meetsCaptureMargin(result.defenderStrength, result.attackerStrength, Math.max(1, attackerBefore.health - result.attackerDamage))
   ) {
     // Prize crew: mirror of the attacker-side branch above.
-    units[result.defenderId] = { ...defenderBefore, owner: attackerBefore.owner };
+    units[result.defenderId] = withNewOwner(state, defenderBefore, attackerBefore.owner);
     civilizations = {
       ...civilizations,
       [defenderBefore.owner]: {
@@ -801,7 +802,7 @@ export function applyCombatOutcomeToState(
         || !canCaptureDefeatedUnits(newOwnerId)
         || !civilizations[formerOwnerId]
       ) continue;
-      units[mateId] = { ...mate, type: mate.type === 'settler' ? 'worker' : mate.type, owner: newOwnerId };
+      units[mateId] = withNewOwner(state, mate, newOwnerId, mate.type === 'settler' ? 'worker' : mate.type);
       civilizations = {
         ...civilizations,
         [formerOwnerId]: {

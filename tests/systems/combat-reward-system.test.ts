@@ -1212,6 +1212,26 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.units.defender.owner).toBe('player');
   });
 
+  it('a prize ship sails with its captor\'s naval bonus, not its former owner\'s', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...createUnit('frigate', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker', health: 100 };
+    // ai-1 had both naval bonuses when it built the frigate; the captor has only trade-winds.
+    state.units.defender = { ...createUnit('frigate', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender', health: 20, movementBonus: 2 };
+    state.civilizations['ai-1'].units = ['defender'];
+    state.civilizations.player.techState.completed = [...state.civilizations.player.techState.completed, 'trade-winds'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 60, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.state.units.defender.movementBonus).toBe(1);
+  });
+
   it('downgrades a captured settler to worker, keeping health/hasActed unchanged from before combat', () => {
     const state = makeRewardState();
     state.units.defender = { ...state.units.defender, type: 'settler', owner: 'ai-1', health: 77, hasActed: false };
