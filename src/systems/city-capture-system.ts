@@ -747,25 +747,34 @@ export function resolveMajorCityCapture(
   const goldAwarded = computeRazeGold(city);
   // #1506 MR09: a razed city releases its active commitment immediately; the old owner keeps only
   // free stock, and any migration assistance on it expires.
-  const releasedState = releaseCityMaterialCommitment(state, cityId);
+  // Its airfield goes with it: every aircraft based there rebases to another of its owner's bases,
+  // or is lost (`facility-removed`), before the city record is deleted. Without this the aircraft
+  // stayed based at a city that no longer existed.
+  const releasedState = resolveAirBaseLoss(
+    releaseCityMaterialCommitment(state, cityId),
+    { kind: 'city', cityId },
+    { kind: 'facility-removed' },
+  ).state;
+  const razedPreviousOwner = releasedState.civilizations[previousOwnerId];
+  const razingCiv = releasedState.civilizations[newOwnerId] ?? capturingCiv;
   const nextCivilizations = {
-    ...state.civilizations,
-    ...(previousOwner ? {
+    ...releasedState.civilizations,
+    ...(razedPreviousOwner ? {
       [previousOwnerId]: {
-        ...previousOwner,
-        cities: previousOwner.cities.filter(id => id !== cityId),
-        diplomacy: modifyRelationship(previousOwner.diplomacy, newOwnerId, -40),
+        ...razedPreviousOwner,
+        cities: razedPreviousOwner.cities.filter(id => id !== cityId),
+        diplomacy: modifyRelationship(razedPreviousOwner.diplomacy, newOwnerId, -40),
         // nearDefeat flag: true when previous owner now has ≤ 1 city (raze path)
-        nearDefeat: previousOwner.cities.filter(id => id !== cityId).length <= 1,
+        nearDefeat: razedPreviousOwner.cities.filter(id => id !== cityId).length <= 1,
       },
     } : {}),
     [newOwnerId]: {
-      ...capturingCiv,
-      gold: capturingCiv.gold + goldAwarded,
+      ...razingCiv,
+      gold: razingCiv.gold + goldAwarded,
       // #544 MR3: razing is still a genuine capture-from-another-civ (the
       // reconquest branch already returned early above), so it earns the
       // same city-capture General progress bonus as occupying.
-      generalProgress: awardGeneralProgress(capturingCiv, GENERAL_PROGRESS_AWARDS.cityCapture),
+      generalProgress: awardGeneralProgress(razingCiv, GENERAL_PROGRESS_AWARDS.cityCapture),
     },
   };
 
