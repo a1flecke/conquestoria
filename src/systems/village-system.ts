@@ -7,6 +7,7 @@ import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
 import { TECH_TREE, applyResearchBonus, getEffectiveTechCost } from './tech-system';
 import { createRng } from './map-generator';
 import { recordLegendaryWonderDiscoverySite } from './legendary-wonder-history';
+import { createUnitForCiv } from './unit-trained-movement-bonus';
 
 const VILLAGE_COUNTS = { small: 8, medium: 12, large: 20 } as const;
 
@@ -156,7 +157,7 @@ export function visitVillage(
     }
     case 'free_unit': {
       const unitType: 'scout' | 'warrior' = rng() < 0.5 ? 'scout' : 'warrior';
-      const newUnit = createUnit(unitType, unit.owner, village.position, state.idCounters);
+      const newUnit = createUnitForCiv(state, unitType, unit.owner, village.position, state.idCounters);
       state.units = { ...state.units, [newUnit.id]: newUnit };
       if (civ) civ.units.push(newUnit.id);
       message = `A ${unitType} joins your cause!`;

@@ -248,6 +248,20 @@ describe('visitVillage', () => {
     expect(Object.keys(state.units).length).toBeGreaterThan(unitCountBefore);
   });
 
+  it('a Viking village recruit carries the raiders\' +1 movement, as a trained one does', () => {
+    const state = makeGameState();
+    state.civilizations.player.civType = 'viking';
+    state.tribalVillages = { 'v1': { id: 'v1', position: { q: 5, r: 5 } } };
+    const unit = Object.values(state.units).find(u => u.owner === 'player')!;
+    unit.position = { q: 5, r: 5 };
+    const before = new Set(Object.keys(state.units));
+
+    visitVillage(state, 'v1', unit, () => 0.7); // free_unit, then a warrior
+
+    const recruit = Object.values(state.units).find(u => !before.has(u.id))!;
+    expect(recruit).toMatchObject({ type: 'warrior', movementBonus: 1 });
+  });
+
   it('science outcome teaches partial progress instead of completing a fresh starter tech', () => {
     const state = makeGameState();
     state.civilizations.player.techState.currentResearch = 'fire';

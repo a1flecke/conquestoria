@@ -11,7 +11,6 @@ import type { EventBus } from '@/core/event-bus';
 import { applyResearchBonus } from './tech-system';
 import { modifyRelationship } from './diplomacy-state';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
-import { createUnit } from './unit-lifecycle';
 import { findLegalSpawnTile, spawnNeighbours } from './unit-spawn-placement';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import {
@@ -21,6 +20,7 @@ import {
   type QuestChainDefinition,
 } from './quest-chain-definitions';
 import { resolveCivilizationEra } from './tech-definitions';
+import { createUnitForCiv } from './unit-trained-movement-bonus';
 import {
   createQuestTarget,
   applyQuestObjectiveAction,
@@ -158,7 +158,7 @@ function applyReward(
   if (reward.freeUnit) {
     const position = findRewardSpawnPosition(nextState, majorCivId, reward.freeUnit);
     if (position) {
-      const unit = createUnit(reward.freeUnit, majorCivId, position, nextState.idCounters);
+      const unit = createUnitForCiv(nextState, reward.freeUnit, majorCivId, position, nextState.idCounters);
       nextState.units[unit.id] = unit;
       civ.units.push(unit.id);
     }

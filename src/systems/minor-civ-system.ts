@@ -60,6 +60,7 @@ import {
 } from './minor-civ-league-system';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { isFertileStart } from '@/systems/start-fertility';
+import { createUnitForCiv } from './unit-trained-movement-bonus';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
   small: [2, 4],
@@ -610,7 +611,7 @@ function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus:
             .map(id => state.cities[id])
             .find(c => c && !Object.values(state.units).some(u => hexKey(u.position) === hexKey(c.position)));
           if (spawnCity) {
-            const freeUnit = createUnit(def.allyBonus.unitType, civId, spawnCity.position, state.idCounters);
+            const freeUnit = createUnitForCiv(state, def.allyBonus.unitType, civId, spawnCity.position, state.idCounters);
             state = { ...state, units: { ...state.units, [freeUnit.id]: freeUnit } };
             civ.units.push(freeUnit.id);
           }
