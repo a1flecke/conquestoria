@@ -25,6 +25,7 @@ import {
 } from '@/systems/faction-pressure';
 import { UNREST_RELIEF_SOURCES, BUREAUCRACY_TECH_ID, BUREAUCRACY_MAX_RELIEF } from '@/systems/faction-relief';
 import { processFactionTurn } from '@/systems/faction-system';
+import { hasCityGarrison } from '@/systems/city-siege-system';
 import {
   REVOLT_UNREST_TURNS,
   BREAKAWAY_REVOLT_TURNS,
@@ -658,6 +659,14 @@ describe('faction-system', () => {
     });
 
     expect(canGarrisonCity('city-1', state)).toBe(true);
+  });
+
+  it('counts aircraft at the airfield toward settling unrest, though they are no siege garrison (owner decision)', () => {
+    const state = makeState({ unitPositions: [{ q: 0, r: 0 }] });
+    state.units['unit-1'] = { ...state.units['unit-1']!, type: 'biplane', airBase: { kind: 'city', cityId: 'city-1' } };
+
+    expect(canGarrisonCity('city-1', state)).toBe(true);
+    expect(hasCityGarrison(state.units, state.cities['city-1']!)).toBe(false);
   });
 });
 
