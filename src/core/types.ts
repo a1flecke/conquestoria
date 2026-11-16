@@ -1,5 +1,5 @@
 import type { NotificationCityAction, NotificationLogState } from './notification-log';
-import type { CommerceMarketState, CommercePermissionsState, CityProductionMaterials, FuelDemand, LuxuryServiceState, MaterialCostRow, ReserveLedger, ResourceManifest, ResourceProcurementTerms, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
+import type { CommerceMarketState, CommercePermissionsState, CityProductionMaterials, FreightPassage, FuelDemand, LuxuryServiceState, MaterialCostRow, ReserveLedger, ResourceManifest, ResourceProcurementTerms, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
 import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
@@ -477,15 +477,6 @@ export interface TribalVillage {
 // --- Map ---
 
 export type VisibilityState = 'unexplored' | 'fog' | 'visible';
-
-/** A commissioned short passage with two authored water approaches. */
-export interface FreightPassage {
-  id: string;
-  ownerId: string;
-  open: boolean;
-  allowedOperatorIds: string[];
-  approaches: [HexCoord, HexCoord];
-}
 
 export interface HexTile {
   coord: HexCoord;
