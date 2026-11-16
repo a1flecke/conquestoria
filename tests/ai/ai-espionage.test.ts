@@ -982,6 +982,11 @@ describe('AI infiltration from the adjacent tile', () => {
         owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
       };
     }
+    // Three tiles from the city and four from the spy: out of its sight, inside the scout's report.
+    state.map.tiles['-3,0'] = {
+      coord: { q: -3, r: 0 }, terrain: 'ocean', elevation: 'lowland', resource: null, improvement: 'none',
+      owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
     // The spy has just walked up next to the city this turn, as the AI's own spy movement leaves it.
     state.units['spy-ai'] = {
       ...createUnit('spy_scout', 'ai-egypt', OPEN, { ...state.idCounters }), id: 'spy-ai', hasMoved: true, movementPointsLeft: 0,
@@ -1000,7 +1005,12 @@ describe('AI infiltration from the adjacent tile', () => {
       const after = processAITurn(failedAttemptState(turn), 'ai-egypt', new EventBus());
       const spy = after.espionage?.['ai-egypt']?.spies['spy-ai'];
       // A success embeds the spy off the map; the AI may start a mission at once.
-      if ((spy?.status === 'stationed' || spy?.status === 'on_mission') && !after.units['spy-ai']) succeeded++;
+      if ((spy?.status === 'stationed' || spy?.status === 'on_mission') && !after.units['spy-ai']) {
+        succeeded++;
+        // An era-1 scout reports the land around the city, as the player's does: the tiles are now
+        // explored (later refreshed to remembered fog once out of sight).
+        expect(['visible', 'fog'], `turn ${turn}`).toContain(after.civilizations['ai-egypt'].visibility.tiles['-3,0']);
+      }
       if (spy?.status !== 'cooldown' || !after.units['spy-ai']) continue;
       checked++;
       expect(after.units['spy-ai'].position, `turn ${turn}`).toEqual(OPEN);
