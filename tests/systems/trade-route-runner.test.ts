@@ -498,3 +498,53 @@ describe('#1502 MR05b — a bounded detour allowance', () => {
     expect(interruptions).toEqual(['blocked', 'blocked']);
   });
 });
+
+describe('a foreign route reaches its destination by real movement', () => {
+  function foreignRouteState(): GameState {
+    const state = makeState({ route: { foreignCivId: 'beta' } });
+    // The destination belongs to a trading partner the trader is not allied with.
+    state.cities['alpha-port'] = { ...state.cities['alpha-port']!, owner: 'beta' };
+    state.civilizations.alpha.cities = ['alpha-city'];
+    state.civilizations.beta.cities = ['alpha-port'];
+    for (const key of ['3,0', '4,0', '3,1', '4,1']) {
+      state.map.tiles[key] = { ...state.map.tiles[key]!, owner: 'beta' };
+    }
+    const agreement = { type: 'trade_agreement', civA: 'alpha', civB: 'beta', turnsRemaining: -1 } as never;
+    state.civilizations.alpha.diplomacy.treaties = [agreement];
+    state.civilizations.beta.diplomacy.treaties = [agreement];
+    return state;
+  }
+
+  it('turns the trader around at the foreign city instead of stalling outside it', () => {
+    let current = foreignRouteState();
+    let delivered = 0;
+    for (let round = 1; round <= 12 && delivered === 0; round++) {
+      const bus = new EventBus();
+      bus.on('trade:route-delivered', () => { delivered++; });
+      current = advanceRouteRunners(withResetAllowance({ ...current, turn: current.turn + 1 }), bus);
+    }
+    expect(delivered).toBe(1);
+    expect(current.units['trader-1']!.routeDirection).toBe('inbound');
+  });
+
+  it('a naval trader serves its own coastal cities from the water beside them', () => {
+    let current = makeState();
+    // Land cities at each end of a coastal corridor; the trader is a ship in its home port.
+    for (const key of ['1,0', '2,0', '3,0', '1,1', '2,1', '3,1', '0,1', '4,1']) {
+      current.map.tiles[key] = { ...current.map.tiles[key]!, terrain: 'coast' };
+    }
+    current.units['trader-1'] = { ...current.units['trader-1']!, type: 'naval_trader' };
+    let delivered = 0;
+    let rounds = 0;
+    // Out to the far port, then home again: a full trip, served from the water at both ends.
+    while (rounds < 24 && !(delivered === 1 && current.units['trader-1']!.routeDirection === 'outbound')) {
+      rounds++;
+      const bus = new EventBus();
+      bus.on('trade:route-delivered', () => { delivered++; });
+      current = advanceRouteRunners(withResetAllowance({ ...current, turn: current.turn + 1 }), bus);
+    }
+    expect(delivered).toBe(1);
+    expect(current.units['trader-1']!.routeDirection).toBe('outbound');
+    expect(current.map.tiles[`${current.units['trader-1']!.position.q},${current.units['trader-1']!.position.r}`]!.terrain).toBe('coast');
+  });
+});
