@@ -17,7 +17,7 @@
 import type { City, GameState, TradeRoute, TradeRouteModeId, UnitType } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { findPathToCity } from '@/systems/unit-pathfinding';
+import { getRoutePathBetween } from '@/systems/trade-route-travel';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { hasDiscoveredCity, hasExploredCoord } from '@/systems/discovery-system';
 import { isTradeUnitType } from '@/systems/trade-role-targeting';
@@ -120,11 +120,9 @@ function cityHasFreeSlot(state: GameState, cityId: string): boolean {
 
 /** Cities of `civId` that have a free slot and a domain path from the unit's position. */
 function candidateOrigins(state: GameState, unit: { owner: string; type: UnitType; position: { q: number; r: number } }): City[] {
-  const domain = tradeDomain(unit.type);
-  const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
   return Object.values(state.cities)
     .filter(city => city.owner === unit.owner && cityHasFreeSlot(state, city.id))
-    .filter(city => findPathToCity(unit.position, city.position, state.map, domain, { unit: unit as never, completedTechs }))
+    .filter(city => getRoutePathBetween(state, unit, unit.position, city.id))
     .sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
 }
 
@@ -166,9 +164,7 @@ export function getTradeRouteEligibility(state: GameState, request: TradeRouteRe
       !chosen
       || chosen.owner !== unit.owner
       || !cityHasFreeSlot(state, chosen.id)
-      || !findPathToCity(unit.position, chosen.position, state.map, tradeDomain(unit.type), {
-        unit, completedTechs: state.civilizations[unit.owner]?.techState.completed ?? [],
-      })
+      || !getRoutePathBetween(state, unit, unit.position, chosen.id)
     ) return refuse('origin-unusable');
     origin = chosen;
   } else {
@@ -180,8 +176,7 @@ export function getTradeRouteEligibility(state: GameState, request: TradeRouteRe
   // --- Corridor: from where the trader stands to the destination, in its own domain, over tiles the
   // owner has explored. (The positioning leg to the origin is validated by the origin check above.)
   const domain = tradeDomain(unit.type);
-  const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
-  const corridor = findPathToCity(unit.position, destination.position, state.map, domain, { unit, completedTechs });
+  const corridor = getRoutePathBetween(state, unit, unit.position, destination.id);
   if (!corridor) {
     // Preserve the actionable hint the old free-string reason carried, inside the typed union:
     // a land trader that cannot reach a destination is told it may need the naval line.

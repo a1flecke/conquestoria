@@ -9,7 +9,7 @@ import {
 import {
   movementStepCostParamsForType,
   getMovementStepCostFor,
-  isPassableForParams,
+  isEnterableMovementTile,
   hasRoadMovementDiscount,
   type UnitMovementContext,
 } from './unit-movement-cost';
@@ -56,7 +56,7 @@ export function findPath(
   // before ever calling here, but this function tolerates `to` being in the set anyway rather
   // than assume that guarantee — it only ever refuses a blocked hex as an intermediate waypoint.
   options: UnitMovementContext & {
-    unit?: Unit;
+    unit?: Pick<Unit, 'type' | 'owner'>;
     unitType?: UnitType;
     blockedHexKeys?: ReadonlySet<string>;
     // #871: owner ids whose territory this mover may not enter (from `getDeniedTerritoryOwners`).
@@ -73,9 +73,13 @@ export function findPath(
   const costParams = movementStepCostParamsForType(
     options.unit?.type ?? options.unitType,
     domain,
-    { completedTechs: options.completedTechs, owner: options.unit?.owner },
+    {
+      completedTechs: options.completedTechs,
+      freightPassageVisibility: options.freightPassageVisibility,
+      owner: options.unit?.owner,
+    },
   );
-  if (!isPassableForParams(costParams, toTile.terrain)) return null;
+  if (!isEnterableMovementTile(costParams, toTile)) return null;
   const deniedOwners = options.deniedOwnerIds;
   if (deniedOwners && toTile.owner && deniedOwners.has(toTile.owner)) return null;
 
@@ -185,9 +189,17 @@ export function findPathToCity(
   cityPosition: HexCoord,
   map: GameMap,
   domain: 'land' | 'naval' | 'air' = 'land',
-  options: UnitMovementContext & { unit?: Unit; unitType?: UnitType; deniedOwnerIds?: ReadonlySet<string>; blockedHexKeys?: ReadonlySet<string> } = {},
+  options: UnitMovementContext & {
+    unit?: Pick<Unit, 'type' | 'owner'>;
+    unitType?: UnitType;
+    deniedOwnerIds?: ReadonlySet<string>;
+    blockedHexKeys?: ReadonlySet<string>;
+  } = {},
 ): HexCoord[] | null {
-  const direct = findPath(from, cityPosition, map, domain, options);
+  // A channel across a land hex provides transit, leaving city service on the existing coast.
+  const direct = domain === 'naval' && map.tiles[hexKey(cityPosition)]?.freightPassage
+    ? null
+    : findPath(from, cityPosition, map, domain, options);
   if (direct) return direct;
   if (domain !== 'naval') return null;
 

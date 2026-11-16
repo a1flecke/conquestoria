@@ -7,8 +7,9 @@ import {
 import { isHostileOwnerTo } from './owner-hostility';
 import { getZoneOfControlAt } from './zone-of-control-system';
 import {
-  isPassableForUnitInContext,
-  getMovementStepCost,
+  isEnterableMovementTile,
+  getMovementStepCostFor,
+  movementStepCostParamsForType,
   type UnitMovementContext,
 } from './unit-movement-cost';
 import { getBlockingMapEntitiesByHex } from './unit-movement-legality';
@@ -78,6 +79,7 @@ export function getMovementRange(
   const queue: Array<{ coord: HexCoord; remaining: number }> = [];
 
   const startKey = hexKey(unit.position);
+  const costParams = movementStepCostParamsForType(unit.type, 'land', { ...options, owner: unit.owner });
   visited.set(startKey, unit.movementPointsLeft);
   queue.push({ coord: unit.position, remaining: unit.movementPointsLeft });
 
@@ -90,10 +92,11 @@ export function getMovementRange(
     for (const neighbor of neighbors) {
       const key = hexKey(neighbor);
       const tile = map.tiles[key];
-      if (!tile || !isPassableForUnitInContext(unit, tile.terrain, options)) continue;
+      if (!tile || !isEnterableMovementTile(costParams, tile)) continue;
       if (deniedOwnerIds && isTileDeniedBy(deniedOwnerIds, tile)) continue;
 
-      const cost = getMovementStepCost(unit, map, current.coord, neighbor, options);
+      const cost = getMovementStepCostFor(costParams, map, current.coord, neighbor);
+      if (cost === Infinity) continue;
       const remaining = current.remaining - cost;
 
       // Forced march: if this is a direct neighbor of the start position and the unit
@@ -172,6 +175,12 @@ export function getMovementRangeDetails(
 ): MovementRangeDetails {
   const unit = state.units[unitId];
   if (!unit || unit.airBase) return { reachable: [], zocLimited: [] };
+  const civ = state.civilizations[unit.owner];
+  const costParams = movementStepCostParamsForType(unit.type, 'land', {
+    owner: unit.owner,
+    completedTechs: civ?.techState.completed ?? [],
+    freightPassageVisibility: civ?.visibility,
+  });
   const blockingEntitiesByHex = getBlockingMapEntitiesByHex(state, unit);
   const deniedOwners = getDeniedTerritoryOwners(state, unit);
   const unitPositions: Record<string, string | string[]> = {};
@@ -201,13 +210,10 @@ export function getMovementRangeDetails(
     for (const neighbor of neighbors) {
       const key = hexKey(neighbor);
       const tile = state.map.tiles[key];
-      if (!tile || !isPassableForUnitInContext(unit, tile.terrain, {
-        completedTechs: state.civilizations[unit.owner]?.techState.completed ?? [],
-      })) continue;
+      if (!tile || !isEnterableMovementTile(costParams, tile)) continue;
       if (isTileDeniedBy(deniedOwners, tile)) continue;
-      const cost = getMovementStepCost(unit, state.map, current.coord, neighbor, {
-        completedTechs: state.civilizations[unit.owner]?.techState.completed ?? [],
-      });
+      const cost = getMovementStepCostFor(costParams, state.map, current.coord, neighbor);
+      if (cost === Infinity) continue;
       const remaining = current.remaining - cost;
       const fromStart = hexKey(current.coord) === startKey;
       const forcedMarch = fromStart && current.remaining >= 1 && remaining < 0;

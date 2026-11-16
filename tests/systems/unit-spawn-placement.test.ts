@@ -35,6 +35,22 @@ function makeState(terrain: Record<string, TerrainType>, wraps = false): GameSta
 const warrior = { ownerId: 'p1', unitType: 'warrior', stacking: 'same-owner' } as const;
 
 describe('unit spawn placement', () => {
+  it('preserves a trader already inside a closed freight passage without allowing spawn there', () => {
+    const state = makeState({ '0,0': 'coast', '1,0': 'plains', '2,0': 'coast' });
+    const position = { q: 1, r: 0 };
+    state.map.tiles['1,0']!.freightPassage = {
+      id: 'isthmus',
+      ownerId: 'p1',
+      open: false,
+      allowedOperatorIds: [],
+      approaches: [{ q: 0, r: 0 }, { q: 2, r: 0 }],
+    };
+    const trader = { position, owner: 'p2', type: 'naval_trader' } as const;
+    expect(isUnitOnEnterableTerrain(state, trader)).toBe(true);
+    expect(isUnitOnEnterableTerrain(state, { ...trader, type: 'destroyer' })).toBe(false);
+    expect(isLegalSpawnTile(state, { ownerId: 'p2', unitType: trader.type, stacking: 'empty-only' }, position)).toBe(false);
+  });
+
   it('follows the movement terrain rules for each domain', () => {
     const state = makeState({ '0,0': 'plains', '1,0': 'mountain', '2,0': 'ocean', '3,0': 'coast' });
     expect(filterLegalSpawnTiles(state, warrior, [0, 1, 2, 3].map(q => ({ q, r: 0 }))))

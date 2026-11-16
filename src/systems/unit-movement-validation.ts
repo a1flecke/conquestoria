@@ -4,7 +4,13 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { canHullEnterOcean, getMovementCostForUnitInContext, getMovementStepCost } from '@/systems/unit-movement-cost';
+import {
+  canHullEnterOcean,
+  getFreightPassageEntryDenial,
+  getMovementStepCostFor,
+  isEnterableMovementTile,
+  movementStepCostParamsForType,
+} from '@/systems/unit-movement-cost';
 import { getBlockingMapEntityAt, getBlockingMapEntityKeys, getBlockingMapEntityMessage, type UnitMovementBlockerCode, type BlockingMapEntity } from '@/systems/unit-movement-legality';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { findPath } from '@/systems/unit-pathfinding';
@@ -194,10 +200,21 @@ export function validateUnitMove(
   }
 
   const completedTechs = getOwnerCompletedTechs(state, unit.owner);
-  const targetCost = getMovementCostForUnitInContext(unit, tile.terrain, { completedTechs });
-  if (targetCost === Infinity) {
+  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+  const movementContext = {
+    unit,
+    completedTechs,
+    freightPassageVisibility: state.civilizations[unit.owner]?.visibility,
+  };
+  const costParams = movementStepCostParamsForType(unit.type, domain, {
+    completedTechs,
+    freightPassageVisibility: movementContext.freightPassageVisibility,
+    owner: unit.owner,
+  });
+  if (!isEnterableMovementTile(costParams, tile)) {
     const blocker = getImpassableReason(unit.type, tile.terrain);
-    return movementFailure(from, target, [from, target], blocker.reason, blocker.message);
+    const message = getFreightPassageEntryDenial(costParams, tile) ?? blocker.message;
+    return movementFailure(from, target, [from, target], blocker.reason, message);
   }
 
   const occupancy = buildUnitOccupancy(state.units);
@@ -207,7 +224,6 @@ export function validateUnitMove(
     return movementFailure(from, target, [from, target], 'occupied', 'An enemy unit is blocking the way.');
   }
 
-  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
   // #998: the BFS behind `getMovementRangeDetails` already treats a blocking map entity as
   // impassable and routes around it; `findPath`'s A* previously had no such awareness and could
   // pick a shorter path straight through one, which the check below then rejected wholesale —
@@ -216,8 +232,8 @@ export function validateUnitMove(
   // (blocking-unaware) path so the rejection below still names the SPECIFIC entity in the way
   // (`foreign-city` / `barbarian-camp` / `pirate-enclave`) rather than a generic `unreachable`.
   const blockedHexKeys = getBlockingMapEntityKeys(state, unit);
-  const path = findPath(from, target, state.map, domain, { unit, completedTechs, blockedHexKeys, deniedOwnerIds: deniedOwners })
-    ?? findPath(from, target, state.map, domain, { unit, completedTechs });
+  const path = findPath(from, target, state.map, domain, { ...movementContext, blockedHexKeys, deniedOwnerIds: deniedOwners })
+    ?? findPath(from, target, state.map, domain, movementContext);
   if (!path) return movementFailure(from, target, [from], 'unreachable', 'No passable route to that tile.');
   const pathCrossesHostileOccupant = path.slice(1, -1).some(coord =>
     getUnitIdsAtCoord(occupancy, coord).some(id =>
@@ -271,13 +287,15 @@ export function validateUnitMove(
 
   let cost = 0;
   for (let i = 1; i < path.length; i++) {
-    cost += getMovementStepCost(unit, state.map, path[i - 1]!, path[i]!, { completedTechs });
+    cost += getMovementStepCostFor(costParams, state.map, path[i - 1]!, path[i]!);
   }
 
   const distance = state.map.wrapsHorizontally
     ? wrappedHexDistance(from, target, state.map.width)
     : hexDistance(from, target);
-  const forcedMarch = distance === 1 && unit.movementPointsLeft >= 1 && cost > unit.movementPointsLeft;
+  // Geometric neighbors can still require a detour around to a passage approach.
+  const forcedMarch = distance === 1 && path.length === 2
+    && unit.movementPointsLeft >= 1 && cost > unit.movementPointsLeft;
   if (!forcedMarch && cost > unit.movementPointsLeft) {
     return movementFailure(from, target, path, 'insufficient-movement', 'Not enough movement left this turn.');
   }

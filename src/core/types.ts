@@ -478,6 +478,15 @@ export interface TribalVillage {
 
 export type VisibilityState = 'unexplored' | 'fog' | 'visible';
 
+/** A commissioned short passage with two authored water approaches. */
+export interface FreightPassage {
+  id: string;
+  ownerId: string;
+  open: boolean;
+  allowedOperatorIds: string[];
+  approaches: [HexCoord, HexCoord];
+}
+
 export interface HexTile {
   coord: HexCoord;
   terrain: TerrainType;
@@ -490,6 +499,7 @@ export interface HexTile {
   hasRiver: boolean;
   wonder: string | null;           // wonder definition ID
   regionKey?: string;              // landmass ID for threat pressure (e.g. 'continent-0', 'island-2')
+  freightPassage?: FreightPassage; // overlays the land terrain on authored maps
   // Roads are an overlay, not a replacement improvement — a tile can have a farm AND a road.
   hasRoad?: boolean;               // optional: legacy saves default falsy, no migration needed
   roadTurnsLeft?: number;          // turns remaining to complete an in-progress road

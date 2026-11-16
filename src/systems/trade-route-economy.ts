@@ -7,11 +7,12 @@ import { isCityCoastal } from './city-system';
 import { getTradeRouteTechGold } from './tech-yield-system';
 import { getNetworkRouteGoldBonus } from './network-infrastructure-plans';
 import { getCivAvailableResources } from './resource-acquisition-system';
-import { getRouteRoundsBetween } from './trade-route-travel';
+import { getNavalRouteTripRounds, getRouteRoundsBetween } from './trade-route-travel';
 import { getTradeDangerFacts, getRouteDangerConsequences, isRouteServiceSuspended, type TradeDangerFacts } from './trade-danger-adapters';
 import { getRouteModeId, getTradeRouteMode } from './trade-route-modes';
 import type { TradeRouteDelivery } from './trade-route-delivery';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 
 export function calculateTradeRouteGold(
   distance: number,
@@ -72,7 +73,7 @@ export interface TradeRouteQuote {
   /** The civilization paid by this route. */
   recipientCivId: string;
   domestic: boolean;
-  /** Rounds the trader needs for one leg, from its own path (one hex per world round). */
+  /** Rounds the trader needs for the outbound leg. */
   legRounds: number;
   /** The committed round trip's duration — also its payable service-round budget. */
   roundTripRounds: number;
@@ -142,7 +143,11 @@ export function getTradeRouteQuote(
     ? wrappedHexDistance(origin.position, destination.position, state.map.width)
     : hexDistance(origin.position, destination.position);
   const resourceDiversity = getCivAvailableResources(state, ownerCivId).size;
-  const legRounds = pathLegRounds(state, request.originCityId, request.toCityId, request.caravanUnitId)
+  const navalTrip = unit && UNIT_DEFINITIONS[unit.type]?.domain === 'naval'
+    ? getNavalRouteTripRounds(state, unit, origin.id, destination.id)
+    : null;
+  const legRounds = navalTrip?.outbound
+    ?? pathLegRounds(state, request.originCityId, request.toCityId, request.caravanUnitId)
     ?? Math.max(1, Math.ceil(distance / 3));
 
   const base = calculateTradeRouteGold(distance, resourceDiversity);
@@ -166,7 +171,7 @@ export function getTradeRouteQuote(
     recipientCivId: ownerCivId,
     domestic: destination.owner === origin.owner,
     legRounds,
-    roundTripRounds: legRounds * 2,
+    roundTripRounds: legRounds + (navalTrip?.inbound ?? legRounds),
     turnsPerTrip: legRounds,
     goldPerTrip: (base + throughput) * legRounds,
     goldPerTurn: base + throughput + routeTech + network,

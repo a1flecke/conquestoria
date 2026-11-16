@@ -1,6 +1,7 @@
-import type { GameMap, HexCoord, Unit, UnitType } from '@/core/types';
+import type { FreightPassage, GameMap, HexCoord, HexTile, Unit, UnitType, VisibilityMap } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { isRiverBetween } from './river-system';
+import { isTradeUnitTypeInDomain } from './trade-role-targeting';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 
 /**
@@ -9,10 +10,8 @@ import { UNIT_DEFINITIONS } from './unit-definitions';
  * and the mover. Never reads `GameState`. Movement range, pathfinding, the
  * route preview and the executor all cost against this one module.
  *
- * `terrainCostForParams` stays private; `isPassableForParams`,
- * `hasRoadMovementDiscount` and `isPassableForUnitInContext` are exported for
- * the sibling movement modules only and are deliberately NOT re-exported from
- * the `unit-system` barrel.
+ * Tile and step queries stay in the movement subsystem. Spawn placement and
+ * other callers that need base terrain use the terrain-only query.
  */
 export function getMovementCost(terrain: string): number {
   const costs: Record<string, number> = {
@@ -41,6 +40,7 @@ export function getMovementCostForUnit(
 
 export interface UnitMovementContext {
   completedTechs?: string[];
+  freightPassageVisibility?: VisibilityMap;
 }
 
 export function canHullEnterOcean(unitType: UnitType): boolean {
@@ -77,17 +77,16 @@ export function getMovementCostForUnitInContext(
  * executor consumes — see #1042, where road-blind `findPath` callers took a
  * shorter-but-more-expensive route because the fallback ignored `tile.hasRoad`.
  */
-export interface MovementStepCostParams {
+export interface MovementStepCostParams extends UnitMovementContext {
   /** Movement domain of the mover; drives the water/land/air branch. */
   domain: 'land' | 'naval' | 'air';
   /** Per-terrain cost overrides from the unit definition (land only). */
   terrainCostOverrides?: Partial<Record<string, number>>;
   /** Whether a naval hull may enter open `ocean` (vs `coast` only). */
   canEnterOcean?: boolean;
-  /** Owning civ's completed techs — road discount, bridge-building, gps-navigation. */
-  completedTechs?: string[];
-  /** Owner id of the mover — only the gps-navigation "own territory" clause reads it. */
+  /** Owner id for freight access and the GPS Navigation territory discount. */
   owner?: string;
+  freightHull?: boolean;
 }
 
 function terrainCostForParams(params: MovementStepCostParams, terrain: string): number {
@@ -105,6 +104,29 @@ function terrainCostForParams(params: MovementStepCostParams, terrain: string): 
 
 export function isPassableForParams(params: MovementStepCostParams, terrain: string): boolean {
   return terrainCostForParams(params, terrain) < Infinity;
+}
+
+export function getFreightPassageEntryDenial(params: MovementStepCostParams, tile: HexTile): string | undefined {
+  const passage = tile.freightPassage;
+  if (!passage || params.domain !== 'naval') return undefined;
+  const visibility = params.freightPassageVisibility?.tiles[hexKey(tile.coord)];
+  if (visibility !== 'visible' && visibility !== 'fog') return 'Naval units cannot move on land.';
+  if (!params.freightHull || !params.owner
+    || (passage.ownerId !== params.owner && !passage.allowedOperatorIds.includes(params.owner))) {
+    return 'Only authorized freight ships can use this passage.';
+  }
+  return passage.open ? undefined : 'This freight passage is closed.';
+}
+
+export function isEnterableMovementTile(params: MovementStepCostParams, tile: HexTile): boolean {
+  if (tile.freightPassage && params.domain === 'naval') {
+    return getFreightPassageEntryDenial(params, tile) === undefined;
+  }
+  return isPassableForParams(params, tile.terrain);
+}
+
+function isFreightApproach(passage: FreightPassage, coord: HexCoord): boolean {
+  return passage.approaches.some(approach => approach.q === coord.q && approach.r === coord.r);
 }
 
 /** True when a land mover with these techs pays the halved (0.5) road step cost. */
@@ -126,6 +148,17 @@ export function getMovementStepCostFor(
 ): number {
   const tile = map.tiles[hexKey(to)];
   if (!tile) return Infinity;
+
+  if (params.domain === 'naval') {
+    if (tile.freightPassage) {
+      return isEnterableMovementTile(params, tile)
+        && isFreightApproach(tile.freightPassage, from)
+        && isPassableForParams(params, map.tiles[hexKey(from)]?.terrain ?? '') ? 1 : Infinity;
+    }
+    // A ship already in the channel may sail out after a closure or revoked grant.
+    const departure = map.tiles[hexKey(from)]?.freightPassage;
+    if (departure && !isFreightApproach(departure, to)) return Infinity;
+  }
 
   const completedTechs = params.completedTechs ?? [];
   let terrainCost: number;
@@ -158,15 +191,16 @@ export function getMovementStepCostFor(
 export function movementStepCostParamsForType(
   unitType: UnitType | undefined,
   domain: 'land' | 'naval' | 'air' = 'land',
-  context: { completedTechs?: string[]; owner?: string } = {},
+  context: UnitMovementContext & { owner?: string } = {},
 ): MovementStepCostParams {
   const definition = unitType ? UNIT_DEFINITIONS[unitType] : undefined;
   return {
+    ...context,
     domain: definition?.domain ?? domain,
     terrainCostOverrides: definition?.terrainCostOverrides,
     canEnterOcean: unitType ? canHullEnterOcean(unitType) : domain === 'naval',
-    completedTechs: context.completedTechs,
-    owner: context.owner,
+    freightHull: unitType !== undefined && definition?.domain === 'naval'
+      && isTradeUnitTypeInDomain(unitType, 'naval'),
   };
 }
 
@@ -179,19 +213,11 @@ export function getMovementStepCost(
 ): number {
   return getMovementStepCostFor(
     movementStepCostParamsForType(unit.type, 'land', {
-      completedTechs: context.completedTechs,
+      ...context,
       owner: unit.owner,
     }),
     map,
     from,
     to,
   );
-}
-
-export function isPassableForUnitInContext(
-  unit: Unit,
-  terrain: string,
-  context: UnitMovementContext = {},
-): boolean {
-  return getMovementCostForUnitInContext(unit, terrain, context) < Infinity;
 }

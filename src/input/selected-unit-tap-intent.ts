@@ -79,7 +79,7 @@ export function resolveSelectedUnitTapIntent(
       occupancy.unitIdsByHex,
       occupancy.ownersByUnitId,
       hostileOwners,
-      { completedTechs: civ?.techState.completed ?? [] },
+      { completedTechs: civ?.techState.completed ?? [], freightPassageVisibility: civ?.visibility },
       getBlockingMapEntityKeys(state, unit),
       getDeniedTerritoryOwners(state, unit),
     );

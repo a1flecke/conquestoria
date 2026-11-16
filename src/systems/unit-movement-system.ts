@@ -121,10 +121,12 @@ export function executeValidatedUnitMove(
   let moved = unit;
   let stopReason: 'zone-of-control' | undefined;
   const executedPath = [from];
+  const movementContext = {
+    completedTechs: getOwnerCompletedTechs(state, unit.owner),
+    freightPassageVisibility: state.civilizations[unit.owner]?.visibility,
+  };
   for (const step of movePath.slice(1)) {
-    const cost = getMovementStepCost(moved, state.map, moved.position, step, {
-      completedTechs: getOwnerCompletedTechs(state, unit.owner),
-    });
+    const cost = getMovementStepCost(moved, state.map, moved.position, step, movementContext);
     const movement = moveUnitWithZoneOfControl(state, moved, step, cost);
     moved = movement.unit;
     executedPath.push(step);
