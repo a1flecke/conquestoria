@@ -1,7 +1,8 @@
-import type { GameState, Unit, UnitType } from '@/core/types';
+import type { GameState, HexCoord, Unit, UnitType } from '@/core/types';
+import type { IdCounters } from '@/core/types/ids';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { getCreationMovementBonus } from '@/systems/unit-lifecycle';
+import { createUnit, getCreationMovementBonus } from '@/systems/unit-lifecycle';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 
 /**
@@ -37,4 +38,20 @@ export function withNewOwner(state: GameState, unit: Unit, ownerId: string, type
   if (!state.civilizations[ownerId]) return { ...unit, owner: ownerId, type };
   const movementBonus = getTrainedMovementBonus(state, ownerId, type);
   return { ...unit, owner: ownerId, type, movementBonus: movementBonus || undefined };
+}
+
+/**
+ * A unit given to a civilization outside its city queue (a village recruit, a quest reward, a city-state's gift):
+ * `createUnit` plus the movement bonus the civ would train it with, so a gift is never a lesser unit.
+ */
+export function createUnitForCiv(
+  state: GameState,
+  type: UnitType,
+  civId: string,
+  position: HexCoord,
+  counters: IdCounters,
+): Unit {
+  const unit = createUnit(type, civId, position, counters);
+  const movementBonus = getTrainedMovementBonus(state, civId, type);
+  return { ...unit, movementPointsLeft: unit.movementPointsLeft + movementBonus, movementBonus: movementBonus || undefined };
 }

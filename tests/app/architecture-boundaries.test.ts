@@ -1598,15 +1598,16 @@ describe('unit placement — every createUnit call site is reviewed against the 
     'src/systems/stampede-system.ts': 'herds on empty plains next to a target city, minus the crisis-force blocker set',
     'src/systems/threat-pressure-system.ts': 'the corsair-armada hunt fleet on ocean that passes isLegalSpawnTile',
     'src/systems/unit-lifecycle.ts': 'defines createUnit',
+    'src/systems/unit-trained-movement-bonus.ts': 'defines createUnitForCiv; its callers are listed here with their own reasons',
     'src/systems/unit-production-completion.ts': 'trained units in their own city (production stacks with the garrison)',
     'src/systems/unit-system.ts': 'the deprecated shrink-only facade re-exports it; nothing imports the facade (#1010)',
     'src/systems/village-system.ts': 'a village gift on the tile its own visitor stands on; village raiders through the barbarian blocker set',
     'src/testing/scenario-steps/unit-step.ts': 'dev-only scenario seeding, validated by the scenario loader',
   };
 
-  it('lists exactly the modules that call createUnit', () => {
+  it('lists exactly the modules that call createUnit or createUnitForCiv', () => {
     const callers = walkTs(resolve(root, 'src'))
-      .filter(file => /\bcreateUnit\b/.test(stripComments(readFileSync(file, 'utf8'))))
+      .filter(file => /\bcreateUnit(ForCiv)?\b/.test(stripComments(readFileSync(file, 'utf8'))))
       .map(rel)
       .sort();
     expect(callers).toEqual(Object.keys(REVIEWED_CREATE_UNIT_CALLERS).sort());

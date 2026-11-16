@@ -251,6 +251,16 @@ describe('free-unit quest reward placement', () => {
   const newUnits = (before: GameState, after: GameState) =>
     Object.values(after.units).filter(unit => !before.units[unit.id]);
 
+  it('a Viking reward warrior carries the raiders\' +1 movement, as a trained one does', () => {
+    const { state, minorCivId } = rewardState('quest-free-unit-norse');
+    state.civilizations.player.civType = 'viking';
+
+    const after = reward(state, minorCivId);
+
+    const [created] = newUnits(state, after);
+    expect(created).toMatchObject({ type: 'warrior', owner: 'player', movementBonus: 1 });
+  });
+
   it('joins its own garrison rather than walking onto water beside the city', () => {
     const { state, minorCivId, center } = rewardState('quest-free-unit-water');
     for (const coord of hexNeighbors(center)) state.map.tiles[hexKey(coord)].terrain = 'ocean';
