@@ -1,4 +1,14 @@
 import type { ResourceType } from './resources';
+import type { HexCoord } from './hex';
+
+/** A commissioned short passage with two authored water approaches. */
+export interface FreightPassage {
+  id: string;
+  ownerId: string;
+  open: boolean;
+  allowedOperatorIds: string[];
+  approaches: [HexCoord, HexCoord];
+}
 
 /**
  * Stable, opaque commerce identifier (#1505 MR08). Never parse it — resolve the definition through

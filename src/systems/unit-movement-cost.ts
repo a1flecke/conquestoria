@@ -1,4 +1,5 @@
-import type { FreightPassage, GameMap, HexCoord, HexTile, Unit, UnitType, VisibilityMap } from '@/core/types';
+import type { GameMap, HexCoord, HexTile, Unit, UnitType, VisibilityMap } from '@/core/types';
+import type { FreightPassage } from '@/core/types/commerce';
 import { hexKey } from './hex-utils';
 import { isRiverBetween } from './river-system';
 import { isTradeUnitTypeInDomain } from './trade-role-targeting';
