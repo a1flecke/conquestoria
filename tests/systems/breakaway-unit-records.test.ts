@@ -102,4 +102,23 @@ describe('breakaway secession carries owner-keyed unit records with its units', 
     }
     assertSaveStateInvariants(reabsorbed, 'after the reabsorption');
   });
+
+  it('a seceding garrison drops its former civ\'s movement bonus, and gets it back when reabsorbed', () => {
+    const { state, cityId } = breakawayWithOwnedRecords('breakaway-movement-bonus');
+    state.civilizations['ai-1'].civType = 'mongolia';
+    const horseman = { ...createUnit('horseman', 'ai-1', state.cities[cityId].position, state.idCounters), movementBonus: 1 };
+    state.units[horseman.id] = horseman;
+    state.civilizations['ai-1'].units.push(horseman.id);
+
+    const seceded = createBreakawayFromCity(state, cityId, new EventBus());
+    const breakawayId = `breakaway-${cityId}`;
+    expect(seceded.units[horseman.id]).toMatchObject({ owner: breakawayId });
+    // The breakaway is a generic civilization: Mongolia's Horse Lords bonus is not its own.
+    expect(seceded.units[horseman.id].movementBonus ?? 0).toBe(0);
+
+    seceded.civilizations['ai-1'].diplomacy.relationships[breakawayId] = 80;
+    seceded.civilizations['ai-1'].gold = 1000;
+    const reabsorbed = tryReabsorbBreakaway(seceded, 'ai-1', breakawayId, new EventBus());
+    expect(reabsorbed.units[horseman.id]).toMatchObject({ owner: 'ai-1', movementBonus: 1 });
+  });
 });
