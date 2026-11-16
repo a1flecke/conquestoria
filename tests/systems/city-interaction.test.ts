@@ -351,3 +351,24 @@ describe('#966 preview/execution parity', () => {
     });
   }
 });
+
+describe('a city whose only occupants are aircraft based there can still be captured', () => {
+  it('offers capture exactly when the executor would accept it', () => {
+    const { state, unit } = scenario({ attackerType: 'warrior', attackerPos: { q: 2, r: 0 } });
+    state.cities.target = { ...state.cities.target, buildings: [...state.cities.target.buildings, 'airfield'] };
+    state.units.plane = {
+      ...createUnit('biplane', 'ai-1', { q: 3, r: 0 }, mkC()), id: 'plane', airBase: { kind: 'city', cityId: 'target' },
+    };
+    state.civilizations['ai-1'].units = ['plane'];
+
+    const executor = beginMajorCityAssault(state, 'atk', 'target', { actor: 'player', civId: 'player' });
+    const { available } = kinds(state, unit);
+
+    // The occupancy rules do not count a based aircraft as a city defender (it is not a map unit):
+    // the executor accepts the assault (here the warrior is then repelled by the city's defense).
+    // The preview must agree: offered => executable, withheld => explained.
+    expect(executor.ok ? 'ok' : (executor as { reason?: string }).reason).not.toBe('city-defended');
+    expect(available).toContain('capture');
+  });
+});
+
