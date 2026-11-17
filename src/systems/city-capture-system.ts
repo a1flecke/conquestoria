@@ -613,7 +613,7 @@ export function resolveMajorCityCapture(
       reconquerBreakawayCity(released, newOwnerId, previousOwnerId, cityId),
       cityId,
     );
-    const nextState = removeNationalProjectsHostedBy({
+    const withoutProjects = removeNationalProjectsHostedBy({
       ...reconquered,
       legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
         reconquered.legendaryWonderProjects,
@@ -621,6 +621,13 @@ export function resolveMajorCityCapture(
         newOwnerId,
       ),
     }, cityId);
+    // The breakaway's aircraft based here follow the rule every other capture applies; a breakaway
+    // that survives the loss (a settler) otherwise kept a jet on the captor's airfield.
+    const nextState = resolveAirBaseLoss(
+      withoutProjects,
+      { kind: 'city', cityId },
+      { kind: 'captured', victorId: newOwnerId },
+    ).state;
     // Reconquest keeps its population/unrest rules, but losing sovereignty
     // follows the same cityless-survival contract as any other capture.
     const liveness = reconcileCivilizationLiveness(state, nextState, newOwnerId);
