@@ -440,6 +440,30 @@ describe('city-capture-system', () => {
     expect(state).toEqual(before);
   });
 
+  it.each(['capture', 'transfer'] as const)('resolves a surviving breakaway aircraft based at the city through %s reconquest', entry => {
+    const { state, cityId, breakawayId } = makeBreakawayFixture({ breakawayStartedTurn: 12 });
+    state.units['unit-player'].position = { q: 0, r: 0 };
+    state.units['unit-breakaway'].type = 'settler';
+    state.cities[cityId] = { ...state.cities[cityId]!, buildings: ['airfield'] };
+    state.units['jet-breakaway'] = {
+      id: 'jet-breakaway', type: 'jet_fighter', owner: breakawayId, position: { ...state.cities[cityId]!.position },
+      movementPointsLeft: 6, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      airBase: { kind: 'city', cityId },
+    };
+    state.civilizations[breakawayId].units = [...state.civilizations[breakawayId].units, 'jet-breakaway'];
+    assertSaveStateInvariants(state, 'breakaway aircraft fixture');
+
+    const next = entry === 'capture'
+      ? resolveMajorCityCapture(state, cityId, 'player', 'occupy', state.turn).state
+      : transferCapturedCityOwnership(state, cityId, 'player', state.turn);
+
+    expect(next.cities[cityId]!.owner).toBe('player');
+    // The breakaway keeps its settler, so it survives; its jet must not stay on the captor's airfield.
+    expect(getCivilizationLiveness(next, breakawayId)).toEqual({ living: true, reason: 'settler' });
+    expect(next.units['jet-breakaway']?.airBase).not.toEqual({ kind: 'city', cityId });
+    assertSaveStateInvariants(next, `breakaway aircraft ${entry}`);
+  });
+
   it('emits a breakaway elimination once from the committed capture result', () => {
     const { state, cityId, breakawayId } = makeBreakawayFixture({ breakawayStartedTurn: 12 });
     const bus = new EventBus();
