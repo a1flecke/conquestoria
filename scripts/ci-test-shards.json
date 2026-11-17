@@ -561,6 +561,7 @@
     "tests/systems/minor-civ-system.test.ts": 3162.0538736979165,
     "tests/systems/movement-preview-execute-parity.test.ts": 362.4827473958333,
     "tests/systems/movement-resolver.test.ts": 21.950113932291668,
+    "tests/systems/movement-reward-tech-settlement.test.ts": 300.0,
     "tests/systems/movement-safety.test.ts": 9.0908203125,
     "tests/systems/national-project-balance.test.ts": 35.789957682291664,
     "tests/systems/national-project-system.test.ts": 15.315836588541666,
@@ -886,7 +887,8 @@
   },
   "shards": {
     "test-suite-shard-a": [
-      "tests/simulation/minor-civ-graduation-campaign.test.ts"
+      "tests/simulation/minor-civ-graduation-campaign.test.ts",
+      "tests/systems/movement-reward-tech-settlement.test.ts"
     ],
     "test-suite-shard-b": [
       "tests/ai/ai-exploration.test.ts",

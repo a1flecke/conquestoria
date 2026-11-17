@@ -5,7 +5,8 @@ import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
 import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
 import { normalizeLoadedStateForTest } from '@/storage/save-manager';
-import { getEraAdvancementTechs } from '@/systems/tech-definitions';
+import { getEraAdvancementTechs, TECH_TREE } from '@/systems/tech-definitions';
+import { getEffectiveTechCost } from '@/systems/tech-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -180,6 +181,26 @@ describe('minor civ placement', () => {
 });
 
 describe('minor civ turn processing', () => {
+  it('a tech finished by an allied city-state\'s science is announced and its consequences applied, as research is', () => {
+    const state = createNewGame(undefined, 'minor-ally-science-completes', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    mc.definitionId = 'alexandria'; // +3 science per turn to an ally
+    mc.chainStatusByCiv = { ...mc.chainStatusByCiv, player: { ...(mc.chainStatusByCiv.player ?? {}), status: 'allied' } as never };
+    const techState = state.civilizations.player.techState;
+    const tech = TECH_TREE.find(candidate => candidate.id === 'gathering')!;
+    techState.currentResearch = tech.id;
+    techState.researchProgress = getEffectiveTechCost(tech, techState.completed) - 1;
+    const bus = new EventBus();
+    const completed: string[] = [];
+    bus.on('tech:completed', ({ civId, techId }) => { if (civId === 'player') completed.push(techId); });
+
+    const result = processMinorCivTurn(state, bus);
+
+    expect(result.civilizations.player.techState.completed).toContain('gathering');
+    expect(completed).toEqual(['gathering']);
+  });
+
   it('runs hidden economy before minor-civ planning so completed units cannot act same turn', () => {
     const state = createNewGame(undefined, 'minor-economy-turn-order', 'small');
     const mcId = Object.keys(state.minorCivs)[0]!;

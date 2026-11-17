@@ -8,7 +8,6 @@ import type {
   UnitType,
 } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { applyResearchBonus } from './tech-system';
 import { modifyRelationship } from './diplomacy-state';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
 import { findLegalSpawnTile, spawnNeighbours } from './unit-spawn-placement';
@@ -21,6 +20,7 @@ import {
 } from './quest-chain-definitions';
 import { resolveCivilizationEra } from './tech-definitions';
 import { createUnitForCiv } from './unit-trained-movement-bonus';
+import { applyResearchGain } from './tech-completion-system';
 import {
   createQuestTarget,
   applyQuestObjectiveAction,
@@ -32,7 +32,7 @@ export type ChainTransition =
   | { type: 'issued'; majorCivId: string; minorCivId: string; quest: Quest }
   | { type: 'pending'; majorCivId: string; minorCivId: string; chainId: string; stepIndex: 0 | 1 | 2 }
   | { type: 'progressed'; majorCivId: string; minorCivId: string; quest: Quest }
-  | { type: 'completed'; majorCivId: string; minorCivId: string; quest: Quest; reward: QuestReward }
+  | { type: 'completed'; majorCivId: string; minorCivId: string; quest: Quest; reward: QuestReward; completedTechId?: string }
   | { type: 'expired'; majorCivId: string; minorCivId: string; quest: Quest }
   | { type: 'retargeted'; majorCivId: string; minorCivId: string; quest: Quest }
   | { type: 'cancelled'; majorCivId: string; minorCivId: string; chainId: string; stepIndex: 0 | 1 | 2 }
@@ -55,7 +55,11 @@ export function emitMinorCivQuestTransitions(
       case 'issued': bus.emit('minor-civ:quest-issued', { ...transition, state }); break;
       case 'pending': bus.emit('minor-civ:quest-chain-pending', { ...transition, state }); break;
       case 'progressed': bus.emit('minor-civ:quest-progressed', { ...transition, state }); break;
-      case 'completed': bus.emit('minor-civ:quest-completed', { ...transition, state }); break;
+      case 'completed':
+        bus.emit('minor-civ:quest-completed', { ...transition, state });
+        // The reward's science finished a tech: announced like research (its consequences were applied with the reward).
+        if (transition.completedTechId) bus.emit('tech:completed', { civId: transition.majorCivId, techId: transition.completedTechId });
+        break;
       case 'expired': bus.emit('minor-civ:quest-expired', { ...transition, state }); break;
       case 'retargeted': bus.emit('minor-civ:quest-retargeted', { ...transition, state }); break;
       case 'cancelled': bus.emit('minor-civ:quest-cancelled', { ...transition, state }); break;
@@ -152,9 +156,6 @@ function applyReward(
   if (!minorCiv || !civ) return nextState;
   minorCiv.diplomacy = modifyRelationship(minorCiv.diplomacy, majorCivId, reward.relationshipBonus);
   if (reward.gold) civ.gold += reward.gold;
-  if (reward.science && civ.techState.currentResearch) {
-    civ.techState = applyResearchBonus(civ.techState, reward.science).state;
-  }
   if (reward.freeUnit) {
     const position = findRewardSpawnPosition(nextState, majorCivId, reward.freeUnit);
     if (position) {
@@ -162,6 +163,11 @@ function applyReward(
       nextState.units[unit.id] = unit;
       civ.units.push(unit.id);
     }
+  }
+  // Last, because it replaces the civ record: a tech the science finishes is settled like a researched one (its
+  // announcement rides on the quest's `completed` transition, emitted where the caller has a bus).
+  if (reward.science && civ.techState.currentResearch) {
+    return applyResearchGain(nextState, majorCivId, reward.science);
   }
   return nextState;
 }
@@ -175,8 +181,10 @@ function completeQuest(
 ): ChainTransitionResult {
   let nextState = applyReward(state, minorCivId, majorCivId, quest.reward);
   const completedQuest = { ...quest, status: 'completed' as const };
+  const techsBefore = new Set(state.civilizations[majorCivId]?.techState.completed ?? []);
+  const completedTechId = nextState.civilizations[majorCivId]?.techState.completed.find(id => !techsBefore.has(id));
   const transitions: ChainTransition[] = [
-    { type: 'completed', majorCivId, minorCivId, quest: completedQuest, reward: quest.reward },
+    { type: 'completed', majorCivId, minorCivId, quest: completedQuest, reward: quest.reward, ...(completedTechId ? { completedTechId } : {}) },
   ];
   delete nextState.minorCivs[minorCivId].activeQuests[majorCivId];
 

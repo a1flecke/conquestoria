@@ -185,7 +185,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
       // lair glyph ('slain' and 'claimed' both draw the trophy) plus a hand-written
       // hud.update(). That justification lived in a comment and would rot the moment
       // the renderer drew a claimed lair differently; publishing is now unconditional.
-      session.commit(applyHoardChoice(session.getState(), pending.lairId, pending.civId, choice));
+      session.commit(applyHoardChoice(session.getState(), pending.lairId, pending.civId, choice, bus));
       bus.emit('beast:hoard-claimed', { lairId: pending.lairId, beastId: lair.beastId, civId: pending.civId, choice });
       maybeShowPendingHoardChoice();
     });

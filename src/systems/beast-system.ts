@@ -1,12 +1,13 @@
 import type { BeastLair, BeastsMode, GameMap, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import type { BeastHoardChoice, BeastId } from '@/core/types/world';
-import { applyResearchBonus } from '@/systems/tech-system';
+import type { EventBus } from '@/core/event-bus';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType, type BeastDefinition } from '@/systems/beast-definitions';
 import { hexKey, mapDistance, mapNeighbors } from '@/systems/hex-utils';
 import { createRng } from '@/systems/map-generator';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { VETERANCY_TIERS } from '@/systems/veterancy-tiers';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { applyResearchGain } from './tech-completion-system';
 
 export const BEAST_OWNER = 'beasts';
 
@@ -284,6 +285,7 @@ export function recordBeastSlain(
   state: GameState,
   defeated: Unit,
   victor: Unit,
+  bus?: EventBus,
 ): { state: GameState; slain?: BeastSlainPayload } {
   if (!isBeastUnit(defeated) || !state.beasts) return { state };
 
@@ -345,7 +347,7 @@ export function recordBeastSlain(
       },
     };
     // Lore
-    next = applyBeastLoreResearch(next, victor.owner, apexLore);
+    next = applyResearchGain(next, victor.owner, apexLore, bus);
     // Auto-claim trophy (skip choice panel)
     next = {
       ...next,
@@ -416,21 +418,12 @@ export function getClaimedTrophyGoldPerTurn(state: GameState, civId: string): nu
   return total;
 }
 
-function applyBeastLoreResearch(state: GameState, civId: string, amount: number): GameState {
-  const civ = state.civilizations[civId];
-  if (!civ) return state;
-  const result = applyResearchBonus(civ.techState, amount);
-  return {
-    ...state,
-    civilizations: { ...state.civilizations, [civId]: { ...civ, techState: result.state } },
-  };
-}
-
 export function applyHoardChoice(
   state: GameState,
   lairId: string,
   civId: string,
   choice: BeastHoardChoice,
+  bus?: EventBus,
 ): GameState {
   const beasts = state.beasts;
   const pending = beasts?.pendingHoardChoices?.find(p => p.lairId === lairId && p.civId === civId);
@@ -454,7 +447,7 @@ export function applyHoardChoice(
   if (choice === 'gold') {
     next = { ...next, civilizations: { ...next.civilizations, [civId]: { ...civ, gold: civ.gold + preview.gold } } };
   } else if (choice === 'lore') {
-    next = applyBeastLoreResearch(next, civId, preview.lore);
+    next = applyResearchGain(next, civId, preview.lore, bus);
   } else {
     next = {
       ...next,
