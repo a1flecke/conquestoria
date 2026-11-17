@@ -1,5 +1,5 @@
 import type { NotificationCityAction, NotificationLogState } from './notification-log';
-import type { CommerceMarketState, CommercePermissionsState, CityProductionMaterials, FreightPassage, FuelDemand, LuxuryServiceState, MaterialCostRow, ReserveLedger, ResourceManifest, ResourceProcurementTerms, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
+import type { CommerceMarketState, CommercePermissionsState, CityProductionMaterials, FreightPassage, FreightVoyageReceipt, FuelDemand, LuxuryServiceState, MaterialCostRow, ReserveLedger, ResourceManifest, ResourceProcurementTerms, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
 import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
@@ -2057,6 +2057,8 @@ export interface GameState extends AiGameState, CouncilGameState, NotificationLo
   commercePermissions?: CommercePermissionsState;
   /** #1508 MR11: once-per-round posted-price offers, retained cursor and procurement policy. */
   commerceMarket?: CommerceMarketState;
+  /** #1125: settled passage voyages keyed by manifest issuance. Absent before the first receipt. */
+  freightVoyageReceipts?: Readonly<Record<string, FreightVoyageReceipt>>;
   /** #1511 MR14: delivered luxury-service coverage, separate from native resource access. */
   luxuryServiceByCiv?: Record<string, LuxuryServiceState>;
   /** #1512 MR15: national fuel-conservation posture; absent means balanced. */

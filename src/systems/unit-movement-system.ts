@@ -11,6 +11,7 @@ import { getFreeStandingOwnedUnits } from '@/systems/unit-ownership';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { moveUnitWithZoneOfControl } from '@/systems/unit-low-level-move';
 import { getMovementStepCost } from '@/systems/unit-movement-cost';
+import { recordFreightPassageTravel } from '@/systems/resource-shipment-system';
 import { completeRouteLeg, getRouteRunner, isAtRouteServicePoint, planRouteRunnerRound } from '@/systems/trade-route-runner';
 import {
   getOwnerCompletedTechs,
@@ -144,6 +145,7 @@ export function executeValidatedUnitMove(
       [unitId]: moved,
     },
   };
+  nextState = recordFreightPassageTravel(nextState, moved, executedPath);
   if (unit.type === 'transport') {
     nextState = syncTransportCargoPositions(nextState, unitId);
   }

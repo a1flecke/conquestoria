@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/event-bus';
+import { createNewGame } from '@/core/game-state';
 import type { City, Civilization, GameState, TradeRoute } from '@/core/types';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
+import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
+import { normalizeLoadedState } from '@/storage/save-manager';
+import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import { getEntitledTradeDestinations } from '@/systems/commerce-projection';
 import { completeRouteLeg } from '@/systems/trade-route-runner';
@@ -266,6 +270,144 @@ describe('#1125 engineering passage feasibility', () => {
     return state;
   }
 
+  function startReceiptVoyage(procurement = world().marketplace!.tradeRoutes[0]!.procurement): GameState {
+    const fixture = passageWorld(true);
+    const state = { ...createNewGame('rome', 'freight-receipts', 'small'), ...fixture };
+    for (const [cityId, regionKey] of [[BUYER_CITY, 'west-coast'], [SELLER_CITY, 'east-coast']] as const) {
+      const site = state.cities[cityId]!;
+      state.map.tiles[hexKey(site.position)]!.regionKey = regionKey;
+      state.cities[cityId] = {
+        ...foundCity(site.owner, site.position, state.map, state.idCounters),
+        ...site,
+      };
+    }
+    state.marketplace!.tradeRoutes = [];
+    const result = establishTradeRoute(state, { ...request, procurement });
+    if (!result.ok) throw new Error(result.reason);
+    return result.state;
+  }
+
+  function sail(state: GameState, movementPointsLeft?: number): GameState {
+    const trader = resetUnitTurn(state.units[traderId]!);
+    return advanceRouteRunners({
+      ...state,
+      turn: state.turn + 1,
+      units: { ...state.units, [traderId]: { ...trader, movementPointsLeft: movementPointsLeft ?? trader.movementPointsLeft } },
+    });
+  }
+
+  function reload(state: GameState): GameState {
+    const result = parseSaveFile(serializeSaveFile(state));
+    if (result.status !== 'success') throw new Error(result.message);
+    return normalizeLoadedState(result.state);
+  }
+
+  it('records one voyage for two delivered claims, including across a save inside the passage', () => {
+    const underway = startReceiptVoyage({ orders: [
+      { goodId: IRON, targetQuantity: 2, maxUnitPrice: 100 },
+      { goodId: COAL, targetQuantity: 2, maxUnitPrice: 100 },
+    ] });
+    const routeId = underway.marketplace!.tradeRoutes[0]!.id;
+    const loaded = sail(sail(underway));
+    expect(routeOf(loaded, routeId).manifest?.items.map(item => item.goodId)).toEqual([IRON, COAL]);
+    expect(loaded.freightVoyageReceipts).toBeUndefined();
+    const inPassage = sail(loaded, 2);
+    expect(inPassage.units[traderId]!.position).toEqual(passage);
+    expect(inPassage.freightVoyageReceipts).toBeUndefined();
+    const manifest = routeOf(loaded, routeId).manifest!;
+    const delivered = sail(reload(inPassage));
+    expect(getReserveBalance(delivered.materialReservesByCiv![BUYER]!, IRON).imported).toBe(2);
+    expect(getReserveBalance(delivered.materialReservesByCiv![BUYER]!, COAL).imported).toBe(2);
+    expect(routeOf(delivered, routeId).manifest).toBeUndefined();
+    expect(delivered.freightVoyageReceipts).toEqual({ [manifest.items[0]!.claimId]: {
+      routeId,
+      carrierUnitId: traderId,
+      buyerCivId: BUYER,
+      operatorCivId: BUYER,
+      supplier: { cityId: SELLER_CITY, ownerCivId: SELLER, regionKey: 'east-coast' },
+      home: { cityId: BUYER_CITY, ownerCivId: BUYER, regionKey: 'west-coast' },
+      passageId: 'isthmus',
+      passageOwnerCivId: SELLER,
+      purchaseTurn: manifest.purchaseTurn,
+      completedRound: delivered.turn,
+      stock: [{ goodId: IRON, quantity: 2 }, { goodId: COAL, quantity: 2 }],
+    } });
+    expect(delivered.freightVoyageReceipts).toEqual(sail(inPassage).freightVoyageReceipts);
+    const savedArrival = reload(delivered);
+    expect(savedArrival.freightVoyageReceipts).toEqual(delivered.freightVoyageReceipts);
+    expect(deliverRouteManifest(savedArrival, routeId).state).toBe(savedArrival);
+    const cancelled = removeRouteById(savedArrival, routeId, undefined, 'cancelled');
+    expect(cancelled.marketplace!.tradeRoutes).toHaveLength(0);
+    expect(cancelled.freightVoyageReceipts).toEqual(delivered.freightVoyageReceipts);
+  });
+
+  it('settles older manifests after reload without reconstructing voyage history', () => {
+    const loaded = sail(sail(startReceiptVoyage()));
+    const routeId = loaded.marketplace!.tradeRoutes[0]!.id;
+    const manifest = routeOf(loaded, routeId).manifest!;
+    expect(manifest.items).toHaveLength(1);
+    delete manifest.freightVoyage;
+    const delivered = sail(sail(reload(loaded)));
+    expect(routeOf(delivered, routeId).manifest).toBeUndefined();
+    expect(getReserveBalance(delivered.materialReservesByCiv![BUYER]!, IRON).imported).toBe(5);
+    expect(delivered.freightVoyageReceipts).toBeUndefined();
+  });
+
+  it('discards a crossed manifest when the trader dies and pays no stock or voyage credit', () => {
+    const crossed = sail(sail(sail(startReceiptVoyage())));
+    expect(crossed.units[traderId]!.position).toEqual({ q: 3, r: 1 });
+    expect(crossed.marketplace!.tradeRoutes[0]!.manifest?.freightVoyage?.crossing).toMatchObject({
+      passageId: 'isthmus', crossed: true,
+    });
+    expect(crossed.freightVoyageReceipts).toBeUndefined();
+    const lost = removeUnits(crossed, [traderId], { reason: 'destroyed' }).state;
+    expect(lost.marketplace!.tradeRoutes).toHaveLength(0);
+    expect(getIncomingQuantity(lost.materialReservesByCiv![BUYER]!, IRON)).toBe(0);
+    expect(getReserveBalance(lost.materialReservesByCiv![BUYER]!, IRON).imported).toBe(0);
+    expect(lost.freightVoyageReceipts).toBeUndefined();
+  });
+
+  it('gives no voyage credit when home service cannot settle an incoming claim', () => {
+    const crossed = sail(sail(sail(startReceiptVoyage())));
+    const route = crossed.marketplace!.tradeRoutes[0]!;
+    expect(route.manifest?.freightVoyage?.crossing?.crossed).toBe(true);
+    expect(getIncomingQuantity(crossed.materialReservesByCiv![BUYER]!, IRON)).toBe(5);
+    crossed.materialReservesByCiv![BUYER] = { ...crossed.materialReservesByCiv![BUYER]!, incoming: [] };
+    const arrived = sail(crossed);
+    expect(routeOf(arrived, route.id).manifest).toBeUndefined();
+    expect(getReserveBalance(arrived.materialReservesByCiv![BUYER]!, IRON).imported).toBe(0);
+    expect(arrived.freightVoyageReceipts).toBeUndefined();
+  });
+
+  it('receives rehomed cargo at an alternate port without earning the voyage', () => {
+    const crossed = sail(sail(sail(startReceiptVoyage())));
+    const alternative = city('alternate-home', BUYER, 2);
+    crossed.cities[alternative.id] = alternative;
+    crossed.civilizations[BUYER]!.cities.push(alternative.id);
+    const route = crossed.marketplace!.tradeRoutes[0]!;
+    expect(route.manifest?.freightVoyage?.crossing?.crossed).toBe(true);
+    route.cancelPending = true;
+    route.returnHomeCityId = alternative.id;
+    const delivered = sail(crossed);
+    expect(delivered.marketplace!.tradeRoutes).toHaveLength(0);
+    expect(getReserveBalance(delivered.materialReservesByCiv![BUYER]!, IRON).imported).toBe(5);
+    expect(delivered.freightVoyageReceipts).toBeUndefined();
+  });
+
+  it('clears a partial crossing when a loaded trader leaves by its entry approach', () => {
+    const loaded = sail(sail(startReceiptVoyage()));
+    const inside = sail(loaded, 2);
+    expect(inside.units[traderId]!.position).toEqual(passage);
+    expect(inside.marketplace!.tradeRoutes[0]!.manifest?.freightVoyage?.crossing).toMatchObject({
+      passageId: 'isthmus', crossed: false,
+    });
+    inside.units[traderId] = resetUnitTurn(inside.units[traderId]!);
+    const backedOut = executeUnitMove(inside, traderId, { q: 5, r: 1 }, { actor: 'automation', civId: BUYER });
+    if (!backedOut.ok) throw new Error(backedOut.message);
+    expect(backedOut.state.marketplace!.tradeRoutes[0]!.manifest?.freightVoyage?.crossing).toBeUndefined();
+    expect(backedOut.state.freightVoyageReceipts).toBeUndefined();
+  });
+
   it.each([
     { name: 'authorized', open: true, authorized: true, longer: false, outbound: 2, inbound: 2 },
     { name: 'closed', open: false, authorized: true, longer: false, outbound: 4, inbound: 4 },
@@ -327,6 +469,7 @@ describe('#1125 engineering passage feasibility', () => {
     }
     expect(position()).toEqual({ q: fixture.map.width - 2, r: 1 });
     expect(routeOf(state).manifest?.items).toMatchObject([{ goodId: IRON, quantity: 4, sellerCivId: SELLER }]);
+    expect(state.freightVoyageReceipts).toBeUndefined();
     expect(incoming()).toBe(4);
     expect(getReserveBalance(state.materialReservesByCiv![SELLER]!, IRON).native).toBe(26);
 
@@ -339,6 +482,7 @@ describe('#1125 engineering passage feasibility', () => {
     expect(routeOf(state).manifest).toBeUndefined();
     expect(incoming()).toBe(0);
     expect(imported()).toBe(4);
+    expect(Object.values(state.freightVoyageReceipts ?? {})).toHaveLength(shortcut ? 1 : 0);
     expect(observedCrossings).toEqual(shortcut ? ['outbound', 'loaded'] : []);
     if (longer) {
       expect(getTradeRouteQuote(state, request)).toMatchObject({ legRounds: 2, roundTripRounds: 4 });
