@@ -24,7 +24,7 @@ import { executeUnitMove } from '@/systems/unit-movement-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { selectBarbarianReinforcement } from '@/systems/barbarian-force-composer';
 import { getBarbarianArchetypeDefinition, resolveBarbarianArchetype, type BarbarianArchetype } from '@/systems/barbarian-archetype';
-import { assertNoIllegalBlockingOccupancy } from '../helpers/save-state-invariants';
+import { assertNoIllegalBlockingOccupancy, assertSaveStateInvariants } from '../helpers/save-state-invariants';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -1028,6 +1028,29 @@ describe('barbarian camp evolution', () => {
     expect(cityState.units).toContain(evolvingGarrison.id);
     expect(cityState.units).not.toContain(survivingGarrison.id);
     assertNoIllegalBlockingOccupancy(next);
+  });
+
+  it('an evolved camp leaves a valid world: its raiders leave the barbarian AI and its city claims its land', () => {
+    const state = createNewGame(undefined, 'evolve-probe', 'small');
+    const far = Object.values(state.map.tiles).find(tile => tile.terrain === 'grassland' && tile.owner === null
+      && Object.values(state.cities).every(city => hexDistance(city.position, tile.coord) >= 8)
+      && Object.values(state.units).every(unit => hexDistance(unit.position, tile.coord) >= 7))!;
+    state.barbarianCamps = { 'camp-evolve': { id: 'camp-evolve', position: far.coord, strength: 8, spawnCooldown: 2 } };
+    const raider = createUnit('warrior', 'barbarian', far.coord, state.idCounters);
+    state.units[raider.id] = raider;
+    state.opponentAI!.barbarianHomeCampByUnitId[raider.id] = 'camp-evolve';
+
+    const next = minorCivsPhase.run(state, createRoundPhaseContext(state, new EventBus()));
+
+    const cityState = Object.values(next.minorCivs).find(mc => mc.units.includes(raider.id))!;
+    expect(cityState).toBeDefined();
+    // A raider that became a city-state soldier is not left on the barbarian AI's books.
+    expect(next.opponentAI!.barbarianHomeCampByUnitId[raider.id]).toBeUndefined();
+    // The new city's territory is its own straight away, so it can work it.
+    const city = next.cities[cityState.cityId];
+    expect(city.ownedTiles.length).toBeGreaterThan(0);
+    for (const coord of city.ownedTiles) expect(next.map.tiles[hexKey(coord)]?.owner).toBe(cityState.id);
+    assertSaveStateInvariants(next, 'after the camp evolved');
   });
 
   it('evolves camp at strength 8+', () => {

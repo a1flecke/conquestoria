@@ -1,5 +1,6 @@
 import type { GameState } from '@/core/types';
 import { processMinorCivTurn, checkCampEvolution } from '@/systems/minor-civ-system';
+import { recalculateTerritory } from '@/systems/city-territory-system';
 import type { RoundPhase, RoundPhaseContext } from './types';
 
 /**
@@ -24,6 +25,15 @@ function runMinorCivs(state: GameState, context: RoundPhaseContext): GameState {
       }
     }
     newState.minorCivs[evolution.newMinorCiv.id] = evolution.newMinorCiv;
+    // The raiders that joined it are no longer barbarians, so the barbarian AI no longer tracks their home camp.
+    if (newState.opponentAI) {
+      const homeCamps = { ...newState.opponentAI.barbarianHomeCampByUnitId };
+      for (const uid of evolution.transferUnitIds) delete homeCamps[uid];
+      newState.opponentAI = { ...newState.opponentAI, barbarianHomeCampByUnitId: homeCamps };
+    }
+    // The new city claims its land now, under the rule a founded city uses (never taking foreign-held tiles),
+    // rather than standing on unowned tiles until the next round's territory pass.
+    newState = recalculateTerritory(newState, { reason: 'founding', preserveForeignHolders: true }).state;
     bus.emit('minor-civ:evolved', {
       campId: evolution.removeCampId,
       minorCivId: evolution.newMinorCiv.id,

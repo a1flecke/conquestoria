@@ -349,7 +349,8 @@ const EXPECTED_AFTER: ReadonlyArray<readonly [phase: string, calls: readonly str
     'tickLegendaryWonderProjects', 'reconcileLegendaryWonderAvailability', 'processWonderEffects',
   ]],
   ['barbarians', ['processPurposefulBarbarians', 'applyCityHpRegeneration']],
-  ['minor-civs', ['processMinorCivTurn', 'checkCampEvolution']],
+  // A camp evolves in this fixture; the new city-state claims its land at once, under the founding rule.
+  ['minor-civs', ['processMinorCivTurn', 'checkCampEvolution', 'recalculateTerritory']],
   ['beasts', ['processBeasts']],
   ['threat-scheduling', [
     'processIndependentThreatPressure', 'processCrisisScheduler', 'processEventChainScheduler',
