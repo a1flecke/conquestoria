@@ -143,6 +143,19 @@ export interface AcceptedOccurrence {
  * purchase. The earlier #1709-era-1 off-map fix and the failed-infiltrator retreat are both in this
  * tree and do not change these windows.
  *
+ * The 2026-11-20 replay on `main 923594887` (after #1771's passive-garrison pressure fix): two AIs hoard —
+ * ai-1 122-249 (128 rounds, +54,031) and ai-3 167-229 (63, +25,414). ai-2 no longer hoards, and the ai-2
+ * `tech-frozen` stall seen on the previous base no longer reproduces; #1764 stays open for its own follow-up
+ * rather than being accepted here. A decision-point trace over both windows (temporary instrumentation, reverted
+ * before commit; the simulation is unchanged) recorded 21/6 rush-buys for 6,324/2,455 gold; every other legal
+ * quote was skipped only because the city completes that item from its own production (245/79) or because it is a
+ * wonder or short of materials (20+2/0), with zero reserve skips. No legal purchase was missed.
+ *
+ * The same base also produced a `gold-hoard` for ai-2 on `lh-veteran-large` (434-499, 66 rounds, +35,764). Its
+ * decision-point trace recorded 10 rush-buys for 3,683 gold, 20 `completes-this-turn` skips and zero reserve
+ * skips, so it is the same structurally unavoidable mature-economy hoard and is scoped alongside the late-era
+ * occurrences below.
+ *
  * `lh-late-era-medium` uses `mapSeed: 'lh-1107-search-0'`; why that map was chosen (a recoverable 43-tile landmass
  * for `ai-1`) is in `docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md`.
  *
@@ -164,11 +177,12 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
     code: 'gold-hoard',
     issue: '#1693',
-    why: 'Two late-era AIs kept net treasury growth after maturation: ai-2 100 rounds (150-249, +58,620) and ai-3 102 (148-249, +47,147); the trace shows every legal purchase was made and the rest were structurally blocked.',
-    scenarios: ['lh-late-era-medium'],
+    why: 'Late-era AIs kept net treasury growth after maturation: lh-late-era-medium ai-1 128 rounds (122-249, +54,031) and ai-3 63 (167-229, +25,414), lh-veteran-large ai-2 66 (434-499, +35,764); the decision-point traces show every legal rush-buy was made and the rest were structurally blocked (completes-this-turn, wonder or missing materials), with zero reserve skips.',
+    scenarios: ['lh-late-era-medium', 'lh-veteran-large'],
     accepted: [
-      { scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 100 },
-      { scenario: 'lh-late-era-medium', civId: 'ai-3', maxRounds: 102 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-1', maxRounds: 128 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-3', maxRounds: 63 },
+      { scenario: 'lh-veteran-large', civId: 'ai-2', maxRounds: 66 },
     ],
   },
 ];
