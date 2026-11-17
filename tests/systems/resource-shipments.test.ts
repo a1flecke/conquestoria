@@ -23,11 +23,12 @@ import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { advanceRouteRunners, executeUnitMove } from '@/systems/unit-movement-system';
 import { deliverRouteManifest } from '@/systems/resource-shipment-system';
+import { setRouteProcurement } from '@/systems/resource-procurement';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { removeRouteById } from '@/systems/trade-route-lifecycle';
 import { getReserveBalance, getIncomingQuantity } from '@/systems/resource-reserve-system';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
-import { evaluateAuthoredPassage } from '../helpers/engineering-passage-evaluation';
+import { evaluateAuthoredPassage, markAuthoredServiceChange } from '../helpers/engineering-passage-evaluation';
 
 /**
  * #1509 MR12 — one load at the supplier, one delivery at home.
@@ -331,7 +332,11 @@ describe('#1125 engineering passage feasibility', () => {
 
   function evaluationWorld(
     open: boolean,
-    { northernRegion = 'north-coast', fuelPort = 'north' }: { northernRegion?: string; fuelPort?: 'north' | 'west' } = {},
+    { northernRegion = 'north-coast', fuelPort = 'north', targetQuantity = 20 }: {
+      northernRegion?: string;
+      fuelPort?: 'north' | 'west';
+      targetQuantity?: number;
+    } = {},
   ): GameState {
     const state = passageWorld(open);
     const shift = ({ q, r }: { q: number; r: number }) => ({ q, r: r + 4 });
@@ -377,12 +382,17 @@ describe('#1125 engineering passage feasibility', () => {
     state.civilizations[BUYER]!.units.push(northernTraderId);
     const westernGood = fuelPort === 'west' ? COAL : IRON;
     const northernGood = fuelPort === 'north' ? COAL : IRON;
-    const live = startReceiptVoyage({ orders: [{ goodId: westernGood, targetQuantity: 20, maxUnitPrice: 100 }] }, state);
+    const live = startReceiptVoyage({ orders: [{ goodId: westernGood, targetQuantity, maxUnitPrice: 100 }] }, state);
+    // A saved authored map must tag all land. Otherwise the legacy load repair retags the
+    // entire map and future voyages stop matching the scenario's named economic regions.
+    for (const tile of Object.values(live.map.tiles)) {
+      if (tile.terrain !== 'coast' && tile.terrain !== 'ocean') tile.regionKey ??= 'interior';
+    }
     const result = establishTradeRoute(live, {
       ...request,
       caravanUnitId: northernTraderId,
       originCityId: northernHomeId,
-      procurement: { orders: [{ goodId: northernGood, targetQuantity: 20, maxUnitPrice: 100 }] },
+      procurement: { orders: [{ goodId: northernGood, targetQuantity, maxUnitPrice: 100 }] },
     });
     if (!result.ok) throw new Error(result.reason);
     return result.state;
@@ -564,6 +574,108 @@ describe('#1125 engineering passage feasibility', () => {
       .toMatchObject({ usefulReach: true });
     expect(evaluateAuthoredPassage({ ...completed, turn: 28 }, authoredPassage, [westCorridor, northCorridor], 28))
       .toMatchObject({ usefulReach: false });
+  });
+
+  it('requires a fresh return from an affected service while keeping the other corridor eligible', () => {
+    const completed = runEvaluationVoyages(evaluationWorld(true, { targetQuantity: 40 }), 22);
+    expect(evaluateAuthoredPassage(completed, authoredPassage, [westCorridor, northCorridor], 22))
+      .toMatchObject({ usefulReach: true, currentFunction: true });
+    const history = structuredClone(completed.freightVoyageReceipts);
+    const northRoute = completed.marketplace!.tradeRoutes.find(route => route.fromCityId === northernHomeId)!;
+    // This scenario treats the revised standing purchase terms as a material service change.
+    const changed = setRouteProcurement(completed, northRoute.id, {
+      orders: [{ goodId: COAL, targetQuantity: 40, maxUnitPrice: 99 }],
+    });
+    const changedNorth = markAuthoredServiceChange(changed, northCorridor);
+    const services = [westCorridor, changedNorth];
+    expect(evaluateAuthoredPassage(changed, authoredPassage, services, 22))
+      .toMatchObject({
+        usefulReach: false,
+        currentFunction: true,
+        qualifiedRegionPairs: [['east-coast', 'west-coast']],
+      });
+    const westernReturn = runEvaluationVoyages(changed, 26);
+    expect(Object.values(westernReturn.freightVoyageReceipts ?? {}))
+      .toContainEqual(expect.objectContaining({ home: expect.objectContaining({ cityId: BUYER_CITY }), completedRound: 26 }));
+    expect(evaluateAuthoredPassage(westernReturn, authoredPassage, services, 26))
+      .toMatchObject({ usefulReach: false, currentFunction: true, qualifiedRegionPairs: [['east-coast', 'west-coast']] });
+    const renewed = runEvaluationVoyages(westernReturn, 28);
+    expect(Object.values(renewed.freightVoyageReceipts ?? {}))
+      .toContainEqual(expect.objectContaining({ home: expect.objectContaining({ cityId: northernHomeId }), completedRound: 28 }));
+    expect(evaluateAuthoredPassage(renewed, authoredPassage, services, 28))
+      .toMatchObject({ usefulReach: true, currentFunction: true });
+    expect(evaluateAuthoredPassage({ ...renewed, turn: 40 }, authoredPassage, services, 40))
+      .toMatchObject({ usefulReach: false, qualifiedRegionPairs: [] });
+    expect(completed.freightVoyageReceipts).toEqual(history);
+    for (const [issuance, receipt] of Object.entries(history ?? {})) {
+      expect(renewed.freightVoyageReceipts![issuance]).toEqual(receipt);
+    }
+  });
+
+  it('revalidates each affected corridor separately after a passage change', () => {
+    const completed = runEvaluationVoyages(evaluationWorld(true, { targetQuantity: 40 }), 22);
+    const services = [westCorridor, northCorridor].map(service => markAuthoredServiceChange(completed, service));
+    const evaluate = (state: GameState) => evaluateAuthoredPassage(state, authoredPassage, services, state.turn);
+    expect(evaluate(completed))
+      .toMatchObject({ usefulReach: false, currentFunction: true, qualifiedRegionPairs: [] });
+    const westernReturn = runEvaluationVoyages(completed, 26);
+    expect(evaluate(westernReturn)).toMatchObject({
+      usefulReach: false,
+      currentFunction: true,
+      qualifiedRegionPairs: [['east-coast', 'west-coast']],
+    });
+    const bothReturned = runEvaluationVoyages(westernReturn, 28);
+    expect(evaluate(bothReturned)).toMatchObject({ usefulReach: true, currentFunction: true });
+    expect(evaluateAuthoredPassage(bothReturned, authoredPassage, [...services].reverse(), 28))
+      .toMatchObject({ usefulReach: true, currentFunction: true, qualifiedRegionPairs: evaluate(bothReturned).qualifiedRegionPairs });
+  });
+
+  it('rejects already-settled evidence from the same round and survives reload and a second change', () => {
+    const completed = runEvaluationVoyages(evaluationWorld(true, { targetQuantity: 40 }), 22);
+    const changedNorth = markAuthoredServiceChange(completed, northCorridor);
+    const receiptIdsAtChange = [...changedNorth.revalidation!.previousIssuances];
+    const northReturn = Object.entries(completed.freightVoyageReceipts ?? {})
+      .find(([, receipt]) => receipt.home.cityId === northernHomeId && receipt.completedRound === 22);
+    expect(northReturn).toBeDefined();
+    expect(changedNorth.revalidation!.round).toBe(northReturn![1].completedRound);
+    expect(receiptIdsAtChange).toContain(northReturn![0]);
+    const evaluate = (state: GameState, north = changedNorth) =>
+      evaluateAuthoredPassage(state, authoredPassage, [westCorridor, north], state.turn);
+    expect(evaluate(completed)).toMatchObject({ usefulReach: false, currentFunction: true });
+    const checkpoint = JSON.parse(JSON.stringify(changedNorth)) as typeof changedNorth;
+    expect(evaluate(reload(completed), checkpoint)).toEqual(evaluate(completed));
+    const renewed = runEvaluationVoyages(completed, 28);
+    expect(evaluate(renewed, checkpoint)).toMatchObject({ usefulReach: true, currentFunction: true });
+    const changedAgain = markAuthoredServiceChange(renewed, checkpoint);
+    expect(changedNorth.revalidation!.previousIssuances).toEqual(receiptIdsAtChange);
+    const latestNorth = Object.entries(renewed.freightVoyageReceipts ?? {})
+      .find(([, receipt]) => receipt.home.cityId === northernHomeId && receipt.completedRound === 28)!;
+    expect(changedAgain.revalidation!.previousIssuances).toContain(latestNorth[0]);
+    expect(evaluate(renewed, changedAgain))
+      .toMatchObject({ usefulReach: false, currentFunction: true, qualifiedRegionPairs: [['east-coast', 'west-coast']] });
+    const renewedAgain = runEvaluationVoyages(renewed, 34);
+    expect(evaluate(renewedAgain, changedAgain)).toMatchObject({ usefulReach: true });
+  });
+
+  it('keeps an already-crossed inbound cargo from proving a subsequent change', () => {
+    const crossingComplete = runEvaluationVoyages(evaluationWorld(true, { targetQuantity: 40 }), 27);
+    const route = crossingComplete.marketplace!.tradeRoutes.find(candidate => candidate.fromCityId === northernHomeId)!;
+    const manifest = route.manifest!;
+    expect(manifest.freightVoyage?.crossing?.crossed).toBe(true);
+    const issuance = manifest.items[0]!.claimId;
+    expect(crossingComplete.freightVoyageReceipts?.[issuance]).toBeUndefined();
+    const changedNorth = markAuthoredServiceChange(crossingComplete, northCorridor);
+    expect(changedNorth.revalidation!.previousIssuances).toContain(issuance);
+    const evaluate = (state: GameState) =>
+      evaluateAuthoredPassage(state, authoredPassage, [westCorridor, changedNorth], state.turn);
+    const loaded = reload(crossingComplete);
+    expect(loaded.map.tiles[hexKey(loaded.cities[northernHomeId]!.position)]!.regionKey).toBe('north-coast');
+    expect(loaded.map.tiles[hexKey(loaded.cities[SELLER_CITY]!.position)]!.regionKey).toBe('east-coast');
+    const arrival = sail(loaded);
+    expect(arrival.freightVoyageReceipts?.[issuance]?.completedRound).toBe(28);
+    expect(evaluate(arrival)).toMatchObject({ usefulReach: false, currentFunction: true });
+    const freshVoyage = runEvaluationVoyages(arrival, 34);
+    expect(evaluate(freshVoyage)).toMatchObject({ usefulReach: true });
   });
 
   it('distinguishes a temporary movement delay from a pause or exhausted spending authorization', () => {

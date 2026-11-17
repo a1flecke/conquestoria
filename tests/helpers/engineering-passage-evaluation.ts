@@ -12,6 +12,10 @@ interface AuthoredService {
   home: FreightVoyagePort & { regionKey: string };
   supplier: FreightVoyagePort & { regionKey: string };
   goodId: TradeGoodId;
+  revalidation?: {
+    round: number;
+    previousIssuances: readonly string[];
+  };
 }
 
 interface AuthoredPassage {
@@ -31,6 +35,17 @@ function matchesService(receipt: FreightVoyageReceipt, service: AuthoredService)
   return samePort(receipt.home, service.home) && samePort(receipt.supplier, service.supplier)
     && receipt.buyerCivId === service.home.ownerCivId && receipt.operatorCivId === service.home.ownerCivId
     && receipt.stock.some(item => item.goodId === service.goodId && item.quantity > 0);
+}
+
+/** The scenario calls this when accepting a material change to this service or its passage. */
+export function markAuthoredServiceChange(state: GameState, service: AuthoredService): AuthoredService {
+  const previousIssuances = new Set(Object.keys(state.freightVoyageReceipts ?? {}));
+  for (const route of state.marketplace?.tradeRoutes ?? []) {
+    const manifest = route.manifest;
+    const issuance = manifest?.items[0]?.claimId;
+    if (issuance && manifest?.freightVoyage?.crossing?.crossed) previousIssuances.add(issuance);
+  }
+  return { ...service, revalidation: { round: state.turn, previousIssuances: [...previousIssuances].sort() } };
 }
 
 function serviceRoutes(state: GameState, service: AuthoredService) {
@@ -99,6 +114,12 @@ export function evaluateAuthoredPassage(
   const byRegionPair = new Map<string, { regions: string[]; issuances: Set<string> }>();
 
   for (const service of services) {
+    // A settlement after the checkpoint must also prove a crossing after it. A completed
+    // crossing already on an inbound manifest cannot revalidate newly accepted terms.
+    const change = service.revalidation;
+    if (change && !receipts.some(([issuance, receipt]) =>
+      matchesService(receipt, service) && receipt.completedRound >= change.round
+        && !change.previousIssuances.includes(issuance))) continue;
     const regions = [service.home.regionKey, service.supplier.regionKey].sort();
     if (regions[0] === regions[1]) continue;
     const pairKey = JSON.stringify(regions);
