@@ -62,6 +62,10 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   'marketplace.tradeRoutes[].procurement': '#1509 MR12 — optional standing import orders; absent means no imports.',
   'marketplace.tradeRoutes[].manifest': '#1509 MR12 — optional owned in-transit cargo; absent means no manifest.',
   'marketplace.tradeRoutes[].manifest.items': '#1509 MR12 — optional manifest item list; absent with no manifest.',
+  // #1125 — the shipment regression round-trips an older manifest and settles its stock normally.
+  // Only newly loaded freight stock can acquire a marker, and only home settlement adds a receipt.
+  'marketplace.tradeRoutes[].manifest.freightVoyage': '#1125 — optional provenance captured at loading; absent means delivery can proceed without historical evidence.',
+  'freightVoyageReceipts': '#1125 — optional settled freight history; absent means no passage voyages recorded.',
   'commerceMarket.procurementByCiv.*.roundBudget': '#1509 MR12 — optional shared budget; absent means no route budget cap.',
   'commerceMarket.procurementByCiv.*.spentThisTurn': '#1509 MR12 — optional spend counter; absent means zero spent.',
   // #1511 MR14 — delivered luxury coverage and its optional service metadata. A pre-MR14 save has

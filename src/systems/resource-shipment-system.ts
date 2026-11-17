@@ -4,8 +4,11 @@
 // A route's manifest is paid cargo owned by the buyer but still in transit. Loading uses the MR11
 // posted-price engine in `incoming` settlement mode, which reserves receiving capacity without
 // crediting usable stock. Home arrival is the only place a claim becomes imported stock.
-import type { GameState, TradeRoute } from '@/core/types';
+import type { City, GameState, HexCoord, TradeRoute, Unit } from '@/core/types';
 import type {
+  FreightVoyageCrossing,
+  FreightVoyagePort,
+  FreightVoyageReceipt,
   ResourceManifest,
   ResourceManifestItem,
   TradeGoodId,
@@ -17,6 +20,7 @@ import {
   quoteMarketLoad,
   refreshMarketOffers,
 } from './resource-market-offers';
+import { hexKey } from './hex-utils';
 import { getCivMaterialLedger } from './resource-material-state';
 import {
   deliverIncomingStock,
@@ -37,6 +41,8 @@ import {
   findTradeGood,
   type TradeGoodDefinition,
 } from './trade-good-definitions';
+import { movementStepCostParamsForType } from './unit-movement-cost';
+import { isAtRouteServicePoint } from './trade-route-travel';
 
 function routeById(state: GameState, routeId: string): TradeRoute | undefined {
   return state.marketplace?.tradeRoutes.find(route => route.id === routeId);
@@ -145,6 +151,9 @@ export function loadRouteManifest(
   if (items.length === 0) return next;
   const current = routeById(next, routeId);
   if (!current) return next;
+  const freightVoyage = movementStepCostParamsForType(caravan.type).freightHull && items.some(item => !item.serviceTurns)
+    ? { supplier: snapshotFreightPort(state, destination), home: snapshotFreightPort(state, origin) }
+    : undefined;
   const manifest: ResourceManifest = {
     ownerCivId: buyerCivId,
     routeId,
@@ -152,6 +161,7 @@ export function loadRouteManifest(
     destinationCityId: route.fromCityId,
     purchaseTurn: next.turn,
     items,
+    ...(freightVoyage ? { freightVoyage } : {}),
   };
   return withRoute(next, { ...current, manifest });
 }
@@ -163,14 +173,16 @@ export function deliverRouteManifest(
 ): { state: GameState; delivered: readonly ResourceManifestItem[] } {
   const route = routeById(state, routeId);
   if (!route?.manifest) return { state, delivered: [] };
-  let ledger = getCivMaterialLedger(state, route.manifest.ownerCivId);
+  const manifest = route.manifest;
+  let ledger = getCivMaterialLedger(state, manifest.ownerCivId);
   let nextState = state;
   const delivered: ResourceManifestItem[] = [];
-  for (const item of route.manifest.items) {
+  const stock: FreightVoyageReceipt['stock'][number][] = [];
+  for (const item of manifest.items) {
     if (item.serviceTurns) {
       nextState = grantLuxuryCoverage(
         nextState,
-        route.manifest.ownerCivId,
+        manifest.ownerCivId,
         item.sellerCivId,
         item.goodId,
         item.serviceTurns,
@@ -179,18 +191,107 @@ export function deliverRouteManifest(
       delivered.push(item);
       continue;
     }
-    if (!ledger.incoming.some(claim => claim.id === item.claimId)) continue;
+    const claim = ledger.incoming.find(candidate => candidate.id === item.claimId);
+    if (!claim) continue;
     const result = deliverIncomingStock(ledger, item.claimId);
     if (!result.ok) continue;
     ledger = result.ledger;
     delivered.push(item);
+    if (manifest.freightVoyage?.crossing?.crossed && claim.amount > 0
+      && claim.ownerCivId === manifest.ownerCivId && claim.goodId === item.goodId) {
+      stock.push({ goodId: claim.goodId, quantity: claim.amount });
+    }
   }
   const current = routeById(nextState, routeId);
   if (!current) return { state, delivered: [] };
+  const settled = withRoute(withLedger(nextState, manifest.ownerCivId, ledger), { ...current, manifest: undefined });
   return {
-    state: withRoute(withLedger(nextState, route.manifest.ownerCivId, ledger), { ...current, manifest: undefined }),
+    state: recordSettledFreightVoyage(settled, manifest, route.returnHomeCityId ?? route.fromCityId, stock),
     delivered,
   };
+}
+
+function snapshotFreightPort(state: GameState, city: City): FreightVoyagePort {
+  const regionKey = state.map.tiles[hexKey(city.position)]?.regionKey;
+  return { cityId: city.id, ownerCivId: city.owner, ...(regionKey === undefined ? {} : { regionKey }) };
+}
+
+/**
+ * Follow executed movement only. Entering a channel and backing out is not a crossing.
+ * Once this load completes a crossing, later movement cannot replace its historical attribution.
+ */
+export function recordFreightPassageTravel(state: GameState, unit: Unit, executedPath: readonly HexCoord[]): GameState {
+  if (!unit.committedToRouteId || unit.routeDirection !== 'inbound' || !state.marketplace) return state;
+  const route = routeById(state, unit.committedToRouteId);
+  const manifest = route?.manifest;
+  const voyage = manifest?.freightVoyage;
+  if (!route || !manifest || !voyage || voyage.crossing?.crossed
+    || manifest.carrierUnitId !== unit.id || manifest.ownerCivId !== unit.owner) return state;
+
+  let crossing: FreightVoyageCrossing | undefined = voyage.crossing;
+  for (let step = 1; step < executedPath.length; step++) {
+    const from = hexKey(executedPath[step - 1]!);
+    const to = hexKey(executedPath[step]!);
+    if (crossing) {
+      const passage = state.map.tiles[from]?.freightPassage;
+      if (from === crossing.passageHex && passage?.id === crossing.passageId && to === crossing.exitHex) {
+        crossing = { ...crossing, crossed: true };
+        break;
+      }
+      crossing = undefined;
+    }
+
+    const passage = state.map.tiles[to]?.freightPassage;
+    if (!passage) continue;
+    const [first, second] = passage.approaches;
+    const firstKey = hexKey(first);
+    const secondKey = hexKey(second);
+    if (from !== firstKey && from !== secondKey) continue;
+    crossing = {
+      passageId: passage.id,
+      passageOwnerCivId: passage.ownerId,
+      passageHex: to,
+      exitHex: from === firstKey ? secondKey : firstKey,
+      crossed: false,
+    };
+  }
+  if (crossing === voyage.crossing) return state;
+  return withRoute(state, { ...route, manifest: { ...manifest, freightVoyage: { ...voyage, crossing } } });
+}
+
+function recordSettledFreightVoyage(
+  state: GameState,
+  manifest: ResourceManifest,
+  arrivalCityId: string,
+  stock: FreightVoyageReceipt['stock'],
+): GameState {
+  const voyage = manifest.freightVoyage;
+  const crossing = voyage?.crossing;
+  // The first claim already carries the route and turn of issuance. All items share that issuance.
+  const issuanceId = manifest.items[0]?.claimId;
+  if (!voyage || !crossing?.crossed || !issuanceId || stock.length === 0
+    || state.freightVoyageReceipts?.[issuanceId] || arrivalCityId !== manifest.destinationCityId) return state;
+
+  const home = state.cities[arrivalCityId];
+  const carrier = state.units[manifest.carrierUnitId];
+  if (home?.owner !== manifest.ownerCivId || carrier?.owner !== manifest.ownerCivId
+    || carrier.committedToRouteId !== manifest.routeId || carrier.routeDirection !== 'inbound'
+    || !isAtRouteServicePoint(state, carrier, arrivalCityId)) return state;
+
+  const receipt: FreightVoyageReceipt = {
+    routeId: manifest.routeId,
+    carrierUnitId: carrier.id,
+    buyerCivId: manifest.ownerCivId,
+    operatorCivId: carrier.owner,
+    supplier: voyage.supplier,
+    home: voyage.home,
+    passageId: crossing.passageId,
+    passageOwnerCivId: crossing.passageOwnerCivId,
+    purchaseTurn: manifest.purchaseTurn,
+    completedRound: state.turn,
+    stock,
+  };
+  return { ...state, freightVoyageReceipts: { ...state.freightVoyageReceipts, [issuanceId]: receipt } };
 }
 
 /** Destroy a manifest's claims (carrier death, capture, or a terminal route cleanup). */
