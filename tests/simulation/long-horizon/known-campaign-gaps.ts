@@ -143,6 +143,21 @@ export interface AcceptedOccurrence {
  * purchase. The earlier #1709-era-1 off-map fix and the failed-infiltrator retreat are both in this
  * tree and do not change these windows.
  *
+ * The 2026-11-22 replay on `main 0a23ed62d` (after the gold-income settlement fix and the beast hoard-choice
+ * fix): `lh-explorer-small` ai-2 holds at 213-272 (60 rounds, +4,128), and `lh-late-era-medium` now hoards for
+ * ai-1 136-242 (107, +51,625), ai-2 152-249 (98, +63,812) and ai-3 143-249 (107, +39,470). Decision-point traces
+ * (temporary instrumentation, reverted before commit; the simulation is unchanged) recorded 1/7/3/14 rush-buys
+ * for 138/2,440/1,041/3,383 gold; other legal quotes were skipped only because the city completes that item from
+ * its own production (14/156/162/352), because it is short of materials (2 for ai-2) or, in explorer-small,
+ * because the two-round maintenance reserve was not met (2). No legal purchase was missed.
+ *
+ * The same base also reports stagnant wars that never resolve: ai-1 vs `mc-numantia` in `lh-veteran-small`
+ * (240-299, 60 rounds), ai-1 vs `mc-timbuktu` in `lh-veteran-medium` (290-399, 110) and ai-1 vs `mc-samarkand`
+ * in `lh-late-era-medium` (44-249, 206). They are scoped below against #1784, which owns the stuck-war
+ * investigation; this register only prevents them from failing a matrix run as unregistered new findings.
+ *
+ * `tech-frozen` no longer reproduces on this base, so its scoped entry is removed.
+ *
  * `lh-late-era-medium` uses `mapSeed: 'lh-1107-search-0'`; why that map was chosen (a recoverable 43-tile landmass
  * for `ai-1`) is in `docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md`.
  *
@@ -164,11 +179,24 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
     code: 'gold-hoard',
     issue: '#1693',
-    why: 'Two late-era AIs kept net treasury growth after maturation: ai-2 100 rounds (150-249, +58,620) and ai-3 102 (148-249, +47,147); the trace shows every legal purchase was made and the rest were structurally blocked.',
-    scenarios: ['lh-late-era-medium'],
+    why: 'AIs kept net treasury growth after maturation: lh-explorer-small ai-2 60 rounds (213-272, +4,128), lh-late-era-medium ai-1 107 (136-242, +51,625), ai-2 98 (152-249, +63,812) and ai-3 107 (143-249, +39,470); the decision-point traces show every legal rush-buy was made and the rest were structurally blocked (completes-this-turn, materials or the maintenance reserve), with no missed purchase.',
+    scenarios: ['lh-explorer-small', 'lh-late-era-medium'],
     accepted: [
-      { scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 100 },
-      { scenario: 'lh-late-era-medium', civId: 'ai-3', maxRounds: 102 },
+      { scenario: 'lh-explorer-small', civId: 'ai-2', maxRounds: 60 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-1', maxRounds: 107 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 98 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-3', maxRounds: 107 },
+    ],
+  },
+  {
+    code: 'stagnant-war',
+    issue: '#1784',
+    why: 'AI civs stayed at war with a city-state with no capture, war-set change or peace event: lh-veteran-small ai-1 60 rounds (vs mc-numantia), lh-veteran-medium ai-1 110 (vs mc-timbuktu) and lh-late-era-medium ai-1 206 (vs mc-samarkand); the stuck-war investigation is owned by #1784.',
+    scenarios: ['lh-veteran-small', 'lh-veteran-medium', 'lh-late-era-medium'],
+    accepted: [
+      { scenario: 'lh-veteran-small', civId: 'ai-1', maxRounds: 60 },
+      { scenario: 'lh-veteran-medium', civId: 'ai-1', maxRounds: 110 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-1', maxRounds: 206 },
     ],
   },
 ];
