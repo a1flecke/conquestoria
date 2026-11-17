@@ -4,6 +4,7 @@ import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { findLegalSpawnTile, spawnNeighbours } from '@/systems/unit-spawn-placement';
 import { withNewOwner } from './unit-trained-movement-bonus';
+import { removeNationalProjectsHostedBy } from './national-project-system';
 import {
   eliminateCivilization,
   emitCivilizationLivenessTransitions,
@@ -169,7 +170,8 @@ export function createBreakawayFromCity(
     breakawayId,
   });
 
-  const withLoyalSpiesOut = moveLoyalSpiesOffCity(nextState, cityId, previousOwner.id);
+  // The city's national projects leave the old owner with it, exactly as on a capture.
+  const withLoyalSpiesOut = moveLoyalSpiesOffCity(removeNationalProjectsHostedBy(nextState, cityId), cityId, previousOwner.id);
   const liveness = reconcileCivilizationLiveness(state, withLoyalSpiesOut);
   emitCivilizationLivenessTransitions(liveness, bus);
   return liveness.state;

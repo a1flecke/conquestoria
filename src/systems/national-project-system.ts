@@ -230,3 +230,24 @@ export function expireNationalProjects(
     expired: toExpire,
   };
 }
+
+/**
+ * A city leaving its owner (capture, cession, a spy's flip, a religious defection, a secession, a raze) takes the
+ * national projects it hosts with it: the former owner's record and the building both go, so the former owner stops
+ * drawing the empire-wide bonus and may rebuild it, and nobody inherits it. `normalizeNationalProjects` applies the
+ * same rule on load, so a session that never reloads must apply it at the transition.
+ */
+export function removeNationalProjectsHostedBy(state: GameState, cityId: string): GameState {
+  const lost = Object.entries(state.builtNationalProjects ?? {})
+    .filter(([, record]) => record.cityId === cityId);
+  if (lost.length === 0) return state;
+  const lostBuildingIds = new Set(lost.map(([key]) => key.split(':').slice(1).join(':')));
+  const builtNationalProjects = { ...(state.builtNationalProjects ?? {}) };
+  for (const [key] of lost) delete builtNationalProjects[key];
+  const city = state.cities[cityId];
+  return {
+    ...state,
+    builtNationalProjects,
+    cities: city ? { ...state.cities, [cityId]: { ...city, buildings: city.buildings.filter(id => !lostBuildingIds.has(id)) } } : state.cities,
+  };
+}

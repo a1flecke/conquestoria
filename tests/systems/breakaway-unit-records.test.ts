@@ -4,6 +4,7 @@ import { createBreakawayFromCity, tryReabsorbBreakaway } from '@/systems/breakaw
 import { foundCity } from '@/systems/city-lifecycle';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { hexDistance } from '@/systems/hex-utils';
+import { getNationalProjectCivYieldBonus } from '@/systems/national-project-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { assertSaveStateInvariants } from '../helpers/save-state-invariants';
 import { buildBaselineSave } from '../storage/fixtures/save-compat/baseline';
@@ -120,5 +121,20 @@ describe('breakaway secession carries owner-keyed unit records with its units', 
     seceded.civilizations['ai-1'].gold = 1000;
     const reabsorbed = tryReabsorbBreakaway(seceded, 'ai-1', breakawayId, new EventBus());
     expect(reabsorbed.units[horseman.id]).toMatchObject({ owner: 'ai-1', movementBonus: 1 });
+  });
+
+  it('a seceding city takes its national project with it, as a captured one does', () => {
+    const { state, cityId } = breakawayWithOwnedRecords('breakaway-national-project');
+    state.cities[cityId] = { ...state.cities[cityId], buildings: [...state.cities[cityId].buildings, 'communal_stores'] };
+    state.builtNationalProjects = { 'ai-1:communal_stores': { civId: 'ai-1', cityId, eraBuilt: 1 } };
+    expect(getNationalProjectCivYieldBonus(state, 'ai-1').food).toBe(2);
+
+    const seceded = createBreakawayFromCity(state, cityId, new EventBus());
+
+    // The former owner no longer draws the empire-wide bonus from a city it lost, and may rebuild it.
+    expect(seceded.builtNationalProjects?.['ai-1:communal_stores']).toBeUndefined();
+    expect(getNationalProjectCivYieldBonus(seceded, 'ai-1').food ?? 0).toBe(0);
+    expect(seceded.cities[cityId].buildings).not.toContain('communal_stores');
+    assertSaveStateInvariants(seceded, 'after the secession');
   });
 });

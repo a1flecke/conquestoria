@@ -6,6 +6,7 @@ import { foundCity } from '@/systems/city-lifecycle';
 import { EventBus } from '@/core/event-bus';
 import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { executeSettlement } from '@/systems/settlement-system';
+import { getNationalProjectCivYieldBonus } from '@/systems/national-project-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { assertSaveStateInvariants } from '../helpers/save-state-invariants';
 import { buildBaselineSave } from '../storage/fixtures/save-compat/baseline';
@@ -132,6 +133,30 @@ describe('a city that changes hands without a battle leaves no foreign units ins
     const plane = after.units[planeId];
     if (plane?.airBase?.kind === 'city') expect(after.cities[plane.airBase.cityId]).toBeDefined();
     expect(after.units[ship.id]?.position).toEqual(water);
+    assertSaveStateInvariants(after, 'after the siege');
+  });
+
+  it('a city destroyed by a siege takes its national project, faith and wonder project with it, as a razed one does', () => {
+    const { state, cityId, garrisonId } = cededCityWithOccupants('siege-destroyed-records');
+    delete state.units[garrisonId];
+    state.civilizations['ai-1'].units = state.civilizations['ai-1'].units.filter(id => id !== garrisonId);
+    state.cities[cityId] = { ...state.cities[cityId], buildings: [...state.cities[cityId].buildings, 'communal_stores'] };
+    state.builtNationalProjects = { 'ai-1:communal_stores': { civId: 'ai-1', cityId, eraBuilt: 1 } };
+    state.cityFaith = { ...(state.cityFaith ?? {}), [cityId]: { followers: {} } as never };
+    state.legendaryWonderProjects = {
+      ...(state.legendaryWonderProjects ?? {}),
+      'probe-project': { wonderId: 'probe', ownerId: 'ai-1', cityId } as never,
+    };
+    expect(getNationalProjectCivYieldBonus(state, 'ai-1').food).toBe(2);
+
+    const after = applyCitySiegeOutcome(state, cityId, { hpLost: 100, newHp: 0, outcome: 'destroyed', goldLost: 0 });
+
+    expect(after.cities[cityId]).toBeUndefined();
+    // The owner no longer draws the empire-wide bonus of a city that is gone, and may rebuild it.
+    expect(after.builtNationalProjects?.['ai-1:communal_stores']).toBeUndefined();
+    expect(getNationalProjectCivYieldBonus(after, 'ai-1').food ?? 0).toBe(0);
+    expect(after.cityFaith?.[cityId]).toBeUndefined();
+    expect(after.legendaryWonderProjects?.['probe-project']).toBeUndefined();
     assertSaveStateInvariants(after, 'after the siege');
   });
 });
