@@ -11,6 +11,7 @@ import { getEntitledTradeDestinations } from '@/systems/commerce-projection';
 import { completeRouteLeg } from '@/systems/trade-route-runner';
 import { establishTradeRoute } from '@/systems/trade-route-contract';
 import { getTradeRouteQuote } from '@/systems/trade-route-economy';
+import { setMarketProcurementPolicy } from '@/systems/resource-market-offers';
 import { resetUnitTurn } from '@/systems/unit-lifecycle';
 import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
@@ -20,6 +21,7 @@ import { removeUnits } from '@/systems/unit-removal-system';
 import { removeRouteById } from '@/systems/trade-route-lifecycle';
 import { getReserveBalance, getIncomingQuantity } from '@/systems/resource-reserve-system';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
+import { evaluateAuthoredPassage } from '../helpers/engineering-passage-evaluation';
 
 /**
  * #1509 MR12 — one load at the supplier, one delivery at home.
@@ -270,8 +272,10 @@ describe('#1125 engineering passage feasibility', () => {
     return state;
   }
 
-  function startReceiptVoyage(procurement = world().marketplace!.tradeRoutes[0]!.procurement): GameState {
-    const fixture = passageWorld(true);
+  function startReceiptVoyage(
+    procurement = world().marketplace!.tradeRoutes[0]!.procurement,
+    fixture = passageWorld(true),
+  ): GameState {
     const state = { ...createNewGame('rome', 'freight-receipts', 'small'), ...fixture };
     for (const [cityId, regionKey] of [[BUYER_CITY, 'west-coast'], [SELLER_CITY, 'east-coast']] as const) {
       const site = state.cities[cityId]!;
@@ -288,11 +292,13 @@ describe('#1125 engineering passage feasibility', () => {
   }
 
   function sail(state: GameState, movementPointsLeft?: number): GameState {
-    const trader = resetUnitTurn(state.units[traderId]!);
     return advanceRouteRunners({
       ...state,
       turn: state.turn + 1,
-      units: { ...state.units, [traderId]: { ...trader, movementPointsLeft: movementPointsLeft ?? trader.movementPointsLeft } },
+      units: Object.fromEntries(Object.entries(state.units).map(([id, unit]) => {
+        const trader = resetUnitTurn(unit);
+        return [id, id === traderId && movementPointsLeft !== undefined ? { ...trader, movementPointsLeft } : trader];
+      })),
     });
   }
 
@@ -301,6 +307,172 @@ describe('#1125 engineering passage feasibility', () => {
     if (result.status !== 'success') throw new Error(result.message);
     return normalizeLoadedState(result.state);
   }
+
+  const northernHomeId = 'north-port';
+  const northernTraderId = 'north-trader';
+  const supplyPort = { cityId: SELLER_CITY, ownerCivId: SELLER, regionKey: 'east-coast' };
+  const westCorridor = {
+    home: { cityId: BUYER_CITY, ownerCivId: BUYER, regionKey: 'west-coast' },
+    supplier: supplyPort,
+    goodId: IRON,
+  };
+  const northCorridor = {
+    home: { cityId: northernHomeId, ownerCivId: BUYER, regionKey: 'north-coast' },
+    supplier: supplyPort,
+    goodId: COAL,
+  };
+  const authoredPassage = { id: 'isthmus', site: { q: 4, r: 5 } };
+
+  function evaluationWorld(open: boolean, northernRegion = 'north-coast'): GameState {
+    const state = passageWorld(open);
+    const shift = ({ q, r }: { q: number; r: number }) => ({ q, r: r + 4 });
+    const tiles = Object.fromEntries(Object.values(state.map.tiles).map(tile => {
+      const coord = shift(tile.coord);
+      const channel = tile.freightPassage;
+      if (!channel) return [hexKey(coord), { ...tile, coord }];
+      return [hexKey(coord), {
+        ...tile,
+        coord,
+        freightPassage: { ...channel, approaches: [shift(channel.approaches[0]), shift(channel.approaches[1])] },
+      }];
+    })) as GameState['map']['tiles'];
+    for (let r = 0; r < 4; r++) {
+      for (let q = 0; q < state.map.width; q++) {
+        const coord = { q, r };
+        const isPort = r === 2 && q === 0;
+        tiles[hexKey(coord)] = {
+          ...state.map.tiles['0,0']!,
+          coord,
+          terrain: q === 1 ? 'coast' : 'grassland',
+          owner: isPort ? BUYER : null,
+          ...(isPort ? { regionKey: northernRegion } : {}),
+        };
+      }
+    }
+    tiles['1,4']!.terrain = 'coast';
+    state.map = { ...state.map, tiles, height: state.map.height + 4 };
+    for (const port of Object.values(state.cities)) {
+      port.position = shift(port.position);
+      port.ownedTiles = [port.position];
+    }
+    const northernPort = city(northernHomeId, BUYER, 0);
+    northernPort.position = { q: 0, r: 2 };
+    northernPort.ownedTiles = [northernPort.position];
+    state.cities[northernHomeId] = northernPort;
+    state.civilizations[BUYER]!.cities.push(northernHomeId);
+    for (const civ of Object.values(state.civilizations)) {
+      civ.visibility = { tiles: Object.fromEntries(Object.keys(tiles).map(key => [key, 'visible'])) };
+    }
+    state.units[traderId]!.position = state.cities[BUYER_CITY]!.position;
+    state.units[northernTraderId] = { ...state.units[traderId]!, id: northernTraderId, position: northernPort.position };
+    state.civilizations[BUYER]!.units.push(northernTraderId);
+    const live = startReceiptVoyage({ orders: [{ goodId: IRON, targetQuantity: 20, maxUnitPrice: 100 }] }, state);
+    const result = establishTradeRoute(live, {
+      ...request,
+      caravanUnitId: northernTraderId,
+      originCityId: northernHomeId,
+      procurement: { orders: [{ goodId: COAL, targetQuantity: 20, maxUnitPrice: 100 }] },
+    });
+    if (!result.ok) throw new Error(result.reason);
+    return result.state;
+  }
+
+  function runEvaluationVoyages(state: GameState, until: number): GameState {
+    while (state.turn < until) state = sail(state);
+    return state;
+  }
+
+  it('finds two repeatable corridors across three regions after actual loaded returns', () => {
+    const waitingForNorth = runEvaluationVoyages(evaluationWorld(true), 21);
+    const services = [westCorridor, northCorridor];
+    expect(evaluateAuthoredPassage(waitingForNorth, authoredPassage, services, 21).usefulReach).toBe(false);
+    const completed = sail(waitingForNorth);
+    const arrivals = Object.values(completed.freightVoyageReceipts ?? {})
+      .map(receipt => [receipt.home.cityId, receipt.completedRound]);
+    expect(arrivals).toEqual([[BUYER_CITY, 14], [northernHomeId, 16], [BUYER_CITY, 18], [BUYER_CITY, 22], [northernHomeId, 22]]);
+    expect(getReserveBalance(completed.materialReservesByCiv![BUYER]!, IRON).imported).toBe(15);
+    expect(getReserveBalance(completed.materialReservesByCiv![BUYER]!, COAL).imported).toBe(10);
+    expect(evaluateAuthoredPassage(completed, authoredPassage, services, 22)).toEqual({
+      usefulReach: true,
+      currentFunction: true,
+      qualifiedRegionPairs: [['east-coast', 'north-coast'], ['east-coast', 'west-coast']],
+      trips: [{ homeCityId: BUYER_CITY, current: 4, disabled: 8 }, { homeCityId: northernHomeId, current: 6, disabled: 10 }],
+    });
+  });
+
+  it('delivers by the matched disabled detour without earning passage reach', () => {
+    const completed = runEvaluationVoyages(evaluationWorld(false), 26);
+    expect(getReserveBalance(completed.materialReservesByCiv![BUYER]!, IRON).imported).toBeGreaterThan(0);
+    expect(getReserveBalance(completed.materialReservesByCiv![BUYER]!, COAL).imported).toBeGreaterThan(0);
+    expect(completed.freightVoyageReceipts).toBeUndefined();
+    expect(evaluateAuthoredPassage(completed, authoredPassage, [westCorridor, northCorridor], 26))
+      .toMatchObject({ usefulReach: false, currentFunction: false });
+  });
+
+  it('combines service on the same unordered pair without counting a third region', () => {
+    const completed = runEvaluationVoyages(evaluationWorld(true, 'west-coast'), 22);
+    expect(Object.values(completed.freightVoyageReceipts ?? {})).toHaveLength(5);
+    const samePair = { ...northCorridor, home: { ...northCorridor.home, regionKey: 'west-coast' } };
+    expect(evaluateAuthoredPassage(completed, authoredPassage, [westCorridor, samePair], 22))
+      .toMatchObject({ usefulReach: false, currentFunction: true, qualifiedRegionPairs: [['east-coast', 'west-coast']] });
+  });
+
+  it('expires returns at the inclusive twelve-round boundary', () => {
+    const completed = runEvaluationVoyages(evaluationWorld(true), 22);
+    expect(evaluateAuthoredPassage({ ...completed, turn: 27 }, authoredPassage, [westCorridor, northCorridor], 27))
+      .toMatchObject({ usefulReach: true });
+    expect(evaluateAuthoredPassage({ ...completed, turn: 28 }, authoredPassage, [westCorridor, northCorridor], 28))
+      .toMatchObject({ usefulReach: false });
+  });
+
+  it('distinguishes a temporary movement delay from a pause or exhausted spending authorization', () => {
+    const completed = runEvaluationVoyages(evaluationWorld(true), 22);
+    const evaluate = (state: GameState) => evaluateAuthoredPassage(state, authoredPassage, [westCorridor, northCorridor], 22);
+    const route = completed.marketplace!.tradeRoutes[0]!;
+    route.lastProgressTurn = 21;
+    expect(evaluate(completed)).toMatchObject({ usefulReach: true, currentFunction: true });
+    route.paused = true;
+    expect(evaluate(completed)).toMatchObject({ usefulReach: true, currentFunction: false });
+    route.paused = false;
+    const underfunded = setMarketProcurementPolicy(completed, BUYER, { maxUnitPrice: 100, treasuryFloor: 0, roundBudget: 0 });
+    expect(evaluate(underfunded)).toMatchObject({ usefulReach: true, currentFunction: false });
+  });
+
+  it('retains reach through a lost carrier and restores service with a like-for-like route', () => {
+    const completed = runEvaluationVoyages(evaluationWorld(true), 22);
+    const evaluate = (state: GameState) => evaluateAuthoredPassage(state, authoredPassage, [westCorridor, northCorridor], state.turn);
+    const route = completed.marketplace!.tradeRoutes[0]!;
+    const lost = removeUnits(completed, [traderId], { reason: 'destroyed' }).state;
+    expect(evaluate(lost)).toMatchObject({ usefulReach: true, currentFunction: false });
+    const replacementId = 'replacement-trader';
+    lost.units[replacementId] = resetUnitTurn({
+      ...completed.units[traderId]!, id: replacementId, committedToRouteId: undefined, routeDirection: undefined,
+    });
+    lost.civilizations[BUYER]!.units.push(replacementId);
+    const replacement = establishTradeRoute(lost, { ...request, caravanUnitId: replacementId, procurement: route.procurement });
+    if (!replacement.ok) throw new Error(replacement.reason);
+    expect(replacement.route.id).not.toBe(route.id);
+    expect(replacement.state.units[replacementId]!.routeDirection).toBe('positioning');
+    const ready = sail(replacement.state);
+    expect(ready.units[replacementId]!.routeDirection).toBe('outbound');
+    expect(evaluate(ready)).toMatchObject({ usefulReach: true, currentFunction: true });
+
+    const passageTile = ready.map.tiles[hexKey(authoredPassage.site)]!;
+    passageTile.freightPassage!.allowedOperatorIds = [];
+    expect(evaluate(ready)).toMatchObject({ usefulReach: true, currentFunction: false });
+  });
+
+  it('requires authorized demand and an available supplier for another purchase', () => {
+    const completed = runEvaluationVoyages(evaluationWorld(true), 22);
+    const evaluate = (state: GameState) => evaluateAuthoredPassage(state, authoredPassage, [westCorridor, northCorridor], 22);
+    const seller = completed.materialReservesByCiv![SELLER]!;
+    completed.materialReservesByCiv![SELLER] = { ...seller, balances: { ...seller.balances, [IRON]: { native: 0, imported: 0 } } };
+    expect(evaluate(completed)).toMatchObject({ usefulReach: true, currentFunction: false });
+    completed.materialReservesByCiv![SELLER] = seller;
+    const buyer = completed.materialReservesByCiv![BUYER]!;
+    completed.materialReservesByCiv![BUYER] = { ...buyer, balances: { ...buyer.balances, [IRON]: { native: 5, imported: 15 } } };
+    expect(evaluate(completed)).toMatchObject({ usefulReach: true, currentFunction: false });
+  });
 
   it('records one voyage for two delivered claims, including across a save inside the passage', () => {
     const underway = startReceiptVoyage({ orders: [
