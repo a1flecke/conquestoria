@@ -5,6 +5,7 @@ import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { findLegalSpawnTile, spawnNeighbours } from '@/systems/unit-spawn-placement';
 import { withNewOwner } from './unit-trained-movement-bonus';
 import { removeNationalProjectsHostedBy } from './national-project-system';
+import { beginCityMaterialOccurrence, releaseCityMaterialCommitment } from './city-production-materials';
 import {
   eliminateCivilization,
   emitCivilizationLivenessTransitions,
@@ -41,10 +42,13 @@ function moveLoyalSpiesOffCity(state: GameState, cityId: string, ownerId: string
 }
 
 export function createBreakawayFromCity(
-  state: GameState,
+  stateBefore: GameState,
   cityId: string,
   bus: EventBus,
 ): GameState {
+  // #1506 MR09: the city leaves its owner's control, so its material commitment is released against the
+  // old owner's ledger first; the breakaway then funds the inherited work from its own (empty) ledger.
+  const state = releaseCityMaterialCommitment(stateBefore, cityId);
   const city = state.cities[cityId];
   if (!city) {
     throw new Error(`Cannot create breakaway from missing city ${cityId}`);
@@ -171,7 +175,11 @@ export function createBreakawayFromCity(
   });
 
   // The city's national projects leave the old owner with it, exactly as on a capture.
-  const withLoyalSpiesOut = moveLoyalSpiesOffCity(removeNationalProjectsHostedBy(nextState, cityId), cityId, previousOwner.id);
+  const withLoyalSpiesOut = moveLoyalSpiesOffCity(
+    removeNationalProjectsHostedBy(beginCityMaterialOccurrence(nextState, cityId), cityId),
+    cityId,
+    previousOwner.id,
+  );
   const liveness = reconcileCivilizationLiveness(state, withLoyalSpiesOut);
   emitCivilizationLivenessTransitions(liveness, bus);
   return liveness.state;
@@ -220,13 +228,13 @@ export function processBreakawayTurn(state: GameState, bus: EventBus): GameState
 }
 
 export function tryReabsorbBreakaway(
-  state: GameState,
+  stateBefore: GameState,
   ownerId: string,
   breakawayId: string,
   bus?: EventBus,
 ): GameState {
-  const owner = state.civilizations[ownerId];
-  const breakaway = state.civilizations[breakawayId];
+  const owner = stateBefore.civilizations[ownerId];
+  const breakaway = stateBefore.civilizations[breakawayId];
   if (!owner || !breakaway?.breakaway) {
     throw new Error('Breakaway civilization not found');
   }
@@ -242,9 +250,17 @@ export function tryReabsorbBreakaway(
     throw new Error('Gold is too low to reabsorb this breakaway');
   }
 
+  if (!Object.values(stateBefore.cities).some(city => city.owner === breakawayId)) {
+    throw new Error('Breakaway city not found');
+  }
+  // #1506 MR09: each city leaves the breakaway's control, so its material commitment is released against
+  // the breakaway's ledger first; the origin owner funds the inherited work from its own ledger below.
+  let state = stateBefore;
+  for (const city of Object.values(stateBefore.cities)) {
+    if (city.owner === breakawayId) state = releaseCityMaterialCommitment(state, city.id);
+  }
   const transferredCities = Object.values(state.cities)
     .filter(city => city.owner === breakawayId);
-  if (transferredCities.length === 0) throw new Error('Breakaway city not found');
   const transferredCityIds = transferredCities.map(city => city.id);
 
   const updatedCivilizations = { ...state.civilizations };
@@ -293,7 +309,8 @@ export function tryReabsorbBreakaway(
   // (Diplomacy Lifecycle). That is exactly the elimination teardown; the breakaway now holds
   // nothing, so it removes nothing else. Its record is then dropped, as reabsorption always did,
   // and no elimination is announced: a reabsorption is not a defeat.
-  const tornDown = eliminateCivilization(nextState, breakawayId, ownerId).state;
+  const funded = transferredCityIds.reduce((acc, id) => beginCityMaterialOccurrence(acc, id), nextState);
+  const tornDown = eliminateCivilization(funded, breakawayId, ownerId).state;
   const { [breakawayId]: _reabsorbed, ...remainingCivilizations } = tornDown.civilizations;
   const withoutBreakaway: GameState = { ...tornDown, civilizations: remainingCivilizations };
   const liveness = reconcileCivilizationLiveness(state, withoutBreakaway);

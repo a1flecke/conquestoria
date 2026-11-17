@@ -601,8 +601,18 @@ export function resolveMajorCityCapture(
 
   const forcedDisposition: MajorCityCaptureDisposition = disposition;
 
+  // #1506 MR09: an occupied city leaves its old owner's control, so its commitment is released against the
+  // OLD owner's ledger first (the captor never inherits that stock) and the captor funds inherited work from
+  // its own ledger afterwards -- the rule every other ownership transfer (`transferCapturedCityOwnership`)
+  // already applies.
+  const released = forcedDisposition === 'occupy' ? releaseCityMaterialCommitment(state, cityId) : state;
+  const releasedCity = released.cities[cityId]!;
+
   if (forcedDisposition === 'occupy' && previousOwner?.breakaway?.originOwnerId === newOwnerId) {
-    const reconquered = reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId);
+    const reconquered = beginCityMaterialOccurrence(
+      reconquerBreakawayCity(released, newOwnerId, previousOwnerId, cityId),
+      cityId,
+    );
     const nextState = removeNationalProjectsHostedBy({
       ...reconquered,
       legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
@@ -633,7 +643,7 @@ export function resolveMajorCityCapture(
 
   if (forcedDisposition === 'occupy') {
     const occupiedCity: City = {
-      ...city,
+      ...releasedCity,
       owner: newOwnerId,
       population: Math.max(1, Math.floor(city.population / 2)),
       conquestTurn: turn,
@@ -651,13 +661,13 @@ export function resolveMajorCityCapture(
     };
 
     const nextState: GameState = {
-      ...state,
+      ...released,
       cities: {
-        ...state.cities,
+        ...released.cities,
         [cityId]: occupiedCity,
       },
       civilizations: {
-        ...state.civilizations,
+        ...released.civilizations,
         ...(previousOwner ? {
           [previousOwnerId]: {
             ...previousOwner,
@@ -685,7 +695,7 @@ export function resolveMajorCityCapture(
         newOwnerId,
       ),
     };
-    const afterProjectLoss = removeNationalProjectsHostedBy(nextState, cityId);
+    const afterProjectLoss = removeNationalProjectsHostedBy(beginCityMaterialOccurrence(nextState, cityId), cityId);
     const afterAircraft = resolveAirBaseLoss(
       afterProjectLoss,
       { kind: 'city', cityId },

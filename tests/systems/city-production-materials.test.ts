@@ -10,7 +10,9 @@ import {
   releaseCityMaterialCommitment,
   syncCityMaterialCommitment,
 } from '@/systems/city-production-materials';
-import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
+import { resolveMajorCityCapture, transferCapturedCityOwnership } from '@/systems/city-capture-system';
+import { createBreakawayFromCity, tryReabsorbBreakaway } from '@/systems/breakaway-system';
+import { EventBus } from '@/core/event-bus';
 import {
   enqueueCityProduction,
   removeCityProductionCommand,
@@ -18,6 +20,7 @@ import {
 } from '@/systems/planning-system';
 import { getCommittedQuantity, getReserveBalance, validateReserveLedger } from '@/systems/resource-reserve-system';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
+import { SAVE_STATE_INVARIANTS } from '../helpers/save-state-invariants';
 
 /**
  * #1506 MR09 task 4 — the active commitment owner and state-aware queue edits.
@@ -319,6 +322,92 @@ describe('#1506 MR09 — release on capture and removal', () => {
     expect(getReserveBalance(captured.materialReservesByCiv!.player, iron)).toEqual({ native: 10, imported: 0 });
     expect(getCommittedQuantity(captured.materialReservesByCiv!['ai-1'], iron)).toBe(10);
     expect(captured.cities[base.a].productionMaterials!.commitment?.ref.ownerCivId).toBe('ai-1');
+  });
+
+  it('a military capture that occupies the city releases the old owner commitment too', () => {
+    const base = gameWithTwoCities('material-occupy');
+    let state = prepare(base.state, { iron: 10 });
+    state = enqueueCityProduction(state, base.a, 'swordsman').state;
+    expect(committed(state)).toBe(10);
+    state = {
+      ...state,
+      materialReservesByCiv: {
+        ...(state.materialReservesByCiv ?? {}),
+        'ai-1': { balances: { [iron]: { native: 10, imported: 0 } }, reservations: [], incoming: [] },
+      },
+    };
+
+    const captured = resolveMajorCityCapture(state, base.a, 'ai-1', 'occupy', state.turn).state;
+    expect(captured.cities[base.a].owner).toBe('ai-1');
+    // The old owner's iron is free again, not locked to a city it no longer holds.
+    expect(captured.materialReservesByCiv!.player.reservations).toEqual([]);
+    expect(getReserveBalance(captured.materialReservesByCiv!.player, iron)).toEqual({ native: 10, imported: 0 });
+    // The conqueror funds the inherited swordsman from its own stock, like any other capture.
+    expect(getCommittedQuantity(captured.materialReservesByCiv!['ai-1'], iron)).toBe(10);
+    expect(captured.cities[base.a].productionMaterials!.commitment?.ref.ownerCivId).toBe('ai-1');
+    const materialReserves = SAVE_STATE_INVARIANTS.find(invariant => invariant.name === 'material-reserves')!;
+    expect(() => materialReserves.check(captured)).not.toThrow();
+  });
+
+  it('reconquering a breakaway city releases the breakaway owner commitment', () => {
+    const base = gameWithTwoCities('material-reconquer');
+    let state = prepare(base.state, { iron: 10 });
+    state = enqueueCityProduction(state, base.a, 'swordsman').state;
+    // Here 'player' is the breakaway and 'ai-1' the origin owner taking its city back.
+    state.civilizations.player.breakaway = {
+      originOwnerId: 'ai-1', originCityId: base.a, startedTurn: 1, establishesOnTurn: 30, status: 'secession',
+    };
+    state = {
+      ...state,
+      materialReservesByCiv: {
+        ...(state.materialReservesByCiv ?? {}),
+        'ai-1': { balances: { [iron]: { native: 10, imported: 0 } }, reservations: [], incoming: [] },
+      },
+    };
+
+    const captured = resolveMajorCityCapture(state, base.a, 'ai-1', 'occupy', state.turn).state;
+    expect(captured.cities[base.a].owner).toBe('ai-1');
+    expect(captured.materialReservesByCiv!.player.reservations).toEqual([]);
+    expect(getCommittedQuantity(captured.materialReservesByCiv!['ai-1'], iron)).toBe(10);
+    const materialReserves = SAVE_STATE_INVARIANTS.find(invariant => invariant.name === 'material-reserves')!;
+    expect(() => materialReserves.check(captured)).not.toThrow();
+  });
+
+  it('a seceding city releases its commitment, and reabsorbing it funds the work from the origin owner', () => {
+    const base = gameWithTwoCities('material-secession');
+    let state = prepare(base.state, { iron: 10 });
+    state = enqueueCityProduction(state, base.a, 'swordsman').state;
+    expect(committed(state)).toBe(10);
+    const materialReserves = SAVE_STATE_INVARIANTS.find(invariant => invariant.name === 'material-reserves')!;
+
+    const seceded = createBreakawayFromCity(state, base.a, new EventBus());
+    const breakawayId = seceded.cities[base.a].owner;
+    expect(breakawayId).not.toBe('player');
+    // The origin owner's iron is free again; the breakaway has no stock, so its swordsman waits.
+    expect(seceded.materialReservesByCiv!.player.reservations).toEqual([]);
+    expect(getReserveBalance(seceded.materialReservesByCiv!.player, iron)).toEqual({ native: 10, imported: 0 });
+    expect(seceded.cities[base.a].productionMaterials!.commitment).toBeNull();
+    expect(() => materialReserves.check(seceded)).not.toThrow();
+
+    const ready: GameState = {
+      ...seceded,
+      civilizations: {
+        ...seceded.civilizations,
+        player: {
+          ...seceded.civilizations.player,
+          gold: 1000,
+          diplomacy: {
+            ...seceded.civilizations.player.diplomacy,
+            relationships: { ...seceded.civilizations.player.diplomacy.relationships, [breakawayId]: 100 },
+          },
+        },
+      },
+    };
+    const reabsorbed = tryReabsorbBreakaway(ready, 'player', breakawayId);
+    expect(reabsorbed.cities[base.a].owner).toBe('player');
+    expect(getCommittedQuantity(reabsorbed.materialReservesByCiv!.player, iron)).toBe(10);
+    expect(reabsorbed.cities[base.a].productionMaterials!.commitment?.ref.ownerCivId).toBe('player');
+    expect(() => materialReserves.check(reabsorbed)).not.toThrow();
   });
 
   it('never gives the conqueror the old stock: no stock means waiting', () => {
