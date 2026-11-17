@@ -17,6 +17,7 @@ import {
 } from '@/systems/city-system';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
+import { assertAirBaseIntegrity, assertCargoReciprocity } from '../helpers/save-state-invariants';
 
 const TECH_ERA_BY_ID = new Map(TECH_TREE.map(tech => [tech.id, tech.era]));
 
@@ -587,6 +588,33 @@ describe('applyUnitUpgradeToState', () => {
     city.buildings = ['helicopter_base'];
     expect(applyUnitUpgradeToState(state, 'upgrade-unit', 'attack_helicopter').state.units['upgrade-unit'])
       .toMatchObject({ type: 'attack_helicopter', airBase: { kind: 'city', cityId: city.id } });
+  });
+
+  it('does not turn a land unit riding a docked transport into an aircraft still aboard it', () => {
+    const { state, city } = setup();
+    state.units['upgrade-unit'].type = 'armored_car' as any;
+    state.civilizations.player.gold = 1000;
+    state.civilizations.player.techState.completed = ['motorized-transport', 'helicopter-warfare'];
+    city.buildings = ['helicopter_base'];
+    state.units['upgrade-unit'].transportId = 'ship-1';
+    state.units['ship-1'] = {
+      ...state.units['upgrade-unit'], id: 'ship-1', type: 'transport', transportId: undefined,
+      cargoUnitIds: ['upgrade-unit'],
+    };
+    state.civilizations.player.units.push('ship-1');
+    assertCargoReciprocity(state);
+
+    const evaluation = evaluateUnitUpgrade(state, 'upgrade-unit', 'attack_helicopter');
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'attack_helicopter');
+
+    // The aircraft is based at the city it was re-equipped in and leaves the ship's hold.
+    expect(evaluation.canUpgrade).toBe(true);
+    expect(result.upgraded).toBe(true);
+    expect(result.state.units['upgrade-unit'].transportId).toBeUndefined();
+    expect(result.state.units['upgrade-unit'].airBase).toEqual({ kind: 'city', cityId: city.id });
+    expect(result.state.units['ship-1'].cargoUnitIds).toEqual([]);
+    assertCargoReciprocity(result.state);
+    assertAirBaseIntegrity(result.state);
   });
 
   it('upgrades canonically, deducts exact gold, preserves health, and consumes the action', () => {
