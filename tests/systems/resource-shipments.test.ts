@@ -5,13 +5,19 @@ import type { City, Civilization, GameState, TradeRoute } from '@/core/types';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
 import { normalizeLoadedState } from '@/storage/save-manager';
-import { foundCity } from '@/systems/city-system';
+import { foundCity, processCity } from '@/systems/city-system';
+import { applyEconomyTurn, getRushBuyQuote } from '@/systems/economy-system';
 import { hexKey } from '@/systems/hex-utils';
 import { getEntitledTradeDestinations } from '@/systems/commerce-projection';
+import { enqueueCityProduction } from '@/systems/planning-system';
+import { buildProductionCostContext, getProductionCostForCivItem } from '@/systems/production-cost-context';
 import { completeRouteLeg } from '@/systems/trade-route-runner';
 import { establishTradeRoute } from '@/systems/trade-route-contract';
-import { getTradeRouteQuote } from '@/systems/trade-route-economy';
+import { getTradeRouteQuote, settleTradeRouteForCiv } from '@/systems/trade-route-economy';
 import { setMarketProcurementPolicy } from '@/systems/resource-market-offers';
+import { allocateFuelForRound } from '@/systems/resource-fuel-system';
+import { calculateCityYields } from '@/systems/resource-system';
+import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
 import { resetUnitTurn } from '@/systems/unit-lifecycle';
 import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
@@ -323,7 +329,10 @@ describe('#1125 engineering passage feasibility', () => {
   };
   const authoredPassage = { id: 'isthmus', site: { q: 4, r: 5 } };
 
-  function evaluationWorld(open: boolean, northernRegion = 'north-coast'): GameState {
+  function evaluationWorld(
+    open: boolean,
+    { northernRegion = 'north-coast', fuelPort = 'north' }: { northernRegion?: string; fuelPort?: 'north' | 'west' } = {},
+  ): GameState {
     const state = passageWorld(open);
     const shift = ({ q, r }: { q: number; r: number }) => ({ q, r: r + 4 });
     const tiles = Object.fromEntries(Object.values(state.map.tiles).map(tile => {
@@ -366,12 +375,14 @@ describe('#1125 engineering passage feasibility', () => {
     state.units[traderId]!.position = state.cities[BUYER_CITY]!.position;
     state.units[northernTraderId] = { ...state.units[traderId]!, id: northernTraderId, position: northernPort.position };
     state.civilizations[BUYER]!.units.push(northernTraderId);
-    const live = startReceiptVoyage({ orders: [{ goodId: IRON, targetQuantity: 20, maxUnitPrice: 100 }] }, state);
+    const westernGood = fuelPort === 'west' ? COAL : IRON;
+    const northernGood = fuelPort === 'north' ? COAL : IRON;
+    const live = startReceiptVoyage({ orders: [{ goodId: westernGood, targetQuantity: 20, maxUnitPrice: 100 }] }, state);
     const result = establishTradeRoute(live, {
       ...request,
       caravanUnitId: northernTraderId,
       originCityId: northernHomeId,
-      procurement: { orders: [{ goodId: COAL, targetQuantity: 20, maxUnitPrice: 100 }] },
+      procurement: { orders: [{ goodId: northernGood, targetQuantity: 20, maxUnitPrice: 100 }] },
     });
     if (!result.ok) throw new Error(result.reason);
     return result.state;
@@ -381,6 +392,136 @@ describe('#1125 engineering passage feasibility', () => {
     while (state.turn < until) state = sail(state);
     return state;
   }
+
+  it('compares an earlier coal-powered Factory with an immediate Harbor investment', () => {
+    const liquidGold = 80;
+    const protectedGold = 30;
+    const passageCost = 45;
+    const scenario = evaluationWorld(false, { fuelPort: 'west' });
+    const buyer = scenario.civilizations[BUYER]!;
+    const freightFunds = buyer.gold;
+    buyer.gold += liquidGold;
+    buyer.techState.completed.push('harbor-tech', 'banking');
+    scenario.cities[BUYER_CITY]!.buildings = ['factory'];
+    scenario.cities[northernHomeId]!.buildings = ['bank'];
+    const channel = scenario.map.tiles[hexKey(authoredPassage.site)]!.freightPassage!;
+    channel.ownerId = BUYER;
+
+    const fundedScenario = setMarketProcurementPolicy(scenario, BUYER, { maxUnitPrice: 100, treasuryFloor: protectedGold });
+    const queued = enqueueCityProduction(fundedScenario, northernHomeId, 'harbor');
+    if (!queued.ok) throw new Error(queued.reason);
+    const start = queued.state;
+    const northPort = start.cities[northernHomeId]!;
+    const harborCost = getProductionCostForCivItem(start, BUYER, northernHomeId, 'harbor');
+    northPort.productionProgress = harborCost - 18;
+    const harborQuote = getRushBuyQuote(start, BUYER, northernHomeId);
+    expect(harborQuote).toMatchObject({ itemId: 'harbor', available: true, cost: 45 });
+    expect(liquidGold - protectedGold).toBeGreaterThanOrEqual(passageCost);
+
+    const bus = new EventBus();
+    const bought = rushBuyActiveProduction(start, BUYER, northernHomeId, bus);
+    if (!bought.success) throw new Error(bought.message);
+    // The panel for commissioning is a later slice. Apply its authored quote to the same
+    // treasury here, then let both choices use the existing route and resource systems.
+    const passageKey = hexKey(authoredPassage.site);
+    const passageState: GameState = {
+      ...start,
+      civilizations: { ...start.civilizations, [BUYER]: { ...buyer, gold: buyer.gold - passageCost } },
+      map: {
+        ...start.map,
+        tiles: {
+          ...start.map.tiles,
+          [passageKey]: { ...start.map.tiles[passageKey]!, freightPassage: { ...channel, open: true } },
+        },
+      },
+    };
+    const uncommitted = (state: GameState, earmarked: number) =>
+      state.civilizations[BUYER]!.gold - earmarked - protectedGold;
+    expect(uncommitted(start, freightFunds)).toBe(50);
+    expect(uncommitted(passageState, freightFunds)).toBe(5);
+    expect(uncommitted(bought.state, freightFunds)).toBe(5);
+    expect(bought.state.cities[northernHomeId]!.buildings).toContain('harbor');
+
+    const yieldsAt = (state: GameState, cityId: string) =>
+      calculateCityYields(state.cities[cityId]!, state.map, undefined, buyer.techState.completed);
+    const run = (state: GameState) => {
+      let earmarked = freightFunds;
+      const rounds = [];
+      while (state.turn < 26) {
+        const beforeFuel = getReserveBalance(state.materialReservesByCiv![BUYER]!, COAL);
+        // The live round allocates fuel and calculates city yields before trade delivery.
+        const funded = allocateFuelForRound(state);
+        const afterFuel = getReserveBalance(funded.materialReservesByCiv![BUYER]!, COAL);
+        const west = yieldsAt(funded, BUYER_CITY);
+        const north = yieldsAt(funded, northernHomeId);
+        const northAfterProduction = processCity(
+          funded.cities[northernHomeId]!, funded.map, north.food, north.production,
+          buildProductionCostContext(funded, BUYER, northernHomeId), buyer.civType,
+        ).city;
+        const arrivals = sail({ ...funded, cities: { ...funded.cities, [northernHomeId]: northAfterProduction } });
+        const purchaseCost = funded.civilizations[BUYER]!.gold - arrivals.civilizations[BUYER]!.gold;
+        const trade = settleTradeRouteForCiv(arrivals, BUYER, bus);
+        // The standing freight assignment earns its own route income and pays for its own loads.
+        expect(purchaseCost).toBeLessThanOrEqual(earmarked);
+        earmarked += trade.paid - purchaseCost;
+        state = applyEconomyTurn(trade.state, BUYER, west.gold + north.gold + trade.paid);
+        rounds.push({
+          turn: state.turn,
+          north,
+          west,
+          beforeFuel,
+          afterFuel,
+          afterDelivery: getReserveBalance(state.materialReservesByCiv![BUYER]!, COAL),
+          uncommitted: uncommitted(state, earmarked),
+          harborBuilt: northAfterProduction.buildings.includes('harbor'),
+          quote: getRushBuyQuote(state, BUYER, northernHomeId),
+        });
+      }
+      return { state, rounds };
+    };
+
+    const passage = run(passageState);
+    const harbor = run(bought.state);
+    const deferred = run(start);
+    const firstCoal = (rounds: typeof passage.rounds) => rounds.find(round => round.afterDelivery.imported > 0);
+    const firstPowered = (rounds: typeof passage.rounds) =>
+      rounds.find(round => round.beforeFuel.imported > round.afterFuel.imported);
+    const unfueled = { native: 0, imported: 0 };
+    expect(firstCoal(passage.rounds)).toMatchObject({ turn: 14, beforeFuel: unfueled, afterFuel: unfueled });
+    expect(Object.values(passage.state.freightVoyageReceipts ?? {})).toContainEqual(expect.objectContaining({
+      home: expect.objectContaining({ cityId: BUYER_CITY }),
+      completedRound: 14,
+      stock: [{ goodId: COAL, quantity: 5 }],
+    }));
+    for (const withoutPassage of [harbor, deferred]) {
+      expect(firstCoal(withoutPassage.rounds)).toMatchObject({ turn: 18, beforeFuel: unfueled, afterFuel: unfueled });
+      expect(firstPowered(withoutPassage.rounds)?.turn).toBe(19);
+    }
+    expect(firstPowered(passage.rounds)).toMatchObject({
+      turn: 15, beforeFuel: { native: 0, imported: 5 }, afterFuel: { native: 0, imported: 4 },
+    });
+    const factoryLead = passage.rounds.filter(round => round.turn >= 15 && round.turn < 19);
+    expect(factoryLead).toHaveLength(4);
+    for (const round of factoryLead) {
+      const detour = deferred.rounds.find(candidate => candidate.turn === round.turn)!;
+      expect(round.west.production - detour.west.production).toBe(2);
+      expect(round.west.science - detour.west.science).toBe(1);
+    }
+
+    expect(harbor.rounds[0]!.north.gold - deferred.rounds[0]!.north.gold).toBe(3);
+    expect(harbor.rounds[0]!.north.food - deferred.rounds[0]!.north.food).toBe(1);
+    expect(harbor.rounds[0]!.turn).toBe(11);
+    const harborAvailable = passage.rounds.find(({ harborBuilt, quote, uncommitted: gold }) =>
+      harborBuilt || (quote.available && gold >= quote.cost));
+    const passageAvailable = harbor.rounds.find(round => round.uncommitted >= passageCost);
+    expect(harborAvailable?.turn).toBe(17);
+    expect(passageAvailable?.turn).toBe(18);
+    for (const replay of [passage, harbor, deferred]) {
+      expect(replay.rounds.every(round => round.uncommitted >= 0)).toBe(true);
+      expect(replay.state.marketplace!.tradeRoutes.map(route => route.id))
+        .toEqual(start.marketplace!.tradeRoutes.map(route => route.id));
+    }
+  });
 
   it('finds two repeatable corridors across three regions after actual loaded returns', () => {
     const waitingForNorth = runEvaluationVoyages(evaluationWorld(true), 21);
@@ -410,7 +551,7 @@ describe('#1125 engineering passage feasibility', () => {
   });
 
   it('combines service on the same unordered pair without counting a third region', () => {
-    const completed = runEvaluationVoyages(evaluationWorld(true, 'west-coast'), 22);
+    const completed = runEvaluationVoyages(evaluationWorld(true, { northernRegion: 'west-coast' }), 22);
     expect(Object.values(completed.freightVoyageReceipts ?? {})).toHaveLength(5);
     const samePair = { ...northCorridor, home: { ...northCorridor.home, regionKey: 'west-coast' } };
     expect(evaluateAuthoredPassage(completed, authoredPassage, [westCorridor, samePair], 22))
