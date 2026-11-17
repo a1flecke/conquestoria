@@ -4,7 +4,7 @@
  * assault/bombard preview (#966 single resolver) and the barbarian camp assault
  * card. Bodies are moved verbatim.
  */
-import type { HexCoord } from '@/core/types';
+import type { HexCoord } from '@/core/types/hex';
 import { SFX } from '@/audio/sfx';
 import { hexKey } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';

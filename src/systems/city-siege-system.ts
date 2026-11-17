@@ -11,6 +11,7 @@ import { getRiverDefensePenalty, isRiverBetween } from '@/systems/river-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { CITY_BREACH_ASSAULT_MULTIPLIER, isCityBreachExpired, isCityBreachedBy } from '@/systems/city-breach';
 import { resolveAirBaseLoss } from '@/systems/air-base-loss';
+import { releaseRecordsOfRemovedCity } from '@/systems/city-removal-records';
 import { findLegalSpawnTile, spawnNeighbours } from '@/systems/unit-spawn-placement';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 
@@ -316,7 +317,8 @@ export function applyCitySiegeOutcome(state: GameState, cityId: string, result: 
     // The city's airfield goes with it: its aircraft rebase or are lost (`facility-removed`), as
     // when a city is razed. Ships in its port are left on land once the city is gone, so each moves
     // to the nearest water it can sail (cargo with it); a ship with none stays.
-    let next = resolveAirBaseLoss(state, { kind: 'city', cityId }, { kind: 'facility-removed' }).state;
+    // Its own records go too (material commitment, national projects, faith, wonder project), as on a raze.
+    let next = resolveAirBaseLoss(releaseRecordsOfRemovedCity(state, cityId), { kind: 'city', cityId }, { kind: 'facility-removed' }).state;
     const { [cityId]: _removed, ...remainingCities } = next.cities;
     const ownerCiv = next.civilizations[city.owner];
     next = {

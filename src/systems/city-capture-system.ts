@@ -45,6 +45,8 @@ import {
 } from '@/systems/city-siege-system';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { isCityBreachedBy } from '@/systems/city-breach';
+import { removeNationalProjectsHostedBy } from './national-project-system';
+import { releaseRecordsOfRemovedCity } from './city-removal-records';
 
 /**
  * #988/#991: every combat capture (occupy or raze) counts toward the
@@ -455,18 +457,6 @@ function transferLegendaryWonderProjectsForCity(
   return updated;
 }
 
-function removeLegendaryWonderProjectsForCity(
-  projects: GameState['legendaryWonderProjects'],
-  cityId: string,
-): GameState['legendaryWonderProjects'] {
-  const entries = Object.entries(projects ?? {});
-  if (entries.length === 0) {
-    return projects;
-  }
-
-  return Object.fromEntries(entries.filter(([, project]) => project.cityId !== cityId));
-}
-
 function buildCaptureResult(
   beforeTerritoryState: GameState,
   territoryResult: TerritoryRecalculationResult,
@@ -558,21 +548,6 @@ export function recordCityCaptureCareerEvents(
   return out;
 }
 
-function removeNationalProjectsForCity(state: GameState, cityId: string): GameState {
-  const lost = Object.entries(state.builtNationalProjects ?? {})
-    .filter(([, record]) => record.cityId === cityId);
-  if (lost.length === 0) return state;
-  const lostBuildingIds = new Set(lost.map(([key]) => key.split(':').slice(1).join(':')));
-  const builtNationalProjects = { ...(state.builtNationalProjects ?? {}) };
-  for (const [key] of lost) delete builtNationalProjects[key];
-  const city = state.cities[cityId];
-  return {
-    ...state,
-    builtNationalProjects,
-    cities: city ? { ...state.cities, [cityId]: { ...city, buildings: city.buildings.filter(id => !lostBuildingIds.has(id)) } } : state.cities,
-  };
-}
-
 function reconquerBreakawayCity(
   state: GameState,
   ownerId: string,
@@ -628,7 +603,7 @@ export function resolveMajorCityCapture(
 
   if (forcedDisposition === 'occupy' && previousOwner?.breakaway?.originOwnerId === newOwnerId) {
     const reconquered = reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId);
-    const nextState = removeNationalProjectsForCity({
+    const nextState = removeNationalProjectsHostedBy({
       ...reconquered,
       legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
         reconquered.legendaryWonderProjects,
@@ -710,7 +685,7 @@ export function resolveMajorCityCapture(
         newOwnerId,
       ),
     };
-    const afterProjectLoss = removeNationalProjectsForCity(nextState, cityId);
+    const afterProjectLoss = removeNationalProjectsHostedBy(nextState, cityId);
     const afterAircraft = resolveAirBaseLoss(
       afterProjectLoss,
       { kind: 'city', cityId },
@@ -751,7 +726,7 @@ export function resolveMajorCityCapture(
   // or is lost (`facility-removed`), before the city record is deleted. Without this the aircraft
   // stayed based at a city that no longer existed.
   const releasedState = resolveAirBaseLoss(
-    releaseCityMaterialCommitment(state, cityId),
+    releaseRecordsOfRemovedCity(state, cityId),
     { kind: 'city', cityId },
     { kind: 'facility-removed' },
   ).state;
@@ -781,22 +756,14 @@ export function resolveMajorCityCapture(
   const nextCities = { ...releasedState.cities };
   delete nextCities[cityId];
 
-  // #591 MR4: cityFaith is keyed by cityId -- razing a city must clean it up here, the
-  // same way it does for legendaryWonderProjects above. Capture (occupy) does NOT need
-  // this: the city record persists across ownership transfer, so faith persists with it
-  // for free (see resolveMajorCityCapture's occupy branch -- no cityFaith touch there).
-  const nextCityFaith = { ...(state.cityFaith ?? {}) };
-  delete nextCityFaith[cityId];
-
   const nextState: GameState = {
     ...releasedState,
     cities: nextCities,
     civilizations: nextCivilizations,
-    cityFaith: nextCityFaith,
-    legendaryWonderProjects: removeLegendaryWonderProjectsForCity(state.legendaryWonderProjects, cityId),
   };
-  const afterProjectLoss = removeNationalProjectsForCity(nextState, cityId);
-  const withCapture = applyCaptureBookkeeping(afterProjectLoss, state, newOwnerId, previousOwnerId, cityId, city.name, turn, bus);
+  // #591 MR4: cityFaith, the wonder project and the national projects were released with the city's
+  // other records above (`releaseRecordsOfRemovedCity`); an occupied city keeps them with its record.
+  const withCapture = applyCaptureBookkeeping(nextState, state, newOwnerId, previousOwnerId, cityId, city.name, turn, bus);
   const liveness = reconcileCivilizationLiveness(state, withCapture, newOwnerId);
   const elimination = liveness.transitions.find(transition =>
     transition.kind === 'eliminated' && transition.civId === previousOwnerId);
@@ -894,7 +861,7 @@ export function transferCapturedCityOwnership(
   const releasedCity = releasedState.cities[cityId]!;
 
   if (previousOwner?.breakaway?.originOwnerId === newOwnerId) {
-    const nextState = moveForeignOccupantsOut(removeNationalProjectsForCity(
+    const nextState = moveForeignOccupantsOut(removeNationalProjectsHostedBy(
       reconquerBreakawayCity(releasedState, newOwnerId, previousOwnerId, cityId),
       cityId,
     ), cityId);
@@ -936,7 +903,7 @@ export function transferCapturedCityOwnership(
   };
   const eliminatedState = reconcileCivilizationLiveness(
     releasedState,
-    beginCityMaterialOccurrence(moveForeignOccupantsOut(removeNationalProjectsForCity(nextState, cityId), cityId), cityId),
+    beginCityMaterialOccurrence(moveForeignOccupantsOut(removeNationalProjectsHostedBy(nextState, cityId), cityId), cityId),
     newOwnerId,
   ).state;
   return cancelInvalidNetworkPlans(recalculateTerritory(eliminatedState, {
