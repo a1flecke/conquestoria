@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, Quest } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
+import { EventBus } from '@/core/event-bus';
 import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-lifecycle';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -8,6 +9,7 @@ import { assertNoIllegalBlockingOccupancy } from '../helpers/save-state-invarian
 import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
 import {
   applyQuestGameplayAction,
+  emitMinorCivQuestTransitions,
   getMinorCivRelationshipStatus,
   isMinorCivAllianceActive,
   reconcileMinorCivQuestTurn,
@@ -250,6 +252,27 @@ describe('free-unit quest reward placement', () => {
 
   const newUnits = (before: GameState, after: GameState) =>
     Object.values(after.units).filter(unit => !before.units[unit.id]);
+
+  it('a science reward that finishes the current tech announces it, as research does', () => {
+    const { state, minorCivId } = rewardState('quest-free-unit-norse');
+    const quest = state.minorCivs[minorCivId].activeQuests.player!;
+    state.minorCivs[minorCivId].activeQuests.player = { ...quest, reward: { relationshipBonus: 5, science: 50 } };
+    const techState = state.civilizations.player.techState;
+    techState.completed = techState.completed.filter(id => id !== 'gathering');
+    techState.currentResearch = 'gathering';
+    techState.researchProgress = 0;
+    const bus = new EventBus();
+    const announced: string[] = [];
+    bus.on('tech:completed', ({ civId, techId }) => { if (civId === 'player') announced.push(techId); });
+
+    const result = applyQuestGameplayAction(state, {
+      type: 'gift_gold', actorCivId: 'player', minorCivId, amount: 25, turn: state.turn,
+    });
+    emitMinorCivQuestTransitions(bus, result.transitions, result.state);
+
+    expect(result.state.civilizations.player.techState.completed).toContain('gathering');
+    expect(announced).toEqual(['gathering']);
+  });
 
   it('a Viking reward warrior carries the raiders\' +1 movement, as a trained one does', () => {
     const { state, minorCivId } = rewardState('quest-free-unit-norse');

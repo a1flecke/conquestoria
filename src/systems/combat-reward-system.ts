@@ -948,7 +948,7 @@ export function applyCombatOutcomeToState(
   }
   const beastsSlain: BeastSlainPayload[] = [];
   for (const { defeated, victor } of slayCandidates) {
-    const slay = recordBeastSlain(nextState, defeated, nextState.units[victor.id] ?? victor);
+    const slay = recordBeastSlain(nextState, defeated, nextState.units[victor.id] ?? victor, bus);
     nextState = slay.state;
     if (slay.slain) beastsSlain.push(slay.slain);
   }

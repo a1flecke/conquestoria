@@ -20,7 +20,6 @@ import type { WorldAge } from './era-types';
 import { resolveCombatEra, resolveNeutralPressureEra } from './era-resolution';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-state';
 import { applyVassalageWarConsequences } from './diplomacy-system';
-import { applyResearchBonus } from './tech-system';
 import {
   hexKey,
   mapDistance,
@@ -62,6 +61,7 @@ import {
 import { removeUnits } from '@/systems/unit-removal-system';
 import { isFertileStart } from '@/systems/start-fertility';
 import { createUnitForCiv } from './unit-trained-movement-bonus';
+import { applyResearchGain } from './tech-completion-system';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
   small: [2, 4],
@@ -254,7 +254,7 @@ export function processMinorCivTurn(
     nextState = executePurposefulMinorCivOrders(nextState, planned, bus);
     nextState = processQuests(nextState, mcId, def, bus);
     mc = nextState.minorCivs[mcId];
-    nextState = applyAllyBonuses(nextState, mc, def);
+    nextState = applyAllyBonuses(nextState, mc, def, bus);
     mc = nextState.minorCivs[mcId];
     nextState = processGarrison(nextState, mc);
     emitRelationshipThresholds(nextState, nextState.minorCivs[mcId], bus);
@@ -580,7 +580,7 @@ function processQuests(
   return nextState;
 }
 
-function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus: any }): GameState {
+function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus: any }, bus: EventBus): GameState {
   for (const civId of Object.keys(mc.diplomacy.relationships)) {
     if (!isMinorCivAllianceActive(state, civId, mc.id)) continue;
 
@@ -593,8 +593,7 @@ function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus:
         break;
       case 'science_per_turn':
         if (civ.techState.currentResearch) {
-          const bonusResult = applyResearchBonus(civ.techState, def.allyBonus.amount);
-          civ.techState = bonusResult.state;
+          state = applyResearchGain(state, civId, def.allyBonus.amount, bus);
         }
         break;
       case 'production_per_turn': {

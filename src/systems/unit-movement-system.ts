@@ -41,6 +41,7 @@ import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presenta
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 import { syncCarrierBasedAircraft } from '@/systems/air-base-state';
+import { settleTechsCompletedSince } from './tech-completion-system';
 
 export interface WonderDiscoveryResult {
   wonderId: string;
@@ -177,6 +178,8 @@ export function executeValidatedUnitMove(
     };
   }
 
+  // A village or a first natural-wonder discovery can finish a tech; it is settled below like a researched one.
+  const techsBeforeRewards = [...(nextState.civilizations[options.civId]?.techState.completed ?? [])];
   let villageOutcome: Extract<ExecuteUnitMoveResult, { ok: true }>['villageOutcome'];
   const villageAtDestination = Object.values(nextState.tribalVillages).find(village => hexKey(village.position) === hexKey(actualTo));
   if (villageAtDestination) {
@@ -251,6 +254,7 @@ export function executeValidatedUnitMove(
       isFirstDiscoverer,
     });
   }
+  nextState = settleTechsCompletedSince(techsBeforeRewards, nextState, options.civId, options.bus);
 
   return {
     ok: true,
