@@ -349,6 +349,15 @@ export function applyUnitUpgradeToState(
   };
   next.units[unitId] = applyUpgrade(next, next.units[unitId], targetType);
   if (UNIT_DEFINITIONS[targetType].airOperation) {
+    // A land unit re-equipped as an aircraft while riding a docked ship leaves the hold: the aircraft is based at this
+    // city (same tile), and a ship carries only land cargo. `next` is our own clone, so the manifest is edited in place.
+    const shipId = next.units[unitId].transportId;
+    if (shipId) {
+      const ship = next.units[shipId];
+      if (ship) next.units[shipId] = { ...ship, cargoUnitIds: (ship.cargoUnitIds ?? []).filter(id => id !== unitId) };
+      const { transportId: _leftShip, ...ashore } = next.units[unitId];
+      next.units[unitId] = ashore;
+    }
     const based = baseNewAirUnit(next, city.id, next.units[unitId]);
     if (!based.ok) return { state, upgraded: false, reason: based.reason };
     Object.assign(next, based.state);
