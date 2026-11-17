@@ -572,6 +572,7 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
   },
 
   // --- historical: an eliminated civ appearing here is an intentional record --
+  freightVoyageReceipts: { kind: 'historical', why: '#1125: a settled crossing records the parties at the time of the voyage and creates no ongoing obligations.' },
   discoveredWonders: { kind: 'historical', why: '"civ X was the first to discover wonder Y" — a permanent chronicle fact' },
   wonderDiscoverers: { kind: 'historical', why: '"civ X discovered wonder Y" — permanent, even after X is gone' },
   completedLegendaryWonders: { kind: 'historical', why: '"civ X built legendary wonder Z on turn T" — a Hall-of-Fame record' },

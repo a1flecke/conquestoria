@@ -261,6 +261,42 @@ export interface ResourceManifestItem {
   serviceTurns?: number;
 }
 
+export interface FreightVoyagePort {
+  cityId: string;
+  ownerCivId: string;
+  regionKey?: string;
+}
+
+/** One authorized entry and its required exit. A completed crossing is retained until settlement. */
+export interface FreightVoyageCrossing {
+  passageId: string;
+  passageOwnerCivId: string;
+  passageHex: string;
+  exitHex: string;
+  crossed: boolean;
+}
+
+export interface FreightVoyageInTransit {
+  supplier: FreightVoyagePort;
+  home: FreightVoyagePort;
+  crossing?: FreightVoyageCrossing;
+}
+
+/** Historical evidence for one manifest issuance that reached its intended home. */
+export interface FreightVoyageReceipt {
+  routeId: string;
+  carrierUnitId: string;
+  buyerCivId: string;
+  operatorCivId: string;
+  supplier: FreightVoyagePort;
+  home: FreightVoyagePort;
+  passageId: string;
+  passageOwnerCivId: string;
+  purchaseTurn: number;
+  completedRound: number;
+  stock: readonly { goodId: TradeGoodId; quantity: number }[];
+}
+
 /** A route's persisted, owned cargo. It is created at supplier loading and cleared at home delivery. */
 export interface ResourceManifest {
   ownerCivId: string;
@@ -269,6 +305,8 @@ export interface ResourceManifest {
   destinationCityId: string;
   purchaseTurn: number;
   items: readonly ResourceManifestItem[];
+  /** Optional provenance from loading a freight hull with stock. Older cargo settles without it. */
+  freightVoyage?: FreightVoyageInTransit;
 }
 
 /**
