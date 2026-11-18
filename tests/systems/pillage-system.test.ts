@@ -6,6 +6,8 @@ import {
   canPillageTile,
   getPillageGoldReward,
   GOLD_PER_PILLAGE_BUILD_TURN,
+  isPillageWarSatisfied,
+  PILLAGE_BLOCKER_MESSAGES,
 } from '@/systems/pillage-system';
 import type { GameEvents, GameState, HexTile } from '@/core/types';
 
@@ -47,7 +49,7 @@ function makePillageState(tileOverrides: Partial<HexTile> = {}): GameState {
         gold: 10,
         visibility: { tiles: {} },
         score: 0,
-        diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 1 } },
+        diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: ['ai-1'], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 1 } },
       },
       'ai-1': {
         id: 'ai-1', name: 'AI', color: '#d94a4a', isHuman: false, civType: 'egypt',
@@ -56,7 +58,7 @@ function makePillageState(tileOverrides: Partial<HexTile> = {}): GameState {
         gold: 0,
         visibility: { tiles: {} },
         score: 0,
-        diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 1 } },
+        diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: ['player'], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 1 } },
       },
     },
   } as unknown as GameState;
@@ -249,6 +251,56 @@ describe('pillage-system', () => {
       const state = makePillageState({ improvement: 'farm', owner: 'ai-1' });
       const result = applyPillageToState(state, 'raider');
       expect(result.ok).toBe(true);
+    });
+  });
+
+  describe('pillaging needs a war with the owner of the land (#1755)', () => {
+    function atPeace(tileOwner: string | null): GameState {
+      const state = makePillageState({ owner: tileOwner });
+      state.civilizations.player.diplomacy.atWarWith = [];
+      state.civilizations['ai-1'].diplomacy.atWarWith = [];
+      return state;
+    }
+
+    it('refuses to burn a peaceful civilization\'s land and changes nothing', () => {
+      const state = atPeace('ai-1');
+      const result = applyPillageToState(state, 'raider');
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('not-at-war');
+      expect(result.state).toBe(state);
+      expect(state.map.tiles['1,0'].improvement).toBe('farm');
+      expect(PILLAGE_BLOCKER_MESSAGES['not-at-war']).toMatch(/at war/);
+    });
+
+    it('allows the same pillage once the two are at war', () => {
+      expect(applyPillageToState(makePillageState({ owner: 'ai-1' }), 'raider').ok).toBe(true);
+    });
+
+    it('treats a city-state like a civilization: war first, then pillage', () => {
+      const peaceful = atPeace('mc-sparta');
+      expect(applyPillageToState(peaceful, 'raider').reason).toBe('not-at-war');
+      const atWar = atPeace('mc-sparta');
+      atWar.civilizations.player.diplomacy.atWarWith = ['mc-sparta'];
+      expect(applyPillageToState(atWar, 'raider').ok).toBe(true);
+    });
+
+    it('lets anyone burn land nobody holds or a world actor holds', () => {
+      expect(applyPillageToState(atPeace(null), 'raider').ok).toBe(true);
+      expect(applyPillageToState(atPeace('barbarian'), 'raider').ok).toBe(true);
+      expect(applyPillageToState(atPeace('pirate-1'), 'raider').ok).toBe(true);
+    });
+
+    it('lets a world actor without a civilization pillage anyone\'s land', () => {
+      const state = atPeace('ai-1');
+      state.units.raider = { ...state.units.raider, owner: 'barbarian' };
+      expect(isPillageWarSatisfied(state, 'barbarian', 'ai-1')).toBe(true);
+      expect(applyPillageToState(state, 'raider').ok).toBe(true);
+    });
+
+    it('a vassal\'s war state is the same read: no war, no pillage', () => {
+      const state = atPeace('ai-1');
+      state.civilizations.player.diplomacy.vassalage.overlord = 'ai-1';
+      expect(applyPillageToState(state, 'raider').reason).toBe('not-at-war');
     });
   });
 });

@@ -3,6 +3,8 @@ import type { EventBus } from '@/core/event-bus';
 import { IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { hexKey } from '@/systems/hex-utils';
+import { classifyOwner } from '@/core/owner-kind';
+import { isAtWar } from '@/systems/diplomacy-queries';
 
 /** Deliberately flat, non-era-scaled — matches calculateDefeatReward's baseGold
  * convention (combat-reward-system.ts). Subject to the pacing-audit gate, not
@@ -34,13 +36,40 @@ export function canPillageTile(tile: HexTile | undefined, unitOwner: string): bo
   return hasFinishedImprovement || Boolean(tile.hasRoad);
 }
 
+/**
+ * #1755 (P1): is war the only thing standing between this unit and this land? Unclaimed land and land held by a
+ * world actor (barbarians, pirates, rebels, beasts) is always fair game, and a world-actor pillager has no
+ * civilization to be at war with. Land held by a civilization or a city-state needs a standing war with its owner:
+ * the player's handler declares it first (as attacking a city already does), the AI only pillages civs it is already
+ * at war with, and the executor re-checks so no path can burn a peaceful neighbour's land for gold.
+ */
+export function isPillageWarSatisfied(state: GameState, unitOwner: string, tileOwner: string | null): boolean {
+  if (tileOwner === null || tileOwner === unitOwner) return true;
+  const kind = classifyOwner(tileOwner);
+  if (kind !== 'major' && kind !== 'minor') return true;
+  const pillager = state.civilizations[unitOwner];
+  if (!pillager) return true;
+  return isAtWar(pillager.diplomacy, tileOwner);
+}
+
 export type PillageBlockerReason =
+  | 'not-at-war'
   | 'missing-unit'
   | 'no-strength'
   | 'already-acted'
   | 'missing-tile'
   | 'own-tile'
   | 'nothing-to-pillage';
+
+export const PILLAGE_BLOCKER_MESSAGES: Record<PillageBlockerReason, string> = {
+  'not-at-war': 'You are not at war with the owner of this land, so it cannot be pillaged.',
+  'missing-unit': 'That unit no longer exists.',
+  'no-strength': 'Only units that can fight can pillage.',
+  'already-acted': 'This unit has already acted this turn.',
+  'missing-tile': 'There is nothing to pillage here.',
+  'own-tile': 'You cannot pillage your own land.',
+  'nothing-to-pillage': 'There is no improvement or road here to pillage.',
+};
 
 export interface PillageResult {
   ok: boolean;
@@ -71,6 +100,7 @@ export function applyPillageToState(state: GameState, unitId: string, bus?: Even
   const tile = state.map.tiles[tileKey];
   if (!tile) return { ok: false, state, reason: 'missing-tile' };
   if (tile.owner === unit.owner) return { ok: false, state, reason: 'own-tile' };
+  if (!isPillageWarSatisfied(state, unit.owner, tile.owner)) return { ok: false, state, reason: 'not-at-war' };
 
   const hasFinishedImprovement = tile.improvement !== 'none' && tile.improvementTurnsLeft === 0;
   const hasRoad = Boolean(tile.hasRoad);

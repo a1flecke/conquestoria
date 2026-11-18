@@ -1,4 +1,5 @@
 import type { BreakawayMetadata, Civilization, GameState } from '@/core/types';
+import { transferLegendaryWondersForCity } from './legendary-wonder-ownership';
 import { EventBus } from '@/core/event-bus';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
@@ -176,7 +177,7 @@ export function createBreakawayFromCity(
 
   // The city's national projects leave the old owner with it, exactly as on a capture.
   const withLoyalSpiesOut = moveLoyalSpiesOffCity(
-    removeNationalProjectsHostedBy(beginCityMaterialOccurrence(nextState, cityId), cityId),
+    removeNationalProjectsHostedBy(transferLegendaryWondersForCity(beginCityMaterialOccurrence(nextState, cityId), cityId, breakawayId), cityId),
     cityId,
     previousOwner.id,
   );

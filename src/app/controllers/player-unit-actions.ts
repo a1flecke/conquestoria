@@ -10,7 +10,9 @@ import { preach } from '@/systems/religion-system';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { canHeal, restUnit } from '@/systems/unit-healing';
-import { isMajorCivOwner } from '@/core/owner-kind';
+import { classifyOwner, isMajorCivOwner } from '@/core/owner-kind';
+import { setMinorCivWarState } from '@/systems/minor-civ-actions';
+import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { declareMajorWar } from '@/systems/diplomacy-system';
 import { resolveOpponentKind } from '@/systems/diplomacy-war';
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
@@ -128,6 +130,16 @@ export function createPlayerUnitActions(deps: PlayerActionControllerDeps): Playe
   }
 
   function ensurePlayerWarState(targetCivId: string): void {
+    // #1755 (P1): a city-state's land needs the same war an attack on its city does (`confirmWarOnMinorCiv`).
+    // A refusal (a vassal's overlord controls war) leaves the state at peace, and the pillage executor then
+    // refuses with `not-at-war`.
+    if (classifyOwner(targetCivId) === 'minor') {
+      const war = setMinorCivWarState(deps.session.getState(), deps.session.getState().currentPlayer, targetCivId, true, deps.bus);
+      if (!war.ok) return;
+      deps.session.commit(war.state);
+      emitMinorCivQuestTransitions(deps.bus, war.transitions, deps.session.getState());
+      return;
+    }
     const targetCiv = deps.session.getState().civilizations[targetCivId];
     if (!targetCiv || !isMajorCivOwner(targetCivId)) return;
 
