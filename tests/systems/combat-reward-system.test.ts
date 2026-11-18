@@ -1100,6 +1100,31 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.units.attacker.health).toBe(30);
   });
 
+  it('a defeated unescorted Great General dies; it is never captured into the enemy army', () => {
+    const state = makeRewardState();
+    state.units.defender = {
+      ...state.units.defender, type: 'great_general', owner: 'ai-1', generalDefinitionId: 'gen_universal_1',
+    } as any;
+    state.civilizations['ai-1'].units = ['defender'];
+    state.civilizations['ai-1'].generalHistory = [
+      { unitId: 'defender', generalDefinitionId: 'gen_universal_1', recruitedTurn: 1, events: [] } as any,
+    ];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 0,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.state.units.defender).toBeUndefined();
+    expect(applied.state.civilizations.player.units).not.toContain('defender');
+    expect(applied.state.civilizations['ai-1'].generalHistory?.[0]).toMatchObject({ diedTurn: state.turn });
+  });
+
   it('captures an unescorted worker instead of destroying it, transferring civ.units[] both ways', () => {
     const state = makeRewardState();
     state.units.defender = { ...state.units.defender, type: 'worker', owner: 'ai-1' };
