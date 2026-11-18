@@ -41,7 +41,6 @@ interface AdvisorMessage {
   trigger: (state: GameState) => boolean;
   /** If set, maps to a tutorial step (for backward compat) */
   tutorialStep?: TutorialStep;
-  viewerScoped?: boolean;
 }
 
 const ADVISOR_MESSAGES: AdvisorMessage[] = [
@@ -117,9 +116,9 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     tutorialStep: 'complete',
   },
   {
-    // #544 MR2: first-time supply tutorial. Not `viewerScoped` -- matches
-    // every other tutorial-tagged entry above, all of which share one
-    // session-wide `shownIds` set rather than a per-viewer one. In hot-seat,
+    // #544 MR2: first-time supply tutorial. Like every other tutorial-tagged
+    // entry, it is keyed session-wide in `shownIds` (non-tutorial advice is
+    // keyed per viewing seat). In hot-seat,
     // this means the first human player to trigger it "spends" it for every
     // player sharing the session, the same pre-existing characteristic
     // 'welcome'/'found_city'/etc. already have; not a regression this entry
@@ -163,7 +162,6 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'warchief',
     icon: '⚔️',
     message: 'One of our units is badly wounded near an active General. Last Stand could hold the line if the position matters.',
-    viewerScoped: true,
     trigger: (state) => {
       const civ = state.civilizations[state.currentPlayer];
       if (!civ) return false;
@@ -189,7 +187,6 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'warchief',
     icon: '☠',
     message: 'Organized pirates have been reported at sea. Escort valuable shipping and investigate Pirate Waters before raids escalate.',
-    viewerScoped: true,
     trigger: (state) => getPirateWatersPresentation(state, state.currentPlayer).factions.length > 0,
   },
   {
@@ -197,7 +194,6 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'treasurer',
     icon: '💰',
     message: 'A pirate tribute demand exceeds our treasury. Protect coastal income while we gather enough gold or prepare to break the threat.',
-    viewerScoped: true,
     trigger: (state) => getPirateWatersPresentation(state, state.currentPlayer).factions.some(entry => {
       const faction = state.pirates?.factions[entry.factionId];
       if (!faction?.demandByCiv[state.currentPlayer]) return false;
@@ -299,7 +295,6 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
   {
     id: 'chancellor_vassalage_available',
     advisor: 'chancellor',
-    viewerScoped: true,
     icon: '🎩',
     message: 'You have a vassalage offer. Review the tribute income and protection promise in Diplomacy before deciding.',
     trigger: state => (state.pendingDiplomacyRequests ?? []).some(r => r.type === 'treaty' && r.treatyType === 'vassalage'
@@ -309,7 +304,6 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
   {
     id: 'chancellor_under_threat_vassalage',
     advisor: 'chancellor',
-    viewerScoped: true,
     icon: '🎩',
     message: 'We can offer vassalage for protection. It costs 25% tribute and independent war and treaty choices. Compare neighbors in Diplomacy.',
     trigger: state => Object.keys(state.civilizations).some(id => getVassalageEligibility(state, state.currentPlayer, id).ok),
@@ -589,7 +583,6 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     id: 'chancellor_city_state_compact',
     advisor: 'chancellor',
     icon: '🤝',
-    viewerScoped: true,
     message: 'A known city-state belongs to a regional compact. Discovery reveals its charter, while each city-state keeps its own friendships and war decisions.',
     trigger: (state) => getMinorCivLeaguesForPlayer(state, state.currentPlayer).length > 0,
   },
@@ -772,6 +765,10 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
   },
 ];
 
+function viewerShownKey(viewerId: string, messageId: string): string {
+  return `${viewerId}:${messageId}`;
+}
+
 export class AdvisorSystem {
   private bus: EventBus;
   private shownIds = new Set<string>();
@@ -785,7 +782,10 @@ export class AdvisorSystem {
     let emittedMessage = false;
 
     for (const msg of ADVISOR_MESSAGES) {
-      const shownKey = msg.viewerScoped ? `${state.currentPlayer}:${msg.id}` : msg.id;
+      // A tutorial step is a session-wide reminder (see supply_intro). Every other message is advice about the
+      // viewing seat's own empire, so in hot seat each seat gets it once: a warning one seat saw must still reach
+      // the next seat whose city revolts.
+      const shownKey = msg.tutorialStep ? msg.id : viewerShownKey(state.currentPlayer, msg.id);
       if (this.shownIds.has(shownKey)) continue;
 
       // Skip tutorial messages if tutorial is completed or disabled
@@ -851,8 +851,12 @@ export class AdvisorSystem {
     });
   }
 
+  /** Lets a message fire again, for every seat. */
   resetMessage(id: string): void {
     this.shownIds.delete(id);
+    for (const key of [...this.shownIds]) {
+      if (key.endsWith(`:${id}`)) this.shownIds.delete(key);
+    }
   }
 
   private hasAdvisorsEnabled(state: GameState): boolean {

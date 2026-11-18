@@ -1147,3 +1147,42 @@ describe('War Chief border warning names only enemies the viewer can see', () =>
     })).toEqual([]);
   });
 });
+
+describe('hot seat: an advisor warning about one seat\'s own empire reaches each seat', () => {
+  it('a second human whose city revolts is warned even after the first seat was', () => {
+    const state = makeState();
+    state.turn = 20;
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
+    state.civilizations['ai-1'].isHuman = true;
+    const settlerA = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
+    const settlerB = Object.values(state.units).find(u => u.owner === 'ai-1' && u.type === 'settler')!;
+    const cityA = foundCity('player', settlerA.position, state.map, state.idCounters);
+    const cityB = foundCity('ai-1', settlerB.position, state.map, state.idCounters);
+    state.cities[cityA.id] = { ...cityA, unrestLevel: 2 };
+    state.cities[cityB.id] = { ...cityB, unrestLevel: 2 };
+    state.civilizations.player.cities = [cityA.id];
+    state.civilizations['ai-1'].cities = [cityB.id];
+
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const seen: Array<{ seat: string; message: string }> = [];
+    let seat = 'player';
+    bus.on('advisor:message', message => seen.push({ seat, message: message.message }));
+
+    const revoltFor = (who: string) => seen.filter(entry => entry.seat === who && entry.message.includes('open revolt'));
+    for (let i = 0; i < 12 && revoltFor('player').length === 0; i++) advisor.check({ ...state, currentPlayer: 'player' });
+    seat = 'ai-1';
+    for (let i = 0; i < 12 && revoltFor('ai-1').length === 0; i++) advisor.check({ ...state, currentPlayer: 'ai-1' });
+
+    expect(revoltFor('player')).toHaveLength(1);
+    expect(revoltFor('ai-1')).toHaveLength(1);
+
+    // Once shown, it stays quiet for that seat until it is reset, and a reset re-arms it.
+    for (let i = 0; i < 12; i++) advisor.check({ ...state, currentPlayer: 'ai-1' });
+    expect(revoltFor('ai-1')).toHaveLength(1);
+    advisor.resetMessage('chancellor_revolt_warning');
+    for (let i = 0; i < 12 && revoltFor('ai-1').length < 2; i++) advisor.check({ ...state, currentPlayer: 'ai-1' });
+    expect(revoltFor('ai-1')).toHaveLength(2);
+  });
+});
