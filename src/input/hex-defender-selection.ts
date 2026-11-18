@@ -24,7 +24,8 @@ export function visibleHostileUnitEntriesAtKey(state: GameState, key: string): A
 }
 
 export function selectDefenderEntryAtKey(state: GameState, key: string): [string, Unit] | undefined {
-  const hostileEntries = visibleHostileUnitEntriesAtKey(state, key);
+  // Cargo aboard a ship never defends its tile; the hull does (the same rule `canUnitAttackTarget` applies).
+  const hostileEntries = visibleHostileUnitEntriesAtKey(state, key).filter(([, unit]) => !unit.transportId);
   const defender = selectDefenderForAttack(hostileEntries.map(([, unit]) => unit), state.map);
   if (!defender) return undefined;
   return hostileEntries.find(([id]) => id === defender.id);

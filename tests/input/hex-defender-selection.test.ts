@@ -5,6 +5,7 @@ import { hexKey } from '@/systems/hex-utils';
 import {
   visibleUnitEntriesAtKey,
   visibleHostileUnitEntriesAtKey,
+  selectDefenderEntryAtKey,
 } from '@/input/hex-defender-selection';
 import type { GameState, HexCoord, Unit, UnitType } from '@/core/types';
 
@@ -58,5 +59,21 @@ describe('visibleUnitEntriesAtKey / visibleHostileUnitEntriesAtKey', () => {
     const entries = visibleUnitEntriesAtKey(state, hexKey(sub.position));
 
     expect(entries.some(([id]) => id === sub.id)).toBe(true);
+  });
+});
+
+describe('selectDefenderEntryAtKey', () => {
+  it('names a loaded enemy transport, not the troops aboard, as the defender of its tile', () => {
+    const state = setup();
+    state.currentPlayer = 'player';
+    const at = { q: 0, r: 0 };
+    setTerrain(state, at, 'ocean');
+    state.civilizations.player.visibility.tiles[hexKey(at)] = 'visible';
+    const hull = placeUnit(state, 'ai-1', 'transport', at);
+    const rider = placeUnit(state, 'ai-1', 'musketeer', at);
+    state.units[hull.id] = { ...hull, cargoUnitIds: [rider.id] };
+    state.units[rider.id] = { ...rider, transportId: hull.id };
+
+    expect(selectDefenderEntryAtKey(state, hexKey(at))?.[0]).toBe(hull.id);
   });
 });

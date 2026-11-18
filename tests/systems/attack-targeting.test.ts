@@ -517,3 +517,30 @@ describe('#1219 resolveUnitVsUnitAttack — the one "may A fight THIS unit B now
     expect(resolveUnitVsUnitAttack(state, attacker, defender, { viewerId: 'player' }).ok).toBe(true);
   });
 });
+
+describe('a loaded transport is defended by its hull, never by its cargo', () => {
+  function loadedTransportAt(position: HexCoord) {
+    const transport = { ...unit('hull', 'transport', 'ai-1', position), cargoUnitIds: ['rider'] };
+    const rider = { ...unit('rider', 'musketeer', 'ai-1', position), transportId: 'hull' };
+    return { hull: transport, rider };
+  }
+
+  it('a warship attacking the transport fights the transport, not the musketeer aboard', () => {
+    const attacker = unit('attacker', 'trireme', 'player', { q: 0, r: 0 });
+    const { hull, rider } = loadedTransportAt({ q: 1, r: 0 });
+    const state = stateWithUnits({ attacker, hull, rider }, { '1,0': 'visible' });
+
+    const result = canUnitAttackTarget(state, attacker, { q: 1, r: 0 }, { viewerId: 'player' });
+    expect(result).toMatchObject({ ok: true, targetType: 'unit', targetUnitId: 'hull' });
+    expect(resolveUnitVsUnitAttack(state, attacker, rider, { viewerId: 'player' })).toEqual({ ok: false, reason: 'not-the-defender' });
+  });
+
+  it('a land melee unit on the shore cannot attack a transport at sea through its cargo', () => {
+    const attacker = unit('attacker', 'swordsman', 'player', { q: 0, r: 0 });
+    const { hull, rider } = loadedTransportAt({ q: 1, r: 0 });
+    const state = stateWithUnits({ attacker, hull, rider }, { '1,0': 'visible' });
+
+    expect(canUnitAttackTarget(state, attacker, { q: 1, r: 0 }, { viewerId: 'player' })).toEqual({ ok: false, reason: 'unsupported-target' });
+    expect(getAttackTargets(state, attacker, { viewerId: 'player' })).toEqual([]);
+  });
+});

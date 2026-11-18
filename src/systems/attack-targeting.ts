@@ -79,8 +79,11 @@ function canAttackOwner(state: GameState, attackerOwner: string, targetOwner: st
 
 function unitAt(state: GameState, attacker: Unit, coord: HexCoord): [string, Unit] | null {
   const targetKey = hexKey(coord);
+  // Cargo aboard a ship and aircraft based at a field are not map units: the hull or the host defends the
+  // tile. Counting a land rider made it the defender of a transport (a strength-0 hull never outranks it),
+  // so a land melee unit could attack a ship at sea, and a warship fought the troops instead of the hull.
   const defenders = Object.values(state.units).filter(unit =>
-    unit.id !== attacker.id && !isBasedAirUnit(unit) && hexKey(unit.position) === targetKey,
+    unit.id !== attacker.id && !isBasedAirUnit(unit) && !unit.transportId && hexKey(unit.position) === targetKey,
   );
   const defender = selectDefenderForAttack(defenders, state.map);
   return defender ? [defender.id, defender] : null;
