@@ -3,6 +3,7 @@ import type { HexCoord } from '@/core/types/hex';
 import { hexKey, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { isPassableForParams, movementStepCostParamsForType } from './unit-movement-cost';
 import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
+import { isCityCoastal } from './city-lifecycle';
 import { buildUnitOccupancy, getUnitIdsAtCoord, type UnitOccupancyIndex } from './unit-occupancy';
 
 /**
@@ -168,7 +169,7 @@ export function findSpyReturnTile(
 /**
  * Does `unit` stand on terrain its type can enter? The movement step-cost model decides (no land
  * unit on water, no coast-only hull on open ocean), for every owner, pirates included.
- * Ships in their own ports and traders inside a freight passage can remain on land tiles. A trader
+ * Ships in their own coastal ports and traders inside a freight passage can remain on land tiles. A trader
  * retains a legal position after the channel closes so it can sail out on a later turn. Cargo
  * aboard a ship and based aircraft are not on the map; callers skip them.
  */
@@ -182,5 +183,9 @@ export function isUnitOnEnterableTerrain(
   const params = movementStepCostParamsForType(unit.type);
   if (isPassableForParams(params, tile.terrain) || (tile.freightPassage && params.freightHull)) return true;
   if (params.domain !== 'naval') return false;
-  return Object.values(state.cities).some(city => city.owner === unit.owner && hexKey(city.position) === key);
+  // "In port" means a genuinely coastal city. A landlocked owned city is not a harbour;
+  // leaving that open let a coastline-only hull sit in an inland city without failing the
+  // terrain invariant (#1725).
+  return Object.values(state.cities).some(city =>
+    city.owner === unit.owner && hexKey(city.position) === key && isCityCoastal(city, state.map));
 }

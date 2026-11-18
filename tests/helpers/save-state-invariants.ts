@@ -4,7 +4,8 @@ import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getBlockingMapEntityAt } from '@/systems/unit-movement-legality';
 import { isUnitOnEnterableTerrain } from '@/systems/unit-spawn-placement';
-import { hexKey } from '@/systems/hex-utils';
+import { isPassableForParams, movementStepCostParamsForType } from '@/systems/unit-movement-cost';
+import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/systems/transport-system';
 import { isBasedAirUnit } from '@/systems/air-base-state';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
@@ -775,10 +776,11 @@ export function assertNoIllegalBlockingOccupancy(state: GameState): void {
  * ocean, pirates included. Cargo aboard a ship and based aircraft are not map units and are skipped,
  * as for occupancy.
  *
- * One state is deliberately tolerated: a land unit on water. The game has a designed recovery for
- * it (#447, `unit-water-recovery.ts`): the unit stays selectable and is guided to an amber land
- * tile, so an older save that holds one plays on. The spawn paths that used to produce it are
- * guarded where units are created (`unit-spawn-placement.ts` and the createUnit pin in
+ * One state is deliberately tolerated: a land unit on water **beside land**. The game has a
+ * designed recovery for it (#447, `unit-water-recovery.ts`): the unit stays selectable and is
+ * guided to an amber land tile, so an older save that holds one plays on. A land unit in open
+ * water with no adjacent land is corruption and fails here; the spawn paths that used to produce
+ * it are guarded where units are created (`unit-spawn-placement.ts` and the createUnit pin in
  * `architecture-boundaries.test.ts`), not here.
  */
 export function assertUnitsOnEnterableTerrain(state: GameState): void {
@@ -787,9 +789,21 @@ export function assertUnitsOnEnterableTerrain(state: GameState): void {
     if (unit.transportId || isBasedAirUnit(unit)) continue;
     if (isUnitOnEnterableTerrain(state, unit)) continue;
     const terrain = state.map.tiles[hexKey(unit.position)]?.terrain ?? 'no tile';
-    const recoverableLandUnit = (UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'land'
+    // #1725: #447 only warrants a land unit on water while it can actually get ashore.
+    // A land unit in open water with no adjacent land is corruption, not a recoverable state.
+    const landOnWater = (UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'land'
       && (terrain === 'coast' || terrain === 'ocean');
-    if (recoverableLandUnit) continue;
+    if (landOnWater) {
+      const params = movementStepCostParamsForType(unit.type);
+      const hasLandEscape = hexNeighbors(unit.position).some(coord => {
+        const neighbourTerrain = state.map.tiles[hexKey(coord)]?.terrain;
+        return neighbourTerrain !== undefined
+          && neighbourTerrain !== 'coast'
+          && neighbourTerrain !== 'ocean'
+          && isPassableForParams(params, neighbourTerrain);
+      });
+      if (hasLandEscape) continue;
+    }
     problems.push(`unit "${unitId}" (${unit.owner} ${unit.type}) stands on ${terrain} at (${unit.position.q},${unit.position.r}), which it cannot enter`);
   }
   if (problems.length > 0) throw new InvariantError(`units-on-enterable-terrain invariant violated:\n  - ${problems.join('\n  - ')}`);

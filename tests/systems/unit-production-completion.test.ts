@@ -64,6 +64,14 @@ function fixtureFor(type: UnitType, seed = 'unit-lifecycle'): Fixture {
   if (definition.airOperation) {
     state.cities[cityId].buildings.push(definition.airOperation.baseKinds[0]);
   }
+  if (definition.domain === 'naval') {
+    // #1725: a hull needs a genuinely coastal port; make this fixture city one.
+    const city = state.cities[cityId];
+    const neighbour = mapNeighbors(state.map, city.position).find(coord => state.map.tiles[hexKey(coord)]);
+    if (neighbour) {
+      state.map.tiles[hexKey(neighbour)] = { ...state.map.tiles[hexKey(neighbour)]!, terrain: 'coast' };
+    }
+  }
   state.espionage = { ...(state.espionage ?? {}), [civId]: { ...createEspionageCivState(), maxSpies: 50 } };
   return { state, civId, cityId };
 }

@@ -110,6 +110,30 @@ describe('Stampede state', () => {
     expect(herd.filter(unit => structures.has(hexKey(unit.position)))).toEqual([]);
   });
 
+  // #1725: the candidate filter must see neighbours across the horizontal seam.
+  it('spawns herds on wrapped neighbours across the seam', () => {
+    const state = createNewGame('rome', 'stampede-wrap', 'small');
+    const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities = { [city.id]: city };
+    state.civilizations.player.cities = [city.id];
+    state.map.wrapsHorizontally = true;
+    const wrappedQ = state.map.width - 1;
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'ocean';
+    const wrapped = mapNeighbors(state.map, city.position).filter(position => position.q === wrappedQ).slice(0, 2);
+    expect(wrapped).toHaveLength(2);
+    for (const position of wrapped) {
+      state.map.tiles[hexKey(position)] = { ...state.map.tiles[hexKey(position)]!, terrain: 'plains' };
+    }
+    state.units = {};
+    for (const civ of Object.values(state.civilizations)) civ.units = [];
+
+    const next = startStampedeWarning(state, 'player', 'explorer');
+
+    const herd = Object.values(next.units).filter(unit => unit.owner === 'crisis-force');
+    expect(herd).toHaveLength(2);
+    expect(herd.every(unit => unit.position.q === wrappedQ)).toBe(true);
+  });
+
   it('uses a later eligible target city when the first city has no legal herd spawns', () => {
     const state = createNewGame('rome', 'stampede-later-city', 'small');
     const first = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
