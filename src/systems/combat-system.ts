@@ -10,7 +10,8 @@ import type {
 } from '@/core/types';
 import type { CombatExchangeKind, CombatModifierFact } from '@/core/types/combat';
 import { getRogueElephantCommandFact } from '@/systems/world-actor-queries';
-import { hexDistance, hexKey } from './hex-utils';
+import { hexDistance, hexKey, mapDistance } from './hex-utils';
+import { isUnitConcealedFrom } from './concealment';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getWonderCombatBonus } from './wonder-system';
 import { getVeterancyCombatModifier } from './veterancy-tiers';
@@ -40,8 +41,11 @@ export function resolveBoundedSplash(
       && !candidate.transportId
       && isMilitaryUnitType(candidate.type)
       && isHostileOwnerTo(state, attacker.owner, candidate.owner)
-      && hexDistance(defender.position, candidate.position) === 1
-      && isVisible(visibility, candidate.position))
+      && mapDistance(state.map, defender.position, candidate.position) === 1
+      && isVisible(visibility, candidate.position)
+      // Splash obeys the one concealment answer every targeting consumer uses: it never strikes (and so reveals) a
+      // unit the attacker could not target directly, such as an undetected submarine.
+      && !isUnitConcealedFrom(state as GameState, candidate, attacker.owner))
     .sort((left, right) => left.id.localeCompare(right.id))
     .slice(0, splash.maxTargets)
     .map(candidate => ({ unitId: candidate.id, damage }));
