@@ -115,4 +115,21 @@ describe('resolveCoastalBatteryCounterfire', () => {
     expect(result.state.units.jet).toBeUndefined();
     expect(result.state.civilizations['ai-1'].units).toEqual([]);
   });
+
+  it('a gene-therapy-ready attacker survives the Battery\'s lethal answer at 1 HP', () => {
+    const state = makeState();
+    state.units.frigate = {
+      id: 'frigate', type: 'frigate', owner: 'ai-1', position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 3, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+      geneTherapyReady: true,
+    } as GameState['units'][string];
+    state.civilizations = { 'ai-1': { id: 'ai-1', units: ['frigate'] } } as unknown as GameState['civilizations'];
+
+    const result = resolveCoastalBatteryCounterfire(state, {
+      cityId: 'port', attackerUnitId: 'frigate', attackerDomain: 'naval', cityDamage: 40, source: 'ai',
+    });
+
+    expect(result.event?.attackerDied).toBe(false);
+    expect(result.state.units.frigate).toMatchObject({ health: 1, geneTherapyReady: false });
+  });
 });

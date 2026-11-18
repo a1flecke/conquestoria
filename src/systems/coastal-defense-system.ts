@@ -1,5 +1,6 @@
 import type { GameState } from '@/core/types';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { surviveLethalHitWithGeneTherapy } from '@/systems/gene-therapy-system';
 
 export type CoastalBatterySource = 'player' | 'ai' | 'barbarian' | 'pirate';
 
@@ -54,10 +55,12 @@ export function resolveCoastalBatteryCounterfire(
   // damaging hit and must consume this turn's single Battery reaction.
   if (damage <= 0) return { state: { ...state, cities }, damage: 0 };
 
-  const attackerDied = attacker.health <= damage;
+  const lethal = attacker.health <= damage;
+  const geneTherapySurvivor = lethal ? surviveLethalHitWithGeneTherapy(attacker) : null;
+  const attackerDied = lethal && !geneTherapySurvivor;
   const nextState: GameState = attackerDied
     ? removeUnits({ ...state, cities }, [attacker.id], { reason: 'destroyed' }).state
-    : { ...state, cities, units: { ...state.units, [attacker.id]: { ...attacker, health: attacker.health - damage } } };
+    : { ...state, cities, units: { ...state.units, [attacker.id]: geneTherapySurvivor ?? { ...attacker, health: attacker.health - damage } } };
 
   return {
     state: nextState,

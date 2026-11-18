@@ -12,6 +12,7 @@ import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getOwnedCityCount } from './city-ownership';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { getVisibility, isVisible } from './fog-of-war';
+import { surviveLethalHitWithGeneTherapy } from '@/systems/gene-therapy-system';
 
 export interface PirateActionQuote {
   available: boolean;
@@ -423,7 +424,9 @@ export function getEnclaveAssaultPreview(state: GameState, factionId: string, un
     damageToHeadquarters,
     counterfireDamage,
     integrityAfter: Math.max(0, faction.headquarters.integrity - damageToHeadquarters),
-    attackerHealthAfter: Math.max(0, unit.health - counterfireDamage),
+    attackerHealthAfter: unit.health - counterfireDamage > 0 || !unit.geneTherapyReady
+      ? Math.max(0, unit.health - counterfireDamage)
+      : 1,
     bounty: getPirateBounty(faction.behavior, faction.maritimeStage),
   };
 }
@@ -521,12 +524,15 @@ export function assaultPirateEnclave(state: GameState, factionId: string, unitId
   if (headquarters.kind !== 'coastal-enclave') return failure(state, 'This faction has no coastal enclave.');
   const attacker = state.units[unitId];
   const attackerHealth = Math.max(0, attacker.health - preview.counterfireDamage);
+  const geneTherapySurvivor = attackerHealth <= 0 ? surviveLethalHitWithGeneTherapy(attacker) : null;
   const nextHeadquarters = { ...headquarters, integrity: preview.integrityAfter };
   let nextState: GameState = {
     ...state,
-    units: attackerHealth > 0
-      ? { ...state.units, [unitId]: { ...attacker, health: attackerHealth, movementPointsLeft: 0, hasMoved: true, hasActed: true } }
-      : state.units,
+    units: geneTherapySurvivor
+      ? { ...state.units, [unitId]: geneTherapySurvivor }
+      : attackerHealth > 0
+        ? { ...state.units, [unitId]: { ...attacker, health: attackerHealth, movementPointsLeft: 0, hasMoved: true, hasActed: true } }
+        : state.units,
     pirates: {
       ...state.pirates!,
       factions: {
@@ -535,7 +541,7 @@ export function assaultPirateEnclave(state: GameState, factionId: string, unitId
       },
     },
   };
-  if (attackerHealth <= 0) nextState = removeUnits(nextState, [unitId], { reason: 'destroyed' }).state;
+  if (attackerHealth <= 0 && !geneTherapySurvivor) nextState = removeUnits(nextState, [unitId], { reason: 'destroyed' }).state;
   const assaultEvent: PirateActionEvent = {
     type: 'enclave-assaulted', factionId, unitId,
     damage: preview.damageToHeadquarters, counterfireDamage: preview.counterfireDamage,

@@ -242,4 +242,16 @@ describe('resolveUnitCityBombardment', () => {
     expect(result.state.units.jet).toBeUndefined();
     expect(result.state.civilizations['ai-1'].units).toEqual([]);
   });
+
+  it('a gene-therapy-ready bombardier survives lethal counter-fire at 1 HP', () => {
+    const state = makeState({ cityBuildings: ['walls'] });
+    state.units.cruiser = { ...state.units.cruiser, health: 1, geneTherapyReady: true };
+
+    const result = resolveUnitCityBombardment(state, { attackerUnitId: 'cruiser', cityId: 'port', source: 'ai' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.attackerDied).toBe(false);
+    expect(result.state.units.cruiser).toMatchObject({ health: 1, geneTherapyReady: false });
+  });
 });

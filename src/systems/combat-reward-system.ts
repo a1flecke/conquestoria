@@ -40,6 +40,7 @@ import {
   emitCivilizationLivenessTransitions,
   reconcileCivilizationLiveness,
 } from '@/systems/civilization-elimination-system';
+import { surviveLethalHitWithGeneTherapy } from '@/systems/gene-therapy-system';
 
 /** Age-of-Sail through ironclad — boarding-action flavor. Everything else
  * (destroyer onward) uses modern "disabled and captured" phrasing. Same
@@ -734,15 +735,9 @@ export function applyCombatOutcomeToState(
     }
     // Gene Therapy promises survival of "a lethal hit once per cooldown"; a lethal splash hit is one. Same
     // order and effect as the primary defender's branch: gene therapy first, then a Last Stand hold.
-    if (target.geneTherapyReady === true) {
-      units[hit.unitId] = {
-        ...target,
-        health: 1,
-        movementPointsLeft: 0,
-        hasMoved: true,
-        hasActed: true,
-        geneTherapyReady: false,
-      };
+    const geneTherapySurvivor = surviveLethalHitWithGeneTherapy(target);
+    if (geneTherapySurvivor) {
+      units[hit.unitId] = geneTherapySurvivor;
       continue;
     }
     // #544 MR4 contract §27: Last Stand protects against "bombardment" --

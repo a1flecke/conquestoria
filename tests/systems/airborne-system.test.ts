@@ -464,6 +464,23 @@ describe('executeParadrop — flak', () => {
     expect(result.state.units[unitId]).toBeUndefined();
     expect(result.flak?.damage).toBe(8);
   });
+
+  it('a gene-therapy-ready paratrooper survives lethal flak at 1 HP and spends the charge', () => {
+    const { state, unitId } = makeHostileParadropFixture();
+    const withAA = {
+      ...state,
+      units: {
+        ...state.units,
+        [unitId]: { ...state.units[unitId]!, health: 5, geneTherapyReady: true },
+        'aa-1': { id: 'aa-1', type: 'mobile_aa', owner: 'civ-b', position: { q: 2, r: 1 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+      },
+      map: { ...state.map, tiles: { ...state.map.tiles, '2,1': tile('grassland') } },
+    } as unknown as GameState;
+
+    const result = executeParadrop(withAA, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.units[unitId]).toMatchObject({ health: 1, geneTherapyReady: false, position: { q: 1, r: 1 } });
+  });
 });
 
 describe('executeParadrop — interception', () => {

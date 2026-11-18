@@ -330,6 +330,21 @@ describe('enclave assault and canonical destruction', () => {
     }
   });
 
+  it('a gene-therapy-ready attacker survives lethal enclave counterfire at 1 HP', () => {
+    const state = stateFixture();
+    const current = addFaction(state, faction('blockading'));
+    addUnit(state, 'attacker', 'trireme', 'player', { q: 5, r: 4 });
+    state.units.attacker = { ...state.units.attacker, health: 1, geneTherapyReady: true };
+
+    const preview = getEnclaveAssaultPreview(state, current.id, 'attacker');
+    const result = assaultPirateEnclave(state, current.id, 'attacker');
+
+    expect(preview.counterfireDamage).toBeGreaterThan(0);
+    expect(preview.attackerHealthAfter).toBe(1);
+    expect(result.success).toBe(true);
+    expect(result.state.units.attacker).toMatchObject({ health: 1, geneTherapyReady: false, hasActed: true });
+  });
+
   it('destroys an enclave through the canonical helper and does not duplicate side effects', () => {
     const state = stateFixture();
     const current = addFaction(state, faction('blockading'));
