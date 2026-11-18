@@ -6,6 +6,8 @@ import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import { foundCity, processCity } from '@/systems/city-system';
+import { reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { applyEconomyTurn, getRushBuyQuote } from '@/systems/economy-system';
 import { hexKey } from '@/systems/hex-utils';
 import { getEntitledTradeDestinations } from '@/systems/commerce-projection';
@@ -28,7 +30,9 @@ import { removeUnits } from '@/systems/unit-removal-system';
 import { removeRouteById } from '@/systems/trade-route-lifecycle';
 import { getReserveBalance, getIncomingQuantity } from '@/systems/resource-reserve-system';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
-import { evaluateAuthoredPassage, markAuthoredServiceChange } from '../helpers/engineering-passage-evaluation';
+import {
+  evaluateAuthoredClaimants, evaluateAuthoredPassage, markAuthoredServiceChange, removeAuthoredFreightParticipant,
+} from '../helpers/engineering-passage-evaluation';
 
 /**
  * #1509 MR12 — one load at the supplier, one delivery at home.
@@ -329,13 +333,15 @@ describe('#1125 engineering passage feasibility', () => {
     goodId: COAL,
   };
   const authoredPassage = { id: 'isthmus', site: { q: 4, r: 5 } };
+  const freightPartner = 'freight-partner';
 
   function evaluationWorld(
     open: boolean,
-    { northernRegion = 'north-coast', fuelPort = 'north', targetQuantity = 20 }: {
+    { northernRegion = 'north-coast', fuelPort = 'north', targetQuantity = 20, claimant }: {
       northernRegion?: string;
       fuelPort?: 'north' | 'west';
       targetQuantity?: number;
+      claimant?: 'independent' | 'shared';
     } = {},
   ): GameState {
     const state = passageWorld(open);
@@ -358,28 +364,50 @@ describe('#1125 engineering passage feasibility', () => {
           ...state.map.tiles['0,0']!,
           coord,
           terrain: q === 1 ? 'coast' : 'grassland',
-          owner: isPort ? BUYER : null,
+          owner: null,
           ...(isPort ? { regionKey: northernRegion } : {}),
         };
       }
     }
     tiles['1,4']!.terrain = 'coast';
+    if (claimant === 'shared') {
+      // Adjacent waters let two foreign hulls pass each other on either side of the channel.
+      for (const key of ['2,4', '3,4', '6,4']) tiles[key]!.terrain = 'coast';
+    }
     state.map = { ...state.map, tiles, height: state.map.height + 4 };
     for (const port of Object.values(state.cities)) {
       port.position = shift(port.position);
       port.ownedTiles = [port.position];
     }
-    const northernPort = city(northernHomeId, BUYER, 0);
+    const northernOperator = claimant === 'shared' ? freightPartner : BUYER;
+    const northernPort = city(northernHomeId, northernOperator, 0);
     northernPort.position = { q: 0, r: 2 };
     northernPort.ownedTiles = [northernPort.position];
     state.cities[northernHomeId] = northernPort;
-    state.civilizations[BUYER]!.cities.push(northernHomeId);
+    if (claimant === 'shared') {
+      state.civilizations[freightPartner] = { ...civ(freightPartner, 1000, ['bronze-working', 'steam-power'], SELLER), cities: [] };
+      const seller = state.civilizations[SELLER]!;
+      seller.knownCivilizations = [...(seller.knownCivilizations ?? []), freightPartner];
+      seller.diplomacy.treaties.push({ type: 'trade_agreement', civA: SELLER, civB: freightPartner, turnsRemaining: -1 });
+      const permissions = state.commercePermissions!;
+      permissions.resourcePolicies = permissions.resourcePolicies!.map(policy => ({
+        ...policy, partnerCivIds: [...policy.partnerCivIds, freightPartner],
+      }));
+    }
+    state.civilizations[northernOperator]!.cities.push(northernHomeId);
+    tiles[hexKey(northernPort.position)]!.owner = northernOperator;
+    if (claimant) {
+      const channel = tiles[hexKey(authoredPassage.site)]!.freightPassage!;
+      channel.ownerId = BUYER;
+      channel.allowedOperatorIds = claimant === 'shared' ? [freightPartner] : [];
+      tiles[hexKey(authoredPassage.site)]!.owner = BUYER;
+    }
     for (const civ of Object.values(state.civilizations)) {
       civ.visibility = { tiles: Object.fromEntries(Object.keys(tiles).map(key => [key, 'visible'])) };
     }
     state.units[traderId]!.position = state.cities[BUYER_CITY]!.position;
-    state.units[northernTraderId] = { ...state.units[traderId]!, id: northernTraderId, position: northernPort.position };
-    state.civilizations[BUYER]!.units.push(northernTraderId);
+    state.units[northernTraderId] = { ...state.units[traderId]!, id: northernTraderId, owner: northernOperator, position: northernPort.position };
+    state.civilizations[northernOperator]!.units.push(northernTraderId);
     const westernGood = fuelPort === 'west' ? COAL : IRON;
     const northernGood = fuelPort === 'north' ? COAL : IRON;
     const live = startReceiptVoyage({ orders: [{ goodId: westernGood, targetQuantity, maxUnitPrice: 100 }] }, state);
@@ -388,20 +416,99 @@ describe('#1125 engineering passage feasibility', () => {
     for (const tile of Object.values(live.map.tiles)) {
       if (tile.terrain !== 'coast' && tile.terrain !== 'ocean') tile.regionKey ??= 'interior';
     }
-    const result = establishTradeRoute(live, {
+    const result = establishTradeRoute({ ...live, currentPlayer: northernOperator }, {
       ...request,
+      actingCivId: northernOperator,
       caravanUnitId: northernTraderId,
       originCityId: northernHomeId,
       procurement: { orders: [{ goodId: northernGood, targetQuantity, maxUnitPrice: 100 }] },
     });
     if (!result.ok) throw new Error(result.reason);
-    return result.state;
+    return { ...result.state, currentPlayer: live.currentPlayer };
   }
 
   function runEvaluationVoyages(state: GameState, until: number): GameState {
     while (state.turn < until) state = sail(state);
     return state;
   }
+
+  const independentUndertaking = {
+    commissionerId: BUYER,
+    commissionedRound: 10,
+    commissionerService: westCorridor,
+    secondService: northCorridor,
+  };
+  const sharedUndertaking = {
+    ...independentUndertaking,
+    secondService: { ...northCorridor, home: { ...northCorridor.home, ownerCivId: freightPartner } },
+    agreement: { freightCivId: freightPartner, acceptedRound: 9 },
+  };
+
+  it('credits the independent commissioner for its two operating corridors, excluding the ordinary seller', () => {
+    const completed = runEvaluationVoyages(evaluationWorld(true, { claimant: 'independent' }), 22);
+    expect(getCivilizationLiveness(completed, SELLER).living).toBe(true);
+    expect(getReserveBalance(completed.materialReservesByCiv![BUYER]!, COAL).imported).toBe(10);
+    expect(evaluateAuthoredClaimants(completed, authoredPassage, independentUndertaking, 22)).toEqual([BUYER]);
+    expect(evaluateAuthoredClaimants(completed, authoredPassage, {
+      ...independentUndertaking, commissionerId: SELLER,
+    }, 22)).toEqual([]);
+  });
+
+  it('credits equal shared roles only after two actual partner returns under a prior agreement', () => {
+    const waiting = runEvaluationVoyages(evaluationWorld(true, { claimant: 'shared' }), 24);
+    const partnerReturns = (state: GameState) => Object.values(state.freightVoyageReceipts ?? {})
+      .filter(receipt => receipt.operatorCivId === freightPartner)
+      .map(receipt => [receipt.home.cityId, receipt.completedRound]);
+    expect(partnerReturns(waiting)).toEqual([[northernHomeId, 18]]);
+    expect(evaluateAuthoredClaimants(waiting, authoredPassage, sharedUndertaking, 24)).toEqual([]);
+    const completed = sail(waiting);
+    expect(partnerReturns(completed)).toEqual([[northernHomeId, 18], [northernHomeId, 25]]);
+    expect(getReserveBalance(completed.materialReservesByCiv![freightPartner]!, COAL).imported).toBe(10);
+    expect(evaluateAuthoredClaimants(completed, authoredPassage, sharedUndertaking, 25)).toEqual([BUYER, freightPartner]);
+    expect(evaluateAuthoredClaimants(completed, authoredPassage, {
+      ...sharedUndertaking, agreement: undefined,
+    }, 25)).toEqual([]);
+    expect(evaluateAuthoredClaimants(completed, authoredPassage, {
+      ...sharedUndertaking, agreement: { ...sharedUndertaking.agreement, acceptedRound: 17 },
+    }, 25)).toEqual([]);
+    expect(evaluateAuthoredClaimants(completed, authoredPassage, {
+      ...sharedUndertaking, agreement: { ...sharedUndertaking.agreement, freightCivId: SELLER },
+    }, 25)).toEqual([]);
+  });
+
+  it('preserves an earned shared role after removal only while its service continues', () => {
+    const waiting = runEvaluationVoyages(evaluationWorld(true, { claimant: 'shared', targetQuantity: 40 }), 24);
+    const unfinished = removeAuthoredFreightParticipant(waiting, authoredPassage, sharedUndertaking, 24);
+    const completed = sail(waiting);
+    const earned = removeAuthoredFreightParticipant(completed, authoredPassage, sharedUndertaking, 25);
+    const later = runEvaluationVoyages(completed, 28);
+    expect(evaluateAuthoredClaimants(later, authoredPassage, earned, 28)).toEqual([BUYER, freightPartner]);
+    expect(evaluateAuthoredClaimants(later, authoredPassage, unfinished, 28)).toEqual([]);
+
+    const unfunded = setMarketProcurementPolicy(later, freightPartner, { maxUnitPrice: 100, treasuryFloor: 0, roundBudget: 0 });
+    expect(unfunded.freightVoyageReceipts).toEqual(later.freightVoyageReceipts);
+    expect(evaluateAuthoredClaimants(unfunded, authoredPassage, earned, 28)).toEqual([]);
+  });
+
+  it('excludes a reconciled eliminated claimant even if historical proof and apparent service remain', () => {
+    const completed = runEvaluationVoyages(evaluationWorld(true, { claimant: 'shared' }), 25);
+    const afterLoss = structuredClone(completed);
+    delete afterLoss.cities[northernHomeId];
+    const { state, transitions } = reconcileCivilizationLiveness(completed, afterLoss);
+    expect(transitions).toContainEqual(expect.objectContaining({ kind: 'eliminated', civId: freightPartner }));
+    expect(state.freightVoyageReceipts).toEqual(completed.freightVoyageReceipts);
+    expect(evaluateAuthoredClaimants(state, authoredPassage, sharedUndertaking, 25)).toEqual([]);
+
+    // Isolate the liveness guard by exposing the eliminated marker to otherwise eligible service evidence.
+    const stale = { ...completed, civilizations: {
+      ...completed.civilizations,
+      [freightPartner]: { ...completed.civilizations[freightPartner]!, isEliminated: state.civilizations[freightPartner]!.isEliminated },
+    } };
+    expect(getCivilizationLiveness(stale, freightPartner)).toEqual({ living: false, reason: 'eliminated' });
+    expect(evaluateAuthoredPassage(stale, authoredPassage, [westCorridor, sharedUndertaking.secondService], 25))
+      .toMatchObject({ usefulReach: true, currentFunction: true });
+    expect(evaluateAuthoredClaimants(stale, authoredPassage, sharedUndertaking, 25)).toEqual([]);
+  });
 
   it('compares an earlier coal-powered Factory with an immediate Harbor investment', () => {
     const liquidGold = 80;

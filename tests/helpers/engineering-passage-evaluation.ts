@@ -1,5 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import type { FreightVoyagePort, FreightVoyageReceipt, TradeGoodId } from '@/core/types/commerce';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { hexKey } from '@/systems/hex-utils';
 import { quoteMarketLoad, refreshMarketOffers } from '@/systems/resource-market-offers';
 import { getGoodCargoSpace, getProcurementRemaining, getRouteCargoCapacity } from '@/systems/resource-procurement';
@@ -23,6 +24,21 @@ interface AuthoredPassage {
   site: HexCoord;
 }
 
+interface AuthoredCommission {
+  commissionerId: string;
+  commissionedRound: number;
+}
+
+interface AuthoredUndertaking extends AuthoredCommission {
+  commissionerService: AuthoredService;
+  secondService: AuthoredService;
+  agreement?: {
+    freightCivId: string;
+    acceptedRound: number;
+    removal?: { round: number; earnedRole: boolean };
+  };
+}
+
 const RECENT_ROUNDS = 12;
 const RETURNS_PER_REGION_PAIR = 2;
 
@@ -35,6 +51,25 @@ function matchesService(receipt: FreightVoyageReceipt, service: AuthoredService)
   return samePort(receipt.home, service.home) && samePort(receipt.supplier, service.supplier)
     && receipt.buyerCivId === service.home.ownerCivId && receipt.operatorCivId === service.home.ownerCivId
     && receipt.stock.some(item => item.goodId === service.goodId && item.quantity > 0);
+}
+
+function recentPassageReceipts(
+  state: GameState, passage: AuthoredPassage, completedRound: number, commission?: AuthoredCommission,
+) {
+  return Object.entries(state.freightVoyageReceipts ?? {}).filter(([, receipt]) =>
+    receipt.passageId === passage.id && receipt.completedRound <= completedRound
+    && receipt.completedRound > completedRound - RECENT_ROUNDS
+    && (!commission || (receipt.passageOwnerCivId === commission.commissionerId
+      && receipt.purchaseTurn >= commission.commissionedRound)));
+}
+
+function qualifyingReturns(receipts: [string, FreightVoyageReceipt][], service: AuthoredService) {
+  const matching = receipts.filter(([, receipt]) => matchesService(receipt, service));
+  // A completed crossing already on an inbound manifest cannot revalidate newly accepted terms.
+  const change = service.revalidation;
+  if (change && !matching.some(([issuance, receipt]) =>
+    receipt.completedRound >= change.round && !change.previousIssuances.includes(issuance))) return [];
+  return matching;
 }
 
 /** The scenario calls this when accepting a material change to this service or its passage. */
@@ -100,6 +135,7 @@ export function evaluateAuthoredPassage(
   passage: AuthoredPassage,
   services: readonly AuthoredService[],
   completedRound: number,
+  commission?: AuthoredCommission,
 ) {
   const key = hexKey(passage.site);
   const tile = state.map.tiles[key];
@@ -108,25 +144,15 @@ export function evaluateAuthoredPassage(
       ...state.map.tiles, [key]: { ...tile, freightPassage: { ...tile.freightPassage, open: false } },
     } } }
     : state;
-  const receipts = Object.entries(state.freightVoyageReceipts ?? {}).filter(([, receipt]) =>
-    receipt.passageId === passage.id && receipt.completedRound <= completedRound
-      && receipt.completedRound > completedRound - RECENT_ROUNDS);
+  const receipts = recentPassageReceipts(state, passage, completedRound, commission);
   const byRegionPair = new Map<string, { regions: string[]; issuances: Set<string> }>();
 
   for (const service of services) {
-    // A settlement after the checkpoint must also prove a crossing after it. A completed
-    // crossing already on an inbound manifest cannot revalidate newly accepted terms.
-    const change = service.revalidation;
-    if (change && !receipts.some(([issuance, receipt]) =>
-      matchesService(receipt, service) && receipt.completedRound >= change.round
-        && !change.previousIssuances.includes(issuance))) continue;
     const regions = [service.home.regionKey, service.supplier.regionKey].sort();
     if (regions[0] === regions[1]) continue;
     const pairKey = JSON.stringify(regions);
     const pair = byRegionPair.get(pairKey) ?? { regions, issuances: new Set<string>() };
-    for (const [issuance, receipt] of receipts) {
-      if (matchesService(receipt, service)) pair.issuances.add(issuance);
-    }
+    for (const [issuance] of qualifyingReturns(receipts, service)) pair.issuances.add(issuance);
     byRegionPair.set(pairKey, pair);
   }
 
@@ -144,4 +170,41 @@ export function evaluateAuthoredPassage(
     qualifiedRegionPairs,
     trips,
   };
+}
+
+/** Preserve the role evidence at removal, before later terms or receipts can change it. */
+export function removeAuthoredFreightParticipant(
+  state: GameState,
+  passage: AuthoredPassage,
+  undertaking: AuthoredUndertaking & { agreement: NonNullable<AuthoredUndertaking['agreement']> },
+  completedRound: number,
+): AuthoredUndertaking {
+  const { agreement, secondService } = undertaking;
+  const receipts = recentPassageReceipts(state, passage, completedRound, undertaking);
+  const earnedRole = secondService.home.ownerCivId === agreement.freightCivId
+    && qualifyingReturns(receipts, secondService).length >= RETURNS_PER_REGION_PAIR;
+  return { ...undertaking, agreement: { ...agreement, removal: agreement.removal ?? { round: completedRound, earnedRole } } };
+}
+
+/** Advisory credit for the authored two-service undertaking, evaluated on reconciled state. */
+export function evaluateAuthoredClaimants(
+  state: GameState, passage: AuthoredPassage, undertaking: AuthoredUndertaking, completedRound: number,
+): string[] {
+  const { commissionerId, commissionedRound, commissionerService, secondService, agreement } = undertaking;
+  const channel = state.map.tiles[hexKey(passage.site)]?.freightPassage;
+  if (channel?.ownerId !== commissionerId || commissionerService.home.ownerCivId !== commissionerId
+    || commissionedRound > completedRound || !getCivilizationLiveness(state, commissionerId).living) return [];
+
+  const freightCivId = agreement?.freightCivId ?? commissionerId;
+  if (secondService.home.ownerCivId !== freightCivId) return [];
+  if (agreement && (freightCivId === commissionerId || agreement.acceptedRound >= commissionedRound
+    || !getCivilizationLiveness(state, freightCivId).living)) return [];
+  const removal = agreement?.removal;
+  if (removal && removal.round <= completedRound && !removal.earnedRole) return [];
+
+  const evaluation = evaluateAuthoredPassage(state, passage, [commissionerService, secondService], completedRound, undertaking);
+  if (!evaluation.usefulReach || !evaluation.currentFunction || !evaluation.trips.every(trip =>
+    trip?.current != null && trip.disabled != null && trip.disabled - trip.current >= 2)) return [];
+
+  return agreement ? [commissionerId, freightCivId].sort() : [commissionerId];
 }
