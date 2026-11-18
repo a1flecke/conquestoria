@@ -7,6 +7,8 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import type { GameState, Unit } from '@/core/types';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 
 function makeState(overrides?: Partial<GameState>): GameState {
@@ -1184,5 +1186,87 @@ describe('hot seat: an advisor warning about one seat\'s own empire reaches each
     advisor.resetMessage('chancellor_revolt_warning');
     for (let i = 0; i < 12 && revoltFor('ai-1').length < 2; i++) advisor.check({ ...state, currentPlayer: 'ai-1' });
     expect(revoltFor('ai-1')).toHaveLength(2);
+  });
+});
+
+describe('city-state ally advice names only the bonus the ally really gives', () => {
+  const ADVISORS_OFF = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
+
+  function allyWith(definitionId: string, advisor: 'treasurer' | 'scholar'): string[] {
+    const bus = new EventBus();
+    const advisorSystem = new AdvisorSystem(bus);
+    const state = makeState();
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { ...ADVISORS_OFF, [advisor]: true };
+    const [allyId] = Object.keys(state.minorCivs);
+    const ally = state.minorCivs[allyId];
+    ally.definitionId = definitionId;
+    ally.chainStatusByCiv = { ...ally.chainStatusByCiv, player: { ...(ally.chainStatusByCiv.player as any), status: 'allied' } };
+    state.civilizations.player.visibility.tiles[hexKey(state.cities[ally.cityId].position)] = 'fog';
+    const messages: string[] = [];
+    bus.on('advisor:message', message => messages.push(message.message));
+    advisorSystem.check(state);
+    return messages;
+  }
+
+  it('the Treasurer credits a gold ally with our income', () => {
+    expect(allyWith('carthage', 'treasurer')).toContain('Our mercantile ally is boosting our income.');
+  });
+
+  it('the Treasurer says nothing about income for an ally that gives no gold', () => {
+    expect(allyWith('sparta', 'treasurer')).not.toContain('Our mercantile ally is boosting our income.');
+  });
+
+  it('the Scholar credits a science ally with our knowledge', () => {
+    const scienceAlly = MINOR_CIV_DEFINITIONS.find(d => d.allyBonus.type === 'science_per_turn')!;
+    expect(allyWith(scienceAlly.id, 'scholar')).toContain('Our cultural ally advances our knowledge.');
+  });
+
+  it('the Scholar says nothing about knowledge for a production or unit ally', () => {
+    const productionAlly = MINOR_CIV_DEFINITIONS.find(d => d.allyBonus.type === 'production_per_turn')!;
+    expect(allyWith(productionAlly.id, 'scholar')).not.toContain('Our cultural ally advances our knowledge.');
+    expect(allyWith('sparta', 'scholar')).not.toContain('Our cultural ally advances our knowledge.');
+  });
+});
+
+describe('the undefended-city warning uses the garrison a capture respects', () => {
+  const NO_GARRISON = 'One of our cities has no garrison! Train a warrior or move troops there immediately.';
+
+  function warchiefMessages(addToCity: (state: GameState, cityId: string) => void): string[] {
+    const bus = new EventBus();
+    const advisorSystem = new AdvisorSystem(bus);
+    const state = stateWithCity();
+    state.turn = 10;
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: true, treasurer: false, scholar: false, spymaster: false, artisan: false };
+    const cityId = state.civilizations.player.cities[0];
+    const cityKey = hexKey(state.cities[cityId].position);
+    for (const unit of Object.values(state.units)) {
+      if (unit.owner === 'player' && hexKey(unit.position) === cityKey) unit.position = { q: unit.position.q + 2, r: unit.position.r };
+    }
+    addToCity(state, cityId);
+    const messages: string[] = [];
+    bus.on('advisor:message', message => messages.push(message.message));
+    advisorSystem.check(state);
+    return messages;
+  }
+
+  it('warns when the only unit in the city is an aircraft based at its airfield', () => {
+    const messages = warchiefMessages((state, cityId) => {
+      const city = state.cities[cityId];
+      const fighter = { ...createUnit('biplane', 'player', city.position, state.idCounters), id: 'fighter', airBase: { kind: 'city' as const, cityId } };
+      state.units[fighter.id] = fighter;
+      state.civilizations.player.units.push(fighter.id);
+    });
+    expect(messages).toContain(NO_GARRISON);
+  });
+
+  it('stays quiet when a ground unit holds the city', () => {
+    const messages = warchiefMessages((state, cityId) => {
+      const warrior = { ...createUnit('warrior', 'player', state.cities[cityId].position, state.idCounters), id: 'holder' };
+      state.units[warrior.id] = warrior;
+      state.civilizations.player.units.push(warrior.id);
+    });
+    expect(messages).not.toContain(NO_GARRISON);
   });
 });
