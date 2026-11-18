@@ -16,6 +16,7 @@ import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { processRogueElephantHostTurn, startRogueElephantHostWarning } from '@/systems/rogue-elephant-host-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { foundCity } from '@/systems/city-system';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -38,6 +39,27 @@ describe('bounded Rocket Artillery splash (#686)', () => {
     expect(resolveBoundedSplash(state as GameState, attacker, defender, 40)).toEqual([
       { unitId: 'alpha', damage: 10 },
       { unitId: 'bravo', damage: 10 },
+    ]);
+  });
+});
+
+describe('splash never reaches a unit concealed from the attacker', () => {
+  it('skips a submarine the attacker cannot detect, even on a visible tile', () => {
+    const state = createNewGame(undefined, 'rocket-splash-concealed', 'small');
+    const attacker = { ...createUnit('rocket_artillery', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker' };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender' };
+    const sub = { ...createUnit('submarine', 'ai-1', { q: 2, r: 0 }, mkC()), id: 'sub' };
+    const alpha = { ...createUnit('warrior', 'ai-1', { q: 1, r: -1 }, mkC()), id: 'alpha' };
+    state.units = { attacker, defender, sub, alpha };
+    state.cities = {};
+    state.civilizations.player.units = ['attacker'];
+    state.civilizations['ai-1'].units = ['defender', 'sub', 'alpha'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    for (const unit of Object.values(state.units)) state.civilizations.player.visibility.tiles[hexKey(unit.position)] = 'visible';
+
+    expect(isUnitConcealedFrom(state, sub, 'player')).toBe(true);
+    expect(resolveBoundedSplash(state as GameState, attacker, defender, 40)).toEqual([
+      { unitId: 'alpha', damage: 10 },
     ]);
   });
 });
