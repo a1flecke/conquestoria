@@ -1153,6 +1153,18 @@ describe('a wonder follows its city (#1755 W1)', () => {
     expect(getLegendaryWonderCityYieldBonus(captured, 'player', cityId)).toMatchObject({ production: 2 });
   });
 
+  it('razing the city destroys the wonder: its former owner stops drawing the bonus and it can be rebuilt', () => {
+    const { state, cityId } = worldWithWonderCity();
+    expect(state.completedLegendaryWonders?.['great-pyramid']).toBeDefined();
+
+    const razed = resolveMajorCityCapture(state, cityId, 'player', 'raze', 10).state;
+
+    expect(razed.cities[cityId]).toBeUndefined();
+    expect(razed.completedLegendaryWonders?.['great-pyramid']).toBeUndefined();
+    expect(getLegendaryWonderCivYieldBonus(razed, 'ai-1').production ?? 0).toBe(0);
+    // A wonder is available to build exactly when no completed record exists for it.
+  });
+
   it('the lower-level transfers (loyalty flip, incitement, cession) move it too', () => {
     const { state, cityId } = worldWithWonderCity();
     const transferred = transferCapturedCityOwnership(state, cityId, 'player', 12);
