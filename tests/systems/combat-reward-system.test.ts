@@ -352,6 +352,25 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.civilizations['ai-1'].units).toEqual(['defender']);
   });
 
+  // Gene Therapy promises "Units survive a lethal hit once per cooldown": a lethal splash hit is one.
+  it('a gene-therapy-ready unit survives a lethal splash hit at 1 HP and spends the charge', () => {
+    const state = makeRewardState();
+    const bystander = { ...state.units.defender, id: 'bystander', owner: 'ai-1', health: 10, position: { q: 2, r: 0 }, geneTherapyReady: true };
+    state.units = { attacker: state.units.attacker, defender: state.units.defender, bystander };
+    state.civilizations['ai-1'].units = ['defender', 'bystander'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 10,
+      attackerSurvived: true, defenderSurvived: true, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+      splashHits: [{ unitId: 'bystander', damage: 50 }],
+    } as CombatResult;
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.bystander).toMatchObject({ health: 1, geneTherapyReady: false });
+    expect(applied.state.civilizations['ai-1'].units).toContain('bystander');
+  });
+
   // #1198: a caravan killed in combat ends the route it was running, whoever the executor is. The removal is
   // the one place that knows; the route event is announced from the shared result, once, only for a real
   // execution (a bus), never for a hypothetical fight.
