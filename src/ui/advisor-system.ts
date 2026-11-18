@@ -1,4 +1,5 @@
-import type { GameState, TutorialStep, Unit } from '@/core/types';
+import type { GameState, MinorCivDefinition, TutorialStep, Unit } from '@/core/types';
+import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import type { AdvisorType } from '@/core/types/council';
 import { getOwnedCities, getOwnedCityCount } from '@/systems/city-ownership';
 import { getOwnedUnitCount } from '@/systems/unit-ownership';
@@ -6,6 +7,7 @@ import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { mapDistance } from '@/systems/hex-utils';
+import { hasCityGarrison } from '@/systems/city-siege-system';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
 import { isUnitConcealedFrom } from '@/systems/concealment';
 import { EventBus } from '@/core/event-bus';
@@ -41,6 +43,19 @@ interface AdvisorMessage {
   trigger: (state: GameState) => boolean;
   /** If set, maps to a tutorial step (for backward compat) */
   tutorialStep?: TutorialStep;
+}
+
+/**
+ * Whether the viewing seat has a discovered, active city-state ally whose ally bonus is `bonusType`. The ally
+ * advice credits a specific yield, so it must follow the bonus the ally really pays (`applyAllyBonuses`), not
+ * its archetype label: two "cultural" city-states give production, and a militaristic ally gives units.
+ */
+function hasActiveAllyGiving(state: GameState, bonusType: MinorCivDefinition['allyBonus']['type']): boolean {
+  return Object.values(state.minorCivs ?? {}).some(mc =>
+    hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id)
+    && isMinorCivAllianceActive(state, state.currentPlayer, mc.id)
+    && MINOR_CIV_DEFINITIONS.find(def => def.id === mc.definitionId)?.allyBonus.type === bonusType,
+  );
 }
 
 const ADVISOR_MESSAGES: AdvisorMessage[] = [
@@ -392,16 +407,12 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '⚔️',
     message: 'One of our cities has no garrison! Train a warrior or move troops there immediately.',
     trigger: (state) => {
+      // The garrison a capture respects: a unit aboard a docked ship or an aircraft based at the airfield
+      // does not stop a raider taking the city, so it must not silence this warning either.
       const playerCities = state.civilizations[state.currentPlayer]?.cities ?? [];
-      if (playerCities.length === 0) return false;
-      const playerUnits = Object.values(state.units).filter(u => u.owner === state.currentPlayer);
-
       return playerCities.some(cityId => {
         const city = state.cities[cityId];
-        if (!city) return false;
-        return !playerUnits.some(u =>
-          u.position.q === city.position.q && u.position.r === city.position.r,
-        );
+        return city !== undefined && !hasCityGarrison(state.units, city);
       });
     },
   },
@@ -632,11 +643,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'treasurer',
     icon: '💰',
     message: 'Our mercantile ally is boosting our income.',
-    trigger: (state: GameState) =>
-      Object.values(state.minorCivs ?? {}).some(mc =>
-        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id)
-        && isMinorCivAllianceActive(state, state.currentPlayer, mc.id)
-      ),
+    trigger: (state: GameState) => hasActiveAllyGiving(state, 'gold_per_turn'),
   },
   // Minor Civ — Scholar
   {
@@ -644,11 +651,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'scholar',
     icon: '📚',
     message: 'Our cultural ally advances our knowledge.',
-    trigger: (state: GameState) =>
-      Object.values(state.minorCivs ?? {}).some(mc =>
-        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id)
-        && isMinorCivAllianceActive(state, state.currentPlayer, mc.id)
-      ),
+    trigger: (state: GameState) => hasActiveAllyGiving(state, 'science_per_turn'),
   },
   // --- Spymaster Advisor ---
   {
