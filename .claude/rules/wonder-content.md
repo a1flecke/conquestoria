@@ -33,7 +33,7 @@ These came out of MR10 (#469), where four legendary wonders had `requiredTechs` 
 
 - **`completedLegendaryWonders[id].ownerId` is the civ that holds the wonder now**, and every effect reads it that way (yield bonuses, Navigator's Compass, Silk Road, lunar gateway, air defence, tactical grants, atlas). The record itself is never deleted: it is the Hall-of-Fame entry.
 - **Any path that changes a city's owner calls `transferLegendaryWondersForCity`** (`src/systems/legendary-wonder-ownership.ts`), which moves the completed record and re-keys any project hosted in that city. Today: `resolveMajorCityCapture` (occupy and breakaway reconquest), `transferCapturedCityOwnership` (loyalty flip, spy incitement, treaty cession) and breakaway secession. A new ownership path must call it; the test in `city-capture-system.test.ts` ("a wonder follows its city") pins the capture and transfer cases.
-- **A razed host city is not handled yet**: the record stays with the former owner and keeps paying. Tracked on #1755.
+- **A destroyed host city takes its wonder with it** (`releaseRecordsOfRemovedCity`, used by a raze and by a siege that destroys a city): the completed record is removed, so the former owner stops drawing the bonus and the wonder can be built again, as national projects already can. The one exception to "never delete the record" above.
 
 ## Codex Source Ledger Sync
 
