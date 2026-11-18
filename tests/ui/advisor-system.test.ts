@@ -1103,3 +1103,47 @@ describe('#910 vassalage advice', () => {
     expect(messages).toContainEqual(expect.stringMatching(/vassalage offer.*protection/i));
   });
 });
+
+describe('War Chief border warning names only enemies the viewer can see', () => {
+  function borderWarnings(mutate: (state: GameState, near: { q: number; r: number }) => void): string[] {
+    const state = stateWithCity();
+    state.turn = 20;
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: true, treasurer: false, scholar: false, spymaster: false, artisan: false };
+    state.barbarianCamps = {};
+    const city = state.cities[state.civilizations.player.cities[0]];
+    const near = { q: city.position.q + 1, r: city.position.r };
+    state.civilizations.player.visibility.tiles[hexKey(near)] = 'visible';
+    const foreign: Unit = {
+      id: 'foreign-unit', type: 'warrior', owner: 'ai-1', position: near, health: 100,
+      movementPointsLeft: 1, hasActed: false, hasMoved: false, experience: 0, isResting: false,
+    };
+    state.units[foreign.id] = foreign;
+    state.civilizations['ai-1'].units.push(foreign.id);
+    mutate(state, near);
+    const bus = new EventBus();
+    const messages: string[] = [];
+    bus.on('advisor:message', message => messages.push(message.message));
+    new AdvisorSystem(bus).check(state);
+    return messages.filter(message => message.includes('Enemy forces spotted'));
+  }
+
+  it('warns about a visible unit of a civilization we are at war with', () => {
+    expect(borderWarnings(state => {
+      state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+      state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    })).toHaveLength(1);
+  });
+
+  it('does not call a peaceful neighbour\'s unit an enemy force', () => {
+    expect(borderWarnings(() => {})).toEqual([]);
+  });
+
+  it('does not warn about an enemy unit riding aboard a ship', () => {
+    expect(borderWarnings(state => {
+      state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+      state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+      state.units['foreign-unit'].transportId = 'some-ship';
+    })).toEqual([]);
+  });
+});

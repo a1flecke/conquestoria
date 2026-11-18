@@ -6,6 +6,8 @@ import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { mapDistance } from '@/systems/hex-utils';
+import { isHostileOwnerTo } from '@/systems/owner-hostility';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 import { EventBus } from '@/core/event-bus';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { isDiplomaticRequestLive } from '@/systems/diplomacy-requests';
@@ -376,18 +378,18 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
       const vis = state.civilizations[state.currentPlayer]?.visibility;
       if (!vis) return false;
 
-      for (const cityId of playerCities) {
+      // An enemy is a hostile owner (barbarians have their own tip) whose unit the viewer can actually see: on a
+      // visible tile, not aboard a ship, not concealed. A peaceful neighbour's caravan is not an enemy force.
+      const enemies = Object.values(state.units).filter(unit =>
+        unit.owner !== 'barbarian'
+        && !unit.transportId
+        && isHostileOwnerTo(state, state.currentPlayer, unit.owner)
+        && vis.tiles[`${unit.position.q},${unit.position.r}`] === 'visible'
+        && !isUnitConcealedFrom(state, unit, state.currentPlayer));
+      return playerCities.some(cityId => {
         const city = state.cities[cityId];
-        if (!city) continue;
-        for (const unit of Object.values(state.units)) {
-          if (unit.owner === state.currentPlayer || unit.owner === 'barbarian') continue;
-          if (vis.tiles[`${unit.position.q},${unit.position.r}`] !== 'visible') continue;
-          const dq = Math.abs(unit.position.q - city.position.q);
-          const dr = Math.abs(unit.position.r - city.position.r);
-          if (dq + dr <= 4) return true;
-        }
-      }
-      return false;
+        return Boolean(city) && enemies.some(unit => mapDistance(state.map, unit.position, city.position) <= 4);
+      });
     },
   },
   {
