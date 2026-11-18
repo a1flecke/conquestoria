@@ -273,6 +273,15 @@ function checkLastStandHold(unitBefore: Unit, currentTurn: number): boolean {
 // an oversight just because nothing here currently excludes it.
 
 /**
+ * A defeated civilian changes hands instead of dying, except a Great General: it dies like its escort would take it
+ * (#544 contract §15), so a rival never fields another civilization's General and its owner's career ledger records
+ * the death.
+ */
+function isCapturableCivilian(type: Unit['type']): boolean {
+  return type !== 'great_general' && UNIT_CLASS_BY_TYPE[type].includes('civilian');
+}
+
+/**
  * #544 MR3: "if escort is destroyed, General dies too. No escape" (contract
  * §15). A General may share a tile with exactly one friendly combat unit;
  * when that unit is destroyed (by direct combat or splash), any co-located
@@ -560,7 +569,7 @@ export function applyCombatOutcomeToState(
     units = consumeLastStandHoldFormationWide(units, attackerBefore.lastStandHold!.formationId);
     attackerActuallyDefeated = false;
   } else if (
-    UNIT_CLASS_BY_TYPE[attackerBefore.type].includes('civilian')
+    isCapturableCivilian(attackerBefore.type)
     && !attackerBefore.cargoUnitIds?.length
     && canCaptureDefeatedUnits(defenderBefore.owner)
   ) {
@@ -661,7 +670,7 @@ export function applyCombatOutcomeToState(
     units = consumeLastStandHoldFormationWide(units, defenderBefore.lastStandHold!.formationId);
     defenderActuallyDefeated = false;
   } else if (
-    UNIT_CLASS_BY_TYPE[defenderBefore.type].includes('civilian')
+    isCapturableCivilian(defenderBefore.type)
     && !defenderBefore.cargoUnitIds?.length
     && canCaptureDefeatedUnits(attackerBefore.owner)
   ) {
