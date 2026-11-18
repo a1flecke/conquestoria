@@ -732,10 +732,22 @@ export function applyCombatOutcomeToState(
       units[hit.unitId] = { ...target, health: target.health - hit.damage };
       continue;
     }
+    // Gene Therapy promises survival of "a lethal hit once per cooldown"; a lethal splash hit is one. Same
+    // order and effect as the primary defender's branch: gene therapy first, then a Last Stand hold.
+    if (target.geneTherapyReady === true) {
+      units[hit.unitId] = {
+        ...target,
+        health: 1,
+        movementPointsLeft: 0,
+        hasMoved: true,
+        hasActed: true,
+        geneTherapyReady: false,
+      };
+      continue;
+    }
     // #544 MR4 contract §27: Last Stand protects against "bombardment" --
     // splash is this codebase's bombardment-adjacent lethal-damage path, so
-    // it must honor the hold too, even though geneTherapyReady historically
-    // never did (that's a separate, pre-existing gap, not extended here).
+    // it must honor the hold too.
     if (checkLastStandHold(target, state.turn)) {
       units[hit.unitId] = { ...target, health: 1 };
       lastStandSaves.push({ unit: target, hold: target.lastStandHold! });
