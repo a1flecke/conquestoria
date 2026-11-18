@@ -67,6 +67,31 @@ describe('Rogue Elephant Host definitions', () => {
     expect(host.filter(unit => campKeys.has(hexKey(unit.position)))).toEqual([]);
   });
 
+  // #1725: the Host candidate filter must see neighbours across the horizontal seam.
+  it('raises the Host on wrapped neighbours across the seam', () => {
+    const state = createNewGame('rome', 'rogue-host-wrap', 'small');
+    const targetCivId = state.currentPlayer;
+    state.civilizations[targetCivId]!.techState.completed = TECH_TREE.filter(tech => tech.era <= 4).map(tech => tech.id);
+    const city = foundCity(targetCivId, { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities = { [city.id]: city };
+    state.map.wrapsHorizontally = true;
+    const wrappedQ = state.map.width - 1;
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'ocean';
+    const wrapped = mapNeighbors(state.map, city.position).filter(position => position.q === wrappedQ).slice(0, 2);
+    expect(wrapped).toHaveLength(2);
+    for (const position of wrapped) {
+      state.map.tiles[hexKey(position)] = { ...state.map.tiles[hexKey(position)]!, terrain: 'plains' };
+    }
+    state.units = {};
+    for (const civ of Object.values(state.civilizations)) civ.units = [];
+
+    const warning = startRogueElephantHostWarning(state, targetCivId, 'explorer');
+
+    const host = Object.values(warning.units).filter(unit => unit.owner === 'crisis-force');
+    expect(host).toHaveLength(2);
+    expect(host.every(unit => unit.position.q === wrappedQ)).toBe(true);
+  });
+
   it('keeps AI-targeted Host pressure at Standard severity', () => {
     expect(getRogueElephantHostProfile('explorer', false).elephantCount).toBe(2);
     expect(getRogueElephantHostProfile('veteran', false).elephantCount).toBe(2);

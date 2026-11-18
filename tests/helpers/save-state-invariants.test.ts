@@ -3,7 +3,7 @@ import type { GameState, Unit } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-lifecycle';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { attemptInfiltration, createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import {
@@ -1147,6 +1147,60 @@ describe('#994 assertNoIllegalBlockingOccupancy', () => {
     expect(() => assertUnitsOnEnterableTerrain(state)).toThrow(/galley\) stands on/);
   });
 
+  // #1725: the #447 recovery exception is only for a land unit that can actually get ashore.
+  // A land unit in open water with no adjacent land is corruption, not a recoverable state.
+  it('rejects a land unit on water with no adjacent land escape', () => {
+    const { state } = stateWithPlayerCity('terrain-stranded-land');
+    const ocean = Object.values(state.map.tiles).find(tile => tile.terrain === 'ocean')!;
+    for (const coord of [ocean.coord, ...hexNeighbors(ocean.coord)]) {
+      const tile = state.map.tiles[hexKey(coord)];
+      if (tile) state.map.tiles[hexKey(coord)] = { ...tile, terrain: 'ocean' };
+    }
+    const warrior = createUnit('warrior', 'player', ocean.coord, state.idCounters);
+    state.units[warrior.id] = warrior;
+
+    expect(() => assertUnitsOnEnterableTerrain(state))
+      .toThrow(new RegExp(`${warrior.id}.*player warrior.*stands on ocean.*cannot enter`, 's'));
+  });
+
+  it('accepts a land unit on water beside a land tile as the #447 recovery state', () => {
+    const { state } = stateWithPlayerCity('terrain-recoverable-land');
+    const coast = Object.values(state.map.tiles).find(tile => tile.terrain === 'coast')!;
+    const neighbours = hexNeighbors(coast.coord);
+    const land = neighbours.find(coord => state.map.tiles[hexKey(coord)])!;
+    for (const coord of [coast.coord, ...neighbours]) {
+      const tile = state.map.tiles[hexKey(coord)];
+      if (tile) {
+        state.map.tiles[hexKey(coord)] = {
+          ...tile,
+          terrain: hexKey(coord) === hexKey(land) ? 'grassland' : 'ocean',
+        };
+      }
+    }
+    const warrior = createUnit('warrior', 'player', coast.coord, state.idCounters);
+    state.units[warrior.id] = warrior;
+
+    expect(() => assertUnitsOnEnterableTerrain(state)).not.toThrow();
+  });
+
+  // #1725: "a ship in port" means a genuinely coastal port, not any owned city tile.
+  it('rejects a hull in a landlocked city but accepts it in a coastal port', () => {
+    const { state, cityId } = stateWithPlayerCity('terrain-landlocked-port');
+    const city = state.cities[cityId];
+    for (const coord of [city.position, ...hexNeighbors(city.position)]) {
+      const tile = state.map.tiles[hexKey(coord)];
+      if (tile) state.map.tiles[hexKey(coord)] = { ...tile, terrain: 'grassland' };
+    }
+    const inlandHull = createUnit('galley', 'player', city.position, state.idCounters);
+    state.units[inlandHull.id] = inlandHull;
+    expect(() => assertUnitsOnEnterableTerrain(state))
+      .toThrow(new RegExp(`${inlandHull.id}.*galley.*stands on grassland.*cannot enter`, 's'));
+
+    const coastCoord = hexNeighbors(city.position).find(coord => state.map.tiles[hexKey(coord)])!;
+    state.map.tiles[hexKey(coastCoord)] = { ...state.map.tiles[hexKey(coastCoord)], terrain: 'coast' };
+    expect(() => assertUnitsOnEnterableTerrain(state)).not.toThrow();
+  });
+
   // #845: an undefended barbarian camp had zero representation in the movement system before
   // getBlockingMapEntityAt covered it. A unit walking onto (or being spawned onto) one is the
   // same illegal-final-state shape.
@@ -1248,6 +1302,60 @@ describe('#994 assertNoIllegalBlockingOccupancy', () => {
 });
 
 describe('#1006 assertSaveStateInvariants (aggregate)', () => {
+  // #1725: one valid control covering the legitimate map-occupant exceptions: a hull in a
+  // coastal port, a city-based aircraft, loaded cargo, and an off-map embedded spy. It must
+  // pass the full registry, not just the terrain check.
+  it('passes a valid save with a coastal navy, based aircraft, cargo and an off-map spy', () => {
+    const { state, cityId } = stateWithPlayerCity('inv-valid-special-locations');
+    const city = state.cities[cityId];
+    const coast = hexNeighbors(city.position).find(coord => state.map.tiles[hexKey(coord)])!;
+    state.map.tiles[hexKey(coast)] = { ...state.map.tiles[hexKey(coast)], terrain: 'coast' };
+    city.buildings = [...city.buildings, 'airfield'];
+
+    const addUnit = (unit: Unit) => {
+      state.units[unit.id] = unit;
+      state.civilizations.player.units.push(unit.id);
+    };
+    const hull = { ...createUnit('trireme', 'player', city.position, state.idCounters), id: 'port-hull' };
+    addUnit(hull);
+    const aircraft = {
+      ...createUnit('biplane', 'player', city.position, state.idCounters),
+      id: 'city-aircraft',
+      airBase: { kind: 'city' as const, cityId },
+    };
+    addUnit(aircraft);
+    const transport = { ...createUnit('transport', 'player', coast, state.idCounters), id: 'cargo-hull' };
+    const cargo = {
+      ...createUnit('warrior', 'player', coast, state.idCounters),
+      id: 'loaded-cargo',
+      transportId: transport.id,
+    };
+    transport.cargoUnitIds = [cargo.id];
+    addUnit(transport);
+    addUnit(cargo);
+
+    const spy = createSpyFromUnit(
+      createEspionageCivState(),
+      'embedded-spy',
+      'player',
+      'spy_agent',
+      'inv-valid-embedded-spy',
+    ).spy;
+    state.espionage = {
+      ...state.espionage,
+      player: {
+        ...state.espionage!.player,
+        spies: {
+          ...state.espionage!.player.spies,
+          [spy.id]: { ...spy, status: 'embedded', targetCityId: cityId, position: { ...city.position } },
+        },
+      },
+    };
+
+    expect(() => assertSaveStateInvariants(state)).not.toThrow();
+  });
+
+
   it('passes for a fresh solo game', () => {
     expect(() => assertSaveStateInvariants(freshState('inv-agg-solo'))).not.toThrow();
   });
