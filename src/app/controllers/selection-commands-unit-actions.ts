@@ -5,12 +5,11 @@
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
-import { isMajorCivOwner } from '@/core/owner-kind';
 import { createWorkerReplacementConfirmPanel } from '@/ui/worker-task-warning-panel';
 import { handleFriendlyUnitStackTap } from '@/input/unit-stack-selection';
 import { usePropagandistAction } from '@/systems/propagandist-system';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
-import { canPillageTile, getPillageGoldReward, applyPillageToState } from '@/systems/pillage-system';
+import { canPillageTile, getPillageGoldReward, applyPillageToState, isPillageWarSatisfied, PILLAGE_BLOCKER_MESSAGES } from '@/systems/pillage-system';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
 import { canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
@@ -66,17 +65,24 @@ export function createUnitActionCommands(
       const hasFinishedImprovement = tile.improvement !== 'none' && tile.improvementTurnsLeft === 0;
       const goldPreview = hasFinishedImprovement ? getPillageGoldReward(tile.improvement) : 0;
       const targetLabel = hasFinishedImprovement ? getImprovementDisplayName(tile.improvement) : 'the road';
-      const preview = goldPreview > 0
+      const warWarning = isPillageWarSatisfied(session.getState(), unit.owner, tile.owner)
+        ? ''
+        : '\n\nThis land belongs to someone you are at peace with: pillaging it declares war.';
+      const preview = (goldPreview > 0
         ? `Pillage ${targetLabel}?\n\n+${goldPreview} gold, unit heals +25 HP.`
-        : `Pillage ${targetLabel}?\n\nUnit heals +25 HP.`;
+        : `Pillage ${targetLabel}?\n\nUnit heals +25 HP.`) + warWarning;
       if (!window.confirm(preview)) return;
 
-      if (tile.owner && isMajorCivOwner(tile.owner)) {
+      if (tile.owner) {
         deps.ensurePlayerWarState(tile.owner);
       }
 
       const result = applyPillageToState(session.getState(), uid, deps.bus);
-      if (!result.ok) return;
+      if (!result.ok) {
+        // #1755: a refusal is typed and explained, never a silent no-op (the war may be impossible, e.g. a vassal).
+        deps.showNotification(PILLAGE_BLOCKER_MESSAGES[result.reason ?? 'nothing-to-pillage'], 'warning');
+        return;
+      }
       session.commit(result.state);
       deps.showNotification(
         result.goldAwarded! > 0 ? `Pillaged ${targetLabel} for ${result.goldAwarded} gold.` : `Pillaged ${targetLabel}.`,

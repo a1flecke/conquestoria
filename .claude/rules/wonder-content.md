@@ -29,6 +29,12 @@ These came out of MR10 (#469), where four legendary wonders had `requiredTechs` 
   - Enforced by: `city-territory-system.test.ts` → `every natural wonder terrain is claimable when a wonder occupies the tile`, and `city-work-system.test.ts` → `every natural wonder terrain is workable when a wonder occupies the tile`.
   - When adding a natural wonder on a terrain not already covered by an existing wonder: run these two tests first — if they fail, the terrain has a blanket exclusion that needs the `tile.wonder`-aware exception, same pattern as the `ocean` case.
 
+## A Wonder Follows Its City (#1755)
+
+- **`completedLegendaryWonders[id].ownerId` is the civ that holds the wonder now**, and every effect reads it that way (yield bonuses, Navigator's Compass, Silk Road, lunar gateway, air defence, tactical grants, atlas). The record itself is never deleted: it is the Hall-of-Fame entry.
+- **Any path that changes a city's owner calls `transferLegendaryWondersForCity`** (`src/systems/legendary-wonder-ownership.ts`), which moves the completed record and re-keys any project hosted in that city. Today: `resolveMajorCityCapture` (occupy and breakaway reconquest), `transferCapturedCityOwnership` (loyalty flip, spy incitement, treaty cession) and breakaway secession. A new ownership path must call it; the test in `city-capture-system.test.ts` ("a wonder follows its city") pins the capture and transfer cases.
+- **A razed host city is not handled yet**: the record stays with the former owner and keeps paying. Tracked on #1755.
+
 ## Codex Source Ledger Sync
 
 - **`docs/wonder-codex-source-ledger.md` is a hand-maintained mirror of `src/systems/wonder-codex/sources.ts` and is NOT derived from code.** If a new legendary wonder gets a `legendary-content.ts` entry with a new fact-source id (or reuses one that already exists but the wonder itself is new), the ledger needs two additions: a "Baseline Source Inventory" row for any *new* fact source, and a "Per-Entry Ledger Requirement" row for the wonder itself, in the exact `| \`id\` | \`factSourceIds\` | \`imageSourceId\` | localPath | license | attribution |` shape already used by every other row.

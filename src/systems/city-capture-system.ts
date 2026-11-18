@@ -5,7 +5,6 @@ import type {
   GameEvents,
   GameState,
   HexCoord,
-  LegendaryWonderProject,
   Unit,
 } from '@/core/types';
 import { getUnitAttackProfile } from '@/systems/attack-targeting';
@@ -46,6 +45,7 @@ import {
 import { removeUnits } from '@/systems/unit-removal-system';
 import { isCityBreachedBy } from '@/systems/city-breach';
 import { removeNationalProjectsHostedBy } from './national-project-system';
+import { transferLegendaryWondersForCity } from './legendary-wonder-ownership';
 import { releaseRecordsOfRemovedCity } from './city-removal-records';
 import { surviveLethalHitWithGeneTherapy } from '@/systems/gene-therapy-system';
 
@@ -436,32 +436,6 @@ export function computeRazeGold(city: City): number {
   return 10 + salvage;
 }
 
-function buildLegendaryWonderProjectKey(project: LegendaryWonderProject): string {
-  return `${project.wonderId}:${project.ownerId}:${project.cityId}`;
-}
-
-function transferLegendaryWonderProjectsForCity(
-  projects: GameState['legendaryWonderProjects'],
-  cityId: string,
-  newOwnerId: string,
-): GameState['legendaryWonderProjects'] {
-  const entries = Object.entries(projects ?? {});
-  if (entries.length === 0) {
-    return projects;
-  }
-
-  const updated = Object.fromEntries(entries.map(([projectId, project]) => {
-    if (project.cityId !== cityId) {
-      return [projectId, project];
-    }
-
-    const movedProject = { ...project, ownerId: newOwnerId };
-    return [buildLegendaryWonderProjectKey(movedProject), movedProject];
-  }));
-
-  return updated;
-}
-
 function buildCaptureResult(
   beforeTerritoryState: GameState,
   territoryResult: TerritoryRecalculationResult,
@@ -618,14 +592,10 @@ export function resolveMajorCityCapture(
       reconquerBreakawayCity(released, newOwnerId, previousOwnerId, cityId),
       cityId,
     );
-    const withoutProjects = removeNationalProjectsHostedBy({
-      ...reconquered,
-      legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
-        reconquered.legendaryWonderProjects,
-        cityId,
-        newOwnerId,
-      ),
-    }, cityId);
+    const withoutProjects = removeNationalProjectsHostedBy(
+      transferLegendaryWondersForCity(reconquered, cityId, newOwnerId),
+      cityId,
+    );
     // The breakaway's aircraft based here follow the rule every other capture applies; a breakaway
     // that survives the loss (a settler) otherwise kept a jet on the captor's airfield.
     const nextState = resolveAirBaseLoss(
@@ -701,13 +671,11 @@ export function resolveMajorCityCapture(
           generalProgress: awardGeneralProgress(capturingCiv, GENERAL_PROGRESS_AWARDS.cityCapture),
         },
       },
-      legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
-        state.legendaryWonderProjects,
-        cityId,
-        newOwnerId,
-      ),
     };
-    const afterProjectLoss = removeNationalProjectsHostedBy(beginCityMaterialOccurrence(nextState, cityId), cityId);
+    const afterProjectLoss = removeNationalProjectsHostedBy(
+      transferLegendaryWondersForCity(beginCityMaterialOccurrence(nextState, cityId), cityId, newOwnerId),
+      cityId,
+    );
     const afterAircraft = resolveAirBaseLoss(
       afterProjectLoss,
       { kind: 'city', cityId },
@@ -884,7 +852,11 @@ export function transferCapturedCityOwnership(
 
   if (previousOwner?.breakaway?.originOwnerId === newOwnerId) {
     const nextState = moveForeignOccupantsOut(removeNationalProjectsHostedBy(
-      reconquerBreakawayCity(releasedState, newOwnerId, previousOwnerId, cityId),
+      transferLegendaryWondersForCity(
+        reconquerBreakawayCity(releasedState, newOwnerId, previousOwnerId, cityId),
+        cityId,
+        newOwnerId,
+      ),
       cityId,
     ), cityId);
     return recalculateTerritory(
@@ -925,7 +897,7 @@ export function transferCapturedCityOwnership(
   };
   const eliminatedState = reconcileCivilizationLiveness(
     releasedState,
-    beginCityMaterialOccurrence(moveForeignOccupantsOut(removeNationalProjectsHostedBy(nextState, cityId), cityId), cityId),
+    beginCityMaterialOccurrence(moveForeignOccupantsOut(removeNationalProjectsHostedBy(transferLegendaryWondersForCity(nextState, cityId, newOwnerId), cityId), cityId), cityId),
     newOwnerId,
   ).state;
   return cancelInvalidNetworkPlans(recalculateTerritory(eliminatedState, {

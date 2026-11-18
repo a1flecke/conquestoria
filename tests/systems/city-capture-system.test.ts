@@ -19,6 +19,8 @@ import {
   resolveMajorCityCapture,
   transferCapturedCityOwnership,
 } from '@/systems/city-capture-system';
+import { transferLegendaryWondersForCity } from '@/systems/legendary-wonder-ownership';
+import { getLegendaryWonderCivYieldBonus, getLegendaryWonderCityYieldBonus } from '@/systems/legendary-wonder-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -1109,5 +1111,51 @@ describe('#887 MR1 — recordCityCaptureCareerEvents (city-captured attribution)
     state.units.captor = { ...state.units.captor, seizeGrantedBy: { generalDefinitionId: 'gen_sun_tzu', turn: 5 } };
 
     expect(() => recordCityCaptureCareerEvents(state, 'athens', 'Athens', 'player', 'captor')).not.toThrow();
+  });
+});
+
+describe('a wonder follows its city (#1755 W1)', () => {
+  function worldWithWonderCity() {
+    const state = createNewGame({ civType: 'rome', seed: 'wonder-follows-city', mapSize: 'small', opponentCount: 1, gameTitle: 't' });
+    const anchor = state.units[state.civilizations['ai-1'].units[0]];
+    const city = foundCity('ai-1', anchor.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations['ai-1'].cities.push(city.id);
+    for (const coord of city.ownedTiles) state.map.tiles[hexKey(coord)].owner = 'ai-1';
+    state.completedLegendaryWonders = { 'great-pyramid': { ownerId: 'ai-1', cityId: city.id, turnCompleted: 5 } };
+    state.legendaryWonderProjects = {
+      ['great-pyramid:ai-1:' + city.id]: {
+        id: 'great-pyramid:ai-1:' + city.id, wonderId: 'great-pyramid', ownerId: 'ai-1', cityId: city.id, phase: 'completed',
+      } as unknown as NonNullable<GameState['legendaryWonderProjects']>[string],
+    };
+    return { state, cityId: city.id };
+  }
+
+  it('moves the completed record and the hosted project, and never deletes the record', () => {
+    const { state, cityId } = worldWithWonderCity();
+    const moved = transferLegendaryWondersForCity(state, cityId, 'player');
+    expect(moved.completedLegendaryWonders?.['great-pyramid']).toMatchObject({ ownerId: 'player', cityId, turnCompleted: 5 });
+    expect(Object.keys(moved.legendaryWonderProjects ?? {})).toEqual(['great-pyramid:player:' + cityId]);
+    // A city that hosts nothing changes nothing, and the input is untouched.
+    expect(transferLegendaryWondersForCity(state, 'some-other-city', 'player')).toBe(state);
+    expect(state.completedLegendaryWonders?.['great-pyramid'].ownerId).toBe('ai-1');
+  });
+
+  it('capture hands the wonder\'s empire and city bonuses to the captor', () => {
+    const { state, cityId } = worldWithWonderCity();
+    expect(getLegendaryWonderCivYieldBonus(state, 'ai-1')).toMatchObject({ production: 1 });
+
+    const captured = resolveMajorCityCapture(state, cityId, 'player', 'occupy', 10).state;
+
+    expect(captured.cities[cityId].owner).toBe('player');
+    expect(getLegendaryWonderCivYieldBonus(captured, 'player')).toMatchObject({ production: 1 });
+    expect(getLegendaryWonderCivYieldBonus(captured, 'ai-1').production ?? 0).toBe(0);
+    expect(getLegendaryWonderCityYieldBonus(captured, 'player', cityId)).toMatchObject({ production: 2 });
+  });
+
+  it('the lower-level transfers (loyalty flip, incitement, cession) move it too', () => {
+    const { state, cityId } = worldWithWonderCity();
+    const transferred = transferCapturedCityOwnership(state, cityId, 'player', 12);
+    expect(transferred.completedLegendaryWonders?.['great-pyramid'].ownerId).toBe('player');
   });
 });
