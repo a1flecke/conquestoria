@@ -847,6 +847,19 @@ describe('city-capture-system', () => {
       expect(result.state.cities.athens).toBeDefined(); // still owned by defender
     });
 
+    it('a gene-therapy-ready attacker survives lethal wall counter-fire at 1 HP and spends the charge', () => {
+      const state = makeUndefendedWalledCityState({ population: 30, buildings: ['walls', 'star_fort'] });
+      state.units.attacker = { ...state.units.attacker!, health: 1, geneTherapyReady: true };
+      const withoutCharge = makeUndefendedWalledCityState({ population: 30, buildings: ['walls', 'star_fort'] });
+      withoutCharge.units.attacker = { ...withoutCharge.units.attacker!, health: 1 };
+
+      const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+      const control = beginMajorCityAssault(withoutCharge, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+      expect(control.state.units.attacker).toBeUndefined();
+      expect(result.state.units.attacker).toMatchObject({ health: 1, geneTherapyReady: false });
+    });
+
     it('on a successful assault against walls, the attacker still takes counter-fire damage', () => {
       const state = makeUndefendedWalledCityState({ population: 1, buildings: ['walls'], attackerType: 'tank' });
       const before = state.units.attacker!.health;

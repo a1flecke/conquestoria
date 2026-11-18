@@ -21,6 +21,7 @@ import { createSimulationRng } from '@/systems/simulation-rng';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { isCityBreachedBy } from '@/systems/city-breach';
+import { surviveLethalHitWithGeneTherapy } from '@/systems/gene-therapy-system';
 
 export type CityBombardmentSource = 'player' | 'ai';
 
@@ -302,7 +303,10 @@ export function resolveUnitCityBombardment(
     const current = nextState.units[attacker.id];
     if (current) {
       const healthAfter = current.health - counterFireDamage;
-      if (healthAfter <= 0) {
+      const geneTherapySurvivor = healthAfter <= 0 ? surviveLethalHitWithGeneTherapy(current) : null;
+      if (geneTherapySurvivor) {
+        nextState = { ...nextState, units: { ...nextState.units, [attacker.id]: geneTherapySurvivor } };
+      } else if (healthAfter <= 0) {
         attackerDied = true;
         nextState = removeUnits(nextState, [attacker.id], { reason: 'destroyed' }).state;
       } else {

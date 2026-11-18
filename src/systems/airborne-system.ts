@@ -16,6 +16,7 @@ import { getHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { appendNotification } from '@/core/notification-log';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { surviveLethalHitWithGeneTherapy } from '@/systems/gene-therapy-system';
 
 // `foreign-city` / `barbarian-camp` / `pirate-enclave` mirror the canonical
 // hostile-structure blocker reasons from `getBlockingMapEntityAt` (#970): an
@@ -311,10 +312,11 @@ function resolveAirborneLanding(state: GameState, unit: Unit, destination: HexCo
   if (strongestProvider && threat.flatDefenseModifier > 0) {
     flak = { damage: threat.flatDefenseModifier, providerId: strongestProvider.id, providerLabel: strongestProvider.label };
     const health = workingUnit.health - threat.flatDefenseModifier;
-    if (health <= 0) {
+    const geneTherapySurvivor = health <= 0 ? surviveLethalHitWithGeneTherapy(workingUnit) : null;
+    if (health <= 0 && !geneTherapySurvivor) {
       return { state: removeUnits(state, [unit.id], { reason: 'destroyed' }).state, flak, survived: false };
     }
-    workingUnit = { ...workingUnit, health };
+    workingUnit = geneTherapySurvivor ?? { ...workingUnit, health };
   }
 
   // Interception second, against the (possibly flak-weakened) unit at its

@@ -1,5 +1,16 @@
-import type { GameState } from '@/core/types';
+import type { GameState, Unit } from '@/core/types';
 import { UNIT_DEFINITIONS } from './unit-definitions';
+
+/**
+ * Gene Therapy's promise: a unit survives "a lethal hit once per cooldown". The one answer for any lethal damage
+ * outside the primary attacker/defender exchange (splash, city and battery counter-fire, flak, an enclave
+ * assault): the unit left at 1 HP with the charge spent and its turn used, exactly as the primary branches leave
+ * it, or `null` when it has no charge and dies.
+ */
+export function surviveLethalHitWithGeneTherapy(unit: Unit): Unit | null {
+  if (unit.geneTherapyReady !== true) return null;
+  return { ...unit, health: 1, movementPointsLeft: 0, hasMoved: true, hasActed: true, geneTherapyReady: false };
+}
 
 // Charges every combat unit (strength > 0) owned by civId on gene-therapy research completion.
 // Strength-0 civilians (settler, worker, caravan, expedition, cyber_unit, transports) are left

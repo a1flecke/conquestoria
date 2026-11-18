@@ -47,6 +47,7 @@ import { removeUnits } from '@/systems/unit-removal-system';
 import { isCityBreachedBy } from '@/systems/city-breach';
 import { removeNationalProjectsHostedBy } from './national-project-system';
 import { releaseRecordsOfRemovedCity } from './city-removal-records';
+import { surviveLethalHitWithGeneTherapy } from '@/systems/gene-therapy-system';
 
 /**
  * #988/#991: every combat capture (occupy or raze) counts toward the
@@ -361,16 +362,20 @@ export function beginMajorCityAssault(
       );
       if (counterFireDamage > 0) {
         const healthAfter = attacker.health - counterFireDamage;
-        if (healthAfter <= 0) {
+        const geneTherapySurvivor = healthAfter <= 0 ? surviveLethalHitWithGeneTherapy(nextState.units[attackerId] ?? attacker) : null;
+        if (healthAfter <= 0 && !geneTherapySurvivor) {
           nextState = awardDefenseProgress(
             removeUnits(nextState, [attackerId], { reason: 'destroyed' }).state,
             city.owner,
           );
           return assaultFailure(nextState, 'repelled-by-city-defense');
         }
+        // Gene Therapy turns the walls' lethal answer into a 1 HP survival (the charge is spent); the assault then
+        // resolves exactly as after any non-lethal counter-fire, so the turn is not spent before the roll.
         nextState.units[attackerId] = {
           ...nextState.units[attackerId],
-          health: healthAfter,
+          health: geneTherapySurvivor ? 1 : healthAfter,
+          ...(geneTherapySurvivor ? { geneTherapyReady: false } : {}),
         };
       }
       const assaultResult = resolveCityAssault(strengths.attackerStrength, strengths.intrinsicStrength, assaultSeed);
