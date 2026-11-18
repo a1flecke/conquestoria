@@ -8,6 +8,8 @@ import { createEspionageCivState } from '@/systems/espionage-system';
 import { foundReligion } from '@/systems/religion-system';
 import { hexKey } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
+import { applyPillageToState } from '@/systems/pillage-system';
+import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { makeReligionFixture } from '../../systems/helpers/religion-fixture';
 import type { GameEvents, GameState, HexCoord, Spy } from '@/core/types';
 import type { ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
@@ -280,13 +282,31 @@ describe('PlayerActionController', () => {
       expect(deps.session.getState().civilizations.player.diplomacy.atWarWith).toEqual([aiCivId]);
     });
 
-    it('does nothing for a non-major-civ target (e.g. a minor civ or barbarian id)', () => {
+    it('does nothing for a world-actor target such as barbarians (a city-state gets a real war, below)', () => {
       const { state } = makeFixture('war-state-non-major');
       const { deps, controller } = build(state);
 
       controller.ensurePlayerWarState('barbarians');
 
       expect(deps.session.getState().civilizations.player.diplomacy.atWarWith).toEqual([]);
+    });
+
+    it('declares war on a city-state, so pillaging its land is a real war like attacking its city (#1755)', () => {
+      const { state } = makeFixture('war-state-city-state');
+      const minorCivId = Object.keys(state.minorCivs)[0]!;
+      // A tile beside the city-state's city, held as its own territory.
+      const cityPosition = state.cities[state.minorCivs[minorCivId]!.cityId]!.position;
+      const farmCoord = { q: cityPosition.q + 1, r: cityPosition.r };
+      const farmKey = hexKey(farmCoord);
+      state.map.tiles[farmKey] = { ...state.map.tiles[farmKey]!, terrain: 'plains', owner: minorCivId, improvement: 'farm', improvementTurnsLeft: 0 };
+      placeUnit(state, 'warrior', 'pillager', farmCoord);
+      const { deps, controller } = build(state);
+
+      expect(applyPillageToState(deps.session.getState(), 'pillager').reason).toBe('not-at-war');
+      controller.ensurePlayerWarState(minorCivId);
+
+      expect(isMinorCivAtWar(deps.session.getState(), 'player', minorCivId)).toBe(true);
+      expect(applyPillageToState(deps.session.getState(), 'pillager')).toMatchObject({ ok: true, improvementPillaged: 'farm' });
     });
 
     it('publishes the war declaration to session subscribers, not just the renderer', () => {
