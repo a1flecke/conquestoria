@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 40,
+  "schemaVersion": 41,
   "paths": [
     "autonomyByCiv",
     "autonomyByCiv.*.detections",
@@ -99,6 +99,7 @@
     "civilizations.*.isHuman",
     "civilizations.*.knownCivilizations",
     "civilizations.*.lastCombatTurnByLandmass",
+    "civilizations.*.lastCombatTurnByLandmass.continent-0",
     "civilizations.*.name",
     "civilizations.*.nearDefeat",
     "civilizations.*.satelliteSurveillanceTargets",

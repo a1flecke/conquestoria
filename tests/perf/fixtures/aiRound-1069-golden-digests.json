@@ -1,7 +1,7 @@
 {
   "e1": {
     "state": {
-      "__whole": "b7aef5a59f5f",
+      "__whole": "30085af1eaad",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "ffd07905fec0",
@@ -30,7 +30,7 @@
       "legendaryWonderIntel": "44136fa355b3",
       "legendaryWonderProjects": "a552f976e4ac",
       "legendaryWonderTacticalEffects": "47b45e76467c",
-      "map": "5bd6b7642e95",
+      "map": "9f8f8fb4a8d6",
       "mapScript": "da8d666f962e",
       "marketplace": "47a4844f96fd",
       "materialReservesByCiv": "ddb44260c5e9",
@@ -51,7 +51,7 @@
       "religions": "44136fa355b3",
       "resurgentCampCooldownByCivLandmass": "44136fa355b3",
       "rogueElephantHosts": "44136fa355b3",
-      "saveSchemaVersion": "d59eced1ded0",
+      "saveSchemaVersion": "3d914f9348c9",
       "settings": "666ce98eb188",
       "stampedes": "44136fa355b3",
       "startPlacementMode": "61eb5aa337d3",
@@ -67,7 +67,7 @@
   },
   "e2": {
     "state": {
-      "__whole": "ca1556067a0f",
+      "__whole": "6e32d2548fba",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "3844da1b263b",
@@ -96,7 +96,7 @@
       "legendaryWonderIntel": "44136fa355b3",
       "legendaryWonderProjects": "3b9f5f52e238",
       "legendaryWonderTacticalEffects": "47b45e76467c",
-      "map": "9a38f5a35b51",
+      "map": "f0bbd3838185",
       "mapScript": "da8d666f962e",
       "marketplace": "47a4844f96fd",
       "materialReservesByCiv": "ddb44260c5e9",
@@ -117,7 +117,7 @@
       "religions": "44136fa355b3",
       "resurgentCampCooldownByCivLandmass": "44136fa355b3",
       "rogueElephantHosts": "44136fa355b3",
-      "saveSchemaVersion": "d59eced1ded0",
+      "saveSchemaVersion": "3d914f9348c9",
       "settings": "666ce98eb188",
       "stampedes": "44136fa355b3",
       "startPlacementMode": "61eb5aa337d3",

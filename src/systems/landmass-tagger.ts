@@ -5,8 +5,9 @@ const MIN_CONTINENT_TILES = 9;
 
 /**
  * Return exact default-land connectivity when both tiles have canonical
- * landmass tags. Tags encode every non-wrapping land edge. A wrapping map can
- * additionally join tags only through its horizontal seam, which this small
+ * landmass tags. `tagLandmassRegions` follows the horizontal seam, so one tag is
+ * one landmass. A save tagged before that (or a hand-built fixture) can still
+ * hold two tags for one landmass that meet only at the seam, which this small
  * tag graph accounts for. `undefined` means the map lacks complete tags, so a
  * caller must use its canonical pathfinding fallback instead.
  */
@@ -58,6 +59,11 @@ export function areTaggedLandmassesConnected(
   return false;
 }
 
+/**
+ * Tag every land tile with its landmass (`continent-N` / `island-N`, largest first). On a wrapping map a
+ * landmass that crosses the horizontal seam is one landmass, so its tiles share one tag: code that compares
+ * two tiles' `regionKey` (the foreign-landmass founding bonus, threat pressure, AI sea routing) relies on it.
+ */
 export function tagLandmassRegions(map: GameMap): Record<string, HexTile> {
   const tiles = { ...map.tiles };
   const visited = new Set<string>();
@@ -76,7 +82,10 @@ export function tagLandmassRegions(map: GameMap): Record<string, HexTile> {
       const cur = queue.shift()!;
       component.push(cur);
       const [q, r] = cur.split(',').map(Number);
-      for (const nb of hexNeighbors({ q, r })) {
+      const neighbors = map.wrapsHorizontally
+        ? getWrappedHexNeighbors({ q, r }, map.width)
+        : hexNeighbors({ q, r });
+      for (const nb of neighbors) {
         const nbKey = hexKey(nb);
         if (visited.has(nbKey)) continue;
         const nbTile = tiles[nbKey];

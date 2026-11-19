@@ -5,6 +5,7 @@ import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/grea
 import { describeGeneralAbilityMoment } from '@/systems/great-general-ability-presentation';
 import { GENERAL_SPECIALTY_ASSIGNMENTS, resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { mapDistance } from '@/systems/hex-utils';
+import { getCapitalCity } from '@/systems/capital-system';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isAIHostileOwner } from '@/ai/ai-hostility';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
@@ -388,7 +389,7 @@ function specialtyNeed(state: GameState, civId: string, specialtyId: string): nu
         && mapDistance(state.map, u.position, e.position) <= 1)).length;
     }
     case 'mobile': {
-      const capital = civ?.cities?.[0] ? state.cities[civ.cities[0]] : undefined;
+      const capital = getCapitalCity(state, civId);
       if (!capital) return 0;
       const far = units.filter(u => hasAICombatRole(u.type)
         && mapDistance(state.map, capital.position, u.position) >= MOBILE_FRONTLINE_DISTANCE).length;
