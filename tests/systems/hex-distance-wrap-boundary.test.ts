@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest';
  * with the reason it is left alone. A listed entry whose count changes fails too, so the list cannot
  * go stale.
  */
-const ROOTS = ['src/systems', 'src/ai', 'src/core'];
+const ROOTS = ['src/systems', 'src/ai', 'src/core', 'src/ui', 'src/app', 'src/input'];
 const CANONICAL = new Set(['src/systems/hex-utils.ts']);
 
 const DISTANCE_ALLOWED: Record<string, { count: number; why: string }> = {
