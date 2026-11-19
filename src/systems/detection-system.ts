@@ -2,7 +2,7 @@
 import type { GameState, Unit } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { UNIT_DEFINITIONS } from './unit-definitions';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 import { createRng } from './map-generator';
 import { isSpyUnitType } from './spy-unit-types';
 
@@ -34,7 +34,7 @@ export function processDetection(state: GameState, bus: EventBus): GameState {
       if (detectUnit.transportId) continue;
       const def = UNIT_DEFINITIONS[detectUnit.type];
       if (!def?.spyDetectionChance) continue;
-      const dist = hexDistance(detectUnit.position, spyUnit.position);
+      const dist = mapDistance(state.map, detectUnit.position, spyUnit.position);
       if (dist > def.visionRange) continue;
       if (rng() < def.spyDetectionChance) {
         registerOnce(detectUnit.owner, false);
@@ -44,7 +44,7 @@ export function processDetection(state: GameState, bus: EventBus): GameState {
     // 2. Passive baseline detection — a spy next to an enemy city (spies never enter one)
     for (const city of Object.values(state.cities)) {
       if (city.owner === spyUnit.owner) continue;
-      if (hexDistance(city.position, spyUnit.position) > 1) continue;
+      if (mapDistance(state.map, city.position, spyUnit.position) > 1) continue;
       const chance = getPassiveDetectionChance(city.population);
       if (rng() < chance) {
         registerOnce(city.owner, spyRecord.disguiseAs != null);

@@ -1,6 +1,6 @@
 import type { GameMap, HexCoord, GameState, ResourceYield } from '@/core/types';
 import { WONDER_DEFINITIONS, getWonderDefinition } from './wonder-definitions';
-import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
+import { hexKey, hexDistance, hexNeighbors, mapDistance } from './hex-utils';
 import { createRng } from './map-generator';
 import { applyResearchBonus } from './tech-system';
 import { recordLegendaryWonderDiscoverySite } from './legendary-wonder-history';
@@ -113,7 +113,7 @@ export function processWonderDiscovery(
           let nearestCity = null;
           let nearestDist = Infinity;
           for (const city of getOwnedCities(state, civId)) {
-            const dist = hexDistance(wonderPosition, city.position);
+            const dist = mapDistance(state.map, wonderPosition, city.position);
             if (dist < nearestDist) {
               nearestDist = dist;
               nearestCity = city;

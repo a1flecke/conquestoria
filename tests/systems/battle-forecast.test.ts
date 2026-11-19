@@ -53,7 +53,7 @@ describe('battle forecast (#1135) uses the real combat math', () => {
     const ratioRoll = rng(); const baseRoll = rng();
     const strengths = resolveCombatStrengths(knight, spearman, map);
     const direct = computeExchangeDamage({
-      atkStrength: strengths.attackerStrength, defStrength: strengths.defenderStrength, attacker: knight, defender: spearman,
+      atkStrength: strengths.attackerStrength, defStrength: strengths.defenderStrength, attacker: knight, defender: spearman, map,
       era: 3, exchange: strengths.exchange, ratioRoll, baseRoll,
     });
     const real = resolveCombat(knight, spearman, map, seed, undefined, 3);
@@ -203,5 +203,15 @@ describe('air-strike forecast chain (#1213)', () => {
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
     expect(b).toEqual(a);
+  });
+});
+
+describe('battle forecast across a wrapping seam', () => {
+  it('forecasts the counter-damage of a defender adjacent through the seam', () => {
+    const wrapMap = { ...map, width: 12, wrapsHorizontally: true } as GameMap;
+    const atSeam = forecastCombat(unit({ id: 'k', type: 'warrior', position: { q: 0, r: 1 } }), unit({ id: 's', type: 'warrior', owner: 'enemy', position: { q: 11, r: 1 } }), wrapMap);
+    const inland = forecastCombat(unit({ id: 'k', type: 'warrior', position: { q: 4, r: 1 } }), unit({ id: 's', type: 'warrior', owner: 'enemy', position: { q: 5, r: 1 } }), wrapMap);
+    expect(inland.attackerDamage.expected).toBeGreaterThan(0);
+    expect(atSeam.attackerDamage).toEqual(inland.attackerDamage);
   });
 });

@@ -11,7 +11,7 @@ import { EventBus } from '@/core/event-bus';
 import { getLegendaryWonderDefinition, getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
 import { applyResearchBonus, getTechById } from '@/systems/tech-system';
 import { applyResearchCompletionConsequences } from '@/systems/tech-completion-system';
-import { hexDistance } from '@/systems/hex-utils';
+import { mapDistance } from '@/systems/hex-utils';
 import { routeMatchesLegendaryWonderRequirement } from '@/systems/trade-route-classification';
 import {
   createHostLocationLegendaryWonderIntelEntry,
@@ -340,7 +340,7 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
         .filter(record => {
           if (record.civId !== project.ownerId) return false;
           if (step.scope === 'near-city') {
-            return hexDistance(record.position, city.position) <= (step.radius ?? 4);
+            return mapDistance(state.map, record.position, city.position) <= (step.radius ?? 4);
           }
           return true;
         });

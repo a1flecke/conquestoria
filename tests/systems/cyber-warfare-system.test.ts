@@ -32,6 +32,7 @@ function makeState(opts: {
   const atWar = opts.atWar ?? true;
   return {
     turn: opts.turn ?? 1, era: 12, currentPlayer: 'p1',
+    map: { width: 40, height: 40, wrapsHorizontally: false, tiles: {}, rivers: [] },
     cities: Object.fromEntries(opts.cities.map(c => [c.id, c])),
     units: Object.fromEntries(opts.units.map(u => [u.id, u])),
     civilizations: {

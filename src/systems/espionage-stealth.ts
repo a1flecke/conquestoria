@@ -1,18 +1,18 @@
 // src/systems/espionage-stealth.ts
-import type { Unit, GameState, UnitType } from '@/core/types';
+import type { GameMap, Unit, GameState, UnitType } from '@/core/types';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { isSpyUnitType } from './spy-unit-types';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 import { isUnitConcealedFrom } from './concealment';
 
-function hasNearbyDetector(units: Record<string, Unit>, viewerCivId: string, spyPosition: { q: number; r: number }): boolean {
+function hasNearbyDetector(map: GameMap, units: Record<string, Unit>, viewerCivId: string, spyPosition: { q: number; r: number }): boolean {
   for (const u of Object.values(units)) {
     if (u.transportId) continue;
     if (u.owner !== viewerCivId) continue;
     const def = UNIT_DEFINITIONS[u.type];
     const isDetector = !!def?.spyDetectionChance || isSpyUnitType(u.type);
     if (!isDetector) continue;
-    if (hexDistance(u.position, spyPosition) <= (def?.visionRange ?? 2)) return true;
+    if (mapDistance(map, u.position, spyPosition) <= (def?.visionRange ?? 2)) return true;
   }
   return false;
 }
@@ -51,7 +51,7 @@ export function getVisibleUnitsForPlayer(
     }
 
     // Own spy units and scout_hound units see through all disguises
-    if (hasNearbyDetector(units, viewerCivId, unit.position)) {
+    if (hasNearbyDetector(state.map, units, viewerCivId, unit.position)) {
       result[id] = unit;
       continue;
     }

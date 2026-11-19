@@ -166,7 +166,7 @@ export function forecastAirStrike(input: AirStrikeForecastInput): AirStrikeForec
     ? [strengths.defenderStrength === 0
       ? { attackerDamage: 0, defenderDamage: striker.health }
       : { attackerDamage: interceptor.health, defenderDamage: 0 }]
-    : sampleExchangeGrid(strengths, strengths.attackerStrength, strengths.defenderStrength, interceptor, striker, interception.context, interception.era);
+    : sampleExchangeGrid(strengths, strengths.attackerStrength, strengths.defenderStrength, interceptor, striker, map, interception.context, interception.era);
 
   const legCache = new Map<number, LegOutcome>();
   const weight = 1 / cells.length;

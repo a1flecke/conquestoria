@@ -245,6 +245,7 @@ function stateWith(overrides: {
     },
     units: overrides.units,
     cities: overrides.cities ?? {},
+    map: { width: 40, height: 40, wrapsHorizontally: false, tiles: {}, rivers: [] },
   } as unknown as GameState;
 }
 

@@ -11,7 +11,7 @@ import type { AdvisorType } from '@/core/types/council';
 import type { Treaty } from '@/core/types/diplomacy';
 import type { OperationEffect, OperationMissionType } from '@/core/types/espionage-incident';
 import { createRng } from './map-generator';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 import { REBEL_SPAWN_OFFSETS, filterLegalSpawnTiles, spawnNeighbours, type SpawnPlacementQuery } from './unit-spawn-placement';
 import { getCapitalCityId } from './capital-system';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
@@ -286,7 +286,7 @@ export function resolveMissionResult(
       const tilesToReveal: HexCoord[] = [];
       for (const key of Object.keys(gameState.map.tiles)) {
         const [q, r] = key.split(',').map(Number);
-        if (hexDistance({ q, r }, targetCity.position) <= SCOUT_VISION_RADIUS) {
+        if (mapDistance(gameState.map, { q, r }, targetCity.position) <= SCOUT_VISION_RADIUS) {
           tilesToReveal.push({ q, r });
         }
       }
@@ -298,7 +298,7 @@ export function resolveMissionResult(
       const nearbyUnits: Array<{ type: UnitType; position: HexCoord; health: number }> = [];
       for (const unit of Object.values(gameState.units)) {
         if (unit.owner === targetCivId &&
-            hexDistance(unit.position, targetCity.position) <= TROOP_MONITOR_RADIUS) {
+            mapDistance(gameState.map, unit.position, targetCity.position) <= TROOP_MONITOR_RADIUS) {
           nearbyUnits.push({
             type: unit.type,
             position: { ...unit.position },

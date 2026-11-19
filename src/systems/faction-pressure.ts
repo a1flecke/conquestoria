@@ -3,7 +3,7 @@
 // and the city-panel breakdown build from, plus contagion and building happiness. Pure queries: it
 // reads the relief table but never imports the commands or the turn orchestration.
 import type { GameState, City } from '../core/types';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 import { getEconomyStatusForCiv } from './economy-system';
 import { getCapitalCity } from './capital-system';
 import { getChallengeProfileForCiv } from '../core/opponent-challenge';
@@ -76,7 +76,7 @@ export function getUnrestPressureBreakdown(
 
   const capital = getCapitalCity(state, owner);
   if (capital && capital.id !== cityId) {
-    const dist = hexDistance(city.position, capital.position);
+    const dist = mapDistance(state.map, city.position, capital.position);
     const distancePressure = Math.min(MAX_PRESSURE_DISTANCE, Math.max(0, (dist - 5) * 2));
     if (distancePressure > 0) rows.push({ label: 'Distance from capital', amount: distancePressure });
   }
@@ -186,7 +186,7 @@ export function getContagionSpread(
   let nearestDistance = Infinity;
   for (const [otherId, other] of Object.entries(state.cities)) {
     if (otherId === cityId || other.owner !== city.owner || other.unrestLevel !== 2) continue;
-    const distance = hexDistance(city.position, other.position);
+    const distance = mapDistance(state.map, city.position, other.position);
     if (distance > CONTAGION_GROUP_RANGE) continue;
     total += CONTAGION_PRESSURE_PER_NEIGHBOR * profile.crisisSeverityMultiplier;
     if (distance < nearestDistance) {

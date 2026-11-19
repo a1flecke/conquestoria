@@ -14,7 +14,7 @@ import { resolveCivilizationEra } from './tech-definitions';
 import type { CivilizationEra } from './era-types';
 import { hasDiscoveredCity, hasDiscoveredMinorCiv } from './discovery-system';
 import { getVisibility } from './fog-of-war';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 import { findPath } from './unit-pathfinding';
 import { canEstablishRoute } from './trade-caravan-system';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
@@ -194,9 +194,9 @@ function eligibleHostileUnits(
   if (!visibility) return [];
   return Object.values(state.units)
     .filter(unit => isQuestHostileOwner(state, majorCivId, unit.owner))
-    .filter(unit => hexDistance(unit.position, issuerPosition) <= radius)
+    .filter(unit => mapDistance(state.map, unit.position, issuerPosition) <= radius)
     .filter(unit => getVisibility(visibility, unit.position) === 'visible')
-    .sort((left, right) => hexDistance(left.position, issuerPosition) - hexDistance(right.position, issuerPosition)
+    .sort((left, right) => mapDistance(state.map, left.position, issuerPosition) - mapDistance(state.map, right.position, issuerPosition)
       || left.id.localeCompare(right.id));
 }
 
@@ -227,9 +227,9 @@ const destroyCampHandler: QuestObjectiveHandler = {
     if (!issuer) return null;
     const visibility = context.state.civilizations[context.majorCivId].visibility;
     const camp = Object.values(context.state.barbarianCamps)
-      .filter(candidate => hexDistance(candidate.position, issuer.issuerCity.position) <= option.radius)
+      .filter(candidate => mapDistance(context.state.map, candidate.position, issuer.issuerCity.position) <= option.radius)
       .filter(candidate => getVisibility(visibility, candidate.position) === 'visible')
-      .sort((left, right) => hexDistance(left.position, issuer.issuerCity.position) - hexDistance(right.position, issuer.issuerCity.position)
+      .sort((left, right) => mapDistance(context.state.map, left.position, issuer.issuerCity.position) - mapDistance(context.state.map, right.position, issuer.issuerCity.position)
         || left.id.localeCompare(right.id))[0];
     return camp ? { type: 'destroy_camp', campId: camp.id, position: { ...camp.position } } : null;
   },
@@ -299,7 +299,7 @@ const defeatUnitsHandler: QuestObjectiveHandler = {
     return quest.target.type === 'defeat_units'
       && action.type === 'unit_defeated'
       && isQuestHostileOwner(state, action.actorCivId, action.defeatedOwnerId)
-      && hexDistance(action.position, quest.target.nearPosition) <= quest.target.radius
+      && mapDistance(state.map, action.position, quest.target.nearPosition) <= quest.target.radius
       ? applyProgress(state, minorCivId, action.actorCivId)
       : null;
   },

@@ -1,5 +1,5 @@
 import type { GameState, TradeRoute } from '@/core/types';
-import { hexDistance } from '@/systems/hex-utils';
+import { mapDistance } from '@/systems/hex-utils';
 
 function isCityCoastal(state: GameState, cityId: string): boolean {
   const city = state.cities[cityId];
@@ -20,7 +20,7 @@ function getRouteDistance(state: GameState, route: TradeRoute): number {
     return 0;
   }
 
-  return hexDistance(fromCity.position, toCity.position);
+  return mapDistance(state.map, fromCity.position, toCity.position);
 }
 
 export function routeMatchesLegendaryWonderRequirement(

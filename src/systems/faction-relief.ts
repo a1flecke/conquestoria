@@ -4,8 +4,9 @@
 // Depends on the model leaf and the federalism constants only; it never imports the pressure model, the
 // commands or the turn orchestration.
 import type { GameState, City } from '../core/types';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 import { getCapitalCity } from './capital-system';
+import { getOwnedCityCount } from './city-ownership';
 import { canConnectCityToCapitalByOwnedRoad, getCitiesConnectedToCapital } from './road-network';
 import {
   MAX_PRESSURE_DISTANCE,
@@ -108,7 +109,7 @@ export function getRegionalCapitalReliefAmount(
   const distance = rows.find(row => row.label === 'Distance from capital')?.amount ?? 0;
   const overextension = rows.find(row => row.label === 'Empire overextension')?.amount ?? 0;
   if (!capital || !regionalCapital || distance === 0) return 0;
-  const nearestDistance = Math.min(hexDistance(city.position, capital.position), hexDistance(city.position, regionalCapital.position));
+  const nearestDistance = Math.min(mapDistance(state.map, city.position, capital.position), mapDistance(state.map, city.position, regionalCapital.position));
   const nearestPressure = Math.min(MAX_PRESSURE_DISTANCE, Math.max(0, (nearestDistance - 5) * 2));
   const rawSeatRelief = distance - nearestPressure;
   const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;
@@ -163,7 +164,7 @@ export function getBureaucracyReliefAmount(
   if (overextension === 0) return 0;
   const hypotheticalOverextension = Math.min(
     MAX_PRESSURE_EMPIRE,
-    Math.max(0, (civ.cities.length - (OVEREXTENSION_FREE_CITIES + BUREAUCRACY_FREE_CITY_BONUS)) * 3),
+    Math.max(0, (getOwnedCityCount(state, city.owner) - (OVEREXTENSION_FREE_CITIES + BUREAUCRACY_FREE_CITY_BONUS)) * 3),
   );
   const rawRelief = overextension - hypotheticalOverextension;
   const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;

@@ -1,7 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState, HexCoord } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
-import { hexKey, hexDistance, hexNeighbors, getWrappedHexNeighbors } from '@/systems/hex-utils';
+import { hexKey, hexNeighbors, getWrappedHexNeighbors, mapDistance } from '@/systems/hex-utils';
 import { isThreatenedByVisibleHostiles } from '@/systems/movement-safety';
 import { buildUnitOccupancy, getStackRelationship } from '@/systems/unit-occupancy';
 import { getMovementCost, getMovementCostForUnitInContext } from '@/systems/unit-movement-cost';
@@ -100,7 +100,7 @@ function findNearestUnexploredTile(state: GameState, unitId: string, leash?: Aut
         if (visited.has(key) || !state.map.tiles[key]) continue;
         visited.add(key);
         if (getVisibility(viewer.visibility, neighbor) === 'unexplored') {
-          if (leash && hexDistance(neighbor, leash.anchor) > leash.maxDistance) continue;
+          if (leash && mapDistance(state.map, neighbor, leash.anchor) > leash.maxDistance) continue;
           if (isPassable(neighbor)) return neighbor;
           // An unexplored but impassable tile (e.g. ocean) reveals no walkable
           // destination -- keep searching without expanding through it.
@@ -143,7 +143,7 @@ function rankCandidate(
   // Dominates recencyPenalty/tieBreaker whenever a real target is known, so the chooser
   // commits toward it instead of oscillating among locally-tied, already-seen tiles;
   // contributes nothing when no target was found within the bounded search.
-  const targetScore = exploreTarget ? -hexDistance(coord, exploreTarget) * 1000 : 0;
+  const targetScore = exploreTarget ? -mapDistance(state.map, coord, exploreTarget) * 1000 : 0;
 
   return {
     score: visibilityScore + frontierScore + targetScore - recencyPenalty - tieBreaker,

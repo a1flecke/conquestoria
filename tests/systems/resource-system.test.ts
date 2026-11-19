@@ -312,3 +312,22 @@ describe('tile-yield consolidation (single source of truth)', () => {
     });
   });
 });
+
+describe('worked-tile resource effects respect population', () => {
+  it('a size-1 city with two worked tiles listed (population fell) earns one tile of resource bonus, not two', () => {
+    const tiles: GameMap['tiles'] = {};
+    for (let q = 0; q < 10; q++) for (let r = 0; r < 4; r++) {
+      tiles[hexKey({ q, r })] = { coord: { q, r }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', improvementTurnsLeft: 0, owner: null, hasRiver: false, wonder: null } as GameMap['tiles'][string];
+    }
+    const map: GameMap = { width: 10, height: 4, tiles, wrapsHorizontally: false, rivers: [] };
+    for (const q of [2, 3]) {
+      map.tiles[hexKey({ q, r: 1 })] = { ...map.tiles[hexKey({ q, r: 1 })], terrain: 'hills', resource: 'salt', improvement: 'mine', improvementTurnsLeft: 0 };
+    }
+    const city = { id: 'c', owner: 'p', position: { q: 1, r: 1 }, population: 1, workedTiles: [{ q: 2, r: 1 }, { q: 3, r: 1 }], ownedTiles: [{ q: 1, r: 1 }, { q: 2, r: 1 }, { q: 3, r: 1 }], buildings: [] } as unknown as Parameters<typeof calculateCityYields>[0];
+    const overListed = calculateCityYields(city, map, undefined, ['pottery']);
+    const oneTile = calculateCityYields({ ...city, workedTiles: [{ q: 2, r: 1 }] }, map, undefined, ['pottery']);
+    const twoTiles = calculateCityYields({ ...city, population: 2 }, map, undefined, ['pottery']);
+    expect(twoTiles.gold).toBeGreaterThan(oneTile.gold); // control: the second salt tile is worth gold when worked
+    expect(overListed).toEqual(oneTile);
+  });
+});

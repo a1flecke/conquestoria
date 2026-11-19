@@ -88,6 +88,7 @@ export function sampleExchangeGrid(
   defStrength: number,
   attacker: Unit,
   defender: Unit,
+  map: GameMap,
   context: CombatContext | undefined,
   era: number | undefined,
 ): Array<{ attackerDamage: number; defenderDamage: number }> {
@@ -96,7 +97,7 @@ export function sampleExchangeGrid(
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
       samples.push(computeExchangeDamage({
-        atkStrength, defStrength, attacker, defender, context, era, exchange: strengths.exchange,
+        atkStrength, defStrength, attacker, defender, map, context, era, exchange: strengths.exchange,
         ratioRoll: (i + 0.5) / n, baseRoll: (j + 0.5) / n,
       }));
     }
@@ -132,7 +133,7 @@ export function forecastCombat(
 
   let defTotal = 0; let atkTotal = 0; let kills = 0; let deaths = 0;
   let defMin = Infinity; let defMax = -Infinity; let atkMin = Infinity; let atkMax = -Infinity;
-  const samples = sampleExchangeGrid(strengths, atkStrength, defStrength, attacker, defender, context, era);
+  const samples = sampleExchangeGrid(strengths, atkStrength, defStrength, attacker, defender, map, context, era);
   for (const { attackerDamage, defenderDamage } of samples) {
     defTotal += defenderDamage; atkTotal += attackerDamage;
     defMin = Math.min(defMin, defenderDamage); defMax = Math.max(defMax, defenderDamage);
@@ -145,7 +146,7 @@ export function forecastCombat(
   for (const ratioRoll of [0, 1]) {
     for (const baseRoll of [0, 1]) {
       const { attackerDamage, defenderDamage } = computeExchangeDamage({
-        atkStrength, defStrength, attacker, defender, context, era, exchange: strengths.exchange, ratioRoll, baseRoll,
+        atkStrength, defStrength, attacker, defender, map, context, era, exchange: strengths.exchange, ratioRoll, baseRoll,
       });
       defMin = Math.min(defMin, defenderDamage); defMax = Math.max(defMax, defenderDamage);
       atkMin = Math.min(atkMin, attackerDamage); atkMax = Math.max(atkMax, attackerDamage);

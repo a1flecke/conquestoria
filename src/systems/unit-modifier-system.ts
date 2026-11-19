@@ -1,6 +1,6 @@
 import type { GameState, HexCoord, TerrainType, UnitType } from '@/core/types';
 import type { CombatModifierFact } from '@/core/types/combat';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import {
   CLASS_COUNTERS,
@@ -282,7 +282,7 @@ export function isWithinRangeOfTelemedicineHub(
   return Object.values(state.cities).some(city =>
     city.owner === civId
     && city.buildings.includes('telemedicine_hub')
-    && hexDistance(position, city.position) <= range,
+    && mapDistance(state.map, position, city.position) <= range,
   );
 }
 
@@ -295,6 +295,6 @@ export function isWithinRangeOfNeuralRehabilitationCenter(
   return Object.values(state.cities).some(city =>
     city.owner === civId
     && city.buildings.includes('neural_rehabilitation_center')
-    && hexDistance(position, city.position) <= range,
+    && mapDistance(state.map, position, city.position) <= range,
   );
 }
