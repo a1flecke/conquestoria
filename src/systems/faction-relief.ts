@@ -162,9 +162,13 @@ export function getBureaucracyReliefAmount(
   const distance = rows.find(row => row.label === 'Distance from capital')?.amount ?? 0;
   const overextension = rows.find(row => row.label === 'Empire overextension')?.amount ?? 0;
   if (overextension === 0) return 0;
+  // #1019: the hypothetical must be built from live owned cities, the same count
+  // the actual pressure row uses (faction-pressure), so a stale roster id can never
+  // inflate the allowance and shrink the relief below the live-city answer.
+  const ownedCityCount = getOwnedCityCount(state, city.owner);
   const hypotheticalOverextension = Math.min(
     MAX_PRESSURE_EMPIRE,
-    Math.max(0, (getOwnedCityCount(state, city.owner) - (OVEREXTENSION_FREE_CITIES + BUREAUCRACY_FREE_CITY_BONUS)) * 3),
+    Math.max(0, (ownedCityCount - (OVEREXTENSION_FREE_CITIES + BUREAUCRACY_FREE_CITY_BONUS)) * 3),
   );
   const rawRelief = overextension - hypotheticalOverextension;
   const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;
