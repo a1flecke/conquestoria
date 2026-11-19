@@ -731,4 +731,48 @@ describe('check-src-rule-violations.sh', () => {
       expect(run('src/app/controllers/foo.ts', '      updateHUD: () => deps.hud.update(),\n').status).toBe(0);
     });
   });
+
+  describe('full-tree sweep mode (--all)', () => {
+    it('sweeps every src TypeScript file without needing them passed in', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(workspace, 'src/ui/clean-panel.ts', 'export const x = 1;\n');
+      writeWorkspaceFile(
+        workspace,
+        'src/ui/rogue-panel.ts',
+        [
+          'export function isEliminated(civ: { cities: string[] }): boolean {',
+          '  return civ.cities.length === 0;',
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, '--all');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('check-src-rule-violations: src/ui/rogue-panel.ts');
+      expect(result.stderr).toContain('Roster-length ownership decision');
+      expect(result.stderr).toContain('getOwnedCityCount');
+    });
+
+    it('exits 0 when the swept tree is clean', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(workspace, 'src/ui/clean-panel.ts', 'export const x = 1;\n');
+      writeWorkspaceFile(workspace, 'src/systems/also-clean.ts', 'export const y = 2;\n');
+
+      const result = runScript(workspace, '--all');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('refuses --all combined with file arguments', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(workspace, 'src/ui/clean-panel.ts', 'export const x = 1;\n');
+
+      const result = runScript(workspace, '--all', 'src/ui/clean-panel.ts');
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('Usage:');
+    });
+  });
 });

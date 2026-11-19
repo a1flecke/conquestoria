@@ -3,8 +3,26 @@
 set -euo pipefail
 
 if [ "$#" -eq 0 ]; then
-  echo "Usage: $0 <file> [file...]" >&2
+  echo "Usage: $0 <file> [file...] OR $0 --all (sweep every TypeScript file under src/)" >&2
   exit 1
+fi
+
+# --all: sweep the whole src tree instead of caller-named files. The paths are
+# resolved relative to the current directory (exactly how explicit file
+# arguments are resolved below), so run it from the repository/worktree root.
+if [ "$1" = "--all" ]; then
+  if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <file> [file...] OR $0 --all (no other arguments)" >&2
+    exit 1
+  fi
+  if [ ! -d src ]; then
+    echo "check-src-rule-violations: --all found no src/ directory in $(pwd); run from the repository root" >&2
+    exit 1
+  fi
+  while IFS= read -r sweep_file; do
+    set -- "$@" "$sweep_file"
+  done < <(find src -type f -name '*.ts' | sort)
+  shift # drop the --all flag
 fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
