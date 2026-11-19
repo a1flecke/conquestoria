@@ -51,3 +51,15 @@ describe('network intent panel model', () => {
     expect(model.exploitDescription).toContain('10%');
   });
 });
+
+describe('network intent panel across the map seam', () => {
+  it('offers a city just across the wrapping edge', () => {
+    const game = state();
+    expect(game.map.wrapsHorizontally).toBe(true);
+    game.units.cyber = { ...game.units.cyber, position: { q: game.map.width - 1, r: 0 } };
+    game.cities.enemy = { ...game.cities.enemy, position: { q: 0, r: 0 } };
+    game.cities.friendly = { ...game.cities.friendly, position: { q: 10, r: 0 } };
+    const model = getNetworkIntentPanelModel(game, 'player', 'cyber');
+    expect(model.exploitTargets).toEqual([{ cityId: 'enemy', cityName: 'enemy' }]);
+  });
+});
