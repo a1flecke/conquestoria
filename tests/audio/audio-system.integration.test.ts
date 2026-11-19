@@ -197,6 +197,17 @@ describe('AudioSystem integration', () => {
     expect(ctx.transcript.filter(entry => entry.op === 'start')).toHaveLength(1);
   });
 
+  it('keeps a filtered noncritical supply warning silent', async () => {
+    const state = makeState({ turn: 10, settings: { musicEnabled: true, soundEnabled: true, musicVolume: 0.8, sfxVolume: 0.8, supplyWarningPreference: 'critical' } as GameState['settings'] });
+    ctx.state = 'running';
+    system.start(state, busHelper.bus, () => state);
+    await flushPromises();
+    ctx.clearTranscript();
+    busHelper.emit('supply:warning', { viewerId: 'rome', unitIds: ['u1'], kind: 'losing-full', playAudio: true });
+    await flushPromises();
+    expect(ctx.transcript.some(entry => entry.op === 'start')).toBe(false);
+  });
+
   it('does not play any sound for a supply:warning when supplyWarningPreference is off (#544 MR2)', async () => {
     const state = makeState({ turn: 10, settings: { musicEnabled: true, soundEnabled: true, musicVolume: 0.8, sfxVolume: 0.8, supplyWarningPreference: 'off' } as GameState['settings'] });
     ctx.state = 'running';

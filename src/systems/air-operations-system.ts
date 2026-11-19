@@ -1,17 +1,18 @@
 import { getOwnedCityCount } from '@/systems/city-ownership';
 import type { EventBus } from '@/core/event-bus';
 import type { AirBaseRef, AirMission, City, CombatResult, GameEvents, GameState, HexCoord, Unit, UnitType } from '@/core/types';
-import { hexesInRange, getWrappedHexesInRange } from './hex-utils';
+import { hexesInRange, getWrappedHexesInRange, hexKey } from './hex-utils';
+import { projectUnitForPlayer } from './espionage-stealth';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { deterministicCombatSeed, resolveCombat } from './combat-system';
-import { buildCombatContextForDefender } from './combat-context';
+import { buildCombatContextForDefender, buildObservedCombatContext } from './combat-context';
 import { getVisibility } from './fog-of-war';
 import { isHostileOwnerTo } from './owner-hostility';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { appendLegendaryWonderMilitaryFacts } from './legendary-wonder-history';
 import { applyCitySiegeOutcome, getCityGarrisonUnit, resolveCitySiegeDamage, type CitySiegeResult } from './city-siege-system';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
-import { resolveCombatEra } from './era-resolution';
+import { estimateCombatEraForViewer, resolveCombatEra } from './era-resolution';
 import { resolveCivilizationEra } from './tech-definitions';
 import { recordCampPressureFromAirStrike } from './barbarian-pressure';
 import { isWithinTacticalSamCoverage } from './air-defense-system';
@@ -184,18 +185,14 @@ export function getLegalAirMissionTargets(state: GameState, unitId: string, miss
   if (mission === 'strike') {
     // #884: readiness is one gate; the UI shows its typed denial, so an empty list is never unexplained.
     if (getAirMissionDenial(state, unitId, 'strike')) return [];
-    const visibility = state.civilizations[unit.owner]?.visibility;
-    return Object.values(state.units)
-      .filter(candidate => !candidate.airBase
-        && isHostileOwnerTo(state, unit.owner, candidate.owner)
-        && (!visibility || getVisibility(visibility, candidate.position) === 'visible')
-        && airDistance(state, unit.position, candidate.position) <= definition.operationalRange)
-      .map(candidate => ({ ...candidate.position }))
-      .concat(Object.values(state.cities)
-        .filter(city => isHostileOwnerTo(state, unit.owner, city.owner)
-          && (!visibility || getVisibility(visibility, city.position) === 'visible')
-          && airDistance(state, unit.position, city.position) <= definition.operationalRange)
-        .map(city => ({ ...city.position })));
+    const positions = new Map<string, HexCoord>();
+    for (const candidate of [...Object.values(state.units), ...Object.values(state.cities)]) {
+      if (airDistance(state, unit.position, candidate.position) > definition.operationalRange) continue;
+      if ('type' in candidate ? getObservedAirStrikeUnit(state, unit, candidate) : isVisibleHostileTarget(state, unit, candidate)) {
+        positions.set(hexKey(candidate.position), { ...candidate.position });
+      }
+    }
+    return [...positions.values()];
   }
   return state.map.wrapsHorizontally
     ? getWrappedHexesInRange(unit.position, definition.operationalRange, state.map.width)
@@ -263,12 +260,28 @@ function applyAirCombatResult(state: GameState, result: CombatResult, seed: numb
   return applyCombatOutcomeToState(state, result, seed, bus).state;
 }
 
-/** What a strike at `target` hits: a city if one stands there, else the first non-based enemy unit. Shared with the forecast. */
+function isVisibleHostileTarget(state: GameState, striker: Unit, candidate: Unit | City): boolean {
+  const visibility = state.civilizations[striker.owner]?.visibility;
+  if (visibility && getVisibility(visibility, candidate.position) !== 'visible') return false;
+  return isHostileOwnerTo(state, striker.owner, candidate.owner);
+}
+
+export function getObservedAirStrikeUnit(state: GameState, striker: Unit, candidate: Unit): Unit | undefined {
+  if (candidate.airBase || !isVisibleHostileTarget(state, striker, candidate)) return undefined;
+  return projectUnitForPlayer(candidate, state, striker.owner);
+}
+
+/** A hostile observable city takes precedence, then the first eligible unit in the stack. */
 export function resolveAirStrikeTarget(state: GameState, striker: Unit, target: HexCoord): { city?: City; unit?: Unit } {
-  const city = Object.values(state.cities).find(candidate => candidate.position.q === target.q && candidate.position.r === target.r);
+  const atTarget = (candidate: City | Unit) => candidate.position.q === target.q && candidate.position.r === target.r;
+  const city = Object.values(state.cities).find(candidate => atTarget(candidate) && isVisibleHostileTarget(state, striker, candidate));
   if (city) return { city };
-  const unit = Object.values(state.units).find(candidate => !candidate.airBase && candidate.owner !== striker.owner && candidate.position.q === target.q && candidate.position.r === target.r);
-  return { unit };
+  for (const candidate of Object.values(state.units)) {
+    if (!atTarget(candidate)) continue;
+    const unit = getObservedAirStrikeUnit(state, striker, candidate);
+    if (unit) return { unit };
+  }
+  return {};
 }
 
 /**
@@ -286,21 +299,23 @@ export function getAirStrikeDenial(state: GameState, unitId: string, target: Hex
   const readinessDenial = getAirMissionDenial(state, unitId, 'strike');
   if (readinessDenial) return readinessDenial.reason;
   if (airDistance(state, striker.position, target) > definition.operationalRange) return 'out-of-range';
-  if (!getLegalAirMissionTargets(state, unitId, 'strike').some(candidate => candidate.q === target.q && candidate.r === target.r)) {
-    return 'invalid-strike-target';
-  }
   const { city, unit } = resolveAirStrikeTarget(state, striker, target);
-  if (!unit && !city) return 'missing-target';
+  if (!unit && !city) return 'invalid-strike-target';
   return null;
 }
 
-export function resolveAirStrike(state: GameState, unitId: string, target: HexCoord, bus?: EventBus): AirStrikeResult {
+/** Scratch lookahead models the unopposed branch. Only real missions resolve private interception orders. */
+export function resolveAirStrike(
+  state: GameState, unitId: string, target: HexCoord, delivery?: EventBus | 'predict-unintercepted',
+): AirStrikeResult {
   const denial = getAirStrikeDenial(state, unitId, target);
   if (denial) return { ok: false, state, reason: denial };
+  const predicting = delivery === 'predict-unintercepted';
+  const bus = predicting ? undefined : delivery;
   const striker = state.units[unitId]!;
   const { city: targetCity, unit: targetUnit } = resolveAirStrikeTarget(state, striker, target);
   let nextState = state;
-  const interceptor = selectInterceptor(state, striker, target);
+  const interceptor = predicting ? undefined : selectInterceptor(state, striker, target);
   let interception: { interceptorId: string; result: CombatResult } | undefined;
   if (interceptor) {
     const tacticalClaim = claimTacticalFirstOwnerTurnInterception(
@@ -334,7 +349,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
     const currentCity = nextState.cities[targetCity.id];
     const ownerCiv = currentCity && nextState.civilizations[currentCity.owner];
     if (!currentCity || !ownerCiv) return { ok: false, state, reason: 'missing-target' };
-    const cityResult = resolveCitySiegeDamage({
+    const cityResult = predicting ? predictAirStrikeCityDamage(nextState, currentStriker, currentCity) : resolveCitySiegeDamage({
       city: currentCity,
       ownerCiv,
       rawDamage: getAirStrikeCityRawDamage(currentStriker),
@@ -348,11 +363,16 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
     if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: withAirStrain({ ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'strike') } };
     return { ok: true, state: recordCampPressureFromAirStrike(nextState, striker, target), interception, cityResult: { cityId: currentCity.id, result: cityResult } };
   }
-  const currentTarget = targetUnit && nextState.units[targetUnit.id];
+  const currentTarget = targetUnit && (predicting ? targetUnit : nextState.units[targetUnit.id]);
   if (!currentTarget) return { ok: true, state: { ...nextState, units: { ...nextState.units, [unitId]: withAirStrain({ ...currentStriker, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'strike') } }, interception };
-  // attack-contract-exempt: air-mission: the strike target was validated by getLegalAirMissionTargets above, see #1223
-  const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), buildCombatContextForDefender(nextState, currentStriker, currentTarget), resolveCombatEra(nextState, currentStriker, currentTarget));
-  nextState = applyAirCombatResult(nextState, targetResult, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), bus);
+  const context = predicting ? buildObservedCombatContext(nextState, striker.owner, currentStriker, currentTarget)
+    : buildCombatContextForDefender(nextState, currentStriker, currentTarget);
+  const era = predicting ? estimateCombatEraForViewer(nextState, striker.owner, currentTarget.owner)
+    : resolveCombatEra(nextState, currentStriker, currentTarget);
+  const seed = deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id);
+  // attack-contract-exempt: air-mission: getAirStrikeDenial validates the strike target, see #1223
+  const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, seed, context, era);
+  nextState = applyAirCombatResult(nextState, targetResult, seed, bus);
   if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: withAirStrain({ ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'strike') } };
   const identifications = bus && buildCombatSpyIdentifications(beforeTargetExchange, nextState, currentStriker, currentTarget);
   const spyIdentification = identifications?.defenderIdentified
@@ -362,5 +382,22 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
     ok: true, state: recordCampPressureFromAirStrike(nextState, striker, target), interception, targetResult,
     ...(spyIdentification ? { spyIdentification } : {}),
   };
+}
+
+export function hasObservedAirStrikeGarrison(state: GameState, striker: Unit, city: City): boolean {
+  return getCityGarrisonUnit(state.units, city, unit => !!getObservedAirStrikeUnit(state, striker, unit)) !== undefined;
+}
+
+/** Estimate the siege without the owner's private research, empire size or unobserved garrison. */
+export function predictAirStrikeCityDamage(
+  state: GameState, striker: Unit, city: City, hasGarrison = hasObservedAirStrikeGarrison(state, striker, city),
+): CitySiegeResult {
+  const owner = state.civilizations[city.owner];
+  return resolveCitySiegeDamage({
+    city, ownerCiv: { ...owner, techState: { ...owner.techState, completed: [] } },
+    rawDamage: getAirStrikeCityRawDamage(striker), attackerDomain: 'air',
+    hasGarrison,
+    preventDestruction: true, era: 1, challenge: resolveChallengeForCiv(state, city.owner),
+  });
 }
 

@@ -9,6 +9,9 @@ import { calculateCombatStrengths } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { forecastCombat } from '@/systems/battle-forecast';
 import { resolveCombatEra } from '@/systems/era-resolution';
+import { getEraAdvancementTechs, resolveCivilizationEra } from '@/systems/tech-definitions';
+import { isUnitConcealedFrom } from '@/systems/concealment';
+import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
 
 const counters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
 
@@ -43,7 +46,24 @@ function viewOf(state: GameState, viewerId: string): BattleForecastView {
 
 const surface: ViewerSurface<GameState, BattleForecastView> = { name: 'battle forecast', project: viewOf };
 
+const eraTwoTechs = getEraAdvancementTechs(2).map(tech => tech.id);
+
+function advanceRivalEra(state: GameState, rival: string): void {
+  expect(resolveCivilizationEra(state.civilizations[rival].techState.completed)).toBe(1);
+  state.civilizations[rival].techState.completed = [...eraTwoTechs];
+  expect(resolveCivilizationEra(state.civilizations[rival].techState.completed)).toBe(2);
+}
+
 describe('battle forecast projection (#1135) is viewer-safe', () => {
+  it('cannot infer the enemy research threshold from forecast HP', () => {
+    const state = world();
+    state.civilizations[A].techState.completed = [...eraTwoTechs];
+    expectViewerSafety(surface, {
+      world: state, viewerId: A,
+      hidden: [{ label: 'the enemy privately reaches era two', apply: s => advanceRivalEra(s, B) }],
+      earned: [{ label: 'the defender is visibly hurt', apply: s => { s.units.def.health = 50; } }],
+    });
+  });
   it('hidden enemy facts never move the projection; earned facts do', () => {
     expectViewerSafety(surface, {
       world: world(),
@@ -209,6 +229,86 @@ function airView(state: GameState, viewerId = 'player'): BattleForecastView {
 const airSurface: ViewerSurface<GameState, BattleForecastView> = { name: 'air strike forecast', project: airView };
 
 describe('air-strike forecast (#1213)', () => {
+  it('forecasts the apparent defender until a detector unmasks the spy', () => {
+    const state = airWorld({ fighter: false });
+    const target = state.units.target;
+    target.type = 'spy_scout';
+    const spy = createSpyFromUnit({ ...createEspionageCivState(), maxSpies: 1 }, target.id, target.owner, 'spy_scout', 'air');
+    state.espionage = { [target.owner]: setDisguise(spy.state, target.id, 'archer') };
+    expect(airView(state).them.name).toBe('Archer');
+    state.units.detector = { ...target, id: 'detector', position: { q: 4, r: 2 }, owner: 'player' };
+    expect(airView(state).them.name).toBe('Scout Agent');
+  });
+  it.each(['unit', 'city'] as const)('keeps hidden research out of the %s strike and conditional interception', target => {
+    const state = airWorld({ target, visibleInterceptor: true });
+    state.civilizations.player.techState.completed = [...eraTwoTechs];
+    expect(airView(state).interception).toBeDefined();
+    expectViewerSafety(airSurface, {
+      world: state, viewerId: 'player',
+      hidden: [{ label: 'the defender privately advances an era', apply: s => advanceRivalEra(s, 'enemy') }],
+      earned: [{ label: 'the visible interceptor loses health', apply: s => { s.units.fighter.health = 30; } }],
+    });
+  });
+
+  it('an undetected submarine cannot be forecast or struck on a visible hex', () => {
+    const state = airWorld({ fighter: false });
+    state.units.target.type = 'submarine';
+    const target = state.units.target.position;
+    const forecast = () => buildAirStrikeForecastView({ state, viewerId: 'player', unitId: 'striker', target, ownerName: 'Enemy' });
+    expect(isUnitConcealedFrom(state, state.units.target, 'player')).toBe(true);
+    expect(forecast()).toMatchObject({ ok: false, reason: 'invalid-strike-target' });
+    expect(resolveAirStrike(state, 'striker', target)).toMatchObject({ ok: false, reason: 'invalid-strike-target', state });
+    state.units.target.revealedThisTurn = true;
+    expect(forecast().ok).toBe(true);
+    expect(resolveAirStrike(state, 'striker', target).ok).toBe(true);
+  });
+
+  it('conditional interception cannot count a flanker outside sight of the striker', () => {
+    const state = airWorld({ visibleInterceptor: true });
+    const position = { q: 2, r: 3 };
+    const add = (s: GameState) => { s.units.flanker = { ...s.units.target, id: 'flanker', position }; };
+    expect(airView(state).interception).toBeDefined();
+    expectViewerSafety(airSurface, {
+      world: state, viewerId: 'player',
+      hidden: [{ label: 'unseen flanker beside the airfield', apply: add }],
+      earned: [{ label: 'scouted flanker beside the airfield', apply: s => {
+        add(s);
+        s.civilizations.player.visibility.tiles[hexKey(position)] = 'visible';
+      } }],
+    });
+  });
+
+  it.each(['cargo', 'neutral', 'concealed'] as const)('a %s unit stacked before a valid target is never selected for the strike', kind => {
+    const state = airWorld({ fighter: false });
+    const first: Unit = { ...state.units.target, id: 'first', type: kind === 'concealed' ? 'submarine' : 'archer' };
+    if (kind === 'cargo') {
+      state.units.target.type = 'transport';
+      state.units.target.cargoUnitIds = [first.id];
+      first.transportId = state.units.target.id;
+    }
+    if (kind === 'neutral') first.owner = 'neutral';
+    state.units = { first, ...state.units };
+    const result = resolveAirStrike(state, 'striker', first.position);
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.targetResult?.defenderId).toBe(state.units.target.id);
+    if (kind === 'cargo' && !result.state.units.target) {
+      expect(result.state.units.first).toBeUndefined(); // Cargo sinks with its transport.
+    } else {
+      expect(result.state.units.first.health).toBe(100);
+    }
+    expect(result.state.units.target?.health ?? 0).toBeLessThan(100);
+  });
+
+  it('a based aircraft does not make the city forecast claim a garrison', () => {
+    const state = airWorld({ target: 'city', fighter: false });
+    state.units.based = { ...state.units.striker, id: 'based', owner: 'enemy', position: { q: 5, r: 2 },
+      airBase: { kind: 'city', cityId: 'enemy-city' } };
+    const result = resolveAirStrike(state, 'striker', { q: 5, r: 2 });
+    expect(result.ok).toBe(true);
+    const loss = 100 - result.state.cities['enemy-city'].hp!;
+    expect(loss).toBeGreaterThan(0);
+    expect(airView(state).them.damage.expected).toBe(loss);
+  });
   it('forecasts a unit-target strike with no interception block when no capable aircraft is visible', () => {
     const view = airView(airWorld());
     expect(view.ariaLabel).toContain('Air strike preview');

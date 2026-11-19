@@ -320,6 +320,24 @@ describe('MapInteractionController', () => {
       expect(selection.getSelectedUnitId()).toBeNull();
     });
 
+    it.each([false, true])('keeps the disguise in the tapped panel (combat preview %s)', selected => {
+      const state = makeFixture();
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      placePlayerUnit(state, 'u1', { position: { q: 0, r: 0 } });
+      const enemy = placeEnemyUnit(state, 'e1', 'ai-1', { type: 'spy_scout', position: { q: 1, r: 0 } });
+      const spy = createSpyFromUnit({ ...createEspionageCivState(), maxSpies: 1 }, enemy.id, enemy.owner, 'spy_scout', 'tap');
+      state.espionage = { ...state.espionage, [enemy.owner]: setDisguise(spy.state, enemy.id, 'archer') };
+      state.civilizations.player.diplomacy.atWarWith.push(enemy.owner);
+      makeVisible(state, enemy.position);
+      const { deps } = baseDeps(state);
+      const controller = createMapInteractionController(deps);
+      if (selected) deps.selectionController.selectUnit('u1');
+      controller.handleHexTap(enemy.position);
+      const text = document.getElementById('info-panel')!.textContent;
+      expect(text).toContain('Archer');
+      expect(text).not.toContain('Scout Agent');
+    });
+
     describe('air strike forecast + confirm (#1213)', () => {
       function airStrikeFixture(extra: { second?: boolean } = {}) {
         const state = makeFixture();

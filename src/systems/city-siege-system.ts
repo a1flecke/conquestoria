@@ -369,10 +369,15 @@ export function applyCitySiegeOutcome(state: GameState, cityId: string, result: 
 // defend it against a capture (`beginMajorCityAssault`). Counting a based aircraft made a city with
 // planes at its airfield immune to barbarian and pirate sieges (the raider found nothing it could
 // attack and simply stood beside the city) and halved every bombardment of it.
-export function getCityGarrisonUnit(units: Record<string, Unit>, city: Pick<City, 'owner' | 'position'>): Unit | undefined {
+export function getCityGarrisonUnit(
+  units: Record<string, Unit>,
+  city: Pick<City, 'owner' | 'position'>,
+  include?: (unit: Unit) => boolean,
+): Unit | undefined {
   const cityKey = hexKey(city.position);
   return Object.values(units).find(unit =>
-    unit.owner === city.owner && !unit.transportId && !unit.airBase && hexKey(unit.position) === cityKey);
+    unit.owner === city.owner && !unit.transportId && !unit.airBase
+    && hexKey(unit.position) === cityKey && (!include || include(unit)));
 }
 
 export function hasCityGarrison(units: Record<string, Unit>, city: Pick<City, 'owner' | 'position'>): boolean {

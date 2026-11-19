@@ -8,13 +8,11 @@
  * the confidence-decay window are all invisible here by construction.
  */
 import type { City, GameState, HexCoord, LastSeenHealthBand, LastSeenTilePresentation, Unit, UnitType } from '@/core/types';
-import { isUnitConcealedFrom } from './concealment';
-import { getVisibleUnitsForPlayer } from './espionage-stealth';
 import { getVisibility } from './fog-of-war';
 import { isTrustedObservedLastSeenTile } from './last-seen-presentation';
 import { decayRememberedConfidence } from './actor-perception';
 import { UNIT_DEFINITIONS } from './unit-definitions';
-import { canInspectUnitForViewer } from './viewer-intel';
+import { getObservedUnitForViewer } from './viewer-intel';
 
 /** A last-seen snapshot that passed the trust check (observed, finite turn and coordinates). */
 export type TrustedLastSeenSnapshot = LastSeenTilePresentation & { observedTurn: number; source: 'observed' };
@@ -120,16 +118,12 @@ export function collectPerceivedUnits(
   relevantOwner: (ownerId: string) => boolean,
 ): PerceivedUnit[] {
   const unitsById = new Map<string, PerceivedUnit>();
-  const viewerFacingUnits = getVisibleUnitsForPlayer(state.units, state, actorId);
-  for (const unit of Object.values(viewerFacingUnits)) {
-    if (
-      !relevantOwner(unit.owner)
-      || unit.transportId
-      || !canInspectUnitForViewer(state, actorId, unit.id)
-      || isUnitConcealedFrom(state, unit, actorId)
-    ) {
-      continue;
-    }
+  const observedIds = new Set<string>();
+  for (const candidate of Object.values(state.units)) {
+    const unit = getObservedUnitForViewer(state, actorId, candidate);
+    if (!unit) continue;
+    observedIds.add(unit.id);
+    if (!relevantOwner(unit.owner)) continue;
     unitsById.set(unit.id, {
       id: unit.id,
       owner: unit.owner,
@@ -141,12 +135,18 @@ export function collectPerceivedUnits(
     });
   }
 
-  for (const { snapshot } of getTrustedLastSeenSnapshots(state, actorId)) {
+  // A unit can leave observations on several fogged tiles. Object insertion order
+  // records when the tiles were first mapped, not when the unit was last seen.
+  const sightings = getTrustedLastSeenSnapshots(state, actorId).sort((a, b) =>
+    b.snapshot.observedTurn - a.snapshot.observedTurn || a.key.localeCompare(b.key));
+  for (const { snapshot } of sightings) {
     const rememberedUnits = Array.isArray(snapshot.units)
       ? snapshot.units.filter(isRememberedUnit)
       : [];
     for (const unit of rememberedUnits) {
-      if (!relevantOwner(unit.owner) || unitsById.has(unit.id)) continue;
+      if (observedIds.has(unit.id)) continue;
+      observedIds.add(unit.id);
+      if (!relevantOwner(unit.owner)) continue;
       unitsById.set(unit.id, {
         id: unit.id,
         owner: unit.owner,

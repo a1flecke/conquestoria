@@ -7,7 +7,7 @@ import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
 import type { WorldAge } from '@/systems/era-types';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { getWorldRaceDefinition } from '@/systems/world-race-definitions';
-import type { NotificationSink } from './notification-sink';
+import { deliverViewerWarning, type NotificationSink } from './notification-sink';
 import type { LOSS_SFX } from '@/audio/sfx-catalog';
 
 const WONDER_LOSS_CUE = 'wonder-lost' satisfies keyof typeof LOSS_SFX;
@@ -16,13 +16,8 @@ export function routeStrategicWarning(
   event: GameEvents['ai:strategic-warning'],
   sink: NotificationSink,
 ): void {
-  const presentation = presentStrategicWarning(event);
-  sink(
-    event.viewerId,
-    presentation.message,
-    presentation.type,
-    presentation.target,
-  );
+  deliverViewerWarning(sink, event.viewerId, presentStrategicWarning(event),
+    event.playAudio ? 'ai:strategic-warning' : undefined);
 }
 
 type LegendaryWonderRoutingEvent =

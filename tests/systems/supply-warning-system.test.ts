@@ -103,6 +103,9 @@ describe('deriveSupplyWarningTransitions', () => {
     const warnings = deriveSupplyWarningTransitions(before, after, 'player');
     expect(warnings).toHaveLength(2);
     expect(warnings.filter(w => w.playAudio)).toHaveLength(1);
+    after.settings.supplyWarningPreference = 'critical';
+    expect(deriveSupplyWarningTransitions(before, after, 'player').filter(w => w.playAudio).map(w => w.kind))
+      .toEqual(['entering-combat-penalty']);
   });
 
   it('produces identical warnings regardless of opponentChallenge (difficulty-invariant)', () => {

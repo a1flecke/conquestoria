@@ -46,18 +46,18 @@ export function getCombatAdjacentOccupiedTileCount(
   ownerId: string,
   defender: Unit,
   excludedUnitId?: string,
+  project?: (unit: Unit) => Unit | undefined,
 ): number {
   const neighbors = state.map.wrapsHorizontally
     ? getWrappedHexNeighbors(defender.position, state.map.width)
     : hexNeighbors(defender.position);
   const keys = new Set(neighbors.map(hexKey));
-  const occupied = new Set(
-    Object.values(state.units)
-      .filter(unit => unit.id !== excludedUnitId
-        && unit.owner === ownerId
-        && isZocEligibleCombatUnit(unit)
-        && keys.has(hexKey(unit.position)))
-      .map(unit => hexKey(unit.position)),
-  );
+  const occupied = new Set<string>();
+  for (const unit of Object.values(state.units)) {
+    const key = hexKey(unit.position);
+    if (unit.id === excludedUnitId || !keys.has(key)) continue;
+    const candidate = project ? project(unit) : unit;
+    if (candidate?.owner === ownerId && isZocEligibleCombatUnit(candidate)) occupied.add(key);
+  }
   return occupied.size;
 }

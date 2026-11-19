@@ -29,7 +29,7 @@ export interface NotificationDelivery {
 export function createNotificationDelivery(deps: NotificationDeliveryDeps): NotificationDelivery {
   let happenedTurn: number | null = null;
 
-  const deliver: NotificationSink = (civId, message, type, target, cityActions, sfxCue, combatDetails) => {
+  const deliver: NotificationSink = (civId, message, type, target, cityActions, sfxCue, combatDetails, handoffWarning) => {
     const state = deps.getState();
     const turn = happenedTurn ?? state.turn;
     appendNotification(state, civId, { message, type, turn, target, cityActions, combatDetails });
@@ -44,7 +44,7 @@ export function createNotificationDelivery(deps: NotificationDeliveryDeps): Noti
     }
     state.pendingEvents ??= {};
     collectEvent(state.pendingEvents, civId, {
-      type: 'info',
+      type: handoffWarning ?? 'info',
       message,
       turn,
       ...(target ? { target } : {}),

@@ -6,6 +6,7 @@ import {
 } from '@/core/opponent-challenge';
 import { buildMajorCivPerception } from './ai-perception';
 import { isUnitConcealedFrom } from '@/systems/concealment';
+import { getObservedUnitForViewer } from '@/systems/viewer-intel';
 import {
   canAttackByProfileOnMap,
   getRangedAttackersThreateningUnit,
@@ -19,7 +20,7 @@ import {
   deterministicCombatSeed,
   resolveCombat,
 } from '@/systems/combat-system';
-import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
+import { buildObservedCombatContext, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitOccupyCity, resolveMajorCityCapture } from '@/systems/city-capture-system';
 import { calculateCityAssaultStrengths, getCityOwnerBonus } from '@/systems/city-siege-system';
 import { resolveCityInteraction } from '@/systems/city-interaction';
@@ -73,11 +74,11 @@ import { isAIHostileOwner } from './ai-hostility';
 import { getNavalEnduranceStatus } from '@/systems/naval-endurance';
 import { getNavalPorts } from '@/systems/naval-operations';
 import { AIR_RECOVERY_PER_ROUND, getAirBaseSupport, getAirMissionDenial, getAirReadinessStatus } from '@/systems/air-readiness';
-import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, resolvePatrolMission, getLegalAirMissionTargets, rebaseAircraft, startIntercept, getAirBaseRoster } from '@/systems/air-operations-system';
+import { getObservedAirStrikeUnit, getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, resolvePatrolMission, getLegalAirMissionTargets, rebaseAircraft, startIntercept, getAirBaseRoster } from '@/systems/air-operations-system';
 import { getParadropTargets, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, executeAirAssault } from '@/systems/airborne-system';
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
-import { resolveCombatEra } from '@/systems/era-resolution';
+import { estimateCombatEraForViewer } from '@/systems/era-resolution';
 import { previewUnitCityBombardment, resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
@@ -440,6 +441,11 @@ function rankBombardment(
   return Math.round(380 + preview.hpLoss * 2 + bestGain * 1200);
 }
 
+function observedDefender(state: GameState, actorId: string, unitId: string): Unit | undefined {
+  const unit = state.units[unitId];
+  return unit && getObservedUnitForViewer(state, actorId, unit);
+}
+
 function rankAttacks(
   context: AITacticalContext,
   unit: Unit,
@@ -468,12 +474,12 @@ function rankAttacks(
       }
       continue;
     }
-    const defender = context.state.units[target.result.targetUnitId];
+    const defender = observedDefender(context.state, context.actorId, target.result.targetUnitId);
     if (!defender) continue;
     if (!isAIHostileOwner(context.state, context.actorId, defender.owner)) {
       continue;
     }
-    const combatContext = buildCombatContextForDefender(context.state, unit, defender);
+    const combatContext = buildObservedCombatContext(context.state, context.actorId, unit, defender);
     const strengths = calculateCombatStrengths(unit, defender, context.state.map, combatContext);
     const defenderProfile = getUnitAttackProfile(defender.type);
     const safeRanged = target.result.range > defenderProfile.range;
@@ -489,7 +495,7 @@ function rankAttacks(
       context.state.map,
       combatSeed(context.state, unit.id, defender.id),
       combatContext,
-      resolveCombatEra(context.state, unit, defender),
+      estimateCombatEraForViewer(context.state, context.actorId, defender.owner),
     );
     const expectedDamageRatio = Math.min(2, preview.defenderDamage / Math.max(1, defender.health));
     const deathRisk = Math.min(2, preview.attackerDamage / Math.max(1, unit.health));
@@ -539,9 +545,9 @@ function rankAirStrikes(
   // #884: the same readiness gate the player's target list and the executor use (own unit only).
   if (getAirMissionDenial(context.state, unit.id, 'strike')) return [];
   return Object.values(context.state.units)
-    .filter(target => !target.airBase && target.owner !== context.actorId && isAIHostileOwner(context.state, context.actorId, target.owner))
-    .filter(target => getVisibility(context.state.civilizations[context.actorId].visibility, target.position) === 'visible')
     .filter(target => distance(context.state, unit.position, target.position) <= operation.operationalRange)
+    .map(target => getObservedAirStrikeUnit(context.state, unit, target))
+    .filter((target): target is Unit => target !== undefined)
     .sort((left, right) => UNIT_DEFINITIONS[right.type].productionCost - UNIT_DEFINITIONS[left.type].productionCost || left.id.localeCompare(right.id))
     .map(target => ranked({ kind: 'air-strike', unitId: unit.id, target: { ...target.position } }, 650 + UNIT_DEFINITIONS[target.type].productionCost / 10));
 }
@@ -1026,11 +1032,11 @@ function scorePostMovePositioning(
     requireVisibility: true,
   }).reduce((bonus, target) => {
     if (target.result.targetType !== 'unit') return bonus;
-    const defender = projectedState.units[target.result.targetUnitId];
+    const defender = observedDefender(projectedState, context.actorId, target.result.targetUnitId);
     if (!defender || !isAIHostileOwner(projectedState, context.actorId, defender.owner)) {
       return bonus;
     }
-    const combatContext = buildCombatContextForDefender(projectedState, projectedUnit, defender);
+    const combatContext = buildObservedCombatContext(projectedState, context.actorId, projectedUnit, defender);
     return bonus + Math.round(((combatContext.attackerPositioningMultiplier ?? 1) - 1) * 100);
   }, 0);
 }
@@ -1329,12 +1335,12 @@ function rankEmbarkedAttacks(
   return getEmbarkedAssaultTargets(context.state, unit.id, { viewerId: context.actorId, requireVisibility: true })
     .flatMap(target => {
       if (target.result.targetType !== 'unit') return [];
-      const defender = context.state.units[target.result.targetUnitId];
+      const defender = observedDefender(context.state, context.actorId, target.result.targetUnitId);
       if (!defender || !isAIHostileOwner(context.state, context.actorId, defender.owner)) return [];
       const transport = unit.transportId ? context.state.units[unit.transportId] : undefined;
       if (!transport) return [];
       const attacker = { ...unit, position: { ...transport.position }, transportId: undefined };
-      const combatContext = buildCombatContextForDefender(context.state, attacker, defender, { amphibiousAssault: true });
+      const combatContext = buildObservedCombatContext(context.state, context.actorId, attacker, defender, { amphibiousAssault: true });
       // attack-contract-exempt: preview: scored to rank embarked candidates; the result is never applied to any state
       const preview = resolveCombat(
         attacker,
@@ -1342,7 +1348,7 @@ function rankEmbarkedAttacks(
         context.state.map,
         combatSeed(context.state, attacker.id, defender.id),
         combatContext,
-        resolveCombatEra(context.state, attacker, defender),
+        estimateCombatEraForViewer(context.state, context.actorId, defender.owner),
       );
       return [ranked(
         { kind: 'embarked-attack', unitId: unit.id, targetUnitId: defender.id },
@@ -1420,11 +1426,11 @@ export function applyPredictedAction(
       return result.ok ? result.state : next;
     }
     case 'air-strike': {
-      const result = resolveAirStrike(next, action.unitId, action.target);
+      const result = resolveAirStrike(next, action.unitId, action.target, 'predict-unintercepted');
       return result.ok ? result.state : next;
     }
     case 'attack': {
-      const defender = next.units[action.targetUnitId];
+      const defender = observedDefender(next, context.actorId, action.targetUnitId);
       if (!defender) return next;
       if (!resolveUnitVsUnitAttack(next, unit, defender, { viewerId: context.actorId, requireVisibility: true }).ok) return next;
       const seed = combatSeed(next, unit.id, defender.id);
@@ -1433,8 +1439,8 @@ export function applyPredictedAction(
         defender,
         next.map,
         seed,
-        buildCombatContextForDefender(next, unit, defender),
-        resolveCombatEra(next, unit, defender),
+        buildObservedCombatContext(next, context.actorId, unit, defender),
+        estimateCombatEraForViewer(next, context.actorId, defender.owner),
       );
       return applyCombatOutcomeToState(next, result, seed).state;
     }
@@ -1447,7 +1453,7 @@ export function applyPredictedAction(
       return result.ok ? result.state : next;
     }
     case 'embarked-attack': {
-      const defender = next.units[action.targetUnitId];
+      const defender = observedDefender(next, context.actorId, action.targetUnitId);
       if (!defender) return next;
       const embarked = getEmbarkedAssaultTarget(next, unit.id, defender.position, { viewerId: context.actorId, requireVisibility: true });
       if (!embarked.ok || embarked.targetType !== 'unit' || embarked.targetUnitId !== defender.id) return next;
@@ -1460,8 +1466,8 @@ export function applyPredictedAction(
         defender,
         detached.state.map,
         seed,
-        buildCombatContextForDefender(detached.state, detached.attacker, defender, { amphibiousAssault: true }),
-        resolveCombatEra(detached.state, detached.attacker, defender),
+        buildObservedCombatContext(detached.state, context.actorId, detached.attacker, defender, { amphibiousAssault: true }),
+        estimateCombatEraForViewer(detached.state, context.actorId, defender.owner),
       );
       return applyCombatOutcomeToState(detached.state, result, seed).state;
     }
