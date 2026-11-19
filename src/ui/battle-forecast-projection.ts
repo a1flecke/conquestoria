@@ -5,7 +5,7 @@ import { buildCombatContextForDefender, type CombatContextOptions } from '@/syst
 import type { CombatContext } from '@/systems/combat-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { forecastCombat, type BattleOutcomeBand, type CombatForecast, type DamageRange } from '@/systems/battle-forecast';
-import { isUnitConcealedFrom } from '@/systems/concealment';
+import { getObservedUnitForViewer } from '@/systems/viewer-intel';
 import { isZocEligibleCombatUnit } from '@/systems/zone-of-control-system';
 import { getWrappedHexNeighbors, hexKey, hexNeighbors } from '@/systems/hex-utils';
 
@@ -108,18 +108,14 @@ function visibleDefenderSupport(state: GameState, viewerId: string, defender: Un
     ? getWrappedHexNeighbors(defender.position, state.map.width)
     : hexNeighbors(defender.position);
   const keys = new Set(neighbors.map(hexKey));
-  const byTile = new Map<string, Unit[]>();
+  const occupied = new Set<string>();
   for (const unit of Object.values(state.units)) {
-    if (unit.id === defender.id || unit.owner !== defender.owner || !isZocEligibleCombatUnit(unit) || !keys.has(hexKey(unit.position))) continue;
-    const list = byTile.get(hexKey(unit.position)) ?? [];
-    list.push(unit);
-    byTile.set(hexKey(unit.position), list);
+    const key = hexKey(unit.position);
+    if (unit.id === defender.id || !keys.has(key)) continue;
+    const observed = getObservedUnitForViewer(state, viewerId, unit);
+    if (observed?.owner === defender.owner && isZocEligibleCombatUnit(observed)) occupied.add(key);
   }
-  let visible = 0;
-  for (const units of byTile.values()) {
-    if (units.some(unit => !isUnitConcealedFrom(state, unit, viewerId))) visible++;
-  }
-  return { visible };
+  return { visible: occupied.size };
 }
 
 function damageSummary(name: string, hp: number, damage: DamageRange): string {

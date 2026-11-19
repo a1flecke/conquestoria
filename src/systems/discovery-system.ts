@@ -1,5 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { getVisibility } from './fog-of-war';
+import { hasCurrentVisibleEvidence } from './viewer-intel';
 
 export interface CivilizationContactTransition {
   civA: string;
@@ -96,30 +97,5 @@ function hasMetCivilizationByCurrentEvidence(state: GameState, viewerCivId: stri
   if (viewer.diplomacy.atWarWith.includes(targetCivId)) return true;
   if (viewer.diplomacy.treaties.some(t => t.civA === targetCivId || t.civB === targetCivId)) return true;
 
-  const viewerVis = viewer.visibility;
-
-  const targetCities = target.cities
-    .map(cityId => state.cities[cityId])
-    .filter((city): city is NonNullable<typeof city> => Boolean(city));
-  for (const city of targetCities) {
-    if (getVisibility(viewerVis, city.position) === 'visible') {
-      return true;
-    }
-    if (city.ownedTiles.some(coord => getVisibility(viewerVis, coord) === 'visible')) {
-      return true;
-    }
-  }
-
-  for (const unitId of target.units) {
-    const unit = state.units[unitId];
-    if (!unit) continue;
-    if (getVisibility(viewerVis, unit.position) === 'visible') {
-      return true;
-    }
-  }
-
-  return Object.values(state.map.tiles).some(tile => {
-    if (tile.owner !== targetCivId || !tile.coord) return false;
-    return getVisibility(viewerVis, tile.coord) === 'visible';
-  });
+  return hasCurrentVisibleEvidence(state, viewerCivId, targetCivId);
 }

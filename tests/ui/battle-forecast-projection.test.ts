@@ -63,6 +63,8 @@ describe('battle forecast projection (#1135) is viewer-safe', () => {
 
   it('a concealed supporter does not leak; a visible one is shown', () => {
     const base = world();
+    base.civilizations[A].visibility.tiles['6,4'] = 'visible';
+    base.civilizations[A].visibility.tiles['7,5'] = 'visible';
     base.civilizations[B]!.civType = 'lothlorien';
     base.map.tiles[hexKey({ q: 7, r: 5 })]!.terrain = 'forest';
     const supporter = { ...createUnit('swordsman', B, { q: 7, r: 5 }, counters), id: 'sup' };
@@ -73,6 +75,24 @@ describe('battle forecast projection (#1135) is viewer-safe', () => {
       earned: [{ label: 'a visible supporter stands where your own unit can see it', apply: w => {
         w.map.tiles[hexKey({ q: 6, r: 4 })]!.terrain = 'grassland';
         w.units.sup2 = { ...createUnit('swordsman', B, { q: 6, r: 4 }, counters), id: 'sup2' }; w.civilizations[B]!.units.push('sup2');
+      } }],
+    });
+  });
+
+  it.each(['fog', 'unexplored'] as const)('a supporter on a %s tile cannot change the damage forecast', visibility => {
+    const base = world();
+    base.civilizations[A].visibility.tiles['6,5'] = 'visible';
+    base.civilizations[A].visibility.tiles['7,5'] = visibility;
+    const addSupport = (state: GameState) => {
+      state.units.sup = { ...state.units.def, id: 'sup', position: { q: 7, r: 5 } };
+      state.civilizations[B].units.push('sup');
+    };
+    expectViewerSafety(surface, {
+      world: base, viewerId: A,
+      hidden: [{ label: 'reinforcement outside sight', apply: addSupport }],
+      earned: [{ label: 'reconnaissance reveals the reinforcement', apply: state => {
+        addSupport(state);
+        state.civilizations[A].visibility.tiles['7,5'] = 'visible';
       } }],
     });
   });
