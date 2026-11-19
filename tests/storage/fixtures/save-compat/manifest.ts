@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import type { GameState } from '@/core/types';
 import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-schema-version';
 import { foundCity } from '@/systems/city-system';
-import { hexKey } from '@/systems/hex-utils';
+import { getWrappedHexNeighbors, hexKey } from '@/systems/hex-utils';
 import { buildBaselineSave, buildHotSeatBaselineSave } from './baseline';
 
 /**
@@ -526,6 +526,53 @@ const STRANDED_FLOTILLA_V39_CASE: SaveCompatCase = {
   },
 };
 
+/**
+ * Schema 41 — a landmass crossing the horizontal seam carries one tag. A schema-40 save can hold the old
+ * seam-blind tags: here the half of a seam-crossing landmass on the right side of the map is given its own tag,
+ * with a later combat turn recorded against it. The migration re-tags the map, folds the record into the
+ * landmass's one tag (keeping the later turn), and the save plays three rounds.
+ */
+const SPLIT_LANDMASS_V40_CASE: SaveCompatCase = {
+  sourceVersion: 40,
+  label: 'schema 40 — a seam-crossing landmass tagged as two',
+  kind: 'well-formed',
+  focus: ['landmass tags', 'horizontal seam', 'threat pressure records'],
+  build: () => {
+    const baseline = buildBaselineSave('save-compat-split-landmass-v40');
+    const state = baseline.state;
+    const { width } = state.map;
+    if (!state.map.wrapsHorizontally) throw new Error('baseline map does not wrap');
+    const seamTile = Object.values(state.map.tiles)
+      .filter(tile => tile.coord.q === 0 && tile.regionKey)
+      .sort((a, b) => hexKey(a.coord).localeCompare(hexKey(b.coord)))
+      .find(tile => getWrappedHexNeighbors(tile.coord, width)
+        .some(n => n.q === width - 1 && state.map.tiles[hexKey(n)]?.regionKey === tile.regionKey));
+    if (!seamTile?.regionKey) throw new Error('baseline map has no landmass crossing the seam');
+    const region = seamTile.regionKey;
+    for (const tile of Object.values(state.map.tiles)) {
+      if (tile.regionKey === region && tile.coord.q >= width / 2) tile.regionKey = 'island-99';
+    }
+    state.civilizations.player.lastCombatTurnByLandmass = { [region]: 1, 'island-99': 3 };
+    return downgradeToVersion(state, 40);
+  },
+  afterMigrate: migrated => {
+    const { width } = migrated.map;
+    for (const tile of Object.values(migrated.map.tiles)) {
+      if (!tile.regionKey) continue;
+      if (tile.regionKey === 'island-99') throw new Error('a split tag survived the migration');
+      for (const n of getWrappedHexNeighbors(tile.coord, width)) {
+        const other = migrated.map.tiles[hexKey(n)]?.regionKey;
+        if (other && other !== tile.regionKey) throw new Error(`adjacent land ${hexKey(tile.coord)} and ${hexKey(n)} differ`);
+      }
+    }
+    const records = Object.values(migrated.civilizations)
+      .map(civ => civ.lastCombatTurnByLandmass ?? {})
+      .find(record => Object.values(record).includes(3));
+    if (!records) throw new Error('the later combat turn was lost');
+    if ('island-99' in records) throw new Error('a record still names the split tag');
+  },
+};
+
 function baselineCityId(state: GameState, owner: string): string {
   const city = Object.values(state.cities).find(candidate => candidate.owner === owner);
   if (!city) throw new Error(`no city owned by ${owner}`);
@@ -575,6 +622,7 @@ export const SAVE_COMPAT_MATRIX: readonly SaveCompatCase[] = [
   MATERIAL_RESERVES_V35_CASE,
   PARKED_SPY_V38_CASE,
   STRANDED_FLOTILLA_V39_CASE,
+  SPLIT_LANDMASS_V40_CASE,
   REAL_ARCHIVED_SAVE_CASE,
   HOT_SEAT_CASE,
   ...MALFORMED_CASES,

@@ -1,7 +1,7 @@
 import type { City, GameState, Religion } from '@/core/types';
 import type { AiGameState } from '@/core/types/ai';
 import type { EventBus } from '@/core/event-bus';
-import { hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { canGarrisonCity } from '@/systems/faction-unrest-model';
 import {
   LOYALTY_BASE_TICK, LOYALTY_THRESHOLD_BY_CHALLENGE, FERVOR_MULTIPLIER,
@@ -30,7 +30,7 @@ export function getForeignFaithPressure(state: GameState, cityId: string): Forei
   if (!religion || religion.ownerCivId === city.owner) return null;
 
   const bordersPressuringTerritory = city.ownedTiles.some(coord =>
-    hexNeighbors(coord).some(n => state.map.tiles[hexKey(n)]?.owner === religion.ownerCivId),
+    mapNeighbors(state.map, coord).some(n => state.map.tiles[hexKey(n)]?.owner === religion.ownerCivId),
   );
   if (!bordersPressuringTerritory) return null;
 
