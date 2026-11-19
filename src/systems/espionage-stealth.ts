@@ -25,6 +25,26 @@ const DISGUISE_TYPE_MAP: Record<string, UnitType> = {
   worker: 'worker',
 };
 
+export function projectUnitForPlayer(
+  unit: Unit,
+  state: GameState,
+  viewerCivId: string,
+  detectorUnits = state.units,
+): Unit | undefined {
+  if (unit.transportId) return undefined;
+  if (unit.owner === viewerCivId) return unit;
+  if (isUnitConcealedFrom(state, unit, viewerCivId)) return undefined;
+
+  const spy = state.espionage?.[unit.owner]?.spies[unit.id];
+  if (!spy?.disguiseAs || spy.status !== 'idle') return unit;
+  if (hasNearbyDetector(state.map, detectorUnits, viewerCivId, unit.position)) return unit;
+  return {
+    ...unit,
+    type: DISGUISE_TYPE_MAP[spy.disguiseAs] ?? 'warrior',
+    owner: spy.disguiseAs === 'barbarian' ? 'barbarian' : unit.owner,
+  };
+}
+
 export function getVisibleUnitsForPlayer(
   units: Record<string, Unit>,
   state: GameState,
@@ -33,32 +53,8 @@ export function getVisibleUnitsForPlayer(
   const result: Record<string, Unit> = {};
 
   for (const [id, unit] of Object.entries(units)) {
-    if (unit.transportId) continue;
-
-    if (unit.owner === viewerCivId) {
-      result[id] = unit;
-      continue;
-    }
-
-    if (isUnitConcealedFrom(state, unit, viewerCivId)) continue;
-
-    const spyRecord = state.espionage?.[unit.owner]?.spies[id];
-    const disguise = spyRecord?.disguiseAs;
-
-    if (!disguise || !spyRecord || spyRecord.status !== 'idle') {
-      result[id] = unit;
-      continue;
-    }
-
-    // Own spy units and scout_hound units see through all disguises
-    if (hasNearbyDetector(state.map, units, viewerCivId, unit.position)) {
-      result[id] = unit;
-      continue;
-    }
-
-    const fakeType = DISGUISE_TYPE_MAP[disguise] ?? 'warrior';
-    const fakeOwner = disguise === 'barbarian' ? 'barbarian' : unit.owner;
-    result[id] = { ...unit, type: fakeType as UnitType, owner: fakeOwner };
+    const projected = projectUnitForPlayer(unit, state, viewerCivId, units);
+    if (projected) result[id] = projected;
   }
 
   return result;

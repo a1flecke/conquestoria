@@ -14,6 +14,12 @@ import { createEmptyPirateState } from '@/core/pirate-state';
 import { foundCity } from '@/systems/city-system';
 import { resolveBarbarianArchetype, type BarbarianArchetype } from '@/systems/barbarian-archetype';
 import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
+import { createNotificationDelivery } from '@/ui/notification-delivery';
+import { routeStrategicWarning } from '@/ui/notification-routes/world-routes';
+import { generateSummary } from '@/core/hotseat-events';
+import { createLastSeenTilePresentation } from '@/systems/last-seen-presentation';
+import { isUnitConcealedFrom } from '@/systems/concealment';
+import { hexKey } from '@/systems/hex-utils';
 import { expectHotSeatDifferential, expectViewerSafety, type ViewerSurface } from '../helpers/viewer-safety';
 import {
   AI_A,
@@ -691,6 +697,90 @@ describe('#1002 strategic warnings through the shared viewer-safety harness', ()
     after.turn = before.turn + 1;
     return { before, after };
   }
+
+  function assignPlan(after: GameState, id: string, barbarian = false): void {
+    const targetUnit = after.units[after.civilizations[HUMAN_A].units[0]];
+    const target = { kind: 'unit' as const, id: targetUnit.id, lastKnownPosition: targetUnit.position };
+    if (barbarian) {
+      after.opponentAI!.barbarianCamps.camp = { ...makePlan('camp', id, target), objective: 'raid' };
+    } else {
+      after.opponentAI!.majorCivs[AI_A] = { ...createEmptyMajorCivPlanPortfolio(), primaryPlan: makePlan(AI_A, id, target) };
+    }
+  }
+
+  it.each(['submarine', 'forest'] as const)('only the seat detecting the %s unit sees mobilization', kind => {
+    const world = roundWorld();
+    const { after } = world;
+    const unit = Object.values(after.units).find(u => u.owner === AI_A && u.type !== 'settler')!;
+    unit.type = kind === 'forest' ? 'swordsman' : 'submarine';
+    after.civilizations[AI_A].civType = 'lothlorien';
+    after.map.tiles[hexKey(unit.position)].terrain = kind === 'forest' ? 'forest' : 'ocean';
+    const observer = Object.values(after.units).find(u => u.owner === HUMAN_B && u.type !== 'settler')!;
+    observer.type = kind === 'forest' ? 'scout' : 'destroyer';
+    observer.position = { q: unit.position.q + 1, r: unit.position.r };
+    for (const viewer of [HUMAN_A, HUMAN_B]) setVisibility(after, viewer, unit.position, 'visible');
+    expect(isUnitConcealedFrom(after, unit, HUMAN_A)).toBe(true);
+    expect(isUnitConcealedFrom(after, unit, HUMAN_B)).toBe(false);
+    expectHotSeatDifferential(presentedWarnings, {
+      world, viewers: [HUMAN_A, HUMAN_B], knownOnlyTo: HUMAN_B,
+      mutation: { label: 'the detected unit mobilizes', apply: w => assignPlan(w.after, unit.id) },
+    });
+
+    assignPlan(after, unit.id);
+    const bus = new EventBus();
+    const toasts: string[] = [];
+    const delivery = createNotificationDelivery({
+      getState: () => after, isSuppressed: () => false, toast: message => toasts.push(message),
+    });
+    bus.on('ai:strategic-warning', event => routeStrategicWarning(event, delivery.deliver));
+    const next = applyStrategicWarningTransitions(world.before, after, bus);
+    expect(toasts).toEqual([]);
+    expect(generateSummary(next, HUMAN_A).events).toEqual([]);
+    expect(generateSummary(next, HUMAN_B).events).toEqual([expect.objectContaining({
+      message: expect.stringContaining(after.civilizations[AI_A].name),
+    })]);
+  });
+
+  it('cannot infer mobilization from the cargo of a visible ship', () => {
+    const world = roundWorld();
+    const unit = Object.values(world.after.units).find(u => u.owner === AI_A && u.type !== 'settler')!;
+    unit.type = 'infantry';
+    const ship = { ...unit, id: 'transport', type: 'transport' as const, cargoUnitIds: [unit.id] };
+    world.after.map.tiles[hexKey(ship.position)].terrain = 'coast';
+    world.after.units[ship.id] = ship;
+    world.after.civilizations[AI_A].units.push(ship.id);
+    unit.transportId = ship.id;
+    setVisibility(world.after, HUMAN_A, ship.position, 'visible');
+    expectViewerSafety(presentedWarnings, {
+      world, viewerId: HUMAN_A,
+      hidden: [{ label: 'the embarked unit mobilizes', apply: w => assignPlan(w.after, unit.id) }],
+      earned: [{ label: 'the visible ship mobilizes', apply: w => assignPlan(w.after, ship.id) }],
+    });
+  });
+
+  it.each([false, true])('only fresh fogged sightings support plan warnings (barbarian %s)', barbarian => {
+    const world = roundWorld();
+    const { after } = world;
+    world.before.turn = 9;
+    after.turn = 10;
+    const unit = Object.values(after.units).find(u => u.owner === AI_A && u.type !== 'settler')!;
+    if (barbarian) unit.owner = 'barbarian';
+    setVisibility(after, HUMAN_A, after.units[after.civilizations[HUMAN_A].units[0]].position, 'visible');
+    const key = hexKey(unit.position);
+    setVisibility(after, HUMAN_A, unit.position, 'visible');
+    const sighting = createLastSeenTilePresentation(after, HUMAN_A, after.map.tiles[key]);
+    expect(sighting.units?.map(u => u.id)).toContain(unit.id);
+    setVisibility(after, HUMAN_A, unit.position, 'fog');
+    after.civilizations[HUMAN_A].visibility.lastSeen = { [key]: { ...sighting, observedTurn: 4 } };
+    expectViewerSafety(presentedWarnings, {
+      world, viewerId: HUMAN_A,
+      hidden: [{ label: 'a unit last seen six turns ago mobilizes', apply: w => assignPlan(w.after, unit.id, barbarian) }],
+      earned: [{ label: 'the same unit was scouted five turns ago', apply: w => {
+        w.after.civilizations[HUMAN_A].visibility.lastSeen![key].observedTurn = 5;
+        assignPlan(w.after, unit.id, barbarian);
+      } }],
+    });
+  });
 
   it('an unmet civ\'s posture, its treaties with third parties, and an anonymised count never reach the viewer', () => {
     expectViewerSafety(presentedWarnings, {
