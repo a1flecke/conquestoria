@@ -296,6 +296,9 @@ jobs:
       - name: Enforce Yarn version parity
         run: node scripts/check-yarn-version-parity.mjs
 
+      - name: Sweep src tree for source rule violations
+        run: bash scripts/check-src-rule-violations.sh --all
+
       - name: Install dependencies
         run: yarn install --immutable
 

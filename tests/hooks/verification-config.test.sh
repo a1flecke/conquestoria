@@ -205,6 +205,10 @@ printf '%s' "$hooks_job" | grep -Fq 'node scripts/check-yarn-version-parity.mjs'
   echo "GitHub hooks job does not enforce Yarn version parity"
   exit 1
 }
+printf '%s' "$hooks_job" | grep -Fq 'bash scripts/check-src-rule-violations.sh --all' || {
+  echo "GitHub hooks job does not sweep the full src tree for source rule violations"
+  exit 1
+}
 
 web_build_job="$(
   sed -n '/^  web-build:/,/^  test-suite-shard-a:/p' "$ROOT/.github/workflows/deploy.yml"

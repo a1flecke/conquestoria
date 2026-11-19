@@ -86,7 +86,8 @@ known-gap-owners|node scripts/known-gap-owners.mjs verify
 known-gap-owners-refresh|node scripts/known-gap-owners.mjs refresh
 maintainability-check|node scripts/maintainability-audit.mjs --check
 maintainability-report|node scripts/maintainability-audit.mjs --report
-maintainability-baseline|node scripts/maintainability-audit.mjs --baseline'
+maintainability-baseline|node scripts/maintainability-audit.mjs --baseline
+src-rules|bash scripts/check-src-rule-violations.sh --all'
 
 while IFS='|' read -r task argv; do
   run "$task"
