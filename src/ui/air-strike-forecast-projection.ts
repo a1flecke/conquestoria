@@ -1,29 +1,26 @@
 import type { City, GameState, HexCoord, Unit } from '@/core/types';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { buildCombatContextForDefender } from '@/systems/combat-context';
-import { resolveCombatEra } from '@/systems/era-resolution';
+import { buildObservedCombatContext } from '@/systems/combat-context';
+import { estimateCombatEraForViewer } from '@/systems/era-resolution';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isUnitConcealedFrom } from '@/systems/concealment';
 import {
   AIR_MISSION_FAILURE_MESSAGES,
   canInterceptIncomingStrike,
-  getAirStrikeCityRawDamage,
+  predictAirStrikeCityDamage,
+  hasObservedAirStrikeGarrison,
   getAirStrikeDenial,
   pickStrongestInterceptor,
   resolveAirStrikeTarget,
   type AirMissionFailureReason,
 } from '@/systems/air-operations-system';
 import { forecastAirStrike, type AirStrikeBranch, type AirStrikeForecast } from '@/systems/air-strike-forecast';
-import { resolveCitySiegeDamage } from '@/systems/city-siege-system';
-import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import {
   BAND_PRESENTATION,
   buildBattleForecastView,
-  redactCombatContextForViewer,
   type BattleForecastView,
   type BattleInterceptionView,
 } from './battle-forecast-projection';
-import { hexKey } from '@/systems/hex-utils';
 
 /**
  * The viewer-safe air-strike forecast (#1213). A *forecast*, never a resolver and never an
@@ -161,11 +158,8 @@ export function buildAirStrikeForecastView(request: AirStrikeForecastRequest): A
       interceptor: candidate,
       // Redacted as the viewer sees it: the interceptor's owner-private facts (readiness, tech, SAM cover,
       // tactical claim) are neutralised before any number exists.
-      context: redactCombatContextForViewer(
-        state, viewerId, candidate, striker,
-        buildCombatContextForDefender(state, candidate, striker, { isIntercepting: true }),
-      ),
-      era: resolveCombatEra(state, candidate, striker),
+      context: buildObservedCombatContext(state, viewerId, candidate, striker, { isIntercepting: true }),
+      era: estimateCombatEraForViewer(state, viewerId, candidate.owner),
     }
     : undefined;
 
@@ -175,8 +169,8 @@ export function buildAirStrikeForecastView(request: AirStrikeForecastRequest): A
     const forecast = forecastAirStrike({
       state, map: state.map, striker,
       leg: {
-        kind: 'unit', target: defender, era: resolveCombatEra(state, striker, defender),
-        context: redactCombatContextForViewer(state, viewerId, striker, defender, buildCombatContextForDefender(state, striker, defender)),
+        kind: 'unit', target: defender, era: estimateCombatEraForViewer(state, viewerId, defender.owner),
+        context: buildObservedCombatContext(state, viewerId, striker, defender),
       },
       interception,
     });
@@ -196,20 +190,12 @@ export function buildAirStrikeForecastView(request: AirStrikeForecastRequest): A
   const ownerCiv = state.civilizations[city.owner];
   if (!ownerCiv) return refusal('missing-target');
   // The garrison counts only if the viewer can see it; the owner's tech never enters the number.
-  const cityKey = hexKey(city.position);
-  const visibleGarrison = Object.values(state.units).some(
-    unit => unit.owner === city.owner && hexKey(unit.position) === cityKey && !isUnitConcealedFrom(state, unit, viewerId),
-  );
-  const knownOwner = { ...ownerCiv, techState: { ...ownerCiv.techState, completed: [] as string[] } };
+  const visibleGarrison = hasObservedAirStrikeGarrison(state, striker, city);
   const forecast = forecastAirStrike({
     state, map: state.map, striker,
     leg: {
       kind: 'city', cityHp: city.hp ?? 100,
-      hpLossForStriker: shot => resolveCitySiegeDamage({
-        city, ownerCiv: knownOwner, rawDamage: getAirStrikeCityRawDamage(shot), attackerDomain: 'air',
-        hasGarrison: visibleGarrison, isOwnersLastCity: false, preventDestruction: true,
-        era: 1, challenge: resolveChallengeForCiv(state, city.owner),
-      }).hpLost,
+      hpLossForStriker: shot => predictAirStrikeCityDamage(state, shot, city, visibleGarrison).hpLost,
     },
     interception,
   });

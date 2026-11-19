@@ -7,6 +7,11 @@ import {
   showTurnHandoff,
 } from '@/ui/turn-handoff';
 import { generateSummary } from '@/core/hotseat-events';
+import { EventBus } from '@/core/event-bus';
+import { registerGeneralPresentation } from '@/presentation/register-general-presentation';
+import { registerSupplyPresentation } from '@/presentation/register-supply-presentation';
+import { createNotificationDelivery } from '@/ui/notification-delivery';
+import { makePresentationContext } from '../helpers/presentation-context';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 
 function makeFixture() {
@@ -29,6 +34,30 @@ function makeFixture() {
 afterEach(() => document.body.replaceChildren());
 
 describe('turn handoff', () => {
+  it.each(['strategic', 'supply'] as const)('preserves the earned %s warning cue only for its recipient', kind => {
+    for (const playAudio of [false, true]) {
+      const { state } = makeFixture();
+      const toast = vi.fn();
+      const delivery = createNotificationDelivery({ getState: () => state, toast, isSuppressed: () => false });
+      const bus = new EventBus();
+      const ctx = makePresentationContext({ state, deliver: vi.fn(delivery.deliver) });
+      registerGeneralPresentation(bus, ctx);
+      registerSupplyPresentation(bus, ctx);
+      if (kind === 'strategic') {
+        bus.emit('ai:strategic-warning', { viewerId: 'player-2', actorId: 'ai-1', actorName: 'Rome',
+          kind: 'mobilizing', evidence: 'visible', warningKey: 'mobilizing', playAudio });
+      } else {
+        bus.emit('supply:warning', { viewerId: 'player-2', unitIds: ['scout'], kind: 'entering-combat-penalty', playAudio });
+      }
+      expect(toast).not.toHaveBeenCalled();
+      expect(generateSummary(state, 'player-1').events).toEqual([]);
+      const summary = generateSummary(state, 'player-2');
+      expect(summary.events).toHaveLength(1);
+      const ack = acknowledgeTurnHandoffSummary(state, 'player-2', summary);
+      expect(ack.playStrategicWarningAudio).toBe(playAudio);
+      expect(acknowledgeTurnHandoffSummary(ack.state, 'player-2', summary).playStrategicWarningAudio).toBe(false);
+    }
+  });
   it('keeps completed-round preparation anonymous until the authoritative recipient is bound', () => {
     const { state, layer } = makeFixture();
     const controller = showTurnHandoff(layer, state, null, null, {

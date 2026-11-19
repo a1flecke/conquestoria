@@ -36,7 +36,7 @@ export function acknowledgeTurnHandoffSummary(
   summary: TurnSummary,
 ): TurnHandoffAcknowledgement {
   const hasStrategicWarning = summary.events.some(
-    event => event.type === 'ai:strategic-warning',
+    event => event.type === 'ai:strategic-warning' || event.type === 'supply:warning',
   );
   const opponentAI = structuredClone(
     state.opponentAI ?? createEmptyOpponentAIState(),

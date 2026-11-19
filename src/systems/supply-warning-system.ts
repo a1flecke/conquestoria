@@ -1,5 +1,5 @@
 import type { EventBus } from '@/core/event-bus';
-import type { GameState, LandSupplyState } from '@/core/types';
+import type { GameSettings, GameState, LandSupplyState } from '@/core/types';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 
@@ -13,6 +13,10 @@ export interface SupplyWarning {
 const WARNING_KINDS: SupplyWarning['kind'][] = [
   'losing-full', 'entering-combat-penalty', 'entering-movement-penalty',
 ];
+
+export function shouldPresentSupplyWarning(kind: SupplyWarning['kind'], preference: GameSettings['supplyWarningPreference']): boolean {
+  return preference !== 'off' && (preference !== 'critical' || kind !== 'losing-full');
+}
 
 function classifyTransition(before: LandSupplyState, after: LandSupplyState): SupplyWarning['kind'] | null {
   if (before === after) return null;
@@ -59,8 +63,8 @@ export function deriveSupplyWarningTransitions(
   for (const kind of WARNING_KINDS) {
     const unitIds = unitIdsByKind.get(kind);
     if (!unitIds || unitIds.length === 0) continue;
-    const playAudio = !audioAssigned;
-    audioAssigned = true;
+    const playAudio = !audioAssigned && shouldPresentSupplyWarning(kind, finalState.settings?.supplyWarningPreference);
+    if (playAudio) audioAssigned = true;
     warnings.push({ viewerId, unitIds: unitIds.sort(), kind, playAudio });
   }
   return warnings;

@@ -7,6 +7,7 @@ import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
 import { getCombatModifier } from './unit-modifier-system';
 import { getCombatAdjacentOccupiedTileCount } from './zone-of-control-system';
+import { getObservedUnitForViewer } from './viewer-intel';
 import { getNetworkCombatCoordination } from './network-combat-coordination';
 import { resolveAirDefenseCoverage } from './air-defense-system';
 import { resolveCombinedArms } from './combined-arms-system';
@@ -21,6 +22,56 @@ export interface CombatContextOptions {
   amphibiousAssault?: boolean;
   isIntercepting?: boolean;
   tacticalInterceptionMultiplier?: number;
+}
+
+function neutraliseSide(context: CombatContext, side: 'attacker' | 'defender'): CombatContext {
+  const next: CombatContext = { ...context };
+  const set = (key: string, value: unknown) => { (next as Record<string, unknown>)[key] = value; };
+  const cap = side === 'attacker' ? 'attacker' : 'defender';
+  // Owner-visibility fact sources: the state of a force the viewer cannot inspect.
+  for (const source of ['CombinedArms', 'LandSupply', 'NavalOperations', 'AirReadiness']) {
+    set(`${cap}${source}Multiplier`, 1);
+    set(`${cap}${source}Fact`, undefined);
+  }
+  set(`${cap}NetworkStrengthBonus`, 0);
+  const engine = side === 'attacker' ? context.attackerModifiers : context.defenderModifiers;
+  if (engine) {
+    // The engine's mult/flat are exactly the product/sum of its applied facts; keep the public ones.
+    const publicApplied = (engine.facts ?? []).filter(fact => fact.sourceVisibility === 'public' && fact.outcome === 'applied');
+    const rebuilt = {
+      mult: publicApplied.filter(f => f.operation === 'multiplier').reduce((total, f) => total * f.value, 1),
+      flat: publicApplied.filter(f => f.operation === 'flat').reduce((total, f) => total + f.value, 0),
+      parts: [],
+      facts: publicApplied,
+    };
+    set(`${cap}Modifiers`, rebuilt);
+  }
+  if (side === 'defender') {
+    next.airDefenseCoverage = undefined;
+    if (context.defenderCity) next.defenderCity = { ...context.defenderCity, defenderCompletedTechs: [] };
+  }
+  return next;
+}
+
+/** Build predictive combat numbers from the actor's own modifiers and observable enemy forces. */
+export function buildObservedCombatContext(
+  state: GameState, viewerId: string, attacker: Unit, defender: Unit, options?: CombatContextOptions,
+): CombatContext {
+  let context = buildCombatContextForDefender(state, attacker, defender, options);
+  const observe = (unit: Unit) => getObservedUnitForViewer(state, viewerId, unit);
+  if (attacker.owner !== viewerId) {
+    const count = getCombatAdjacentOccupiedTileCount(state, attacker.owner, defender, attacker.id, observe);
+    context = neutraliseSide(context, 'attacker');
+    context.attackerPositioningMultiplier = 1 + count * 0.1;
+    context.attackerPositioningPart = count ? { label: `Flanked +${count * 10}%`, kind: 'mult' } : undefined;
+  }
+  if (defender.owner !== viewerId) {
+    const count = getCombatAdjacentOccupiedTileCount(state, defender.owner, defender, defender.id, observe);
+    context = neutraliseSide(context, 'defender');
+    context.defenderPositioningMultiplier = 1 + count * 0.1;
+    context.defenderPositioningPart = count ? { label: `Supported +${count * 10}%`, kind: 'mult' } : undefined;
+  }
+  return context;
 }
 
 function hasAdjacentShoreBombardment(state: GameState, owner: string, target: HexCoord): boolean {

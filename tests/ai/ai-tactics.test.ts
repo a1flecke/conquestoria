@@ -28,6 +28,8 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { findPath } from '@/systems/unit-pathfinding';
 import * as combatSystem from '@/systems/combat-system';
+import { getEraAdvancementTechs } from '@/systems/tech-definitions';
+import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
 import { canParadrop, getAirAssaultTargets } from '@/systems/airborne-system';
 import { getLegalAirMissionTargets } from '@/systems/air-operations-system';
 import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
@@ -298,6 +300,40 @@ describe('#1087 tactical parity — personality must not affect tactical executi
 });
 
 describe('AI tactical action ranking', () => {
+  it('scores an undetected agent as the archer the actor sees', () => {
+    const state = makeState();
+    const attacker = addUnit(state, 'attacker', 'warrior', AI, { q: 4, r: 4 });
+    const defender = addUnit(state, 'defender', 'archer', HUMAN, { q: 5, r: 4 });
+    const plan = makePlan({ kind: 'unit', id: defender.id, lastKnownPosition: defender.position }, [attacker.id]);
+    const score = () => rankUnitTacticalActions(context(state, plan), attacker.id)
+      .find(action => action.action.kind === 'attack')?.score;
+    const archer = score();
+    expect(archer).toBeTypeOf('number');
+    defender.type = 'spy_scout';
+    const spy = createSpyFromUnit({ ...createEspionageCivState(), maxSpies: 1 }, defender.id, HUMAN, 'spy_scout', 'tactics');
+    state.espionage = { ...state.espionage, [HUMAN]: setDisguise(spy.state, defender.id, 'archer') };
+    expect(score()).toBe(archer);
+    addUnit(state, 'detector', 'spy_scout', AI, { q: 5, r: 3 });
+    expect(score()).not.toBe(archer);
+  });
+
+  it('bases attack scoring and the predicted exchange on the information available to the actor', () => {
+    const state = makeState();
+    const eraTwo = getEraAdvancementTechs(2).map(tech => tech.id);
+    state.civilizations[AI].techState.completed = eraTwo;
+    const attacker = addUnit(state, 'attacker', 'warrior', AI, { q: 4, r: 4 });
+    const defender = addUnit(state, 'defender', 'warrior', HUMAN, { q: 5, r: 4 });
+    const plan = makePlan({ kind: 'unit', id: defender.id, lastKnownPosition: defender.position }, [attacker.id]);
+    const project = () => {
+      const tactical = context(state, plan);
+      const attack = rankUnitTacticalActions(tactical, attacker.id).find(candidate => candidate.action.kind === 'attack');
+      expect(attack).toBeDefined();
+      return { score: attack!.score, hp: applyPredictedAction(state, tactical, attack!.action).units[defender.id]?.health };
+    };
+    const first = project();
+    state.civilizations[HUMAN].techState.completed = eraTwo;
+    expect(project()).toEqual(first);
+  });
   it('uses the canonical pair seed for attack previews and simulations', () => {
     const state = makeState('veteran');
     const attacker = addUnit(state, 'attacker', 'warrior', AI, { q: 0, r: 0 });
@@ -415,6 +451,42 @@ describe('AI tactical action ranking', () => {
 
     expect(chooseUnitTacticalAction(context(state, plan), drone.id))
       .toMatchObject({ kind: 'air-strike', unitId: drone.id, target: defender.position });
+  });
+
+  it('only ranks an air strike on a submarine once the actor can detect it', () => {
+    const state = makeState();
+    const base = addCity(state, 'base', AI, { q: 0, r: 0 });
+    const drone = addUnit(state, 'drone', 'combat_drone', AI, base.position,
+      { airBase: { kind: 'city', cityId: base.id } });
+    const target = addUnit(state, 'target', 'submarine', HUMAN, { q: 2, r: 0 });
+    state.map.tiles[hexKey(target.position)]!.terrain = 'ocean';
+    const plan = makePlan({ kind: 'unit', id: target.id, lastKnownPosition: target.position }, [drone.id]);
+    const strikes = () => rankUnitTacticalActions(context(state, plan), drone.id).filter(a => a.action.kind === 'air-strike');
+    expect(getLegalAirMissionTargets(state, drone.id, 'strike')).toEqual([]);
+    expect(strikes()).toEqual([]);
+    addUnit(state, 'escort', 'destroyer', AI, { q: 1, r: 0 });
+    expect(strikes()).toMatchObject([{ action: { target: target.position } }]);
+  });
+
+  it('cannot predict a secret intercept order during air-strike lookahead', () => {
+    const state = makeState();
+    const base = addCity(state, 'base', AI, { q: 0, r: 0 });
+    const enemyBase = addCity(state, 'enemy-base', HUMAN, { q: 4, r: 0 });
+    const drone = addUnit(state, 'drone', 'combat_drone', AI, base.position,
+      { airBase: { kind: 'city', cityId: base.id } });
+    const fighter = addUnit(state, 'fighter', 'jet_fighter', HUMAN, enemyBase.position,
+      { airBase: { kind: 'city', cityId: enemyBase.id } });
+    const target = addUnit(state, 'target', 'warrior', HUMAN, { q: 2, r: 0 });
+    const plan = makePlan({ kind: 'unit', id: target.id, lastKnownPosition: target.position }, [drone.id]);
+    const predict = () => {
+      const next = applyPredictedAction(state, context(state, plan), { kind: 'air-strike', unitId: drone.id, target: target.position });
+      expect(next.units[drone.id]?.hasActed ?? true).toBe(true);
+      return [next.units[drone.id]?.health, next.units[target.id]?.health];
+    };
+    const baseline = predict();
+    expect(baseline[1] ?? 0).toBeLessThan(target.health);
+    fighter.airMission = 'intercept';
+    expect(predict()).toEqual(baseline);
   });
 
   it('scores a revealed stealth bomber from its resolved evasion exchange, not raw counter-strength', () => {

@@ -4,6 +4,7 @@ import { AudioLoader, discardLoopSource } from './audio-loader';
 import { AudioMixer } from './audio-mixer';
 import { MusicDirector, GAME_END_FADE_MS } from './music-director';
 import { worldAgeFromNumber } from '@/systems/era-types';
+import { shouldPresentSupplyWarning } from '@/systems/supply-warning-system';
 import { NaturalWonderAudioDirector, type NaturalWonderAmbientStopReason } from './natural-wonder-audio-director';
 import { getFamilyForCiv } from './civ-audio-family';
 import { ERA_BASE, WAR_LAYER, ACCENT, resolveEra, type TrackEntry } from './audio-catalog';
@@ -314,13 +315,12 @@ export class AudioSystem {
 
       // #544 MR2: reuses the strategic-warning stinger/dedup path rather than
       // commissioning a new audio asset. Unlike strategic warnings, supply
-      // warnings have a player-configurable delivery preference -- honor
-      // "Off" here too so muting warnings also mutes their sound.
+      // warnings share their text filter with audio, including "Critical only".
       bus.on('supply:warning', warning => {
         if (!warning.playAudio) return;
         const state = this.stateProvider?.();
         if (!state) return;
-        if ((state.settings.supplyWarningPreference ?? 'all') === 'off') return;
+        if (!shouldPresentSupplyWarning(warning.kind, state.settings.supplyWarningPreference)) return;
         const turn = state.turn;
         if (!Number.isFinite(turn)) return;
         this.playStrategicWarning(warning.viewerId, turn);

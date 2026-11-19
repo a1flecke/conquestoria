@@ -79,6 +79,25 @@ describe('unit unlock era lookup (#1604)', () => {
 });
 
 describe('major-civilization perception', () => {
+  it.each([false, true])('remembers the newest sighting regardless of tile insertion order (reversed %s)', reverse => {
+    const state = makePerceptionState();
+    const tank = addRivalUnit(state, 'tank', { q: 15, r: 4 });
+    const positions = [OBSERVED, { q: 9, r: 4 }];
+    const sightings = positions.map((coord, i) => makeSnapshot(state, {
+      coord, observedTurn: 7 + i, units: [{ ...tank, healthBand: i ? 'damaged' : 'healthy' }],
+    }));
+    for (const sighting of reverse ? sightings.reverse() : sightings) {
+      const key = hexKey(sighting.coord);
+      state.civilizations[ACTOR].visibility.tiles[key] = 'fog';
+      state.civilizations[ACTOR].visibility.lastSeen![key] = sighting;
+    }
+    const project = () => buildMajorCivPerception(state, ACTOR).units.filter(u => u.id === tank.id);
+    expect(project()).toMatchObject([{ position: positions[1], lastSeenTurn: 8, healthBand: 'damaged' }]);
+    state.civilizations[ACTOR].visibility.tiles[hexKey(tank.position)] = 'visible';
+    expect(project()).toMatchObject([{ position: tank.position, confidence: 'visible' }]);
+    tank.owner = ACTOR;
+    expect(project()).toEqual([]);
+  });
   it('does not expose live hidden coordinates through a remembered target', () => {
     const state = makePerceptionState();
     const tank = addRivalUnit(state, 'tank', { q: 12, r: 4 });

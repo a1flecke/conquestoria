@@ -1,20 +1,16 @@
 import type { GameState, Unit } from '@/core/types';
 import type { CombatModifierFact } from '@/core/types/combat';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { buildCombatContextForDefender, type CombatContextOptions } from '@/systems/combat-context';
-import type { CombatContext } from '@/systems/combat-system';
-import { resolveCombatEra } from '@/systems/era-resolution';
+import { buildObservedCombatContext, type CombatContextOptions } from '@/systems/combat-context';
+import { estimateCombatEraForViewer } from '@/systems/era-resolution';
 import { forecastCombat, type BattleOutcomeBand, type CombatForecast, type DamageRange } from '@/systems/battle-forecast';
-import { getObservedUnitForViewer } from '@/systems/viewer-intel';
-import { isZocEligibleCombatUnit } from '@/systems/zone-of-control-system';
-import { getWrappedHexNeighbors, hexKey, hexNeighbors } from '@/systems/hex-utils';
 
 /**
  * The viewer-safe battle forecast (#1135). The omniscient forecast (`systems/battle-forecast.ts`,
  * numbers from the real combat math) is projected here into what *this viewer* may be told.
  *
  * - The forecast is computed from the canonical combat math over a *viewer-known* context
- *   (`redactCombatContextForViewer`): facts the viewer has not earned -- an enemy's tech, hidden
+ *   (`buildObservedCombatContext`): facts the viewer has not earned -- an enemy's tech, hidden
  *   buildings' techs, supply/readiness state, a concealed supporter -- are neutralised before the
  *   numbers are produced, so no number can encode them. Same formula, only the inputs are what the
  *   viewer may know. A constant note says unseen factors are not included; whether any exist is
@@ -103,21 +99,6 @@ const TIP_BY_FACT_KEY: Record<string, string> = {
   'air-readiness': 'Let this aircraft rest at its base to restore its readiness.',
 };
 
-function visibleDefenderSupport(state: GameState, viewerId: string, defender: Unit): { visible: number } {
-  const neighbors = state.map.wrapsHorizontally
-    ? getWrappedHexNeighbors(defender.position, state.map.width)
-    : hexNeighbors(defender.position);
-  const keys = new Set(neighbors.map(hexKey));
-  const occupied = new Set<string>();
-  for (const unit of Object.values(state.units)) {
-    const key = hexKey(unit.position);
-    if (unit.id === defender.id || !keys.has(key)) continue;
-    const observed = getObservedUnitForViewer(state, viewerId, unit);
-    if (observed?.owner === defender.owner && isZocEligibleCombatUnit(observed)) occupied.add(key);
-  }
-  return { visible: occupied.size };
-}
-
 function damageSummary(name: string, hp: number, damage: DamageRange): string {
   const after = Math.max(0, hp - damage.expected);
   return damage.expected >= hp
@@ -153,8 +134,7 @@ export interface BattleForecastRequest {
 }
 
 /** Projects an already-computed forecast for `viewerId`. Pure given its inputs. */
-export function projectBattleForecast(
-  state: GameState,
+function projectBattleForecast(
   viewerId: string,
   attacker: Unit,
   defender: Unit,
@@ -200,10 +180,7 @@ export function projectBattleForecast(
   const attackerPositioning = strengths.attackerModifierParts?.find(part => part.label.startsWith('Flanked'));
   if (attackerPositioning) forYou.push(attackerPositioning.label);
   const defenderPositioning = strengths.defenderModifierParts?.find(part => part.label.startsWith('Supported'));
-  if (defenderPositioning) {
-    const support = visibleDefenderSupport(state, viewerId, defender);
-    if (support.visible > 0) againstYou.push(`Supported +${support.visible * 10}%`);
-  }
+  if (defenderPositioning) againstYou.push(defenderPositioning.label);
 
   const you: BattleSideView = {
     name: youName, hp: attacker.health, damage: forecast.attackerDamage,
@@ -229,68 +206,11 @@ export function projectBattleForecast(
   };
 }
 
-function neutraliseSide(context: CombatContext, side: 'attacker' | 'defender'): CombatContext {
-  const next: CombatContext = { ...context };
-  const set = (key: string, value: unknown) => { (next as Record<string, unknown>)[key] = value; };
-  const cap = side === 'attacker' ? 'attacker' : 'defender';
-  // Owner-visibility fact sources: the state of a force the viewer cannot inspect.
-  for (const source of ['CombinedArms', 'LandSupply', 'NavalOperations', 'AirReadiness']) {
-    set(`${cap}${source}Multiplier`, 1);
-    set(`${cap}${source}Fact`, undefined);
-  }
-  set(`${cap}NetworkStrengthBonus`, 0);
-  const engine = side === 'attacker' ? context.attackerModifiers : context.defenderModifiers;
-  if (engine) {
-    // The engine's mult/flat are exactly the product/sum of its applied facts; keep the public ones.
-    const publicApplied = (engine.facts ?? []).filter(fact => fact.sourceVisibility === 'public' && fact.outcome === 'applied');
-    const rebuilt = {
-      mult: publicApplied.filter(f => f.operation === 'multiplier').reduce((total, f) => total * f.value, 1),
-      flat: publicApplied.filter(f => f.operation === 'flat').reduce((total, f) => total + f.value, 0),
-      parts: [],
-      facts: publicApplied,
-    };
-    set(`${cap}Modifiers`, rebuilt);
-  }
-  if (side === 'defender') {
-    next.airDefenseCoverage = undefined;
-    if (context.defenderCity) next.defenderCity = { ...context.defenderCity, defenderCompletedTechs: [] };
-  }
-  return next;
-}
-
-/**
- * The combat context as `viewerId` may know it. Everything a side's owner alone can know is
- * neutralised on any side the viewer does not own; support is re-counted from supporters the
- * viewer can actually see (concealed ones do not count).
- */
-export function redactCombatContextForViewer(
-  state: GameState,
-  viewerId: string,
-  attacker: Unit,
-  defender: Unit,
-  context: CombatContext,
-): CombatContext {
-  let next = context;
-  if (attacker.owner !== viewerId) next = neutraliseSide(next, 'attacker');
-  if (defender.owner !== viewerId) {
-    next = neutraliseSide(next, 'defender');
-    const visible = visibleDefenderSupport(state, viewerId, defender).visible;
-    next = {
-      ...next,
-      defenderPositioningMultiplier: 1 + visible * 0.1,
-      defenderPositioningPart: visible > 0 ? { label: `Supported +${visible * 10}%`, kind: 'mult' } : undefined,
-    };
-  }
-  return next;
-}
-
 /** The one entry the UI/controllers use: canonical context (viewer-redacted) + era, forecast, projection. */
 export function buildBattleForecastView(request: BattleForecastRequest): BattleForecastView {
   const { state, viewerId, attacker, defender, ownerName, options } = request;
-  const context = redactCombatContextForViewer(
-    state, viewerId, attacker, defender,
-    buildCombatContextForDefender(state, attacker, defender, options),
-  );
-  const forecast = forecastCombat(attacker, defender, state.map, context, resolveCombatEra(state, attacker, defender), state);
-  return projectBattleForecast(state, viewerId, attacker, defender, forecast, ownerName);
+  const context = buildObservedCombatContext(state, viewerId, attacker, defender, options);
+  const opponent = attacker.owner === viewerId ? defender : attacker;
+  const forecast = forecastCombat(attacker, defender, state.map, context, estimateCombatEraForViewer(state, viewerId, opponent.owner), state);
+  return projectBattleForecast(viewerId, attacker, defender, forecast, ownerName);
 }

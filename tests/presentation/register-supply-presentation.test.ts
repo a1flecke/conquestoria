@@ -19,7 +19,8 @@ describe('supply presentation', () => {
     registerSupplyPresentation(bus, ctx);
     emitLosingFull(bus);
 
-    expect(ctx.deliver).toHaveBeenCalledWith('player', expect.any(String), 'info');
+    expect(ctx.deliver).toHaveBeenCalledWith('player', expect.any(String), 'info',
+      undefined, undefined, undefined, undefined, 'supply:warning');
   });
 
   it('filters out losing-full when preference is critical, but still delivers a real penalty warning', () => {
@@ -31,7 +32,8 @@ describe('supply presentation', () => {
     expect(ctx.deliver).not.toHaveBeenCalled();
 
     emitCombatPenalty(bus);
-    expect(ctx.deliver).toHaveBeenCalledWith('player', expect.any(String), 'warning');
+    expect(ctx.deliver).toHaveBeenCalledWith('player', expect.any(String), 'warning',
+      undefined, undefined, undefined, undefined, 'supply:warning');
   });
 
   it('delivers nothing when preference is off', () => {
@@ -52,7 +54,8 @@ describe('supply presentation', () => {
     registerSupplyPresentation(bus, ctx);
     emitLosingFull(bus);
 
-    expect(ctx.deliver).toHaveBeenCalledWith('player', expect.any(String), 'info');
+    expect(ctx.deliver).toHaveBeenCalledWith('player', expect.any(String), 'info',
+      undefined, undefined, undefined, undefined, 'supply:warning');
   });
 
   it('disposing removes the subscription this registrar added', () => {

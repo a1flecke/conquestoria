@@ -23,6 +23,12 @@ export function resolveCombatEra(state: GameState, attacker: Unit, defender: Uni
   );
 }
 
+/** A participant can know its own era. Use the public world age to estimate a foreign major's era. */
+export function estimateCombatEraForViewer(state: GameState, viewerId: string, opponentId: string): number {
+  const ownEra = resolveCivilizationEra(state.civilizations[viewerId]?.techState.completed ?? []);
+  return classifyOwner(opponentId) === 'major' ? Math.min(ownEra, state.era ?? 1) : ownEra;
+}
+
 /**
  * Resolves a neutral actor's safe pressure tier without allowing a distant
  * civilization's research to upgrade a local threat. A known intended target

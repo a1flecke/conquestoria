@@ -10,7 +10,7 @@ import { hexKey } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_DESCRIPTIONS } from '@/systems/unit-descriptions';
 import { classifyOwner, isAlwaysHostilePair } from '@/core/owner-kind';
-import { visibleHostileUnitEntriesAtKey } from '@/input/hex-defender-selection';
+import { visibleHostileUnitEntriesAtKey, visibleUnitEntriesAtKey } from '@/input/hex-defender-selection';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { buildBattleForecastView } from '@/ui/battle-forecast-projection';
@@ -27,7 +27,7 @@ import { describeForeignOwner } from './map-interaction-shared';
 
 export function showEnemyUnitInfo(deps: MapInteractionControllerDeps, intent: { readonly unitId: string }, key: string): void {
   const { session, selectionController } = deps;
-    const enemyUnit = session.getState().units[intent.unitId];
+    const enemyUnit = visibleUnitEntriesAtKey(session.getState(), key).find(([id]) => id === intent.unitId)?.[1];
     if (!enemyUnit) return;
     const def = UNIT_DEFINITIONS[enemyUnit.type];
     const desc = UNIT_DESCRIPTIONS[enemyUnit.type] ?? '';
@@ -129,7 +129,7 @@ export function showEnemyUnitInfo(deps: MapInteractionControllerDeps, intent: { 
 export function showCombatPreview(deps: MapInteractionControllerDeps, intent: { readonly attackerId: string; readonly defenderId: string }, key: string, coord: HexCoord): void {
   const { session, selection, selectionController } = deps;
     const unit = session.getState().units[intent.attackerId];
-    const defender = session.getState().units[intent.defenderId];
+    const defender = visibleUnitEntriesAtKey(session.getState(), key).find(([id]) => id === intent.defenderId)?.[1];
     if (!unit || !defender) return;
     const amphibiousAssault = Boolean(unit.transportId);
     const previewAttacker = amphibiousAssault

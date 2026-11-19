@@ -1,7 +1,8 @@
 // src/ui/notification-routes/notification-sink.ts
-// #1250: the one type every notification router writes through. A type-only leaf: routers depend on it,
-// it depends on nothing but the notification-log shapes.
+// #1250: the delivery contract shared by notification routers.
 import type { CombatNotificationDetails, NotificationCityAction, NotificationEntry } from '@/core/notification-log';
+
+type HandoffWarning = 'ai:strategic-warning' | 'supply:warning';
 
 export type NotificationSink = (
   civId: string,
@@ -14,4 +15,19 @@ export type NotificationSink = (
   // effect on the notification log or save schema. See ReligionAudioDirector.playCue.
   sfxCue?: string,
   combatDetails?: CombatNotificationDetails,
+  handoffWarning?: HandoffWarning,
 ) => void;
+
+export function deliverViewerWarning(
+  sink: NotificationSink,
+  viewerId: string,
+  presentation: Pick<NotificationEntry, 'message' | 'type' | 'target'>,
+  handoffWarning?: HandoffWarning,
+): void {
+  const { message, type, target } = presentation;
+  if (handoffWarning) {
+    sink(viewerId, message, type, target, undefined, undefined, undefined, handoffWarning);
+  } else {
+    sink(viewerId, message, type, target);
+  }
+}
