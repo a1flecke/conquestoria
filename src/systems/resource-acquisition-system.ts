@@ -198,6 +198,9 @@ export function canEstablishOutpost(state: GameState, unitId: string): boolean {
   const tileKey = hexKey(unit.position);
   const tile = state.map.tiles[tileKey];
   if (!tile || !tile.resource || tile.improvement !== 'none') return false;
+  // An outpost claims the tile, so it may only go on land nobody else holds: a rival's (or a
+  // city-state's) territory is theirs, and claiming it would take the tile and its resource.
+  if (tile.owner && tile.owner !== unit.owner) return false;
 
   const civ = state.civilizations[unit.owner];
   if (!civ) return false;
@@ -224,6 +227,8 @@ export function canEstablishOutpost(state: GameState, unitId: string): boolean {
 export function performEstablishOutpost(state: GameState, unitId: string): GameState {
   const unit = state.units[unitId];
   if (!unit) return state;
+  // Re-run the legality check so a stale or direct call cannot claim a tile it may not.
+  if (!canEstablishOutpost(state, unitId)) return state;
 
   const tileKey = hexKey(unit.position);
   const existingTile = state.map.tiles[tileKey];

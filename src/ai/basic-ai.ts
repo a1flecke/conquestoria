@@ -1647,8 +1647,8 @@ function processAITurnInternal(
           && city.position !== null
           && city.confidence !== 'rumored')
         .sort((a, b) => {
-          const da = hexDistance(spyUnit.position, a.position!);
-          const db = hexDistance(spyUnit.position, b.position!);
+          const da = mapDistance(newState.map, spyUnit.position, a.position!);
+          const db = mapDistance(newState.map, spyUnit.position, b.position!);
           if (da !== db) return da - db;
           return a.id.localeCompare(b.id);
         });

@@ -9,7 +9,7 @@ import { canRestoreLand } from '@/systems/improvement-system';
 import { getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { findPath } from '@/systems/unit-pathfinding';
-import { hexDistance, hexKey, mapNeighbors } from '@/systems/hex-utils';
+import { hexKey, mapNeighbors, mapDistance } from '@/systems/hex-utils';
 import { getHerdRoutePresentationForViewer } from '@/systems/stampede-route-system';
 import { resolveUnitMoveIntent } from '@/systems/unit-movement-validation';
 
@@ -71,7 +71,7 @@ export function getCrisisDispatchCandidates(state: GameState, civId: string): Cr
       const nearestCityDistance = Math.min(
         ...Object.values(state.cities)
           .filter(city => city.owner === civId)
-          .map(city => hexDistance(routeEnd, city.position)),
+          .map(city => mapDistance(state.map, routeEnd, city.position)),
       );
       const cityApproachPressure = Number.isFinite(nearestCityDistance)
         ? Math.max(0, 4 - nearestCityDistance) * 10

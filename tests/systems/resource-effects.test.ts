@@ -129,7 +129,7 @@ function makeMultiResourceState(resources: Array<{
       'city-1': {
         id: 'city-1', name: 'TestCity', owner: 'player',
         position: cityPos, ownedTiles,
-        population: 1, food: 0, production: 0, gold: 0,
+        population: ownedTiles.length, food: 0, production: 0, gold: 0,
         buildings: [], productionQueue: [], workedTiles: ownedTiles,
         specialistSlots: [], garrisonUnitId: null, hp: 100, maxHp: 100,
       } as unknown as never,

@@ -12,6 +12,7 @@ function makeStealthState(disguise?: string): GameState {
     : esp;
   return {
     espionage: { player: civEsp, 'ai-egypt': createEspionageCivState() },
+    map: { width: 40, height: 40, wrapsHorizontally: false, tiles: {}, rivers: [] },
     units: {
       'unit-1': {
         id: 'unit-1', type: 'spy_scout', owner: 'player',

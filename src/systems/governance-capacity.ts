@@ -2,7 +2,7 @@ import type { GameState } from '../core/types';
 import type { GovernancePosture } from './governance-types';
 import { GOVERNANCE_POLICY_DEFINITIONS } from './governance-policy-definitions';
 import { getCapitalCity } from './capital-system';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 
 /**
  * #987 — administrative capacity, modeled on `autonomy-capacity.ts`'s
@@ -106,7 +106,7 @@ export function getGovernanceLoad(state: GameState, civId: string): GovernanceLo
   const byCity: Record<string, number> = {};
   let cityTotal = 0;
   for (const city of cities) {
-    const distance = capital && capital.id !== city.id ? hexDistance(city.position, capital.position) : 0;
+    const distance = capital && capital.id !== city.id ? mapDistance(state.map, city.position, capital.position) : 0;
     const distanceLoad = Math.floor(distance / 5);
     const load = posture === 'autonomous' ? Math.floor(distanceLoad / 2) : distanceLoad;
     byCity[city.id] = load;

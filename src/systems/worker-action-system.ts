@@ -9,7 +9,7 @@ import type {
   WorkerActionType,
 } from '@/core/types';
 import { createRng } from './map-generator';
-import { hexDistance, hexKey } from './hex-utils';
+import { hexKey, mapDistance } from './hex-utils';
 import {
   IMPROVEMENT_BUILD_TURNS,
   getKnownTileResourceForWorkerAction,
@@ -80,7 +80,7 @@ function findNearestOwnedCity(state: GameState, owner: string, coord: HexCoord):
   const cities = Object.values(state.cities)
     .filter(candidate => candidate.owner === owner)
     .sort((left, right) => {
-      const distanceDiff = hexDistance(left.position, coord) - hexDistance(right.position, coord);
+      const distanceDiff = mapDistance(state.map, left.position, coord) - mapDistance(state.map, right.position, coord);
       return distanceDiff !== 0 ? distanceDiff : left.id.localeCompare(right.id);
     });
   return cities[0] ?? null;

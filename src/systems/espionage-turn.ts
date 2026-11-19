@@ -9,7 +9,7 @@ import type {
 import type { AdvisorType } from '@/core/types/council';
 import type { EventBus } from '@/core/event-bus';
 import { createRng } from './map-generator';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 import { modifyRelationship } from './diplomacy-state';
 import { transferCapturedCityOwnership } from './city-capture-system';
 import { removeRouteById } from './trade-route-lifecycle';
@@ -927,7 +927,7 @@ function applyStationedSpyPassiveAbilities(state: GameState, civId: string, bus:
       const revealRadius = 3;
       for (const key of Object.keys(state.map.tiles)) {
         const [q, r] = key.split(',').map(Number);
-        if (hexDistance({ q, r }, targetCity.position) <= revealRadius) {
+        if (mapDistance(state.map, { q, r }, targetCity.position) <= revealRadius) {
           if (state.civilizations[civId]?.visibility?.tiles) {
             state.civilizations[civId].visibility.tiles[key] = 'visible';
           }
@@ -938,7 +938,7 @@ function applyStationedSpyPassiveAbilities(state: GameState, civId: string, bus:
       const nearbyUnits: Array<{ type: string; position: HexCoord }> = [];
       for (const unit of Object.values(state.units)) {
         if (unit.owner === spy.targetCivId &&
-            hexDistance(unit.position, targetCity.position) <= 4) {
+            mapDistance(state.map, unit.position, targetCity.position) <= 4) {
           nearbyUnits.push({ type: unit.type, position: unit.position });
         }
       }

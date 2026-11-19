@@ -1,5 +1,5 @@
 import type { GameState, Unit } from '@/core/types';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 import { getNetworkPlanDefinition } from './network-plan-definitions';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 
@@ -18,7 +18,7 @@ function appliesToUnit(state: GameState, plan: NonNullable<GameState['autonomyBy
   const source = sourceId ? state.units[sourceId] : undefined;
   return !!source && source.owner === unit.owner && plan.target.unitIds.every(unitId => {
     const linked = state.units[unitId];
-    return linked?.owner === unit.owner && hexDistance(source.position, linked.position) <= getNetworkPlanDefinition(plan.definitionId).range;
+    return linked?.owner === unit.owner && mapDistance(state.map, source.position, linked.position) <= getNetworkPlanDefinition(plan.definitionId).range;
   });
 }
 

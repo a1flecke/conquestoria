@@ -7,7 +7,7 @@ import type {
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import type { GameState, LegendaryWonderNetworkPlanResolutionRecord } from '@/core/types';
 import { isAtWar } from '@/systems/diplomacy-queries';
-import { hexDistance } from '@/systems/hex-utils';
+import { mapDistance } from '@/systems/hex-utils';
 import { isAutonomyActivated as isAutonomyActivatedForCiv } from './autonomy-activation';
 import { getNetworkPlanDefinition, getNetworkPlanLoad, isConstructiveSpecialistPlan } from './network-plan-definitions';
 import { getAutonomyCapacity, getAutonomyLoad } from './autonomy-capacity';
@@ -221,7 +221,7 @@ export function validateNetworkPlanAssignment(
     const distinctUnitIds = new Set(request.target.unitIds);
     if (distinctUnitIds.size !== request.target.unitIds.length || request.target.unitIds.some(unitId => {
       const unit = state.units[unitId];
-      return !unit || unit.owner !== request.ownerCivId || hexDistance(source.position, unit.position) > definition.range;
+      return !unit || unit.owner !== request.ownerCivId || mapDistance(state.map, source.position, unit.position) > definition.range;
     })) return { ok: false, reason: 'invalid-target' };
     return hasCapacityForAssignment(state, request) ? { ok: true } : { ok: false, reason: 'ordinary-load-exceeds-capacity' };
   }
@@ -229,7 +229,7 @@ export function validateNetworkPlanAssignment(
 
   const city = state.cities[request.target.cityId];
   if (!city) return { ok: false, reason: 'missing-target-city' };
-  if (hexDistance(source.position, city.position) > definition.range) {
+  if (mapDistance(state.map, source.position, city.position) > definition.range) {
     return { ok: false, reason: 'target-out-of-range' };
   }
   if (definition.targetKind === 'friendly-city' && city.owner !== request.ownerCivId) {

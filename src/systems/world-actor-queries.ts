@@ -5,7 +5,7 @@
 // rogue-elephant-host-system.ts and stampede-system.ts, which import these back. A leaf, so combat resolution
 // and production pricing no longer import the world-actor turns (movement, pathfinding, combat) to ask a question.
 import type { GameState } from '@/core/types';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 
 /** One viewer-independent combat fact; callers may present it only after visibility checks. */
 export function getRogueElephantCommandFact(
@@ -20,7 +20,7 @@ export function getRogueElephantCommandFact(
     if (!force?.unitIds.includes(elephantUnitId)) continue;
     const handler = force.unitIds.map(unitId => state.units[unitId])
       .find((unit): unit is NonNullable<typeof unit> => unit?.type === 'rogue_handler' && unit.health > 0);
-    if (handler && hexDistance(handler.position, elephant.position) <= 2) return { percent: 20, handlerUnitId: handler.id };
+    if (handler && mapDistance(state.map, handler.position, elephant.position) <= 2) return { percent: 20, handlerUnitId: handler.id };
   }
   return undefined;
 }

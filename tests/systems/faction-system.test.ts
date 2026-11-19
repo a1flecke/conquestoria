@@ -670,6 +670,17 @@ describe('faction-system', () => {
   });
 });
 
+describe('distance from capital on a wrapping map', () => {
+  it('a city just across the seam from its capital is near it, not across the world', () => {
+    const wrapped = makeState({ cityPosition: { q: 19, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    wrapped.map = { ...wrapped.map, wrapsHorizontally: true };
+    expect(getUnrestPressureBreakdown('city-1', wrapped).find(row => row.label === 'Distance from capital')).toBeUndefined();
+
+    const flat = makeState({ cityPosition: { q: 19, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    expect(getUnrestPressureBreakdown('city-1', flat).find(row => row.label === 'Distance from capital')?.amount).toBeGreaterThan(0);
+  });
+});
+
 describe('#927 Regional Capital unrest relief', () => {
   it('keeps the capital distance row while adding bounded nearest-seat relief', () => {
     const state = makeState({ cityPosition: { q: 10, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 4 });

@@ -1,6 +1,6 @@
 import type { GameState } from '@/core/types';
 import { isAtWar } from '@/systems/diplomacy-queries';
-import { hexDistance } from '@/systems/hex-utils';
+import { mapDistance } from '@/systems/hex-utils';
 import { usePropagandistAction } from '@/systems/propagandist-system';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
@@ -17,7 +17,7 @@ export function usePropagandistActionsForAI(state: GameState, civId: string): Ga
   for (const unit of units) {
     if (!unit) continue;
     const nearby = Object.values(next.cities)
-      .filter(city => hexDistance(unit.position, city.position) <= 1)
+      .filter(city => mapDistance(next.map, unit.position, city.position) <= 1)
       .sort((left, right) => left.id.localeCompare(right.id));
     const enemy = nearby.find(city => {
       const targetCiv = next.civilizations[city.owner];

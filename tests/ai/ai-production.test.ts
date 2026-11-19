@@ -1069,6 +1069,8 @@ describe('#919 MR2 — AI values unrest relief (Courthouse)', () => {
   function empire(opts: { far: boolean; warCount: number }): GameState {
     const state = setupState([...era2Techs, 'magistracy'], ['cap', 'city-a']);
     const civ = state.civilizations['ai-1'];
+    // A flat map: on the 30-wide small map, q 30 wraps onto the capital's own column.
+    state.map = { ...state.map, wrapsHorizontally: false };
     state.cities['cap'].position = { q: 0, r: 0 };
     state.cities['cap'].buildings = [];
     state.cities['city-a'].position = opts.far ? { q: 30, r: 0 } : { q: 1, r: 0 };
@@ -1142,6 +1144,8 @@ describe('#919 MR2 — AI values unrest relief (Courthouse)', () => {
       .map(tech => tech.id);
     const state = setupState([...era4Techs, 'political-philosophy'], ['cap', 'city-a']);
     const civ = state.civilizations['ai-1'];
+    // A flat map: on the 30-wide small map, q 30 wraps onto the capital's own column.
+    state.map = { ...state.map, wrapsHorizontally: false };
     state.cities.cap.position = { q: 0, r: 0 };
     state.cities['city-a'].position = { q: 30, r: 0 };
     for (let i = 3; i <= 12; i++) {

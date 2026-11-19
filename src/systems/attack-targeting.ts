@@ -1,6 +1,6 @@
 import type { GameMap, GameState, HexCoord, Unit, UnitAttackProfile, UnitType } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
-import { hexDistance, hexKey, hexesInRange, getWrappedHexesInRange, wrappedHexDistance } from '@/systems/hex-utils';
+import { hexDistance, hexKey, hexesInRange, getWrappedHexesInRange, wrappedHexDistance, mapDistance } from '@/systems/hex-utils';
 import { selectDefenderForAttack } from '@/systems/combat-defense-strength';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { canUnitAttackBeast } from '@/systems/beast-system';
@@ -158,7 +158,7 @@ export function canUnitAttackTarget(
       const hubNearby = Object.values(state.cities).some(city => {
         if (city.owner === targetUnit[1].owner) return false;
         if (!city.buildings.includes('signals_hub')) return false;
-        return hexDistance(city.position, targetUnit[1].position) <= 2;
+        return mapDistance(state.map, city.position, targetUnit[1].position) <= 2;
       });
       if (!hubNearby) return { ok: false, reason: 'unsupported-target' };
     }
