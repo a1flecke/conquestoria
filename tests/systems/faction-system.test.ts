@@ -748,6 +748,24 @@ describe('#927 Bureaucracy unrest relief', () => {
     }
   });
 
+  it('derives the hypothetical from live cities when the roster has a stale entry (#1019)', () => {
+    // 9 live cities -> the actual overextension row is 9, and the hypothetical
+    // allowance must be built from the same 9: a stale roster id must not raise
+    // the allowance and shrink the relief below the live-city answer (-7).
+    const base = withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 }, era: 6 }), [BUREAUCRACY_TECH_ID]);
+    const state: GameState = {
+      ...base,
+      civilizations: {
+        ...base.civilizations,
+        player: { ...base.civilizations.player, cities: [...base.civilizations.player.cities, 'ghost-city'] },
+      },
+    };
+    expect(state.cities['ghost-city']).toBeUndefined();
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    expect(rows).toContainEqual({ label: 'Empire overextension', amount: 9 });
+    expect(rows).toContainEqual({ label: 'Bureaucratic administration', amount: -7 });
+  });
+
   it('leaves the positive Distance from capital row unchanged and does not relieve it', () => {
     const state = withCompleted(
       makeState({ cityCount: 8, cityPosition: { q: 10, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 6 }),

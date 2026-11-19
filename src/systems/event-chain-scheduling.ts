@@ -8,6 +8,7 @@ import type { ActiveEventChain, GameState } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { resolveCivilizationEra } from './tech-definitions';
 import { getCapitalCityId } from './capital-system';
+import { getOwnedCityCount } from './city-ownership';
 import {
   chooseAiFinancialPanicOption,
   getEventChainDefinition,
@@ -34,7 +35,7 @@ export function processEventChainScheduler(state: GameState, bus: EventBus): Gam
 
 function maybeStartEventChain(state: GameState, civId: string, bus: EventBus): GameState {
   const civ = state.civilizations[civId];
-  if (!civ || civ.isEliminated || civ.cities.length === 0) return state;
+  if (!civ || civ.isEliminated || getOwnedCityCount(state, civId) === 0) return state;
 
   const definition = getEventChainDefinition('financial-panic');
   const civEra = resolveCivilizationEra(civ.techState.completed);

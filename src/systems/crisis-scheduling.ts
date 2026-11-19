@@ -13,6 +13,7 @@ import { createSimulationRng } from './simulation-rng';
 import { hexKey, mapDistance } from './hex-utils';
 import { resolveCivDefinition } from './civ-registry';
 import { calculateProjectedCityYields } from './city-work-system';
+import { getOwnedCities, getOwnedCityCount } from './city-ownership';
 import { resolveCivilizationEra } from './tech-definitions';
 
 export const CRISIS_PRESSURE_FLOOR = 2.0;
@@ -66,20 +67,22 @@ const FAMINE_WEIGHT_FLOOR = 0.1;
 
 export function getFamineFragility(state: GameState, civId: string): number {
   const civ = state.civilizations[civId];
-  if (!civ || civ.cities.length === 0) return 0;
+  if (!civ) return 0;
+  // #1019: count live owned cities, never roster entries — a stale roster id must
+  // not dilute the ratio.
+  const ownedCities = getOwnedCities(state, civId);
+  if (ownedCities.length === 0) return 0;
   const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
-  const fragileCount = civ.cities.filter(cityId => {
-    const city = state.cities[cityId];
-    if (!city) return false;
-    const projectedYields = calculateProjectedCityYields(state, cityId, bonusEffect);
+  const fragileCount = ownedCities.filter(city => {
+    const projectedYields = calculateProjectedCityYields(state, city.id, bonusEffect);
     return projectedYields.food - city.population <= 1;
   }).length;
-  return fragileCount / civ.cities.length;
+  return fragileCount / ownedCities.length;
 }
 
 function maybeStartCrisis(state: GameState, civId: string, bus: EventBus): GameState {
   const civ = state.civilizations[civId];
-  if (!civ || civ.cities.length === 0) return state;
+  if (!civ || getOwnedCityCount(state, civId) === 0) return state;
   const civEra = resolveCivilizationEra(civ.techState.completed);
   // AI civs always resolve the 'standard' profile's scheduling knobs — never the
   // game-wide opponentChallenge, whose 'veteran' setting would otherwise make AI
