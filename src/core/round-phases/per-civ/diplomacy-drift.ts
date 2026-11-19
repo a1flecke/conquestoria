@@ -2,33 +2,25 @@ import type { GameState } from '@/core/types';
 import { processRelationshipDrift, decayEvents } from '@/systems/diplomacy-state';
 import { decayTreachery } from '@/systems/diplomacy-treachery';
 import { tickTreaties } from '@/systems/diplomacy-treaties';
+import { hasBorderTension } from '@/systems/border-tension';
 import { getVassalageMilitaryCount } from '@/systems/diplomacy-vassal-rules';
-import type { CivTurn, CivRoster } from './types';
+import type { CivTurn } from './types';
 
 /**
- * Relationship drift toward neighbours whose units stand near its cities, event and treaty decay, and trade
+ * Relationship drift against neighbours whose troops stand near this civ's cities, event and treaty decay, and trade
  * agreement income.
  */
-export function driftCivDiplomacy(state: GameState, turn: CivTurn, roster: CivRoster, grossGoldByCiv: Record<string, number>): void {
+export function driftCivDiplomacy(state: GameState, turn: CivTurn, grossGoldByCiv: Record<string, number>): void {
   const { civId, civ } = turn;
-  const { civUnits } = roster;
 
   // Process diplomacy
   if (civ.diplomacy) {
+    // The civ resents rivals whose troops stand near its own cities (#1763 follow-up: the intruder used to
+    // lose opinion of the civ it approached, so massing troops on a border earned the approached civ's goodwill).
     const unitsNearBorder: Record<string, boolean> = {};
     for (const otherCivId of Object.keys(state.civilizations)) {
       if (otherCivId === civId) continue;
-      const otherCities = state.civilizations[otherCivId].cities
-        .map(id => state.cities[id])
-        .filter(Boolean);
-      const hasUnitsNear = civUnits.some(u =>
-        otherCities.some(c => {
-          const dq = Math.abs(u.position.q - c!.position.q);
-          const dr = Math.abs(u.position.r - c!.position.r);
-          return dq + dr <= 3;
-        }),
-      );
-      unitsNearBorder[otherCivId] = hasUnitsNear;
+      unitsNearBorder[otherCivId] = hasBorderTension(state, civId, otherCivId);
     }
 
     let dipState = processRelationshipDrift(civ.diplomacy, unitsNearBorder);

@@ -2,7 +2,7 @@
   "turns": [
     {
       "state": {
-        "__whole": "3c0f92405cb8",
+        "__whole": "3271e5623bb0",
         "activeEventChains": "51fe40cdcded",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -10,7 +10,7 @@
         "beasts": "0c41ad5ea819",
         "cities": "41e794e6fcc5",
         "cityFaith": "44136fa355b3",
-        "civilizations": "8e8d08d75a73",
+        "civilizations": "44aabb849f7b",
         "commercePermissions": "b053f8ba4051",
         "completedLegendaryWonders": "44136fa355b3",
         "crisisForces": "44136fa355b3",
@@ -68,12 +68,12 @@
         "wonderDiscoverers": "704ba0f8991a",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "6a91c2bdcbcc",
+      "events": "5a58470bee61",
       "trace": "9147ef655012"
     },
     {
       "state": {
-        "__whole": "0d620de8e85a",
+        "__whole": "5060e2904718",
         "activeEventChains": "208001498e9d",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -81,7 +81,7 @@
         "beasts": "0c41ad5ea819",
         "cities": "90afaead3f5b",
         "cityFaith": "44136fa355b3",
-        "civilizations": "68e15e005d8c",
+        "civilizations": "b02104360d21",
         "commercePermissions": "b053f8ba4051",
         "completedLegendaryWonders": "44136fa355b3",
         "crisisForces": "033248019318",
@@ -139,12 +139,12 @@
         "wonderDiscoverers": "704ba0f8991a",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "bf755c21a6b9",
+      "events": "c7ec9b44996b",
       "trace": "912151540caa"
     },
     {
       "state": {
-        "__whole": "84f4c2abcb17",
+        "__whole": "e47619da3447",
         "activeEventChains": "e7ebd5002d6f",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -152,7 +152,7 @@
         "beasts": "e52fbbfa97a2",
         "cities": "81c513f76d03",
         "cityFaith": "44136fa355b3",
-        "civilizations": "5686dd696d5a",
+        "civilizations": "b35a80f80210",
         "commercePermissions": "b053f8ba4051",
         "completedLegendaryWonders": "44136fa355b3",
         "crisisForces": "6b8851af20c5",
@@ -210,7 +210,7 @@
         "wonderDiscoverers": "704ba0f8991a",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "f84a094b37db",
+      "events": "7bbec3f1c3db",
       "trace": "912151540caa"
     }
   ]

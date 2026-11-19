@@ -4,7 +4,7 @@ import { getOwnedCities } from '@/systems/city-ownership';
 import { getAutonomyCapacity, getAutonomyLoad } from '@/systems/autonomy-capacity';
 import { getAutonomySurgeRules } from '@/systems/autonomy-postures';
 import { getNetworkPlanDefinition } from '@/systems/network-plan-definitions';
-import { hexDistance } from '@/systems/hex-utils';
+import { mapDistance } from '@/systems/hex-utils';
 import { isMilitaryUnitType } from '@/systems/unit-modifier-definitions';
 import {
   type NetworkPlanRequest,
@@ -87,7 +87,7 @@ export function getNetworkPanelModel(state: GameState, civId: string): NetworkPa
   for (const controller of controllers) {
     const recipients = Object.values(state.units)
       .filter(unit => unit.owner === civId && unit.id !== controller.id && isMilitaryUnitType(unit.type)
-        && hexDistance(controller.position, unit.position) <= getNetworkPlanDefinition('guardian-screen').range)
+        && mapDistance(state.map, controller.position, unit.position) <= getNetworkPlanDefinition('guardian-screen').range)
       .sort((left, right) => left.id.localeCompare(right.id))
       .slice(0, 3)
       .map(unit => unit.id);
