@@ -352,9 +352,18 @@ describe('AudioSystem integration', () => {
   it('Flow J: game:over fades to silent over 1.5s', () => {
     system.start(makeState(), busHelper.bus);
     busHelper.emit('era:advanced', { era: 1 });
-    busHelper.emit('game:over', { winnerId: 'rome' });
+    busHelper.emit('game:over', { outcome: 'victory' });
     // setSnapshot('silent', 1500) fires synchronously → linearRampToValueAtTime
     expect(ctx.transcript.some(e => e.op === 'linearRampToValueAtTime')).toBe(true);
+  });
+
+  it('plays the verdict game:over carries, not one derived from the audio viewer', () => {
+    system.start(makeState(), busHelper.bus);
+    const internals = system as unknown as { director: { handleGameEnded: (p: { outcome: string }) => Promise<void> } };
+    const ended = vi.spyOn(internals.director, 'handleGameEnded').mockResolvedValue(undefined);
+    busHelper.emit('game:over', { outcome: 'defeat' });
+    busHelper.emit('game:over', { outcome: 'victory' });
+    expect(ended.mock.calls.map(call => call[0].outcome)).toEqual(['defeat', 'victory']);
   });
 
   // Flow K: mute toggle
@@ -384,7 +393,7 @@ describe('AudioSystem integration', () => {
     };
     vi.spyOn(internals.director, 'handleGameEnded').mockResolvedValue(undefined);
     const setBusSource = vi.spyOn(internals.mixer, 'setBusSource');
-    busHelper.emit('game:over', { winnerId: 'rome' });
+    busHelper.emit('game:over', { outcome: 'victory' });
     await flushPromises();
     expect(setBusSource).toHaveBeenCalledWith('era', null, false, null, 1500);
     expect(setBusSource).toHaveBeenCalledWith('accent', null, false, null, 1500);
@@ -399,7 +408,7 @@ describe('AudioSystem integration', () => {
     };
     let finish!: () => void;
     vi.spyOn(internals.director, 'handleGameEnded').mockReturnValue(new Promise(resolve => { finish = resolve; }));
-    busHelper.emit('game:over', { winnerId: 'rome' });
+    busHelper.emit('game:over', { outcome: 'victory' });
     system.start(makeState({ era: 4 }), busHelper.bus);
     await flushPromises();
     const setBusSource = vi.spyOn(internals.mixer, 'setBusSource');
@@ -651,7 +660,7 @@ describe('AudioSystem integration', () => {
     ctx.clearTranscript();
 
     busHelper.emit('currentPlayer:changed-after-handoff', { civId: 'egypt' });
-    busHelper.emit('game:over', { winnerId: 'egypt' });
+    busHelper.emit('game:over', { outcome: 'defeat' });
 
     expect(ctx.transcript.some(e => e.op === 'stop')).toBe(true);
   });

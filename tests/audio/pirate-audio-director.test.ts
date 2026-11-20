@@ -114,7 +114,7 @@ describe('PirateAudioDirector', () => {
 
     director.stopAmbience('panel-closed');
     bus.emit('currentPlayer:changed-after-handoff', { civId: 'ai-1' });
-    bus.emit('game:over', { winnerId: 'player' });
+    bus.emit('game:over', { outcome: 'victory' });
     director.setEnabled(false);
     director.dispose();
 

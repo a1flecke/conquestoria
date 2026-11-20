@@ -1023,6 +1023,81 @@ describe('createTurnFlowController', () => {
     });
   });
 
+  describe('the end of a game is announced to audio', () => {
+    function endsInDomination(winner: (state: GameState) => string): void {
+      vi.mocked(aiRoundScheduler.processNonHumanMajorRound).mockImplementationOnce((current, eventBus) => {
+        const result = actualRound(current, eventBus);
+        return {
+          ...result,
+          state: { ...result.state, gameOver: true, winner: winner(result.state), gameOverReason: 'domination' as const },
+        };
+      });
+    }
+    let actualRound: typeof aiRoundScheduler.processNonHumanMajorRound;
+    beforeEach(async () => {
+      actualRound = (await vi.importActual<typeof aiRoundScheduler>('@/ai/ai-round-scheduler')).processNonHumanMajorRound;
+    });
+
+    it('a solo round that wins the game emits game:over once, with the victory the panel shows', async () => {
+      endsInDomination(state => state.currentPlayer);
+      const deps = baseDeps(makeFixture());
+      const over = vi.fn();
+      deps.bus.on('game:over', over);
+      const turnFlow = createTurnFlowController(deps);
+
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+
+      expect(over).toHaveBeenCalledTimes(1);
+      expect(over).toHaveBeenCalledWith({ outcome: 'victory' });
+      expect(vi.mocked(deps.ceremonies.enqueueVictory).mock.calls[0]![0].outcome).toBe('victory');
+    });
+
+    it('a solo round lost to a rival emits a defeat', async () => {
+      endsInDomination(state => Object.keys(state.civilizations).find(id => id !== state.currentPlayer)!);
+      const deps = baseDeps(makeFixture());
+      const over = vi.fn();
+      deps.bus.on('game:over', over);
+
+      await createTurnFlowController(deps).endTurn({ allowUnmovedUnits: true });
+
+      expect(over).toHaveBeenCalledWith({ outcome: 'defeat' });
+    });
+
+    it('no game:over while the game is still running', async () => {
+      const deps = baseDeps(makeFixture());
+      const over = vi.fn();
+      deps.bus.on('game:over', over);
+
+      await createTurnFlowController(deps).endTurn({ allowUnmovedUnits: true });
+
+      expect(deps.session.getState().gameOver).toBeFalsy();
+      expect(over).not.toHaveBeenCalled();
+    });
+
+    it('a hot-seat round that ends the game lifts the handoff mute and suppression before announcing it', async () => {
+      const state = makeHotSeatFixture();
+      const aiCivId = state.hotSeat!.players.find(p => p.slotId !== 'player')!.slotId;
+      clearRequiredChoices(state, aiCivId);
+      state.currentPlayer = aiCivId;
+      vi.mocked(hotseatOutcome.resolveHotSeatPostSimulation).mockImplementationOnce(s => ({
+        state: { ...s, gameOver: true, winner: 'player', gameOverReason: 'domination' },
+        nextHumanId: null,
+      }));
+      const deps = baseDeps(state);
+      const heard: Array<{ outcome: string; suppressed: boolean }> = [];
+      deps.bus.on('game:over', p => heard.push({ outcome: p.outcome, suppressed: deps.roundPresentationGate.isSuppressed() }));
+
+      await createTurnFlowController(deps).endTurn();
+      await flushMicrotasks(20);
+
+      expect(deps.session.getState().gameOver).toBe(true);
+      expect(deps.roundPresentationGate.isSuppressed()).toBe(false);
+      expect(vi.mocked(deps.audio.setMasterVolume).mock.calls.at(-1)).toEqual([0.8]);
+      expect(heard).toEqual([{ outcome: 'victory', suppressed: false }]);
+    });
+  });
+
   // #787 Phase 12 (#794) inline review finding: refreshRequiredChoicesAfterAction
   // re-enters showRequiredChoicesIfNeeded once per resolved choice. With 2+ idle
   // cities pending at once, resolving them one at a time re-pushes the overlay on

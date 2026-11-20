@@ -43,6 +43,9 @@ export function createTurnPresentation(deps: TurnFlowControllerDeps): TurnPresen
       ? projectScienceVictoryOutcome(state, state.hotSeat ? null : state.currentPlayer)
       : projectDominationOutcome(state, state.hotSeat ? null : state.currentPlayer);
     deps.closeVictoryProgressPanel();
+    // The one announcement that a game has ended (game-end music, stingers, ambience), carrying the
+    // verdict the outcome screen shows, so audio and the panel cannot disagree about who won.
+    bus.emit('game:over', { outcome: outcome.outcome });
     // #993: routed through the ceremony coordinator's shared big-moment engine
     // instead of an unconditional direct call -- this waits for a
     // currently-presenting wonder/legendary ceremony's own overlay to clear
