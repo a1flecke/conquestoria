@@ -96,8 +96,18 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     }
   }
 
+  /**
+   * True from the moment a hot-seat handoff starts until a seat is revealed (or the game concludes).
+   * Under the veil `currentPlayer` may already be the next seat, whose turn nobody is playing yet, so
+   * no End Turn may run then: it would end that seat's turn (and run its round) before its player saw
+   * it. Every UI entry point is already blocked under the veil (inert shell, `isInteractionBlocked`);
+   * this is the mutation owner's own guard, since `endTurn`'s single-flight ends when the handoff starts.
+   */
+  let handoffVeiled = false;
+
   /** Renamed from `releaseHandoffToViewer` -- see file docblock. */
   function enterViewerTurn(nextSlotId: string): void {
+    handoffVeiled = false;
     centerOnCurrentPlayer();
     // The viewer is revealed: publish the state adopted under the handoff veil
     // ('viewer-not-yet-revealed') to the renderer, HUD and panels in one step (#1015).
@@ -131,6 +141,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
   ): Promise<void> {
     const preSimulationState = session.getState();
     const previousHumanId = preSimulationState.currentPlayer;
+    handoffVeiled = true;
     let resolvedNextSlotId = completesRound
       ? null
       : getNextActiveHumanPlayerId(preSimulationState, previousHumanId);
@@ -195,6 +206,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
      * presented; otherwise its music and stinger would play into a muted, suppressed mixer.
      */
     const concludeHandoff = (): void => {
+      handoffVeiled = false;
       roundPresentationGate.resume();
       audio.setMasterVolume(userSettingsStore.getMasterVolume());
       // #787 phase 12 (#794): release 'turn-handoff' explicitly before
@@ -390,6 +402,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
   }
 
   async function performEndTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
+    if (handoffVeiled) return;
     if (unsavedSoloRound && !(await retryUnsavedSoloRound())) return;
     if (session.getState().gameOver) return;
     if (selection.getPendingIntent().kind === 'city-capture') {

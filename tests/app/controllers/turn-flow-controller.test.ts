@@ -563,6 +563,40 @@ describe('createTurnFlowController', () => {
       expect(deps.roundPresentationGate.isSuppressed()).toBe(false);
     });
 
+    it('endTurn refuses while a handoff is unrevealed, so it can never end the next seat\'s turn (the UI blocks it too; this is the owner\'s guard)', async () => {
+      const state = makeHotSeatFixture();
+      const nextSeat = state.hotSeat!.players.find(p => p.slotId !== state.currentPlayer)!.slotId;
+      clearRequiredChoices(state, state.currentPlayer);
+      clearRequiredChoices(state, nextSeat);
+      const deps = baseDeps(state);
+      const turnFlow = createTurnFlowController(deps);
+
+      await turnFlow.endTurn();
+      await flushMicrotasks();
+      // The next seat is now current, but has not been revealed: its turn is not playable yet.
+      expect(deps.session.getState().currentPlayer).toBe(nextSeat);
+      const veiled = deps.session.getState();
+      const handoffsShown = vi.mocked(deps.setBlockingOverlay).mock.calls.filter(c => c[0] === 'turn-handoff').length;
+
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+      await flushMicrotasks();
+
+      expect(deps.session.getState()).toBe(veiled);
+      expect(vi.mocked(deps.setBlockingOverlay).mock.calls.filter(c => c[0] === 'turn-handoff')).toHaveLength(handoffsShown);
+      expect(document.querySelectorAll('#turn-handoff')).toHaveLength(1);
+
+      // Once that seat is revealed, its own End Turn works normally.
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-start')?.click();
+      await flushMicrotasks();
+      expect(document.querySelector('#turn-handoff')).toBeNull();
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+      await flushMicrotasks();
+      expect(document.querySelectorAll('#turn-handoff')).toHaveLength(1);
+      document.querySelector('#turn-handoff')?.remove();
+    });
+
     it('records the baseline for the ending human seat only, never the next seat\'s (#1238)', async () => {
       const state = makeHotSeatFixture();
       const endingSeat = state.currentPlayer;
