@@ -19,7 +19,7 @@ interface AuthoredService {
   };
 }
 
-interface AuthoredPassage {
+export interface AuthoredPassage {
   id: string;
   site: HexCoord;
 }
@@ -29,7 +29,7 @@ interface AuthoredCommission {
   commissionedRound: number;
 }
 
-interface AuthoredUndertaking extends AuthoredCommission {
+export interface AuthoredUndertaking extends AuthoredCommission {
   commissionerService: AuthoredService;
   secondService: AuthoredService;
   agreement?: {

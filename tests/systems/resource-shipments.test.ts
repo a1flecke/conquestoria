@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
-import type { City, Civilization, GameState, TradeRoute } from '@/core/types';
+import { processTurn } from '@/core/turn-manager';
+import type { City, Civilization, GameEvents, GameState, TradeRoute } from '@/core/types';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
 import { normalizeLoadedState } from '@/storage/save-manager';
@@ -33,6 +34,7 @@ import { resourceGoodId } from '@/systems/trade-good-definitions';
 import {
   evaluateAuthoredClaimants, evaluateAuthoredPassage, markAuthoredServiceChange, removeAuthoredFreightParticipant,
 } from '../helpers/engineering-passage-evaluation';
+import { recordAuthoredQualifications, replayAuthoredPassageRound } from '../helpers/engineering-passage-round';
 
 /**
  * #1509 MR12 — one load at the supplier, one delivery at home.
@@ -444,6 +446,96 @@ describe('#1125 engineering passage feasibility', () => {
     agreement: { freightCivId: freightPartner, acceptedRound: 9 },
   };
 
+  const sharedCandidate = { undertakingId: 'shared-isthmus', passage: authoredPassage, undertaking: sharedUndertaking };
+  const sharedResult = {
+    completedRound: 25,
+    qualifications: [{ undertakingId: sharedCandidate.undertakingId, claimantIds: [BUYER, freightPartner] }],
+  };
+
+  function beforeCheckpointDelivery(): GameState {
+    const waiting = runEvaluationVoyages(evaluationWorld(true, { claimant: 'shared' }), 23);
+    return { ...waiting, turn: 24 };
+  }
+
+  it('records the final home settlement under the completed round, including across save and replay', () => {
+    const beforeDelivery = replayAuthoredPassageRound(beforeCheckpointDelivery(), new EventBus(), [sharedCandidate]);
+    expect(beforeDelivery.state.turn).toBe(25);
+    expect(beforeDelivery.history).toEqual([]);
+
+    const savedInput = reload(beforeDelivery.state);
+    const bus = new EventBus();
+    const victories: GameEvents['victory:resolved'][] = [];
+    bus.on('victory:resolved', event => victories.push(event));
+    const completed = replayAuthoredPassageRound(savedInput, bus, [sharedCandidate], beforeDelivery.history);
+    expect(completed.state).toEqual(processTurn(savedInput, new EventBus()));
+    expect(completed.state).toMatchObject({ turn: 26, gameOver: false, winner: null });
+    expect(victories).toEqual([]);
+    expect(Object.values(completed.state.freightVoyageReceipts ?? {})).toContainEqual(expect.objectContaining({
+      operatorCivId: freightPartner, completedRound: 25, home: sharedUndertaking.secondService.home,
+    }));
+    expect(completed.history).toEqual([sharedResult]);
+
+    const uninterrupted = replayAuthoredPassageRound(beforeDelivery.state, new EventBus(), [sharedCandidate]);
+    expect(uninterrupted.history).toEqual(completed.history);
+    const retried = replayAuthoredPassageRound(savedInput, new EventBus(), [sharedCandidate], completed.history);
+    expect(retried.history).toEqual(completed.history);
+    const next = replayAuthoredPassageRound(reload(completed.state), new EventBus(), [sharedCandidate], completed.history);
+    expect(next.state.turn).toBe(27);
+    expect(next.history).toEqual(completed.history);
+  });
+
+  it('records simultaneous independent qualifiers together, with later accomplishments kept apart', () => {
+    const west = { undertakingId: 'western-passage', claimantIds: [BUYER] };
+    const east = { undertakingId: 'eastern-passage', claimantIds: [SELLER] };
+    const north = { undertakingId: 'northern-passage', claimantIds: [freightPartner] };
+    const first = recordAuthoredQualifications([], 25, [west, east]);
+    expect(first).toEqual([{ completedRound: 25, qualifications: [east, west] }]);
+    expect(recordAuthoredQualifications([], 25, [east, west, east])).toEqual(first);
+    expect(recordAuthoredQualifications(first, 25, [east, west])).toEqual(first);
+    expect(recordAuthoredQualifications(first, 28, [west, north, east])).toEqual([
+      ...first, { completedRound: 28, qualifications: [north] },
+    ]);
+  });
+
+  it.each([false, true])('keeps the canonical hot-seat ending when science also resolves = %s', science => {
+    const input = processTurn(beforeCheckpointDelivery(), new EventBus());
+    const retiredHuman = 'retired-human';
+    input.civilizations[retiredHuman] = {
+      ...civ(retiredHuman, 0, [], SELLER), cities: [], isHuman: true, visibility: { tiles: {} },
+    };
+    input.currentPlayer = retiredHuman;
+    input.hotSeat = {
+      playerCount: 1, mapSize: 'small',
+      players: [{ name: retiredHuman, slotId: retiredHuman, civType: 'rome', isHuman: true }],
+    };
+    expect(getCivilizationLiveness(input, retiredHuman)).toEqual({ living: false, reason: 'no-survival-assets' });
+    if (science) {
+      input.worldRaces = {
+        'interstellar-colony': { kind: 'interstellar-colony', winnerCivId: SELLER, completedTurn: input.turn },
+      };
+    }
+    const bus = new EventBus();
+    const eliminations: string[] = [];
+    const victories: GameEvents['victory:resolved'][] = [];
+    bus.on('civ:eliminated', event => eliminations.push(event.civId));
+    bus.on('victory:resolved', event => victories.push(event));
+
+    const completed = replayAuthoredPassageRound(input, bus, [sharedCandidate]);
+    expect(eliminations).toEqual([retiredHuman]);
+    expect(getCivilizationLiveness(completed.state, retiredHuman)).toEqual({ living: false, reason: 'eliminated' });
+    expect(completed.history).toEqual([sharedResult]);
+    expect(completed.state).toMatchObject({
+      gameOver: true, winner: science ? SELLER : null, gameOverReason: science ? 'science' : 'all-humans-eliminated',
+    });
+    expect(victories).toEqual(science ? [{ winnerId: SELLER, reason: 'science', turn: 26 }] : []);
+    expect(replayAuthoredPassageRound(completed.state, bus, [sharedCandidate], completed.history)).toEqual(completed);
+    expect(victories).toHaveLength(science ? 1 : 0);
+
+    const outsidePrototype = replayAuthoredPassageRound(input, new EventBus(), []);
+    expect(outsidePrototype.state).toEqual(completed.state);
+    expect(outsidePrototype.history).toEqual([]);
+  });
+
   it('credits the independent commissioner for its two operating corridors, excluding the ordinary seller', () => {
     const completed = runEvaluationVoyages(evaluationWorld(true, { claimant: 'independent' }), 22);
     expect(getCivilizationLiveness(completed, SELLER).living).toBe(true);
@@ -494,6 +586,10 @@ describe('#1125 engineering passage feasibility', () => {
     const completed = runEvaluationVoyages(evaluationWorld(true, { claimant: 'shared' }), 25);
     const afterLoss = structuredClone(completed);
     delete afterLoss.cities[northernHomeId];
+    const checkpoint = replayAuthoredPassageRound({ ...afterLoss, turn: 26 }, new EventBus(), [sharedCandidate]);
+    expect(getCivilizationLiveness(checkpoint.state, freightPartner)).toEqual({ living: false, reason: 'eliminated' });
+    expect(checkpoint.history).toEqual([]);
+
     const { state, transitions } = reconcileCivilizationLiveness(completed, afterLoss);
     expect(transitions).toContainEqual(expect.objectContaining({ kind: 'eliminated', civId: freightPartner }));
     expect(state.freightVoyageReceipts).toEqual(completed.freightVoyageReceipts);
