@@ -22,7 +22,7 @@ import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-s
 import { buildUnitOccupancy, hasHostileUnitAtCoord } from '@/systems/unit-occupancy';
 import { beginPlayerCityAssaultChoice, shouldPromptForPlayerCityCapture } from '@/input/city-assault-flow';
 import { canUnitOccupyCity } from '@/systems/city-capture-system';
-import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
+import { buildCombatPresentation, buildCombatSpyIdentifications } from '@/systems/viewer-event-presentation';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { getEmbarkedAssaultTarget, detachCargoForEmbarkedAssault } from '@/systems/transport-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -332,7 +332,8 @@ export function createPlayerCombatActions(deps: PlayerActionControllerDeps, cros
     // publication (#1015): renderLoop.setGameState recomputes several presentations, and the
     // UI that follows (selection refresh, animation) must see the published final state.
     const assault = deps.session.batch((): { assaultStatus: 'pending' | 'resolved' } | null => {
-      const applied = applyCombatOutcomeToState(deps.session.getState(), result, seed, deps.bus);
+      const before = deps.session.getState();
+      const applied = applyCombatOutcomeToState(before, result, seed, deps.bus);
       deps.session.commit(applied.state);
       // Emitted AFTER the ownership change is applied, carrying the confirmed capture
       // kind, so presentation never mistakes a captured unit for one that died (#657).
@@ -341,6 +342,7 @@ export function createPlayerCombatActions(deps: PlayerActionControllerDeps, cros
         ...combatPresentation,
         attackerCaptureKind: applied.attackerCaptureKind,
         defenderCaptureKind: applied.defenderCaptureKind,
+        spyIdentifications: buildCombatSpyIdentifications(before, applied.state, attacker, defender),
       });
       emitMinorCivQuestTransitions(deps.bus, applied.questTransitions, deps.session.getState());
 

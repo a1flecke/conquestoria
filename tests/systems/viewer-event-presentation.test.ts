@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame, createHotSeatGame } from '@/core/game-state';
-import { buildMovePresentationByViewer, buildCombatPresentation } from '@/systems/viewer-event-presentation';
+import { buildMovePresentationByViewer, buildCombatPresentation, buildCombatSpyIdentifications } from '@/systems/viewer-event-presentation';
+import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
+import { projectUnitForPlayer } from '@/systems/espionage-stealth';
 import { isUnitConcealedFrom } from '@/systems/concealment';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey } from '@/systems/hex-utils';
@@ -27,6 +29,28 @@ function placeUnit(state: GameState, civId: string, type: UnitType, position: He
 }
 
 describe('viewer event presentation', () => {
+  it('identifies a spy only if the opponent lacked its true type and it survives with its original owner', () => {
+    const before = createHotSeatGame(HOT_SEAT_CONFIG, 'combat-identification');
+    const attacker = placeUnit(before, 'p1', 'warrior', { q: 2, r: 2 });
+    const spy = placeUnit(before, 'p2', 'spy_scout', { q: 3, r: 2 });
+    const record = createSpyFromUnit(createEspionageCivState(), spy.id, spy.owner, spy.type, 'combat-identification');
+    before.espionage = { p2: setDisguise(record.state, spy.id, 'archer') };
+    expect(projectUnitForPlayer(spy, before, 'p1')?.type).toBe('archer');
+    const after = structuredClone(before);
+    after.units[spy.id]!.health = 1;
+    expect(buildCombatSpyIdentifications(before, after, attacker, spy)).toEqual({ defenderIdentified: true });
+
+    after.units[spy.id]!.owner = attacker.owner;
+    expect(buildCombatSpyIdentifications(before, after, attacker, spy)).toBeUndefined();
+    delete after.units[spy.id];
+    expect(buildCombatSpyIdentifications(before, after, attacker, spy)).toBeUndefined();
+
+    after.units[spy.id] = { ...spy, health: 50 };
+    placeUnit(before, 'p1', 'spy_scout', { q: 2, r: 3 });
+    expect(projectUnitForPlayer(spy, before, 'p1')?.type).toBe('spy_scout');
+    expect(buildCombatSpyIdentifications(before, after, attacker, spy)).toBeUndefined();
+  });
+
   it('captures only event-time contiguous visible movement segments', () => {
     const state = createNewGame(undefined, 'viewer-segments', 'small');
     const unit = Object.values(state.units).find(candidate => candidate.owner !== 'player')!;

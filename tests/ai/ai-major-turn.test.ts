@@ -37,6 +37,8 @@ import { OPPONENT_CHALLENGE_PROFILES } from '@/core/opponent-challenge';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { isUnitConcealedFrom } from '@/systems/concealment';
+import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
+import { projectUnitForPlayer } from '@/systems/espionage-stealth';
 import { rankUnitTacticalActions } from '@/ai/ai-tactics';
 import { createOperationalRouting, getKnownOperationalRange, getOperationalRoute } from '@/ai/ai-operational-routing';
 
@@ -1318,6 +1320,34 @@ describe('processMajorCivStrategicTurn', () => {
       kind: 'attack',
       targetUnitId: 'rebel',
     });
+  });
+
+  it('records a surviving disguised AI attacker for the human defender', () => {
+    const state = makeState();
+    state.gameId = 'ai-disguised-attacker-report';
+    const attacker = addUnit(state, 'agent', 'spy_scout', AI, { q: 0, r: 0 });
+    const defender = addUnit(state, 'victim', 'warrior', HUMAN, { q: 1, r: 0 }, { health: 10 });
+    const record = createSpyFromUnit(createEspionageCivState(), attacker.id, AI, attacker.type, state.gameId);
+    state.espionage = { [AI]: setDisguise(record.state, attacker.id, 'archer') };
+    const plan = makePlan(
+      { kind: 'unit', id: defender.id, lastKnownPosition: defender.position },
+      [attacker.id],
+      { objective: 'repel' },
+    );
+    const bus = new EventBus();
+    const report = vi.fn();
+    bus.on('combat:resolved', report);
+    expect(projectUnitForPlayer(attacker, state, HUMAN)?.type).toBe('archer');
+
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), bus);
+
+    expect(result.actions[0]).toMatchObject({ kind: 'attack', unitId: attacker.id, targetUnitId: defender.id });
+    expect(result.state.units[attacker.id]?.owner).toBe(AI);
+    expect(report).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      defenderOwnerId: HUMAN,
+      attackerType: 'spy_scout',
+      spyIdentifications: { attackerApparentOwnerId: AI },
+    }));
   });
 
   it('uses minor-civilization conquest only when canonical minor war is active', () => {

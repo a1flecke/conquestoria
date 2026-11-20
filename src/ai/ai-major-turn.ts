@@ -47,7 +47,7 @@ import {
 } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { restUnit } from '@/systems/unit-healing';
-import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
+import { buildCombatPresentation, buildCombatSpyIdentifications } from '@/systems/viewer-event-presentation';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import {
   createAIDecisionTrace,
@@ -223,6 +223,7 @@ function executeAttack(
     ...presentation,
     attackerCaptureKind: applied.attackerCaptureKind,
     defenderCaptureKind: applied.defenderCaptureKind,
+    spyIdentifications: buildCombatSpyIdentifications(next, working, attacker, defender),
   });
   for (const reward of applied.rewards) {
     bus.emit('combat:reward-earned', { reward });

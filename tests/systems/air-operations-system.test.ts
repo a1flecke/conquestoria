@@ -22,6 +22,9 @@ import {
 import { syncCarrierBasedAircraft } from '@/systems/air-base-state';
 import { calculateCombatStrengths } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
+import { EventBus } from '@/core/event-bus';
+import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
+import { projectUnitForPlayer } from '@/systems/espionage-stealth';
 import type { GameState, Unit } from '@/core/types';
 
 describe('air-operation definitions', () => {
@@ -402,18 +405,24 @@ describe('air bases', () => {
       units: {
         striker: { ...biplane, id: 'striker', type: 'bomber', health: 1, position: { q: 2, r: 2 } },
         interceptor: { ...biplane, id: 'interceptor', type: 'jet_fighter', owner: 'enemy', position: { q: 4, r: 2 }, airBase: { kind: 'city', cityId: 'enemy-city' }, airMission: 'intercept' },
-        target: { ...biplane, id: 'target', type: 'warrior', owner: 'enemy', position: { q: 5, r: 2 }, airBase: undefined },
+        target: { ...biplane, id: 'target', type: 'spy_scout', owner: 'enemy', position: { q: 5, r: 2 }, airBase: undefined },
       },
       cities: { ...state.cities, 'enemy-city': { id: 'enemy-city', owner: 'enemy', position: { q: 4, r: 2 }, buildings: ['airfield'] } },
       civilizations: {
-        player: { units: ['striker'], techState: { completed: [] }, diplomacy: { atWarWith: ['enemy'], events: [] } },
+        player: { isHuman: true, units: ['striker'], techState: { completed: [] }, visibility: { tiles: { '5,2': 'visible' } }, diplomacy: { atWarWith: ['enemy'], events: [] } },
         enemy: { units: ['interceptor', 'target'], techState: { completed: [] }, diplomacy: { atWarWith: ['player'], events: [] } },
       },
     } as unknown as GameState;
 
-    const result = resolveAirStrike(missionState, 'striker', { q: 5, r: 2 });
+    const spy = createSpyFromUnit(createEspionageCivState(), 'target', 'enemy', 'spy_scout', 'air-interception-history');
+    missionState.espionage = { enemy: setDisguise(spy.state, 'target', 'archer') };
+    expect(projectUnitForPlayer(missionState.units.target!, missionState, 'player')?.type).toBe('archer');
+    expect(getLegalAirMissionTargets(missionState, 'striker', 'strike')).toContainEqual({ q: 5, r: 2 });
+    const result = resolveAirStrike(missionState, 'striker', { q: 5, r: 2 }, new EventBus());
 
     expect(result.state.units.striker).toBeUndefined();
+    expect(result.state.units.target!.health).toBe(100);
+    expect(result).not.toHaveProperty('spyIdentification');
     expect(result.state.legendaryWonderHistory?.militaryFacts).toContainEqual({
       id: 'interception:11:interceptor:striker', kind: 'successful-interception',
       civId: 'enemy', interceptorId: 'interceptor', turn: 11,

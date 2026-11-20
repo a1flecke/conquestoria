@@ -38,3 +38,9 @@ export interface CombatRewardNotification {
  * behind `getCaptureNotificationLabel` so audio and notification text can never
  * disagree about which era's prize-crew flavour applies. */
 export type CaptureKind = 'civilian' | 'naval-boarding' | 'naval-modern';
+
+/** The identities learned by the opposing human participants in a resolved exchange. */
+export interface CombatSpyIdentifications {
+  attackerApparentOwnerId?: string;
+  defenderIdentified?: true;
+}

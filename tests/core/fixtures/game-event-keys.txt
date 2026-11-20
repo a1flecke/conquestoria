@@ -35,6 +35,7 @@ civilization:era-advanced
 civilization:first-contact
 combat:resolved
 combat:reward-earned
+combat:spy-identified
 crisis:aid-sent
 crisis:contained
 crisis:escalated

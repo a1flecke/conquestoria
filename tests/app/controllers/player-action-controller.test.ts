@@ -4,7 +4,8 @@ import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createGameSession } from '@/app/game-session';
 import { createUnit } from '@/systems/unit-lifecycle';
-import { createEspionageCivState } from '@/systems/espionage-system';
+import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
+import { projectUnitForPlayer } from '@/systems/espionage-stealth';
 import { foundReligion } from '@/systems/religion-system';
 import { hexKey } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
@@ -565,6 +566,26 @@ describe('PlayerActionController', () => {
       // Emitted only after the outcome was applied: the worker now belongs to the player.
       expect(deps.session.getState().units['defender-1']!.owner).toBe('player');
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('captured'), 'success');
+    });
+
+    it('includes the surviving defender’s identification in the committed ground exchange', () => {
+      const state = buildCombatBaseState('ground-spy-report');
+      state.gameId = 'ground-spy-report';
+      const defender = state.units['defender-1']!;
+      defender.type = 'spy_scout';
+      const record = createSpyFromUnit(createEspionageCivState(), defender.id, defender.owner, defender.type, state.gameId);
+      state.espionage = { [defender.owner]: setDisguise(record.state, defender.id, 'archer') };
+      const { deps, controller } = build(state);
+      const events: GameEvents['combat:resolved'][] = [];
+      deps.bus.on('combat:resolved', event => events.push(event));
+      expect(projectUnitForPlayer(defender, state, 'player')?.type).toBe('archer');
+
+      controller.executeAttack('attacker-1', hexKey(defender.position));
+
+      const survivor = deps.session.getState().units[defender.id]!;
+      expect(survivor.owner).toBe(defender.owner);
+      expect(survivor.health).toBeLessThan(defender.health);
+      expect(events).toEqual([expect.objectContaining({ spyIdentifications: { defenderIdentified: true } })]);
     });
 
     it('refreshes the open selected-unit panel before returning through the city-capture branch', () => {

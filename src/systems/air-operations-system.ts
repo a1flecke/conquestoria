@@ -1,6 +1,6 @@
 import { getOwnedCityCount } from '@/systems/city-ownership';
 import type { EventBus } from '@/core/event-bus';
-import type { AirBaseRef, AirMission, City, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
+import type { AirBaseRef, AirMission, City, CombatResult, GameEvents, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { hexesInRange, getWrappedHexesInRange } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { deterministicCombatSeed, resolveCombat } from './combat-system';
@@ -32,6 +32,7 @@ export { getAirBaseCapacity, getAirBaseKind, getAirBaseRoster, getLegalRebaseDes
 export type { AirBaseLossResult };
 import { getAirMissionDenial, getAirReadinessCombatPenalty, withAirStrain } from './air-readiness';
 import type { AirBaseFailureReason, AirOperationFailureReason, AirStrikeFailureReason } from './air-mission-failure';
+import { buildCombatSpyIdentifications } from './viewer-event-presentation';
 
 export { AIR_MISSION_FAILURE_MESSAGES } from './air-mission-failure';
 export type {
@@ -46,7 +47,14 @@ export type AirOperationResult =
   | { ok: false; state: GameState; reason: AirOperationFailureReason };
 
 export type AirStrikeResult =
-  | { ok: true; state: GameState; interception?: { interceptorId: string; result: CombatResult }; targetResult?: CombatResult; cityResult?: { cityId: string; result: CitySiegeResult } }
+  | {
+    ok: true;
+    state: GameState;
+    interception?: { interceptorId: string; result: CombatResult };
+    targetResult?: CombatResult;
+    cityResult?: { cityId: string; result: CitySiegeResult };
+    spyIdentification?: GameEvents['combat:spy-identified'];
+  }
   | { ok: false; state: GameState; reason: AirStrikeFailureReason };
 
 export type AirBaseCheck =
@@ -320,6 +328,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
     interception = { interceptorId: interceptor.id, result };
     if (!nextState.units[striker.id]) return { ok: true, state: nextState, interception };
   }
+  const beforeTargetExchange = nextState;
   const currentStriker = nextState.units[striker.id]!;
   if (targetCity) {
     const currentCity = nextState.cities[targetCity.id];
@@ -345,6 +354,13 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), buildCombatContextForDefender(nextState, currentStriker, currentTarget), resolveCombatEra(nextState, currentStriker, currentTarget));
   nextState = applyAirCombatResult(nextState, targetResult, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), bus);
   if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: withAirStrain({ ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'strike') } };
-  return { ok: true, state: recordCampPressureFromAirStrike(nextState, striker, target), interception, targetResult };
+  const identifications = bus && buildCombatSpyIdentifications(beforeTargetExchange, nextState, currentStriker, currentTarget);
+  const spyIdentification = identifications?.defenderIdentified
+    ? { recipientCivId: currentStriker.owner, unitType: currentTarget.type }
+    : undefined;
+  return {
+    ok: true, state: recordCampPressureFromAirStrike(nextState, striker, target), interception, targetResult,
+    ...(spyIdentification ? { spyIdentification } : {}),
+  };
 }
 
