@@ -24,6 +24,7 @@ import {
 } from '@/systems/legendary-wonder-intel';
 import { makeLegendaryWonderFixture } from './helpers/legendary-wonder-fixture';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { startResearch } from '@/systems/tech-system';
 
 describe('legendary-wonder-system', () => {
   it('requires Open Intelligence Commons safety institutes in two distinct cities', () => {
@@ -583,6 +584,28 @@ describe('legendary-wonder-system', () => {
     ]);
   });
 
+  it('pays an idle-research instantResearch reward as gold instead of parking it in progress nothing can spend', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['philosophy', 'sacred-sites', 'city-planning', 'printing'],
+      resources: ['stone'],
+      oracleStepsCompleted: 2,
+    });
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+    state.cities['city-river'].productionProgress = 120;
+    // Fixture prerequisite: the completing civ has no active research project.
+    expect(state.civilizations.player.techState.currentResearch).toBeNull();
+    const goldBefore = state.civilizations.player.gold;
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+
+    // The Oracle's +60 instant research has no project to speed up, so it pays its
+    // weight in gold — the same fallback a natural-wonder discovery uses — instead of
+    // banking progress that startResearch later wipes.
+    expect(result.civilizations.player.gold).toBe(goldBefore + 60);
+    expect(result.civilizations.player.techState.researchProgress).toBe(0);
+  });
+
   it('records completed rival wonder intel for human viewers who know the completing rival', () => {
     const state = makeLegendaryWonderFixture();
     state.turn = 58;
@@ -951,13 +974,19 @@ describe('legendary-wonder-system', () => {
 
   it('applies the winning wonder reward when construction completes', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
+    // The Oracle's reward is instant research: measure it on an active project, the
+    // channel a player actually receives (with no research it pays gold instead —
+    // covered by its own test). bronze-working costs 85, above the 60-point reward,
+    // so the grant accumulates as progress instead of completing the tech.
+    state.civilizations.player.techState = startResearch(state.civilizations.player.techState, 'bronze-working');
+    const progressBefore = state.civilizations.player.techState.researchProgress;
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
     state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
     state.cities['city-river'].productionProgress = 120;
 
     const result = tickLegendaryWonderProjects(state, new EventBus());
 
-    expect(result.civilizations.player.techState.researchProgress).toBeGreaterThan(0);
+    expect(result.civilizations.player.techState.researchProgress).toBeGreaterThan(progressBefore);
     expect(result.completedLegendaryWonders?.['oracle-of-delphi']?.ownerId).toBe('player');
   });
 
@@ -1559,11 +1588,15 @@ describe('legendary-wonder-system', () => {
 
   it('avalon amplifies legendary wonder completion rewards by 25% compared to a non-avalon civ', () => {
     const baselineState = makeLegendaryWonderFixture({ civType: 'rome', oracleStepsCompleted: 2, resources: ['stone'] });
+    // bronze-working (cost 85) exceeds even Avalon's amplified 75-point reward, so the
+    // grants land as progress on an active project instead of completing anything.
+    baselineState.civilizations.player.techState = startResearch(baselineState.civilizations.player.techState, 'bronze-working');
     baselineState.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
     baselineState.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
     baselineState.cities['city-river'].productionProgress = 120;
 
     const avalonState = makeLegendaryWonderFixture({ civType: 'avalon', oracleStepsCompleted: 2, resources: ['stone'] });
+    avalonState.civilizations.player.techState = startResearch(avalonState.civilizations.player.techState, 'bronze-working');
     avalonState.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
     avalonState.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
     avalonState.cities['city-river'].productionProgress = 120;

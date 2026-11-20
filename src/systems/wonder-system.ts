@@ -1,6 +1,6 @@
 import type { GameMap, HexCoord, GameState, ResourceYield } from '@/core/types';
 import { WONDER_DEFINITIONS, getWonderDefinition } from './wonder-definitions';
-import { hexKey, hexDistance, mapDistance, mapNeighbors } from './hex-utils';
+import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { createRng } from './map-generator';
 import { applyResearchBonus } from './tech-system';
 import { recordLegendaryWonderDiscoverySite } from './legendary-wonder-history';
@@ -38,15 +38,17 @@ export function placeWonders(
       if (!wonder.validTerrain.includes(tile.terrain)) continue;
       if (tile.wonder !== null) continue;
 
-      // Distance from start positions
+      // Distance from start positions — measured with the seam-aware distance: every
+      // generator wraps horizontally, so a wonder "6 raw tiles" from a start can sit
+      // 3 tiles away around the seam.
       const farEnoughFromStarts = startPositions.every(
-        sp => hexDistance(tile.coord, sp) >= 6,
+        sp => mapDistance(map, tile.coord, sp) >= 6,
       );
       if (!farEnoughFromStarts) continue;
 
-      // Distance from other wonders
+      // Distance from other wonders, seam-aware for the same reason.
       const farEnoughFromWonders = placedPositions.every(
-        wp => hexDistance(tile.coord, wp) >= 8,
+        wp => mapDistance(map, tile.coord, wp) >= 8,
       );
       if (!farEnoughFromWonders) continue;
 

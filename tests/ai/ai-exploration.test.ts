@@ -77,6 +77,9 @@ describe('planHomeGuardStations (#1704)', () => {
       civilizations: { [CIV_ID]: owner },
       cities,
       units: Object.fromEntries(units.map(entry => [entry.id, entry])),
+      // All positions sit mid-map; a non-wrapping geometry keeps this fixture's
+      // straight-line distance expectations.
+      map: { width: 40, wrapsHorizontally: false },
     } as unknown as GameState;
   }
   const NONE = new Set<string>();

@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { placeWonders, processWonderDiscovery, processWonderEffects, getWonderVisionBonus, getWonderCombatBonus } from '@/systems/wonder-system';
 import { generateMap, findStartPositions } from '@/systems/map-generator';
-import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { hexKey, hexNeighbors, wrappedHexDistance } from '@/systems/hex-utils';
 import { calculateCityYields } from '@/systems/resource-system';
 import { foundCity } from '@/systems/city-system';
 import { createNewGame } from '@/core/game-state';
-import type { GameState } from '@/core/types';
+import type { GameMap, GameState, HexTile } from '@/core/types';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -44,26 +44,26 @@ describe('placeWonders', () => {
     expect(placed.length).toBeGreaterThan(0);
   });
 
-  it('enforces minimum 8-hex distance between wonders', () => {
+  it('enforces minimum 8-hex distance between wonders, measured across the wrap seam', () => {
     const map = makeMap('large');
     const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'large');
     placeWonders(map, starts, 'large', 'wonder-dist-test');
     const wonderTiles = Object.values(map.tiles).filter(t => t.wonder !== null);
     for (let i = 0; i < wonderTiles.length; i++) {
       for (let j = i + 1; j < wonderTiles.length; j++) {
-        expect(hexDistance(wonderTiles[i].coord, wonderTiles[j].coord)).toBeGreaterThanOrEqual(8);
+        expect(wrappedHexDistance(wonderTiles[i].coord, wonderTiles[j].coord, map.width)).toBeGreaterThanOrEqual(8);
       }
     }
   });
 
-  it('enforces minimum 6-hex distance from start positions', () => {
+  it('enforces minimum 6-hex distance from start positions, measured across the wrap seam', () => {
     const map = makeMap('medium');
     const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2'], 'procedural', 'medium');
     placeWonders(map, starts, 'medium', 'wonder-start-test');
     const wonderTiles = Object.values(map.tiles).filter(t => t.wonder !== null);
     for (const wt of wonderTiles) {
       for (const sp of starts) {
-        expect(hexDistance(wt.coord, sp)).toBeGreaterThanOrEqual(6);
+        expect(wrappedHexDistance(wt.coord, sp, map.width)).toBeGreaterThanOrEqual(6);
       }
     }
   });
@@ -75,6 +75,63 @@ describe('placeWonders', () => {
     const wonderTiles = Object.values(map.tiles).filter(t => t.wonder !== null);
     for (const wt of wonderTiles) {
       expect(wt.resource).toBeNull();
+    }
+  });
+});
+
+describe('placeWonders across the horizontal wrap seam', () => {
+  /**
+   * Every generator ships `wrapsHorizontally: true`, so the ≥6/≥8 spacing rules
+   * must be measured with the wrapped distance. Only two wonders accept hills
+   * and none accept grassland, so a grassland map with exactly one hills tile
+   * makes placement deterministic.
+   */
+  function makeSeamMap(hillsCoord: { q: number; r: number }): GameMap {
+    const width = 12;
+    const height = 5;
+    const tiles: Record<string, HexTile> = {};
+    for (let q = 0; q < width; q++) {
+      for (let r = 0; r < height; r++) {
+        tiles[hexKey({ q, r })] = {
+          coord: { q, r },
+          terrain: 'grassland',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          owner: null,
+          improvementTurnsLeft: 0,
+          hasRiver: false,
+          wonder: null,
+        };
+      }
+    }
+    tiles[hexKey(hillsCoord)] = { ...tiles[hexKey(hillsCoord)]!, terrain: 'hills' };
+    return { width, height, tiles, wrapsHorizontally: true, rivers: [] };
+  }
+
+  const START: { q: number; r: number } = { q: 1, r: 3 };
+
+  it('never places a wonder within 6 seam tiles of a start position across the seam', () => {
+    // Hills at q=10: raw distance 9 (passes the seam-blind check) but wrapped
+    // distance min(9, 12 - 9) = 3 from the start at q=1.
+    const map = makeSeamMap({ q: 10, r: 3 });
+    placeWonders(map, [START], 'small', 'wonder-seam-start');
+    expect(map.tiles['10,3'].wonder).toBeNull();
+  });
+
+  it('still places a wonder on a hills tile exactly 6 seam tiles from the start', () => {
+    // Hills at q=7: wrapped distance 6 from the start at q=1 — the boundary case stays legal.
+    const map = makeSeamMap({ q: 7, r: 3 });
+    placeWonders(map, [START], 'small', 'wonder-seam-compliant');
+    expect(map.tiles['7,3'].wonder).not.toBeNull();
+  });
+
+  it('keeps every placed wonder at least 6 seam tiles from every start position', () => {
+    const map = makeSeamMap({ q: 7, r: 3 });
+    placeWonders(map, [START], 'small', 'wonder-seam-invariant');
+    for (const tile of Object.values(map.tiles)) {
+      if (tile.wonder === null) continue;
+      expect(wrappedHexDistance(tile.coord, START, map.width)).toBeGreaterThanOrEqual(6);
     }
   });
 });

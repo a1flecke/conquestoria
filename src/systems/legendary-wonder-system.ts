@@ -1031,7 +1031,15 @@ function applyLegendaryWonderReward(
   const wonderRewardMultiplier = civBonus?.type === 'wonder_rewards' ? civBonus.rewardMultiplier : 1;
 
   if (reward.instantResearch) {
-    const result = applyResearchBonus(civilization.techState, Math.round(reward.instantResearch * wonderRewardMultiplier));
+    const amount = Math.round(reward.instantResearch * wonderRewardMultiplier);
+    if (!civilization.techState.currentResearch) {
+      // Same fallback as a natural-wonder discovery: with no active project the instant
+      // research has nothing to speed up, so it pays its weight in gold instead of
+      // banking progress no system can ever spend.
+      civilization.gold += amount;
+      return null;
+    }
+    const result = applyResearchBonus(civilization.techState, amount);
     civilization.techState = result.state;
     return result.completedTech;
   }

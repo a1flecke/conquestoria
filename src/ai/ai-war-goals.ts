@@ -12,10 +12,17 @@
 import type { HexCoord } from '@/core/types/hex';
 import type { NationalIntentPosture } from './ai-national-intent-posture';
 import type { WarGoalKind } from '@/core/types/diplomacy';
-import { hexDistance } from '@/systems/hex-utils';
+import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 
 export interface WarGoalCandidateInput {
   posture: NationalIntentPosture;
+  /**
+   * World geometry the "nearest city" measurement reads: width and horizontal wrapping only,
+   * never hidden state. Every generated map wraps horizontally, so distances the
+   * chooser relies on must cross the seam. (A structural field, not the `GameMap`
+   * contract, so this belief-only DTO does not import the compatibility barrel.)
+   */
+  map: { width: number; wrapsHorizontally: boolean };
   /** Does the opponent already have an overlord? Public diplomatic knowledge, not hidden intel. */
   opponentHasOverlord: boolean;
   /** A vassal's foreign policy belongs to its overlord (#1054) -- never propose a goal for one. */
@@ -57,8 +64,13 @@ export function chooseWarGoal(input: WarGoalCandidateInput): WarGoalChoice | nul
   );
   if (known.length === 0) return null;
 
+  const capitalDistance = (to: HexCoord): number =>
+    input.map.wrapsHorizontally
+      ? wrappedHexDistance(input.ownCapitalPosition!, to, input.map.width)
+      : hexDistance(input.ownCapitalPosition!, to);
+
   const nearest = [...known].sort((a, b) => {
-    const distanceDelta = hexDistance(input.ownCapitalPosition!, a.position) - hexDistance(input.ownCapitalPosition!, b.position);
+    const distanceDelta = capitalDistance(a.position) - capitalDistance(b.position);
     return distanceDelta !== 0 ? distanceDelta : a.id.localeCompare(b.id);
   })[0];
   return { kind: 'conquer_city', targetCityId: nearest.id };

@@ -118,14 +118,19 @@ export function isTechCompleted(state: TechState, techId: string): boolean {
  * Apply a bonus science amount to the tech state, handling completion if the
  * progress meets or exceeds the tech cost. Use this instead of directly
  * mutating `researchProgress` to avoid the "100% but not completed" display bug.
+ *
+ * With no active research the bonus is discarded, exactly as `processResearch`
+ * and #1413's overflow rule treat science with no destination: banking it into
+ * `researchProgress` would only park the reward in a field no system can ever
+ * spend (`startResearch` wipes it when a project begins). Callers that want a
+ * fallback for an idle civ decide it themselves — the established convention is
+ * gold (village rewards, natural-wonder discoveries) or no credit (trade
+ * deliveries, city-state ally bonuses).
  */
 export function applyResearchBonus(state: TechState, scienceBonus: number): ResearchResult {
   if (!state.currentResearch) {
     return {
-      state: {
-        ...state,
-        researchProgress: state.researchProgress + scienceBonus,
-      },
+      state,
       completedTech: null,
       carriedProgress: 0,
     };
