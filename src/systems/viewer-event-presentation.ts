@@ -1,7 +1,31 @@
 import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
+import type { CombatSpyIdentifications } from '@/core/types/combat';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isUnitConcealedFrom } from '@/systems/concealment';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
+import { projectUnitForPlayer } from './espionage-stealth';
+import { isSpyUnitType } from './spy-unit-types';
+
+function identifiedSpyDisguiseOwner(
+  before: GameState, after: GameState, unit: Unit, opponentId: string,
+): string | undefined {
+  if (!before.civilizations[opponentId]?.isHuman || !isSpyUnitType(unit.type)) return;
+  const survivor = after.units[unit.id];
+  if (!survivor || survivor.owner !== unit.owner || survivor.health <= 0) return;
+  const apparent = projectUnitForPlayer(unit, before, opponentId);
+  if (apparent && (apparent.type !== unit.type || apparent.owner !== unit.owner)) return apparent.owner;
+}
+
+/** Actual exchanges identify surviving disguised spies to their direct opponents. */
+export function buildCombatSpyIdentifications(
+  before: GameState, after: GameState, attacker: Unit, defender: Unit,
+): CombatSpyIdentifications | undefined {
+  const attackerApparentOwnerId = identifiedSpyDisguiseOwner(before, after, attacker, defender.owner);
+  const defenderIdentified = identifiedSpyDisguiseOwner(before, after, defender, attacker.owner);
+  if (attackerApparentOwnerId || defenderIdentified) {
+    return { attackerApparentOwnerId, defenderIdentified: defenderIdentified ? true : undefined };
+  }
+}
 
 export interface ViewerMovePresentation {
   unit: Unit;

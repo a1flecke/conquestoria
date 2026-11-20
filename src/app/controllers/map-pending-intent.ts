@@ -79,6 +79,7 @@ export function showAirStrikeForecast(deps: MapInteractionControllerDeps, unitId
         return;
       }
       session.commit(result.state);
+      if (result.spyIdentification) bus.emit('combat:spy-identified', result.spyIdentification);
       selectionController.refreshCurrentPlayerVisibility();
       SFX.combat();
       selectionController.selectUnit(unitId);

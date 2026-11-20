@@ -39,7 +39,7 @@ describe('GameEvents composition (#1361)', () => {
     expect(duplicates).toEqual([]);
   });
 
-  it('the composed key set equals the pre-composition set (no event renamed, dropped or added)', () => {
+  it('the composed key set matches the audited event contract', () => {
     expect([...all].sort()).toEqual(pinned);
   });
 

@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import { projectUnitForPlayer } from '@/systems/espionage-stealth';
+import { registerCombatPresentation } from '@/presentation/register-combat-presentation';
+import { createNotificationDelivery } from '@/ui/notification-delivery';
+import { makePresentationContext } from '../../helpers/presentation-context';
 import { EventBus } from '@/core/event-bus';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { foundCity } from '@/systems/city-system';
@@ -24,6 +28,7 @@ import {
 } from '@/app/controllers/map-interaction-controller';
 import * as airOperations from '@/systems/air-operations-system';
 import { AIR_MISSION_FAILURE_MESSAGES } from '@/systems/air-operations-system';
+import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
 
 const idCounters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
 
@@ -365,6 +370,45 @@ describe('MapInteractionController', () => {
         expect(session.getState().units.b1!.hasActed).toBe(true);
         expect(selection.snapshot().pendingIntent.kind).toBe('none');
         void deps;
+      });
+
+      it('reports the true type of a surviving disguised strike target once, after committing the strike', () => {
+        const { controller, session, deps, state, selection } = airStrikeFixture();
+        state.gameId = 'air-spy-report';
+        const target = state.units.e1!;
+        target.type = 'spy_scout';
+        target.geneTherapyReady = true;
+        placeCity(state, 'rival-home', target.owner, { q: 6, r: 0 });
+        const spy = createSpyFromUnit(createEspionageCivState(), target.id, target.owner, target.type, state.gameId);
+        state.espionage = { [target.owner]: setDisguise(spy.state, target.id, 'archer') };
+        // Exercise legacy saves where a report written before commit would be lost.
+        delete state.notificationLog;
+        const toast = vi.fn();
+        const delivery = createNotificationDelivery({ getState: session.getState, toast, isSuppressed: () => false });
+        const ctx = makePresentationContext({ deliver: vi.fn(delivery.deliver) });
+        registerCombatPresentation(deps.bus, { ...ctx, session });
+        expect(projectUnitForPlayer(target, state, 'player')?.type).toBe('archer');
+        const prediction = airOperations.resolveAirStrike(state, 'b1', target.position);
+        expect(prediction.ok).toBe(true);
+        expect(prediction).not.toHaveProperty('spyIdentification');
+
+        controller.handleHexTap(target.position);
+        expect(session.getState().notificationLog).toBeUndefined();
+        document.querySelector<HTMLButtonElement>('#btn-cancel-attack')!.click();
+        expect(session.getState().units.b1!.hasActed).toBe(false);
+        expect(toast).not.toHaveBeenCalled();
+        selection.setPendingIntent({ kind: 'air-mission', unitId: 'b1', mission: 'strike' });
+        controller.handleHexTap(target.position);
+        const confirm = document.querySelector<HTMLButtonElement>('#btn-attack-confirm')!;
+        confirm.click();
+        confirm.click();
+
+        const after = session.getState();
+        expect(after.units.b1!.hasActed).toBe(true);
+        expect(after.units.e1!.health).toBeGreaterThan(0);
+        expect(after.units.e1!.health).toBeLessThan(target.health);
+        expect(after.notificationLog?.player?.map(entry => entry.message)).toEqual([expect.stringContaining('Scout Agent')]);
+        expect(toast).toHaveBeenCalledTimes(1);
       });
 
       it('Cancel mutates nothing and disarms the strike', () => {

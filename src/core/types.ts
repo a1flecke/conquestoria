@@ -18,7 +18,7 @@ import type {
   WarRecord,
 } from './types/diplomacy';
 import type { AdvisorType, CouncilGameState, CouncilTalkLevel } from './types/council';
-import type { CombatExchangeSummary, CombatModifierFact, CombatRewardNotification, CaptureKind } from './types/combat';
+import type { CombatExchangeSummary, CombatModifierFact, CombatRewardNotification, CombatSpyIdentifications, CaptureKind } from './types/combat';
 import type { OperationIncident } from './types/espionage-incident';
 import type { CityBreachState } from './types/city-breach';
 import type { DiplomacyEvents } from './types/events-diplomacy';
@@ -2283,7 +2283,9 @@ export interface GameEvents extends DiplomacyEvents, CivilizationEvents, WorldEv
      * presentation layer can never mistake a capture for a death (#657). */
     attackerCaptureKind?: CaptureKind;
     defenderCaptureKind?: CaptureKind;
+    spyIdentifications?: CombatSpyIdentifications;
   };
+  'combat:spy-identified': { recipientCivId: string; unitType: UnitType };
   /** A pillage that actually burned a finished improvement and/or a road, emitted
    * by `applyPillageToState` for the player, AI civs and barbarians alike (#657).
    * Canceled or rejected pillages never reach it. */

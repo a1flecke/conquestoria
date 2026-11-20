@@ -1,7 +1,7 @@
 // src/ui/notification-routes/combat-routes.ts
 // #1250: combat results and rewards, routed to the combatants' owners regardless of who is acting. The
 // modifier-fact projection redacts what the recipient has not earned.
-import type { CombatResult, GameEvents, GameState } from '@/core/types';
+import type { CombatResult, GameEvents, GameState, UnitType } from '@/core/types';
 import type { CombatModifierFact, CombatRewardNotification } from '@/core/types/combat';
 import type { CombatNotificationDetails } from '@/core/notification-log';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
@@ -26,6 +26,14 @@ function projectCombatFacts(
   return projected.length > 0 ? { facts: projected } : undefined;
 }
 
+function describeCombatSpyIdentification(unitType: UnitType): string {
+  return `Combat identified a disguised ${UNIT_DEFINITIONS[unitType].name}.`;
+}
+
+export function routeCombatSpyIdentified(report: GameEvents['combat:spy-identified'], sink: NotificationSink): void {
+  sink(report.recipientCivId, describeCombatSpyIdentification(report.unitType), 'info');
+}
+
 // Routes to the combatants' owners regardless of who is currently acting.
 export function routeCombatResolved(
   state: GameState,
@@ -33,7 +41,7 @@ export function routeCombatResolved(
   sink: NotificationSink,
   facts?: Pick<
     GameEvents['combat:resolved'],
-    'attackerOwnerId' | 'attackerType' | 'defenderOwnerId' | 'defenderType'
+    'attackerOwnerId' | 'attackerType' | 'defenderOwnerId' | 'defenderType' | 'spyIdentifications'
   >,
 ): void {
   const defender = state.units[result.defenderId];
@@ -41,9 +49,13 @@ export function routeCombatResolved(
   const defenderOwner = facts?.defenderOwnerId ?? defender?.owner;
   if (!defenderOwner) return;
   const attackerOwner = facts?.attackerOwnerId ?? attacker?.owner;
-  const attackerLabel = attackerOwner === 'barbarian'
-    ? 'Barbarians'
-    : (state.civilizations[attackerOwner ?? '']?.name ?? attackerOwner ?? 'Unknown');
+  const apparentOwner = facts?.spyIdentifications?.attackerApparentOwnerId;
+  const attackerLabel = apparentOwner && apparentOwner !== attackerOwner
+    ? 'a disguised unit'
+    : attackerOwner === 'barbarian'
+      ? 'Barbarians'
+      : (state.civilizations[attackerOwner ?? '']?.name ?? attackerOwner ?? 'Unknown');
+  const attackerTypeId = facts?.attackerType ?? attacker?.type;
   const defenderTypeId = facts?.defenderType ?? defender?.type;
   if (!defenderTypeId) return;
   const defenderType = UNIT_DEFINITIONS[defenderTypeId]?.name ?? defenderTypeId;
@@ -55,17 +67,25 @@ export function routeCombatResolved(
     ? `${defenderType} was attacked by ${attackerLabel} (${result.defenderDamage} damage taken)`
     : `${defenderType} was destroyed by ${attackerLabel}!`;
   const combatDetails = projectCombatFacts(result, 'defender');
+  let defenderMessage = `${msg}${exchangeSuffix}${splashSuffix}`;
+  if (apparentOwner && attackerTypeId) {
+    const separator = result.defenderSurvived && !exchangeSuffix && !splashSuffix ? '. ' : ' ';
+    defenderMessage += separator + describeCombatSpyIdentification(attackerTypeId);
+  }
   if (combatDetails) {
-    sink(defenderOwner, `${msg}${exchangeSuffix}${splashSuffix}`, 'warning', undefined, undefined, undefined, combatDetails);
+    sink(defenderOwner, defenderMessage, 'warning', undefined, undefined, undefined, combatDetails);
   } else {
-    sink(defenderOwner, `${msg}${exchangeSuffix}${splashSuffix}`, 'warning');
+    sink(defenderOwner, defenderMessage, 'warning');
   }
 
-  if (!result.exchange || !attackerOwner || attackerOwner === 'barbarian') return;
-  const attackerTypeId = facts?.attackerType ?? attacker?.type;
-  if (!attackerTypeId) return;
-  const attackerType = UNIT_DEFINITIONS[attackerTypeId]?.name ?? attackerTypeId;
-  sink(attackerOwner, `${attackerType} attack: ${result.exchange.label}.`, 'info');
+  if (!attackerOwner || attackerOwner === 'barbarian') return;
+  const message = [];
+  if (result.exchange && attackerTypeId) {
+    const attackerType = UNIT_DEFINITIONS[attackerTypeId]?.name ?? attackerTypeId;
+    message.push(`${attackerType} attack: ${result.exchange.label}.`);
+  }
+  if (facts?.spyIdentifications?.defenderIdentified) message.push(describeCombatSpyIdentification(defenderTypeId));
+  if (message.length) sink(attackerOwner, message.join(' '), 'info');
 }
 
 export function routeCombatRewardEarned(

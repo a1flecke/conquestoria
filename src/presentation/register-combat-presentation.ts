@@ -4,7 +4,7 @@
  */
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { handleCombatResolvedEvent } from '@/ui/combat-resolved-presentation';
-import { routeCombatRewardEarned } from '@/ui/notification-routes/combat-routes';
+import { routeCombatSpyIdentified, routeCombatRewardEarned } from '@/ui/notification-routes/combat-routes';
 import type { PresentationRegistrar } from '@/presentation/register-all';
 
 export const registerCombatPresentation: PresentationRegistrar = (bus, ctx) => {
@@ -18,6 +18,9 @@ export const registerCombatPresentation: PresentationRegistrar = (bus, ctx) => {
     }),
     bus.on('combat:reward-earned', ({ reward }) => {
       routeCombatRewardEarned(ctx.session.getState(), reward, ctx.notifier.deliver);
+    }),
+    bus.on('combat:spy-identified', report => {
+      routeCombatSpyIdentified(report, ctx.notifier.deliver);
     }),
     bus.on('unit:obsolete', ({ civId, unitType }) => {
       const name = UNIT_DEFINITIONS[unitType]?.name ?? unitType;
