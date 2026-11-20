@@ -13,6 +13,7 @@ import {
   routeWorldRaceUnlocked,
   routeWorldRaceLaunchBegun,
   routeWorldRaceCompleted,
+  routeWorldRaceEntryMooted,
 } from '@/ui/notification-routes/world-routes';
 import { buildWorldRaceConclusionMomentItem } from '@/systems/world-race-presentation';
 
@@ -30,6 +31,9 @@ export const registerWorldRacePresentation: PresentationRegistrar = (bus, ctx) =
       const state = ctx.session.getState();
       routeWorldRaceCompleted(state, event, deliver);
       ctx.ceremonies.enqueueWorldRaceConclusion(buildWorldRaceConclusionMomentItem(state, event));
+    }),
+    bus.on('worldrace:entry-mooted', event => {
+      routeWorldRaceEntryMooted(ctx.session.getState(), event, deliver);
     }),
   ];
 
