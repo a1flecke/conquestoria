@@ -45,7 +45,8 @@ export interface SessionEvents {
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
   'game:saved': { turn: number };
   'game:loaded': { turn: number };
-  'game:over': { winnerId: string };
+  /** The ended game's verdict as its outcome screen shows it; emitted each time that screen is presented. */
+  'game:over': { outcome: 'victory' | 'defeat' };
   'ui:select-unit': { unitId: string };
   'ui:select-city': { cityId: string };
   'ui:deselect': {};

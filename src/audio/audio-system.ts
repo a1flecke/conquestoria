@@ -397,7 +397,7 @@ export class AudioSystem {
       }),
 
       bus.on('game:over', p => {
-        const outcome = p.winnerId === this.currentPlayerId ? 'victory' : 'defeat';
+        const outcome = p.outcome;
         this.naturalWonderDirector.stopAmbient('game-ended');
         const requestId = ++this.loopLoadRequestId;
         void this.director.handleGameEnded({ outcome }).then(() => {

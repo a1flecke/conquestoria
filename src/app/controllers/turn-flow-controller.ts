@@ -189,6 +189,22 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       },
     );
 
+    /**
+     * The handoff ends in the game's conclusion rather than a next seat. The conclusion screen is
+     * shared by every seat, so the handoff's mute and presentation suppression end here, before it is
+     * presented; otherwise its music and stinger would play into a muted, suppressed mixer.
+     */
+    const concludeHandoff = (): void => {
+      roundPresentationGate.resume();
+      audio.setMasterVolume(userSettingsStore.getMasterVolume());
+      // #787 phase 12 (#794): release 'turn-handoff' explicitly before
+      // handleVictoryIfNeeded() may push 'victory' -- an implicit overwrite
+      // leaves a phantom entry on the reference-counted stack that never gets
+      // popped, permanently blocking interaction after the victory panel.
+      deps.setBlockingOverlay(null);
+      handleVictoryIfNeeded();
+    };
+
     const returnToSaves = (): void => {
       roundPresentationGate.resume();
       deps.reloadPage();
@@ -213,14 +229,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       if (!resolvedNextSlotId) {
         unpublished.adopt(resolveHotSeatPostSimulation(preSimulationState, previousHumanId).state, 'viewer-not-yet-revealed');
         controller.remove();
-        // #787 phase 12 (#794): release 'turn-handoff' explicitly before
-        // handleVictoryIfNeeded() may push 'victory' -- an implicit
-        // overwrite is safe under the old single-slot overlay, but leaves a
-        // phantom entry on the reference-counted stack that never gets
-        // popped, permanently blocking interaction after the player
-        // dismisses the victory panel.
-        deps.setBlockingOverlay(null);
-        handleVictoryIfNeeded();
+        concludeHandoff();
         return;
       }
       unpublished.adopt(applyPendingChallengeForCiv(
@@ -253,10 +262,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       if (outcome.status === 'ready') {
         if (outcome.state.gameOver) {
           controller.remove();
-          // #787 phase 12 (#794): see the matching comment above -- release
-          // 'turn-handoff' before handleVictoryIfNeeded() may push 'victory'.
-          deps.setBlockingOverlay(null);
-          handleVictoryIfNeeded();
+          concludeHandoff();
           return;
         }
         resolvedNextSlotId = outcome.state.currentPlayer;
@@ -306,10 +312,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       }
       if (outcome.state.gameOver) {
         controller.remove();
-        // #787 phase 12 (#794): see the matching comment above -- release
-        // 'turn-handoff' before handleVictoryIfNeeded() may push 'victory'.
-        deps.setBlockingOverlay(null);
-        handleVictoryIfNeeded();
+        concludeHandoff();
         return;
       }
       resolvedNextSlotId = outcome.state.currentPlayer;
