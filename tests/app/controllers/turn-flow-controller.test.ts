@@ -390,6 +390,152 @@ describe('createTurnFlowController', () => {
     });
   });
 
+  describe('endTurn — solo completed-round persistence', () => {
+    const SAVE_FAILED = /could not be saved/i;
+    const roundsRun = (): number => vi.mocked(aiRoundScheduler.processNonHumanMajorRound).mock.calls.length;
+    const savedTurns = (): number[] => vi.mocked(saveManager.autoSave).mock.calls.map(([saved]) => saved.turn);
+
+    beforeEach(() => {
+      vi.mocked(saveManager.autoSave).mockReset();
+      vi.mocked(saveManager.autoSave).mockResolvedValue(undefined);
+    });
+
+    it('a failed autosave is reported as a save failure, and End Turn retries the save before any new round', async () => {
+      const state = makeFixture();
+      const startingTurn = state.turn;
+      const deps = baseDeps(state);
+      const saved = vi.fn();
+      deps.bus.on('game:saved', saved);
+      const turnFlow = createTurnFlowController(deps);
+      vi.mocked(saveManager.autoSave)
+        .mockRejectedValueOnce(new Error('QuotaExceededError'))
+        .mockRejectedValueOnce(new Error('QuotaExceededError'));
+
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+
+      expect(deps.session.getState().turn).toBe(startingTurn + 1);
+      expect(roundsRun()).toBe(1);
+      expect(saved).not.toHaveBeenCalled();
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringMatching(SAVE_FAILED), 'warning');
+      expect(deps.showNotification).not.toHaveBeenCalledWith('Error processing turn!', 'warning');
+
+      // Second press: the retry fails again. The completed round must not be abandoned by running another.
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+
+      expect(roundsRun()).toBe(1);
+      expect(deps.session.getState().turn).toBe(startingTurn + 1);
+      expect(savedTurns()).toEqual([startingTurn + 1, startingTurn + 1]);
+
+      // Third press: the retry succeeds, so the round is durable and the player's End Turn proceeds.
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+
+      expect(savedTurns()).toEqual([startingTurn + 1, startingTurn + 1, startingTurn + 1, startingTurn + 2]);
+      expect(roundsRun()).toBe(2);
+      expect(deps.session.getState().turn).toBe(startingTurn + 2);
+      expect(saved.mock.calls.map(([payload]) => payload.turn)).toEqual([startingTurn + 1, startingTurn + 2]);
+    });
+
+    it('does not carry a pending save retry into a different campaign', async () => {
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const turnFlow = createTurnFlowController(deps);
+      vi.mocked(saveManager.autoSave).mockRejectedValueOnce(new Error('QuotaExceededError'));
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+
+      const other = makeFixture();
+      other.playthroughId = 'a-different-playthrough';
+      deps.session.commit(other);
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+
+      expect(roundsRun()).toBe(2);
+      expect(vi.mocked(saveManager.autoSave).mock.calls.at(-1)![0].playthroughId).toBe('a-different-playthrough');
+    });
+
+    it('autosaves the final round when it ends the game', async () => {
+      const actual = await vi.importActual<typeof aiRoundScheduler>('@/ai/ai-round-scheduler');
+      vi.mocked(aiRoundScheduler.processNonHumanMajorRound).mockImplementationOnce((current, eventBus) => {
+        const result = actual.processNonHumanMajorRound(current, eventBus);
+        return { ...result, state: { ...result.state, gameOver: true, gameOverReason: 'domination' as const } };
+      });
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const saved = vi.fn();
+      deps.bus.on('game:saved', saved);
+
+      await createTurnFlowController(deps).endTurn({ allowUnmovedUnits: true });
+
+      expect(deps.session.getState().gameOver).toBe(true);
+      expect(saveManager.autoSave).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(saveManager.autoSave).mock.calls[0]![0]).toBe(deps.session.getState());
+      expect(saved).toHaveBeenCalledWith({ turn: state.turn + 1 });
+      expect(deps.ceremonies.enqueueVictory).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a failed save of the final round instead of staying silent', async () => {
+      const actual = await vi.importActual<typeof aiRoundScheduler>('@/ai/ai-round-scheduler');
+      vi.mocked(aiRoundScheduler.processNonHumanMajorRound).mockImplementationOnce((current, eventBus) => {
+        const result = actual.processNonHumanMajorRound(current, eventBus);
+        return { ...result, state: { ...result.state, gameOver: true, gameOverReason: 'domination' as const } };
+      });
+      vi.mocked(saveManager.autoSave).mockRejectedValueOnce(new Error('QuotaExceededError'));
+      const deps = baseDeps(makeFixture());
+      const turnFlow = createTurnFlowController(deps);
+
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringMatching(SAVE_FAILED), 'warning');
+      expect(deps.ceremonies.enqueueVictory).toHaveBeenCalledTimes(1);
+
+      // A later End Turn (e.g. a keyboard shortcut behind the ceremony) retries the save, never a round.
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+      expect(saveManager.autoSave).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(saveManager.autoSave).mock.calls[1]![0].gameOver).toBe(true);
+      expect(roundsRun()).toBe(1);
+    });
+
+    it('a presentation failure after the round is adopted still publishes and saves the round', async () => {
+      const state = makeFixture();
+      const startingTurn = state.turn;
+      const deps = baseDeps(state, {
+        checkAdvisors: vi.fn(() => { throw new Error('advisor exploded'); }),
+      });
+      const published: GameState[] = [];
+      deps.session.subscribe(next => published.push(next));
+      const turnFlow = createTurnFlowController(deps);
+
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+
+      expect(deps.session.getState().turn).toBe(startingTurn + 1);
+      expect(published.at(-1)).toBe(deps.session.getState());
+      expect(savedTurns()).toEqual([startingTurn + 1]);
+      expect(deps.showNotification).not.toHaveBeenCalledWith(expect.stringMatching(SAVE_FAILED), 'warning');
+
+      // The next End Turn runs a new round normally: nothing was left pending.
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+      expect(roundsRun()).toBe(2);
+    });
+
+    it('a failed simulation adopts nothing, saves nothing, and End Turn simulates again', async () => {
+      vi.mocked(aiRoundScheduler.processNonHumanMajorRound).mockImplementationOnce(() => {
+        throw new Error('AI exploded');
+      });
+      const state = makeFixture();
+      const startingTurn = state.turn;
+      const deps = baseDeps(state);
+      const turnFlow = createTurnFlowController(deps);
+
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+
+      expect(deps.session.getState().turn).toBe(startingTurn);
+      expect(saveManager.autoSave).not.toHaveBeenCalled();
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringMatching(/could not be completed/i), 'warning');
+
+      await turnFlow.endTurn({ allowUnmovedUnits: true });
+      expect(deps.session.getState().turn).toBe(startingTurn + 1);
+      expect(savedTurns()).toEqual([startingTurn + 1]);
+    });
+  });
+
   describe('endTurn — hot-seat mode', () => {
     it('suppresses the presentation gate, mutes audio, autosaves, and restores volume once the handoff resolves', async () => {
       const state = makeHotSeatFixture();

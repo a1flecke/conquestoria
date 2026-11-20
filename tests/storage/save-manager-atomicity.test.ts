@@ -115,6 +115,24 @@ describe('save-manager atomic payload+meta over IndexedDB transactions (#1450)',
     expect(localStorage.getItem('conquestoria-autosave') ?? JSON.stringify(null)).toBe(backup);
   });
 
+  it('retrying a failed end-of-round autosave stores one entry, and a finished game reloads finished', async () => {
+    await sm.autoSave(makeState(5));
+    const finished = { ...makeState(6), gameOver: true, gameOverReason: 'domination' as const };
+    failNthTx(idb.transactionCount());
+    await expect(sm.autoSave(finished)).rejects.toThrow(/QuotaExceededError/);
+    expect((await sm.loadMostRecentAutoSaveEntry())?.state.turn).toBe(5);
+
+    idb.faults.abortAfterRequest = undefined;
+    await sm.autoSave(finished);
+    await sm.autoSave(finished);
+
+    const reloaded = await sm.loadMostRecentAutoSaveEntry();
+    expect(reloaded?.state.turn).toBe(6);
+    expect(reloaded?.state.gameOver).toBe(true);
+    expect(reloaded?.state.gameOverReason).toBe('domination');
+    expect(keys().filter(key => key.includes(':6'))).toHaveLength(2); // one payload + one meta
+  });
+
   it('keeps working after a failed write (the chain is not poisoned)', async () => {
     failNthTx(0);
     await expect(sm.saveGame('s', 'S', makeState(1))).rejects.toThrow();
