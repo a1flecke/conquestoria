@@ -187,7 +187,7 @@ export function getCivHappinessFromResources(
  * Returns true when an Expedition unit can use "Establish Outpost" at its
  * current position. All conditions must be met:
  *   1. Unit is an Expedition.
- *   2. Tile has a resource and no existing improvement.
+ *   2. Tile has a resource and no existing improvement (or an abandoned, ownerless outpost).
  *   3. Civ has researched the tech that enables that resource.
  *   4. Tile is NOT in this civ's city territory (worker path applies there).
  */
@@ -197,7 +197,11 @@ export function canEstablishOutpost(state: GameState, unitId: string): boolean {
 
   const tileKey = hexKey(unit.position);
   const tile = state.map.tiles[tileKey];
-  if (!tile || !tile.resource || tile.improvement !== 'none') return false;
+  if (!tile || !tile.resource) return false;
+  // An abandoned outpost (no owner: its civilization was eliminated, or an older save lost it to the territory
+  // recompute before outposts held their tile) can be re-established; any other improvement blocks.
+  const abandonedOutpost = tile.improvement === 'resource_outpost' && !tile.owner;
+  if (tile.improvement !== 'none' && !abandonedOutpost) return false;
   // An outpost claims the tile, so it may only go on land nobody else holds: a rival's (or a
   // city-state's) territory is theirs, and claiming it would take the tile and its resource.
   if (tile.owner && tile.owner !== unit.owner) return false;

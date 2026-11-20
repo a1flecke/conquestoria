@@ -761,6 +761,30 @@ describe('performEstablishOutpost', () => {
     expect(after.units[unitId]).toBeDefined();
   });
 
+  it('can re-establish an abandoned outpost that no civilization holds, but not one that is still held', () => {
+    const { state, unitId } = makeStateWithExpedition({
+      resource: 'iron',
+      improvement: 'resource_outpost',
+      tileInCityTerritory: false,
+      civTechs: ['bronze-working'],
+    });
+    const key = hexKey({ q: 5, r: 5 });
+    const abandoned = {
+      ...state,
+      map: { ...state.map, tiles: { ...state.map.tiles, [key]: { ...state.map.tiles[key], owner: null } } },
+    } as GameState;
+    expect(canEstablishOutpost(abandoned, unitId)).toBe(true);
+    expect(performEstablishOutpost(abandoned, unitId).map.tiles[key]).toMatchObject({
+      improvement: 'resource_outpost', improvementTurnsLeft: 2, owner: 'player',
+    });
+
+    const held = {
+      ...state,
+      map: { ...state.map, tiles: { ...state.map.tiles, [key]: { ...state.map.tiles[key], owner: 'player' } } },
+    } as GameState;
+    expect(canEstablishOutpost(held, unitId)).toBe(false);
+  });
+
   it('returns a new state object (immutability)', () => {
     const { state, unitId } = makeStateWithExpedition({
       resource: 'iron',

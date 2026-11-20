@@ -88,6 +88,20 @@ const CULTURE_BUILDING_IDS = new Set(
     .map(building => building.id),
 );
 
+/**
+ * Is this tile held by its owner's resource outpost (finished or under construction)? Only a living major
+ * civilization holds one: an eliminated civ's outpost tile is released, since its ownership came from no city.
+ */
+export function isTileHeldByResourceOutpost(
+  state: Pick<GameState, 'civilizations'>,
+  tile: GameState['map']['tiles'][string],
+  owner: string | null,
+): boolean {
+  if (!owner || tile.improvement !== 'resource_outpost') return false;
+  const civ = state.civilizations[owner];
+  return civ !== undefined && !civ.isEliminated;
+}
+
 export function countCultureBuildings(city: City): number {
   return city.buildings.filter(id => CULTURE_BUILDING_IDS.has(id)).length;
 }
@@ -328,7 +342,11 @@ export function recalculateTerritory(
       ? contradictedTiles.has(key)
       : (options.preserveForeignHolders ?? false);
     const winner = chooseTerritoryWinner(claims, previousOwner, { ...options, preserveForeignHolders });
-    const winningCivId = winner?.civId ?? (preserveForeignHolders && previousOwner ? previousOwner : null);
+    // A resource outpost claims its own tile outside any city's reach. No city claim means the outpost keeps it;
+    // a stronger city claim still takes it like any other tile.
+    const heldByOutpost = !winner && isTileHeldByResourceOutpost(state, tile, previousOwner);
+    const winningCivId = winner?.civId
+      ?? ((preserveForeignHolders || heldByOutpost) && previousOwner ? previousOwner : null);
     if (winner) {
       let nextTile = { ...tile, owner: winner.civId };
       if (previousOwner !== winner.civId && tile.improvement !== 'none' && tile.improvementTurnsLeft > 0) {
@@ -343,7 +361,7 @@ export function recalculateTerritory(
       }
       nextTiles[key] = nextTile;
       ownedByCity.set(winner.cityId, [...(ownedByCity.get(winner.cityId) ?? []), winner.coord]);
-    } else if (!preserveForeignHolders || !previousOwner) {
+    } else if (!heldByOutpost && (!preserveForeignHolders || !previousOwner)) {
       let nextTile = { ...tile, owner: null };
       if (previousOwner !== null && tile.improvement !== 'none' && tile.improvementTurnsLeft > 0) {
         nextTile = { ...nextTile, improvement: 'none', improvementTurnsLeft: 0 };
