@@ -385,11 +385,14 @@ const EXPECTED_AFTER: ReadonlyArray<readonly [phase: string, calls: readonly str
 // Changed when landmass tags began following the horizontal seam: the crowded fixture's seam-crossing continent is
 // now one landmass, so the threat-scheduling phase emits more than one land resurgence on turn 1. Same phase, same
 // position in the sequence.
+// Changed again when natural-wonder placement began following the horizontal seam: the re-rolled world no longer
+// puts a wonder on the first civ's opening move, so its early `wonder:discovered` is gone and the others shift
+// within the same per-civ blocks. Same phases, same positions in the sequence.
 const EXPECTED_EVENT_TYPES_TURN_1: readonly string[] = [
-  'turn:end', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered', 'city:production-disposition*', 'unit:move',
-  'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*',
-  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed',
-  'wonder:discovered', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*',
+  'turn:end', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'city:production-disposition*', 'unit:move',
+  'fog:revealed', 'wonder:discovered', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*',
+  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered', 'city:production-disposition*', 'unit:move', 'fog:revealed',
+  'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*',
   'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*',
   'territory:tile-flipped', 'minor-civ:quest-issued*', 'minor-civ:evolved', 'threat:barbarian-resurgence*', 'eventchain:started*',
   'eventchain:choice-made', 'eventchain:started', 'eventchain:choice-made', 'eventchain:started', 'eventchain:choice-made',

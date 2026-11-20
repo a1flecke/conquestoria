@@ -23,21 +23,9 @@ const ROOTS = ['src/systems', 'src/ai', 'src/core', 'src/ui', 'src/app', 'src/in
 const CANONICAL = new Set(['src/systems/hex-utils.ts']);
 
 const DISTANCE_ALLOWED: Record<string, { count: number; why: string }> = {
-  'src/systems/wonder-system.ts': {
-    count: 2,
-    why: 'natural-wonder spacing during map generation; changing it re-rolls the world for every existing seed, a separate decision',
-  },
   'src/systems/balanced-map-generator.ts': {
     count: 2,
     why: 'map generation (zones and luxury hotspot); changing it re-rolls the world for every existing seed, a separate decision',
-  },
-  'src/ai/ai-war-goals.ts': {
-    count: 2,
-    why: 'pure AI preference over a map-free input DTO (nearest known enemy city); no legality depends on it',
-  },
-  'src/ai/ai-home-guard.ts': {
-    count: 2,
-    why: 'pure AI preference over a map-free world slice (nearest free guard); no legality depends on it',
   },
 };
 

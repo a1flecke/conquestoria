@@ -346,8 +346,17 @@ export function recordBeastSlain(
         [victor.owner]: { ...next.civilizations[victor.owner], gold: next.civilizations[victor.owner].gold + apexGold },
       },
     };
-    // Lore
-    next = applyResearchGain(next, victor.owner, apexLore, bus);
+    // Lore — with no active research to speed up, it pays its weight in gold (the
+    // same fallback the hoard's lore choice uses) instead of evaporating.
+    next = slayerCiv.techState.currentResearch
+      ? applyResearchGain(next, victor.owner, apexLore, bus)
+      : {
+          ...next,
+          civilizations: {
+            ...next.civilizations,
+            [victor.owner]: { ...next.civilizations[victor.owner], gold: next.civilizations[victor.owner].gold + apexLore },
+          },
+        };
     // Auto-claim trophy (skip choice panel)
     next = {
       ...next,
@@ -447,7 +456,15 @@ export function applyHoardChoice(
   if (choice === 'gold') {
     next = { ...next, civilizations: { ...next.civilizations, [civId]: { ...civ, gold: civ.gold + preview.gold } } };
   } else if (choice === 'lore') {
-    next = applyResearchGain(next, civId, preview.lore, bus);
+    if (civ.techState.currentResearch) {
+      next = applyResearchGain(next, civId, preview.lore, bus);
+    } else {
+      // The panel promises lore "speeds your current research"; with none active there
+      // is no project to credit, so the prize pays its weight in gold — the same
+      // fallback a village or a natural-wonder discovery uses — instead of banking
+      // progress that startResearch later wipes (a chosen prize must never evaporate).
+      next = { ...next, civilizations: { ...next.civilizations, [civId]: { ...civ, gold: civ.gold + preview.lore } } };
+    }
   } else {
     next = {
       ...next,

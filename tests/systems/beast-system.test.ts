@@ -379,6 +379,25 @@ describe('hoard choices', () => {
     expect(nextTech.completed).toContain('stone-weapons');
   });
 
+  it('applyHoardChoice lore converts to its weight in gold when no research is active', () => {
+    const { state, beast, victor } = stateWithSlainBasilisk();
+    const { state: slainState } = recordBeastSlain(state, beast, victor);
+    const civId = victor.owner;
+    // Fixture prerequisite: the slayer's civ has no active research to speed up.
+    expect(slainState.civilizations[civId].techState.currentResearch).toBeNull();
+    const goldBefore = slainState.civilizations[civId].gold;
+    const preview = getHoardChoicePreview(slainState, 'lair-emerald_basilisk', civId);
+
+    const next = applyHoardChoice(slainState, 'lair-emerald_basilisk', civId, 'lore');
+
+    expect(next.beasts!.pendingHoardChoices).toEqual([]);
+    // The panel promises lore "speeds your current research"; with none active the
+    // prize pays its weight in gold (the village/natural-wonder fallback) instead of
+    // evaporating into researchProgress that no system can ever spend.
+    expect(next.civilizations[civId].gold).toBe(goldBefore + preview.lore);
+    expect(next.civilizations[civId].techState.researchProgress).toBe(0);
+  });
+
   it('applyHoardChoice trophy claims the lair and produces per-turn income', () => {
     const { state, beast, victor } = stateWithSlainBasilisk();
     const { state: slainState } = recordBeastSlain(state, beast, victor);
@@ -556,6 +575,23 @@ describe('apex reward (tier 4)', () => {
     const completedAfter = next.civilizations[civId].techState.completed;
     const loreApplied = progressAfter > progressBefore || completedAfter.includes('stone-weapons');
     expect(loreApplied).toBe(true);
+  });
+
+  it('pays an idle-research apex lore as gold instead of parking it in progress nothing can spend', () => {
+    const { state: baseState, dragon, victor } = makeApexState();
+    const civId = victor.owner;
+    // Fixture prerequisite: no active research, so the lore grant has no project to land on.
+    expect(baseState.civilizations[civId].techState.currentResearch).toBeNull();
+    const goldBefore = baseState.civilizations[civId].gold;
+
+    const { state: next, slain } = recordBeastSlain(baseState, dragon, victor);
+
+    expect(slain).toBeDefined();
+    // Apex lore is Math.round(baseGold * 1.5) and the awarded gold is baseGold * 2,
+    // so the lore's weight is three quarters of the awarded gold.
+    const loreWeight = Math.round((slain!.goldAwarded / 2) * 1.5);
+    expect(next.civilizations[civId].gold).toBe(goldBefore + slain!.goldAwarded + loreWeight);
+    expect(next.civilizations[civId].techState.researchProgress).toBe(0);
   });
 
   it('tier-2 beasts still get choice panel, not apex path', () => {

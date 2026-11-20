@@ -292,6 +292,18 @@ describe('processResearch — MR4 bounded queue overflow (#917)', () => {
     expect(result.carriedProgress).toBe(0);
   });
 
+  it('discards a bonus with no active research instead of banking progress nothing can ever spend', () => {
+    const state = createTechState();
+
+    const result = applyResearchBonus(state, 25);
+
+    // #1413's rule: science with no destination is discarded, exactly as processResearch
+    // does. Banked progress is never consumed by anything and startResearch wipes it,
+    // so a banked reward would silently evaporate the moment research begins.
+    expect(result.state).toBe(state);
+    expect(result.state.researchProgress).toBe(0);
+  });
+
   it('carries overflow through applyResearchBonus when a bonus completes active research', () => {
     const fireCost = getEffectiveTechCost(getTechById('fire')!, []);
     const state = {

@@ -1461,6 +1461,7 @@ function processAITurnInternal(
             if (resolveOpponentKind(decision.targetCiv) === 'major') {
               const goalChoice = chooseWarGoal({
                 posture,
+                map: newState.map,
                 opponentHasOverlord: newState.civilizations[decision.targetCiv]?.diplomacy.vassalage.overlord != null,
                 actorIsVassal: newState.civilizations[civId]?.diplomacy.vassalage.overlord != null,
                 ownCapitalPosition: getCapitalCity(newState, civId)?.position ?? null,

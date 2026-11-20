@@ -11,13 +11,18 @@
  */
 import type { HexCoord } from '@/core/types/hex';
 import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
-import { hexDistance, hexKey } from '@/systems/hex-utils';
+import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 type GuardUnitType = Parameters<typeof getAIStrategicRoles>[0];
 
-/** The slice of the world this decision reads: the civilization's own roster, cities and units. */
+/** The slice of the world this decision reads: the civilization's own roster, cities and units,
+ *  plus the map geometry "nearest" is measured against. */
 export interface HomeGuardWorld {
+  /** Width and horizontal wrapping only — every generated map wraps, so guard distances must
+   *  cross the seam like every other world distance. (A structural field, not the `GameMap`
+   *  contract, so this slice does not import the compatibility barrel.) */
+  map: { width: number; wrapsHorizontally: boolean };
   civilizations: Record<string, { cities: string[]; units: string[] } | undefined>;
   cities: Record<string, { id: string; owner: string; position: HexCoord } | undefined>;
   units: Record<string, {
@@ -79,6 +84,10 @@ export function planHomeGuardStations(
 
   const free = guards.filter(unitId => !stationedUnitIds.includes(unitId));
   const orders: HomeGuardStations['orders'] = [];
+  const guardDistance = (from: HexCoord, to: HexCoord): number =>
+    state.map.wrapsHorizontally
+      ? wrappedHexDistance(from, to, state.map.width)
+      : hexDistance(from, to);
   for (const city of unguarded) {
     // A unit already walking to this city keeps the job; otherwise the nearest free one takes it.
     const enRoute = free.find(unitId => {
@@ -90,7 +99,7 @@ export function planHomeGuardStations(
     // and a civ whose only soldier stood guard stopped expanding.
     if (!enRoute && free.length <= HOME_GUARD_ROAMERS) break;
     const chosen = enRoute ?? [...free].sort((left, right) =>
-      hexDistance(state.units[left]!.position, city.position) - hexDistance(state.units[right]!.position, city.position)
+      guardDistance(state.units[left]!.position, city.position) - guardDistance(state.units[right]!.position, city.position)
       || left.localeCompare(right))[0];
     if (!chosen) break;
     free.splice(free.indexOf(chosen), 1);

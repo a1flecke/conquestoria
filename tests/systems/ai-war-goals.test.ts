@@ -3,6 +3,10 @@ import { chooseWarGoal } from '@/ai/ai-war-goals';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 import type { NationalIntentPosture } from '@/ai/ai-national-intent-posture';
 
+/** Geometry the war-goal chooser is allowed to read: world shape only, never hidden state. */
+const NON_WRAPPING_MAP = { width: 20, wrapsHorizontally: false };
+const WRAPPING_MAP = { width: 20, wrapsHorizontally: true };
+
 /** A posture between the `'rival'` and ordinary dominate capture-bias
  * thresholds (#989), so the two can be told apart in a test. */
 const MID_CAPTURE_BIAS_POSTURE: NationalIntentPosture = {
@@ -16,6 +20,7 @@ describe('chooseWarGoal (#988)', () => {
   it('picks the nearest known enemy city under a non-dominate posture', () => {
     const result = chooseWarGoal({
       posture: NATIONAL_INTENT_POSTURE.expand,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: false,
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
@@ -28,9 +33,28 @@ describe('chooseWarGoal (#988)', () => {
     expect(result).toEqual({ kind: 'conquer_city', targetCityId: 'near-city' });
   });
 
+  it('measures "nearest" across the wrap seam, not around the whole map', () => {
+    const result = chooseWarGoal({
+      posture: NATIONAL_INTENT_POSTURE.expand,
+      map: WRAPPING_MAP,
+      opponentHasOverlord: false,
+      actorIsVassal: false,
+      ownCapitalPosition: { q: 2, r: 5 },
+      knownEnemyCities: [
+        // Seam-adjacent: raw distance 16, wrapped distance 4.
+        { id: 'seam-near-city', position: { q: 18, r: 5 } },
+        // Actually farther: raw distance 8, wrapped distance 8.
+        { id: 'middle-city', position: { q: 10, r: 5 } },
+      ],
+      isRecognizedRival: false,
+    });
+    expect(result).toEqual({ kind: 'conquer_city', targetCityId: 'seam-near-city' });
+  });
+
   it('breaks distance ties deterministically by city id', () => {
     const result = chooseWarGoal({
       posture: NATIONAL_INTENT_POSTURE.expand,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: false,
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
@@ -46,6 +70,7 @@ describe('chooseWarGoal (#988)', () => {
   it('prefers force_vassalage under a dominate posture when the opponent has no overlord', () => {
     const result = chooseWarGoal({
       posture: NATIONAL_INTENT_POSTURE.dominate,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: false,
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
@@ -58,6 +83,7 @@ describe('chooseWarGoal (#988)', () => {
   it('falls back to conquer_city under dominate posture if the opponent already has an overlord', () => {
     const result = chooseWarGoal({
       posture: NATIONAL_INTENT_POSTURE.dominate,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: true,
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
@@ -70,6 +96,7 @@ describe('chooseWarGoal (#988)', () => {
   it('never proposes any goal for an actor that is itself a vassal (#1054: foreign policy belongs to the overlord)', () => {
     const result = chooseWarGoal({
       posture: NATIONAL_INTENT_POSTURE.dominate,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: false,
       actorIsVassal: true,
       ownCapitalPosition: { q: 0, r: 0 },
@@ -82,6 +109,7 @@ describe('chooseWarGoal (#988)', () => {
   it('returns null when no enemy city is known and vassalage is not viable (nothing to declare yet)', () => {
     const result = chooseWarGoal({
       posture: NATIONAL_INTENT_POSTURE.expand,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: true,
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
@@ -94,6 +122,7 @@ describe('chooseWarGoal (#988)', () => {
   it('returns null when the actor has no known capital position', () => {
     const result = chooseWarGoal({
       posture: NATIONAL_INTENT_POSTURE.expand,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: true,
       actorIsVassal: false,
       ownCapitalPosition: null,
@@ -106,6 +135,7 @@ describe('chooseWarGoal (#988)', () => {
   it('skips a known city with no remembered position', () => {
     const result = chooseWarGoal({
       posture: NATIONAL_INTENT_POSTURE.expand,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: false,
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
@@ -123,6 +153,7 @@ describe('chooseWarGoal rivalry bias (#989)', () => {
   it('at a mid capture bias, a non-rival still gets ordinary conquer_city', () => {
     const result = chooseWarGoal({
       posture: MID_CAPTURE_BIAS_POSTURE,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: false,
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
@@ -135,6 +166,7 @@ describe('chooseWarGoal rivalry bias (#989)', () => {
   it('at the SAME mid capture bias, a recognized rival gets force_vassalage instead -- a measurable behaviour change from rivalry alone', () => {
     const result = chooseWarGoal({
       posture: MID_CAPTURE_BIAS_POSTURE,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: false,
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
@@ -147,6 +179,7 @@ describe('chooseWarGoal rivalry bias (#989)', () => {
   it('a low-aggression posture never triggers force_vassalage even for a recognized rival', () => {
     const result = chooseWarGoal({
       posture: NATIONAL_INTENT_POSTURE.expand,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: false,
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
@@ -159,6 +192,7 @@ describe('chooseWarGoal rivalry bias (#989)', () => {
   it('a vassal still proposes no goal at all, even against a recognized rival', () => {
     const result = chooseWarGoal({
       posture: MID_CAPTURE_BIAS_POSTURE,
+      map: NON_WRAPPING_MAP,
       opponentHasOverlord: false,
       actorIsVassal: true,
       ownCapitalPosition: { q: 0, r: 0 },

@@ -25,17 +25,26 @@ describe('pacing simulation', () => {
     state.civilizations.player.techState.currentResearch = 'fire';
 
     let next = state;
-    let warriorDone = false;
-    let fireDone = false;
+    let warriorDoneTurn = 0;
+    let fireDoneTurn = 0;
 
-    for (let i = 0; i < 6; i++) {
+    // Seam-correct natural-wonder spacing (the map rule every generator now enforces)
+    // re-rolls this seed's world: the founding site no longer draws an illegally
+    // seam-close wonder's yields, so the opening warrior completes on turn 8 (still
+    // an early completion; the 12-seed statistical opening-ETA tests in this file
+    // stay comfortably inside their bounds across the re-rolled worlds).
+    for (let i = 1; i <= 8; i++) {
       next = processTurn(next, bus);
-      warriorDone = warriorDone || Object.values(next.units).some(unit =>
-        unit.owner === 'player' && unit.type === 'warrior' && !state.civilizations.player.units.includes(unit.id));
-      fireDone = fireDone || next.civilizations.player.techState.completed.includes('fire');
+      if (!warriorDoneTurn && Object.values(next.units).some(unit =>
+        unit.owner === 'player' && unit.type === 'warrior' && !state.civilizations.player.units.includes(unit.id))) {
+        warriorDoneTurn = i;
+      }
+      if (!fireDoneTurn && next.civilizations.player.techState.completed.includes('fire')) {
+        fireDoneTurn = i;
+      }
     }
 
-    expect(warriorDone || fireDone).toBe(true);
+    expect(warriorDoneTurn || fireDoneTurn, `warriorDoneTurn=${warriorDoneTurn} fireDoneTurn=${fireDoneTurn}`).toBeTruthy();
   });
 
   function makeBronzeWorkingResearchState(scienceInvestment: 'baseline' | 'idle-science') {
