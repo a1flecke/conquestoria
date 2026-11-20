@@ -628,3 +628,47 @@ describe('isCityCenterTerrain', () => {
     expect(isCityCenterTerrain(terrain)).toBe(!BLOCKED.includes(terrain));
   });
 });
+
+describe('resource outposts hold their own tile', () => {
+  function emptyWorld(seed: string): GameState {
+    const state = createNewGame(undefined, seed);
+    state.cities = {};
+    for (const civ of Object.values(state.civilizations)) civ.cities = [];
+    return state;
+  }
+
+  function withOutpost(state: GameState, q: number, r: number, owner: string, turnsLeft: number): string {
+    const key = hexKey({ q, r });
+    state.map.tiles[key] = {
+      ...state.map.tiles[key]!, terrain: 'grassland', resource: 'iron',
+      improvement: 'resource_outpost', improvementTurnsLeft: turnsLeft, owner,
+    };
+    return key;
+  }
+
+  it('keeps a finished and an unfinished outpost when no city claims the tile', () => {
+    const state = emptyWorld('outpost-holds-tile');
+    const done = withOutpost(state, 10, 10, 'player', 0);
+    const building = withOutpost(state, 20, 10, 'player', 2);
+    const result = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
+    expect(result.state.map.tiles[done]).toMatchObject({ owner: 'player', improvement: 'resource_outpost', improvementTurnsLeft: 0 });
+    expect(result.state.map.tiles[building]).toMatchObject({ owner: 'player', improvement: 'resource_outpost', improvementTurnsLeft: 2 });
+    expect(result.resolutions).toEqual([]);
+  });
+
+  it('releases the outpost tile of an eliminated civilization', () => {
+    const state = emptyWorld('outpost-dead-owner');
+    const key = withOutpost(state, 10, 10, 'ai-1', 0);
+    state.civilizations['ai-1'] = { ...state.civilizations['ai-1']!, isEliminated: true };
+    const result = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
+    expect(result.state.map.tiles[key]!.owner).toBeNull();
+  });
+
+  it('still loses the tile to a city whose territory covers it', () => {
+    const state = emptyWorld('outpost-city-claim');
+    addCity(state, 'ai-1', 10, 10);
+    const key = withOutpost(state, 11, 10, 'player', 0);
+    const result = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
+    expect(result.state.map.tiles[key]!.owner).toBe('ai-1');
+  });
+});

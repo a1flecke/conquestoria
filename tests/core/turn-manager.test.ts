@@ -2373,3 +2373,39 @@ describe('deriveGeneralCandidateSeed — candidate-draw isolation across playthr
     expect(repeat).toBe(idSequences[0]);
   });
 });
+
+describe('resource outposts survive the turn', () => {
+  it('an Expedition outpost outside city territory completes, stays owned and grants its resource', async () => {
+    const { canEstablishOutpost, performEstablishOutpost, getCivAvailableResources } = await import('@/systems/resource-acquisition-system');
+    const { mapDistance } = await import('@/systems/hex-utils');
+    let state = createNewGame(undefined, 'outpost-survives-turns', 'small');
+    const civId = state.currentPlayer;
+    const anchors = [
+      ...Object.values(state.cities).map(city => city.position),
+      ...Object.values(state.units).map(unit => unit.position),
+    ];
+    const key = Object.keys(state.map.tiles).sort().find(candidate => {
+      const tile = state.map.tiles[candidate]!;
+      return !tile.owner && tile.terrain === 'hills' && !tile.wonder
+        && anchors.every(position => mapDistance(state.map, position, tile.coord) > 6);
+    })!;
+    const coord = state.map.tiles[key]!.coord;
+    state.map.tiles[key] = { ...state.map.tiles[key]!, resource: 'iron', improvement: 'none', improvementTurnsLeft: 0 };
+    state.civilizations[civId].techState.completed.push('bronze-working');
+    const expedition = createUnit('expedition', civId, coord, state.idCounters);
+    state.units[expedition.id] = expedition;
+    state.civilizations[civId].units.push(expedition.id);
+
+    expect(canEstablishOutpost(state, expedition.id)).toBe(true);
+    state = performEstablishOutpost(state, expedition.id);
+    // The app's round runs the improvement countdown, then the world turn (turn-round-replay.ts).
+    const { processImprovementTurns } = await import('@/systems/improvement-turn-system');
+    for (let round = 0; round < 3; round++) {
+      const bus = new EventBus();
+      state = processTurn(processImprovementTurns(state, bus), bus);
+    }
+
+    expect(state.map.tiles[key]).toMatchObject({ improvement: 'resource_outpost', improvementTurnsLeft: 0, owner: civId });
+    expect(getCivAvailableResources(state, civId).has('iron')).toBe(true);
+  }, simTimeout(2000));
+});
