@@ -319,7 +319,75 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     void simulate();
   }
 
+  /**
+   * Solo end turn has three outcomes that must not share recovery: the simulation failed (nothing was
+   * adopted; End Turn simulates again), presentation failed (the round is adopted; publish it and keep
+   * going), or persistence failed (the round is adopted and shown but not durable). Only the last leaves
+   * work behind, and it is recorded here so the next End Turn retries the save instead of running
+   * another round on top of an unsaved one. Keyed by playthrough so a pending retry never follows the
+   * player into a different campaign.
+   */
+  let unsavedSoloRound: { playthroughId: string | undefined } | null = null;
+
+  async function persistSoloRound(): Promise<boolean> {
+    const state = session.getState();
+    unsavedSoloRound = { playthroughId: state.playthroughId };
+    try {
+      await autoSave(state);
+    } catch (err) {
+      console.error('[endTurn] completed round could not be saved:', err);
+      deps.showNotification(
+        `Turn ${state.turn} could not be saved. End Turn will retry the save before the next round.`,
+        'warning',
+      );
+      return false;
+    }
+    unsavedSoloRound = null;
+    bus.emit('game:saved', { turn: state.turn });
+    return true;
+  }
+
+  /** True when an earlier completed round is still not durable; retries its save and reports whether it is now. */
+  async function retryUnsavedSoloRound(): Promise<boolean> {
+    if (!unsavedSoloRound) return true;
+    if (unsavedSoloRound.playthroughId !== session.getState().playthroughId) {
+      unsavedSoloRound = null;
+      return true;
+    }
+    return persistSoloRound();
+  }
+
+  /** Publication and presentation of a solo round that has already been adopted. Never decides persistence. */
+  async function presentSoloRound(result: Extract<ReturnType<typeof runCurrentCompletedRound>, { ok: true }>, roundTurn: number): Promise<void> {
+    beginNetworkPlansForCurrentViewer();
+    const soloMoves = captureAIMoves(() => {
+      notifier.withHappenedTurn(roundTurn, () => {
+        const errors = result.events.commitTo(bus);
+        if (errors.length > 0) console.error('[endTurn] Buffered round events failed to dispatch.', errors);
+      });
+    });
+
+    if (handleVictoryIfNeeded()) {
+      // The round was adopted unpublished so AI moves could be captured for replay;
+      // a finished game replays nothing, but it must still publish (#1015).
+      session.commit(session.getState());
+      return;
+    }
+
+    // #1199: this is the one intentional presentation-deferred publication --
+    // the renderer must show the new round before the captured AI moves replay,
+    // and the HUD updates after the replay completes.
+    renderLoop.setGameState(session.getState());
+    await replayAIMoves(soloMoves);
+    deps.updateHUD();
+    showRequiredChoicesIfNeeded();
+
+    deps.showNotification(`Turn ${session.getState().turn}`, 'info');
+    deps.checkAdvisors();
+  }
+
   async function performEndTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
+    if (unsavedSoloRound && !(await retryUnsavedSoloRound())) return;
     if (session.getState().gameOver) return;
     if (selection.getPendingIntent().kind === 'city-capture') {
       deps.showNotification('Choose whether to occupy or raze the captured city before ending the turn.', 'info');
@@ -359,35 +427,22 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
         // --- Solo Mode ---
         const roundTurn = session.getState().turn;
         const result = runCurrentCompletedRound(session.getState());
-        if (!result.ok) throw result.error;
-        unpublished.adopt(result.state, 'presentation-deferred');
-        beginNetworkPlansForCurrentViewer();
-        const soloMoves = captureAIMoves(() => {
-          notifier.withHappenedTurn(roundTurn, () => {
-            result.events.commitTo(bus);
-          });
-        });
-
-        if (handleVictoryIfNeeded()) {
-          // The round was adopted unpublished so AI moves could be captured for replay;
-          // a finished game replays nothing, but it must still publish (#1015).
-          session.commit(session.getState());
+        if (!result.ok) {
+          console.error('[endTurn] completed round simulation failed:', result.error);
+          deps.showNotification('The turn could not be completed. Your turn is unchanged; try End Turn again.', 'warning');
           return;
         }
-
-        // #1199: this is the one intentional presentation-deferred publication --
-        // the renderer must show the new round before the captured AI moves replay,
-        // and the HUD updates after the replay completes.
-        renderLoop.setGameState(session.getState());
-        await replayAIMoves(soloMoves);
-        deps.updateHUD();
-        showRequiredChoicesIfNeeded();
-
-        deps.showNotification(`Turn ${session.getState().turn}`, 'info');
-        deps.checkAdvisors();
-
-        await autoSave(session.getState());
-        bus.emit('game:saved', { turn: session.getState().turn });
+        unpublished.adopt(result.state, 'presentation-deferred');
+        // From here the round is the campaign: a later failure is presentation or persistence, never a
+        // reason to simulate it again.
+        try {
+          await presentSoloRound(result, roundTurn);
+        } catch (err) {
+          console.error('[endTurn] presenting the completed round failed:', err);
+          session.commit(session.getState());
+          deps.showNotification(`Turn ${session.getState().turn} began, but part of its display failed.`, 'warning');
+        }
+        await persistSoloRound();
       }
     } catch (err) {
       console.error('endTurn error:', err);
