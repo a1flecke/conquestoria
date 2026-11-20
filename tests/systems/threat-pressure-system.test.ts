@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
+import { processPurposefulBarbarians } from '@/systems/barbarian-system';
 import { generateContinentMap } from '@/systems/continent-map-generator';
+import { mapDistance } from '@/systems/hex-utils';
 import { areTaggedLandmassesConnected, tagLandmassRegions } from '@/systems/landmass-tagger';
 import {
   canStartIndependentThreat,
@@ -11,11 +13,13 @@ import {
   recordCombatForCiv,
   processIndependentThreatPressure,
   processLandResurgence,
+  reserveIndependentThreatForHumans,
 } from '@/systems/threat-pressure-system';
 import type { GameMap, GameState, HexTile, Civilization } from '@/core/types';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { EventBus } from '@/core/event-bus';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 function makeTestState(overrides: Partial<GameState> = {}): GameState {
   const tiles: Record<string, HexTile> = {};
@@ -421,6 +425,34 @@ describe('independent threat pressure governor', () => {
       .toEqual(['pirate:pirate-7']);
     expect(canStartIndependentThreat(result, 'player-3', 'barbarian:new'))
       .toMatchObject({ allowed: true, activeCount: 0 });
+  });
+
+  it('does not count a nearby garrison holding its camp as a third independent threat (#1771)', () => {
+    let state = makePressureState('standard');
+    addPirateThreat(state, 'pirate-1', 'player-1');
+    addPirateThreat(state, 'pirate-2', 'player-2');
+    state = reserveIndependentThreatForHumans(state, 'pirate:pirate-2', ['player-1']);
+    const camp = { id: 'camp-7', position: { q: 6, r: 0 }, strength: 6, spawnCooldown: 2 };
+    state.barbarianCamps[camp.id] = camp;
+    const garrison = createUnit('warrior', 'barbarian', camp.position, state.idCounters);
+    state.units[garrison.id] = garrison;
+    expect(mapDistance(state.map, garrison.position, state.cities['city-1'].position)).toBe(6);
+
+    const barbarians = processPurposefulBarbarians(state);
+    expect(barbarians.opponentAI.barbarianCamps[camp.id]).toMatchObject({
+      objective: 'defend',
+      target: { kind: 'region', anchor: camp.position },
+      assignedUnitIds: [garrison.id],
+    });
+    expect(barbarians.moveOrders).toEqual([]);
+    expect(barbarians.attackOrders).toEqual([]);
+    expect(barbarians.cityAttackOrders).toEqual([]);
+    state.opponentAI = barbarians.opponentAI;
+
+    const result = processIndependentThreatPressure(state, new EventBus());
+
+    expect(result.opponentAI!.pressureByCiv['player-1'].activeIndependentThreatIds)
+      .toEqual(['pirate:pirate-1', 'pirate:pirate-2']);
   });
 
   it('starts a shared resurgence only when every newly affected human has cap room', () => {

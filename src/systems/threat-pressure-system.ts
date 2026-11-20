@@ -96,8 +96,10 @@ function barbarianMateriallyAffectsHuman(
   humanId: string,
 ): boolean {
   const plan = state.opponentAI?.barbarianCamps[campId];
-  if (plan && planTargetOwner(state, plan) === humanId) return true;
-  if (!plan) return false;
+  // Patrol and recovery plans rally at the camp. A nearby garrison following
+  // either plan is passive, even if a human asset is within sensing range.
+  if (!plan || plan.target.kind === 'region') return false;
+  if (planTargetOwner(state, plan) === humanId) return true;
   const assets = humanAssetPositions(state, humanId);
   return plan.assignedUnitIds.some(unitId => {
     const unit = state.units[unitId];
