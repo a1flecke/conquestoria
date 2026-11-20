@@ -887,7 +887,8 @@
     "tests/renderer/sprites/png/png-sprite-playback.test.ts": 3.163330078125,
     "tests/renderer/sprites/png/png-sprite-strip-overlay.test.ts": 54.21044921875,
     "tests/renderer/sprites/v2/cannon-grenadier-native.test.ts": 2.491455078125,
-    "tests/renderer/sprites/v2/index.test.ts": 33.53515625
+    "tests/renderer/sprites/v2/index.test.ts": 33.53515625,
+    "tests/presentation/register-world-race-presentation.test.ts": 4.0
   },
   "shards": {
     "test-suite-shard-a": [
@@ -1108,6 +1109,7 @@
       "tests/presentation/register-general-presentation.test.ts",
       "tests/presentation/register-strategic-strike-presentation.test.ts",
       "tests/presentation/register-trade-presentation.test.ts",
+      "tests/presentation/register-world-race-presentation.test.ts",
       "tests/renderer/city-damage-tier.test.ts",
       "tests/renderer/city-render-passes.test.ts",
       "tests/renderer/legendary-wonder-slots.test.ts",

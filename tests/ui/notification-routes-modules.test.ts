@@ -57,7 +57,7 @@ const SURFACE: Array<[name: string, module: object, exports: string[]]> = [
   ]],
   ['world-routes', worldRoutes, [
     'routeEraAdvanced', 'routeLegendaryWonder', 'routeMinorCivGraduated', 'routeStrategicWarning', 'routeWorldRaceCompleted',
-    'routeWorldRaceLaunchBegun', 'routeWorldRaceUnlocked',
+    'routeWorldRaceEntryMooted', 'routeWorldRaceLaunchBegun', 'routeWorldRaceUnlocked',
   ]],
 ];
 
@@ -72,8 +72,8 @@ describe('#1250 — the notification routers keep their audited public surface',
     const values = SURFACE.flatMap(([, , exports]) => exports);
     expect(new Set(values).size, 'no export is owned by two modules').toBe(values.length);
     // 62 pre-split exports, of which 1 is a type (NotificationSink) that has no runtime value: 61; +4 tribute routes (#1334); +1 city-state graduation (#497); +1 hostile-operation notice (#419); +3 spy career/counterintelligence notices (#419 Shadows & Secrets).
-    // Plus the air-combat spy identification route.
-    expect(values).toHaveLength(73);
+    // Plus the air-combat spy identification route, and the world-race entry-mooted notice.
+    expect(values).toHaveLength(74);
   });
 
   it('the compatibility barrel is gone and must not come back', () => {

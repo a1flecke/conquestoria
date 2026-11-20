@@ -140,6 +140,21 @@ export function routeWorldRaceLaunchBegun(
   }
 }
 
+// A rival's win cancels this civ's own launch entry (a standing building or a queued one) and refunds
+// half its invested work. Recipient: that civ only -- the city is its own, and the event names no rival.
+export function routeWorldRaceEntryMooted(
+  state: GameState,
+  event: GameEvents['worldrace:entry-mooted'],
+  sink: NotificationSink,
+): void {
+  const name = getWorldRaceDefinition(event.kind).displayName;
+  const cityName = state.cities[event.cityId]?.name ?? 'One of your cities';
+  const outcome = event.goldRefund > 0
+    ? `${cityName} stopped its ${name} launch and recovered ${event.goldRefund} gold.`
+    : `${cityName} removed the ${name} launch from its queue.`;
+  sink(event.civId, `The ${name} race is over. ${outcome}`, 'warning');
+}
+
 export function routeWorldRaceCompleted(
   state: GameState,
   event: GameEvents['worldrace:completed'],

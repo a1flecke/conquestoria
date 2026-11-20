@@ -61,6 +61,7 @@ import {
   routeWorldRaceUnlocked,
   routeWorldRaceLaunchBegun,
   routeWorldRaceCompleted,
+  routeWorldRaceEntryMooted,
 } from '@/ui/notification-routes/world-routes';
 import {
   ESPIONAGE_NOTIFICATION_EVENT_TYPES,
@@ -1292,6 +1293,32 @@ describe('world race notification routing (#992)', () => {
     const unmetViewer = calls.find(c => c.civId === 'p3')!;
     expect(unmetViewer.message).toBe('A civilization you have not yet met has won the First Satellite race.');
     expect(unmetViewer.type).toBe('info');
+  });
+
+  it('tells only the civ that lost its launch entry what was cancelled and what it got back', () => {
+    const state = makeState({
+      civilizations: raceState().civilizations,
+      cities: { c2: { id: 'c2', name: 'Thebes', owner: 'p2' } } as any,
+    });
+    const { sink, calls } = makeSink();
+    routeWorldRaceEntryMooted(state, { kind: 'first-satellite', civId: 'p2', cityId: 'c2', goldRefund: 120 }, sink);
+    expect(calls.map(c => c.civId)).toEqual(['p2']);
+    expect(calls[0]!.message).toBe(
+      'The First Satellite race is over. Thebes stopped its First Satellite launch and recovered 120 gold.',
+    );
+    expect(calls[0]!.type).toBe('warning');
+  });
+
+  it('says nothing was recovered when the cancelled entry had no invested work', () => {
+    const state = makeState({
+      civilizations: raceState().civilizations,
+      cities: { c2: { id: 'c2', name: 'Thebes', owner: 'p2' } } as any,
+    });
+    const { sink, calls } = makeSink();
+    routeWorldRaceEntryMooted(state, { kind: 'first-satellite', civId: 'p2', cityId: 'c2', goldRefund: 0 }, sink);
+    expect(calls[0]!.message).toBe(
+      'The First Satellite race is over. Thebes removed the First Satellite launch from its queue.',
+    );
   });
 });
 
