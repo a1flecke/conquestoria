@@ -189,6 +189,18 @@ describe('#590 MR3 — famine fragility scheduler weighting', () => {
     expect(getFamineFragility(stateWithGhost, civId)).toBe(0);
   });
 
+  it('a stale roster id does not dilute fragility — only live cities count (#1019)', () => {
+    const { state, civId } = makeCrisisFixture({ era: 3, turn: 40, challenge: 'standard' });
+    // c2 left the map (a loss path forgot the roster entry): state.cities no longer
+    // resolves it, but civ.cities still names it.
+    const stale: GameState = { ...state, cities: { c1: state.cities.c1 } };
+    expect(stale.civilizations[civId].cities).toContain('c2');
+    expect(stale.cities.c2).toBeUndefined();
+    // The one live city (c1) is fragile, so every city the civ owns is fragile: 1,
+    // not 0.5 diluted by a roster entry that names nothing.
+    expect(getFamineFragility(stale, civId)).toBe(1);
+  });
+
   it('food-poor civs see famine flavors selected far more often than food-rich civs over many seeds', () => {
     // Statistical sampling per .claude/rules/strategy-game-mechanics.md: run the
     // scheduler across many distinct turn seeds for a maximally food-poor civ (fixture

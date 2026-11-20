@@ -1,6 +1,6 @@
 import type { GameState } from '@/core/types';
 import { isAtWar } from '@/systems/diplomacy-queries';
-import { hexDistance } from '@/systems/hex-utils';
+import { mapDistance } from '@/systems/hex-utils';
 
 export type PropagandistAction = 'rally' | 'undermine';
 export type PropagandistActionFailure =
@@ -39,7 +39,7 @@ export function usePropagandistAction(
   if (unit.hasActed) return { ok: false, state, reason: 'already-acted' };
   const city = state.cities[cityId];
   if (!city) return { ok: false, state, reason: 'missing-city' };
-  if (hexDistance(unit.position, city.position) > ACTION_RANGE) return { ok: false, state, reason: 'out-of-range' };
+  if (mapDistance(state.map, unit.position, city.position) > ACTION_RANGE) return { ok: false, state, reason: 'out-of-range' };
 
   const owner = state.civilizations[unit.owner];
   const targetOwner = state.civilizations[city.owner];

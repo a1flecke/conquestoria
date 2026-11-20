@@ -39,6 +39,20 @@ describe('event-chain-scheduling (#990)', () => {
     expect(countActiveEventChainsForCiv(next, civId)).toBe(0);
   });
 
+  it('never starts a chain for a civ whose roster entries have all gone stale (#1019)', () => {
+    const { state: base, civId } = makeCrisisFixture({ era: 3, turn: 50 });
+    // Both cities left the map while the roster kept naming them: the civ owns no
+    // live city, so nothing may be scheduled against it, gold or no gold.
+    const state = withGold({ ...base, cities: {} }, civId, 1);
+    expect(state.civilizations[civId].cities.length).toBeGreaterThan(0);
+    expect(Object.keys(state.cities)).toHaveLength(0);
+    const bus = new EventBus();
+
+    const next = processEventChainScheduler(state, bus);
+
+    expect(countActiveEventChainsForCiv(next, civId)).toBe(0);
+  });
+
   it('respects the cooldown after a chain already started this civ', () => {
     const { state: base, civId } = makeCrisisFixture({ era: 3, turn: 50, lastCrisisOnsetTurn: undefined });
     let state = withGold(base, civId, 1);

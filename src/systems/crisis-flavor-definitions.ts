@@ -1,6 +1,6 @@
 import type { City, CrisisArchetype, GameState, HexCoord, HexTile, TerrainType } from '@/core/types';
 import type { OpponentChallenge } from '@/core/types/ai';
-import { hexKey, hexNeighbors } from './hex-utils';
+import { hexKey, mapNeighbors } from './hex-utils';
 
 export interface CrisisSeverity {
   yieldPenalty: number;                 // 0.25 = city yields ×0.75 while afflicted
@@ -43,7 +43,7 @@ function tilesWithinRadius(state: GameState, center: HexCoord, radius: number): 
   for (let step = 0; step < radius; step++) {
     const next: HexCoord[] = [];
     for (const coord of frontier) {
-      for (const nb of hexNeighbors(coord)) {
+      for (const nb of mapNeighbors(state.map, coord)) {
         const key = hexKey(nb);
         if (seen.has(key)) continue;
         seen.add(key);

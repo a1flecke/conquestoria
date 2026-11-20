@@ -82,6 +82,9 @@ describe('schema 40 — ships float on water they can sail', () => {
     const baseline = buildBaselineSave('stranded-migration-port');
     const state = baseline.state;
     const city = state.cities[baseline.playerCityId];
+    // A port only counts when the city is genuinely coastal.
+    const neighbour = hexNeighbors(city.position).find(coord => state.map.tiles[hexKey(coord)])!;
+    state.map.tiles[hexKey(neighbour)] = { ...state.map.tiles[hexKey(neighbour)], terrain: 'coast' };
     const ship = createUnit('trireme', 'player', city.position, state.idCounters);
     state.units[ship.id] = ship;
     state.civilizations.player.units.push(ship.id);

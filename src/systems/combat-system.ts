@@ -10,7 +10,7 @@ import type {
 } from '@/core/types';
 import type { CombatExchangeKind, CombatModifierFact } from '@/core/types/combat';
 import { getRogueElephantCommandFact } from '@/systems/world-actor-queries';
-import { hexDistance, hexKey, mapDistance } from './hex-utils';
+import { hexKey, mapDistance } from './hex-utils';
 import { isUnitConcealedFrom } from './concealment';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getWonderCombatBonus } from './wonder-system';
@@ -453,6 +453,8 @@ export interface ExchangeDamageInput {
   defStrength: number;
   attacker: Unit;
   defender: Unit;
+  /** The map the fight is on: counter-attack range is measured across a wrapping seam. */
+  map: GameMap;
   context?: CombatContext;
   era?: number;
   exchange: CombatExchangeModifiers;
@@ -468,7 +470,7 @@ export interface ExchangeDamageInput {
  * one formula, so a preview cannot drift from the fight.
  */
 export function computeExchangeDamage(input: ExchangeDamageInput): { attackerDamage: number; defenderDamage: number } {
-  const { atkStrength, defStrength, attacker, defender, context, era, exchange } = input;
+  const { atkStrength, defStrength, attacker, defender, map, context, era, exchange } = input;
   const totalStrength = atkStrength + defStrength;
   const atkRatio = atkStrength / totalStrength;
 
@@ -490,7 +492,7 @@ export function computeExchangeDamage(input: ExchangeDamageInput): { attackerDam
   const defenderDamage = Math.round(
     baseDamage * adjustedRatio * siegeMultiplier * exchange.defenderIncomingDamageMultiplier,
   );
-  const distance = hexDistance(attacker.position, defender.position);
+  const distance = mapDistance(map, attacker.position, defender.position);
   const attackerDamage = canCounterAttackAtDistance(defender, distance)
     ? Math.round(baseDamage * (1 - adjustedRatio) * exchange.defenderCounterDamageMultiplier)
     : 0;
@@ -554,7 +556,7 @@ export function resolveCombat(
   const baseRoll = rng();
   const exchange = strengths.exchange;
   const { attackerDamage, defenderDamage } = computeExchangeDamage({
-    atkStrength, defStrength, attacker, defender, context, era, exchange, ratioRoll, baseRoll,
+    atkStrength, defStrength, attacker, defender, map, context, era, exchange, ratioRoll, baseRoll,
   });
 
   const attackerHealthAfter = attacker.health - attackerDamage;

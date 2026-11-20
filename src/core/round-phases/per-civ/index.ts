@@ -63,7 +63,7 @@ function runPerCiv(state: GameState, context: RoundPhaseContext): GameState {
     newState = applyStandingOrders(newState, turn, completedTechs, bus);
 
     const roster = snapshotCivRoster(newState, turn);
-    driftCivDiplomacy(newState, turn, roster, grossGoldByCiv);
+    driftCivDiplomacy(newState, turn, grossGoldByCiv);
     newState = refreshCivVision(newState, turn, roster);
     shareMinorAndAlliedVision(newState, turn);
     newState = syncCivContacts(newState, turn, bus);

@@ -1,4 +1,5 @@
-import type { GameState, HexCoord } from '@/core/types';
+import type { GameState, HexCoord, Unit } from '@/core/types';
+import { projectUnitForPlayer } from './espionage-stealth';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
 
@@ -21,7 +22,7 @@ function hasContactMemory(state: GameState, viewerCivId: string, targetCivId: st
   return viewer.diplomacy.treaties?.some(t => t.civA === targetCivId || t.civB === targetCivId) ?? false;
 }
 
-function hasCurrentVisibleEvidence(state: GameState, viewerCivId: string, targetCivId: string): boolean {
+export function hasCurrentVisibleEvidence(state: GameState, viewerCivId: string, targetCivId: string): boolean {
   const target = state.civilizations[targetCivId];
   if (!target) return false;
 
@@ -34,11 +35,11 @@ function hasCurrentVisibleEvidence(state: GameState, viewerCivId: string, target
 
   for (const unitId of target.units ?? []) {
     const unit = state.units[unitId];
-    if (unit && hasVisibleCoord(state, viewerCivId, unit.position)) return true;
+    if (unit && getObservedUnitForViewer(state, viewerCivId, unit)?.owner === targetCivId) return true;
   }
 
   return Object.values(state.map.tiles).some(tile =>
-    tile.owner === targetCivId && hasVisibleCoord(state, viewerCivId, tile.coord),
+    tile.owner === targetCivId && tile.coord && hasVisibleCoord(state, viewerCivId, tile.coord),
   );
 }
 
@@ -69,6 +70,12 @@ export function canInspectUnitForViewer(
   const unit = state.units[unitId];
   if (!unit) return false;
   return unit.owner === viewerCivId || hasVisibleCoord(state, viewerCivId, unit.position);
+}
+
+/** A map observation requires sight of the hex and the unit's apparent identity on that hex. */
+export function getObservedUnitForViewer(state: GameState, viewerId: string, unit: Unit): Unit | undefined {
+  if (!canInspectUnitForViewer(state, viewerId, unit.id)) return undefined;
+  return projectUnitForPlayer(unit, state, viewerId);
 }
 
 export function canInspectTileOwnerForViewer(

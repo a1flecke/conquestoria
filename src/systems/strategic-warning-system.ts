@@ -13,7 +13,8 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { buildDominationKnowledge } from '@/systems/domination-knowledge';
 import { getDominationThreats } from '@/systems/domination-presentation';
 import { resolveBarbarianArchetype, type BarbarianArchetype } from '@/systems/barbarian-archetype';
-import { shouldListMajorCivForViewer } from '@/systems/viewer-intel';
+import { getObservedUnitForViewer, shouldListMajorCivForViewer } from '@/systems/viewer-intel';
+import { getTrustedLastSeenSnapshots } from '@/systems/viewer-military-intel';
 
 // #1090: archetype identity is a behavioral pattern the player is meant to learn to
 // recognize (matching the issue's own "clues that distinguish raiders, warlords..."
@@ -62,21 +63,18 @@ function planEvidence(
   state: GameState,
   viewerId: string,
   plan: AIStrategicPlan,
+  ownerId: string,
 ): { evidence: 'visible' | 'remembered'; coord: HexCoord } | null {
-  const assigned = plan.assignedUnitIds
-    .map(unitId => state.units[unitId])
-    .filter(unit => Boolean(unit));
-  const visible = assigned
-    .filter(unit => isVisible(state, viewerId, unit.position))
-    .sort((left, right) => left!.id.localeCompare(right!.id))[0];
-  if (visible) return { evidence: 'visible', coord: { ...visible.position } };
+  for (const id of [...plan.assignedUnitIds].sort((a, b) => a.localeCompare(b))) {
+    const unit = state.units[id];
+    const observed = unit && getObservedUnitForViewer(state, viewerId, unit);
+    if (observed?.owner === ownerId) return { evidence: 'visible', coord: { ...observed.position } };
+  }
 
-  const remembered = Object.values(
-    state.civilizations[viewerId]?.visibility.lastSeen ?? {},
-  )
-    .filter(isTrustedObservedLastSeenTile)
-    .filter(tile => tile.units?.some(unit =>
-      unit.owner === plan.actorId && plan.assignedUnitIds.includes(unit.id)))
+  const remembered = getTrustedLastSeenSnapshots(state, viewerId)
+    .map(({ snapshot }) => snapshot)
+    .filter(tile => Array.isArray(tile.units) && tile.units.some(unit =>
+      unit?.owner === ownerId && plan.assignedUnitIds.includes(unit.id)))
     .sort((left, right) =>
       right.observedTurn - left.observedTurn
       || hexKey(left.coord).localeCompare(hexKey(right.coord)))[0];
@@ -163,7 +161,7 @@ function deriveMajorWarnings(
       ? 'mobilizing'
       : plan.phase === 'withdrawing' ? 'withdrawing' : null;
     if (!kind || samePlanTransition(beforePlan, plan, plan.phase)) continue;
-    const evidence = planEvidence(after, viewerId, plan);
+    const evidence = planEvidence(after, viewerId, plan, actorId);
     if (!evidence) continue;
     const target = evidence.evidence === 'visible'
       ? safePlanTarget(after, viewerId, plan)
@@ -244,21 +242,10 @@ function deriveBarbarianWarnings(
         : null;
     if (!coord) continue;
     const camp = after.barbarianCamps[campId];
-    const assignedUnits = plan.assignedUnitIds
-      .map(unitId => after.units[unitId])
-      .filter(unit => unit?.owner === 'barbarian');
-    const visibleThreat = [
-      ...(camp ? [camp.position] : []),
-      ...assignedUnits.map(unit => unit!.position),
-    ].some(position => isVisible(after, viewerId, position));
-    const rememberedThreat = Object.values(
-      after.civilizations[viewerId]?.visibility.lastSeen ?? {},
-    )
-      .filter(isTrustedObservedLastSeenTile)
-      .some(tile => tile.units?.some(unit =>
-        unit.owner === 'barbarian'
-        && plan.assignedUnitIds.includes(unit.id)));
-    if (!visibleThreat && !rememberedThreat) continue;
+    const evidence = camp && isVisible(after, viewerId, camp.position)
+      ? 'visible'
+      : planEvidence(after, viewerId, plan, 'barbarian')?.evidence;
+    if (!evidence) continue;
     const targetIsSafe = after.map.tiles[hexKey(coord)]?.owner === viewerId
       || isVisible(after, viewerId, coord)
       || Boolean(trustedLastSeenAt(after, viewerId, coord));
@@ -278,7 +265,7 @@ function deriveBarbarianWarnings(
       actorId: `barbarian:${campId}`,
       actorName: BARBARIAN_ARCHETYPE_ACTOR_NAME[archetype],
       kind,
-      evidence: visibleThreat ? 'visible' : 'remembered',
+      evidence,
       ...(resource ? { resource } : {}),
       targetLabel: label,
       target: { kind: 'map', coord: { ...coord }, label },

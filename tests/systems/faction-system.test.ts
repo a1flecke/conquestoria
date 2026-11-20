@@ -670,6 +670,17 @@ describe('faction-system', () => {
   });
 });
 
+describe('distance from capital on a wrapping map', () => {
+  it('a city just across the seam from its capital is near it, not across the world', () => {
+    const wrapped = makeState({ cityPosition: { q: 19, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    wrapped.map = { ...wrapped.map, wrapsHorizontally: true };
+    expect(getUnrestPressureBreakdown('city-1', wrapped).find(row => row.label === 'Distance from capital')).toBeUndefined();
+
+    const flat = makeState({ cityPosition: { q: 19, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    expect(getUnrestPressureBreakdown('city-1', flat).find(row => row.label === 'Distance from capital')?.amount).toBeGreaterThan(0);
+  });
+});
+
 describe('#927 Regional Capital unrest relief', () => {
   it('keeps the capital distance row while adding bounded nearest-seat relief', () => {
     const state = makeState({ cityPosition: { q: 10, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 4 });
@@ -735,6 +746,24 @@ describe('#927 Bureaucracy unrest relief', () => {
       const relief = -(rows.find(r => r.label === 'Bureaucratic administration')?.amount ?? 0);
       expect(relief).toBeLessThanOrEqual(BUREAUCRACY_MAX_RELIEF);
     }
+  });
+
+  it('derives the hypothetical from live cities when the roster has a stale entry (#1019)', () => {
+    // 9 live cities -> the actual overextension row is 9, and the hypothetical
+    // allowance must be built from the same 9: a stale roster id must not raise
+    // the allowance and shrink the relief below the live-city answer (-7).
+    const base = withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 }, era: 6 }), [BUREAUCRACY_TECH_ID]);
+    const state: GameState = {
+      ...base,
+      civilizations: {
+        ...base.civilizations,
+        player: { ...base.civilizations.player, cities: [...base.civilizations.player.cities, 'ghost-city'] },
+      },
+    };
+    expect(state.cities['ghost-city']).toBeUndefined();
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    expect(rows).toContainEqual({ label: 'Empire overextension', amount: 9 });
+    expect(rows).toContainEqual({ label: 'Bureaucratic administration', amount: -7 });
   });
 
   it('leaves the positive Distance from capital row unchanged and does not relieve it', () => {

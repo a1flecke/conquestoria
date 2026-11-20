@@ -42,7 +42,7 @@ import {
 } from '@/systems/improvement-system';
 import { DEFAULT_WORKER_CHARGES, getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { getRoadBlockerReason, formatRoadBlockerReason } from '@/systems/road-system';
-import { hexDistance, hexKey } from '@/systems/hex-utils';
+import { hexKey, mapDistance } from '@/systems/hex-utils';
 import { isVisible } from '@/systems/fog-of-war';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { resolveFromCity } from '@/systems/trade-caravan-system';
@@ -1332,7 +1332,7 @@ export function renderSelectedUnitInfo(
 
   if (unit.type === 'propagandist' && unit.owner === state.currentPlayer && !unit.hasActed && callbacks.onUsePropagandistAction) {
     const nearbyCities = Object.values(state.cities)
-      .filter(city => hexDistance(unit.position, city.position) <= 1)
+      .filter(city => mapDistance(state.map, unit.position, city.position) <= 1)
       .sort((left, right) => left.id.localeCompare(right.id));
     for (const city of nearbyCities) {
       if (city.owner === unit.owner && city.spyUnrestBonus > 0) {

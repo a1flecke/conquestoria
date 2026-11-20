@@ -5,7 +5,7 @@
      Regenerate: UPDATE_SAVE_COMPAT_DOC=1 yarn vitest run tests/storage/save-migration-registries.test.ts
      Enforced by: tests/storage/save-migration-registries.test.ts -->
 
-Current schema version: **40**
+Current schema version: **41**
 
 Save compatibility is three separate mechanisms (#1023). They are deliberately
 not interchangeable: a normalizer silently standing in for a migration that was
@@ -61,6 +61,7 @@ Never on an already-current save.
 | 38 | `minor-civ-founded-turn` | #497 records when each city-state came into being so graduation eligibility can read a survival age. A city-state in an older save has no founding record, so it is stamped once with the load turn: it starts ageing from the upgrade rather than being treated as ancient, which keeps a legacy campaign from graduating anyone the moment the system exists. |
 | 39 | `spies-leave-foreign-cities` | A spy may no longer stand on a city its owner does not hold: it infiltrates from the adjacent tile, and movement blocks every foreign city, allied ones included, for a spy. An older save can hold a spy parked on a foreign city (idle, or lying low after a failed attempt), which locked the owner out of its own city and stacked with what it trained. Each is moved once to a legal tile next to that city, else home to its capital; one with nowhere legal to go is kept, never deleted. |
 | 40 | `ships-on-sailable-water` | Pirates now follow the same hull rules as every ship (no coast-only hull on open ocean), and the units-on-enterable-terrain invariant checks every ship. Deep-sea flotillas used to be crewed with coast-only galleys and corsairs on open ocean, where they could never sail. Such a flotilla hull is refitted in place as the lightest ocean-going pirate hull; any other ship on terrain it cannot enter moves once to the nearest water it can sail within three (a pirate hull with none is refitted too). Land units are left to their own designed recovery (#447); nothing is deleted. |
+| 41 | `landmass-seam-tags` | Landmass tagging now follows the horizontal seam, so a continent crossing the edge of a wrapping map is one landmass, not two. An older save keeps its split tags (the load path only tags untagged land), which counted a city founded across the seam on the home continent as a foreign-landmass settlement and split threat pressure. The map is re-tagged once; records keyed by an old tag move to its new tag, keeping the later turn where two merge; a flat or already-correct map is unchanged. |
 
 ## 2. Compatibility normalization
 

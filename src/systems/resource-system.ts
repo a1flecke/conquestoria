@@ -20,6 +20,19 @@ export interface WorkedResourceEffect {
  * The city center is always worked; every other tile needs its completed required improvement.
  * Happiness remains a separate, explicitly empire-wide access effect.
  */
+/**
+ * The tiles a city actually works besides its centre: its worked list, capped at its population.
+ * Population can fall (plague, a levy) without the list being trimmed, so every yield that comes
+ * from a worked tile must read this, not `city.workedTiles`.
+ */
+function getEffectivelyWorkedTiles(city: City, map: GameMap): Array<{ q: number; r: number }> {
+  const centerKey = hexKey(canonicalizeCityCoord(city.position, map));
+  return (city.workedTiles ?? [])
+    .map(coord => canonicalizeCityCoord(coord, map))
+    .filter(coord => hexKey(coord) !== centerKey)
+    .slice(0, city.population);
+}
+
 export function getCityWorkedResourceEffects(
   city: City,
   map: GameMap,
@@ -29,9 +42,8 @@ export function getCityWorkedResourceEffects(
   const centerKey = hexKey(center);
   const coords = new Map<string, { q: number; r: number }>();
   coords.set(centerKey, center);
-  for (const coord of city.workedTiles ?? []) {
-    const canonical = canonicalizeCityCoord(coord, map);
-    coords.set(hexKey(canonical), canonical);
+  for (const coord of getEffectivelyWorkedTiles(city, map)) {
+    coords.set(hexKey(coord), coord);
   }
 
   const effects: WorkedResourceEffect[] = [];
@@ -67,11 +79,7 @@ export function calculateCityYields(
   yields.science += 1;
 
   // Yields from explicitly worked citizen tiles. The city center is always base yield only.
-  const centerKey = hexKey(canonicalizeCityCoord(city.position, map));
-  const workedTiles = city.workedTiles
-    .map(coord => canonicalizeCityCoord(coord, map))
-    .filter(coord => hexKey(coord) !== centerKey)
-    .slice(0, city.population);
+  const workedTiles = getEffectivelyWorkedTiles(city, map);
   for (const coord of workedTiles) {
     const tile = map.tiles[hexKey(coord)];
     if (!tile) continue;

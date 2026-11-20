@@ -76,3 +76,25 @@ describe('network panel model', () => {
     });
   });
 });
+
+describe('network panel across the map seam', () => {
+  it('counts a formation recipient just across the wrapping edge', () => {
+    const state = createNewGame('rome', 'network-panel-controller', 'small');
+    expect(state.map.wrapsHorizontally).toBe(true);
+    state.cities = { 'city-player': city() };
+    state.civilizations.player.cities = ['city-player'];
+    state.civilizations.player.techState.completed = ['quantum-computing'];
+    const controller: Unit = {
+      id: 'controller', type: 'drone_controller', owner: 'player', position: { q: state.map.width - 1, r: 0 },
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    const escort: Unit = { ...controller, id: 'escort', type: 'exosuit_infantry', position: { q: 0, r: 0 } };
+    state.units = { controller, escort };
+    state.civilizations.player.units = ['controller', 'escort'];
+
+    const model = getNetworkPanelModel(state, 'player');
+    expect(model.candidates.find(candidate => candidate.request.definitionId === 'guardian-screen')?.request).toMatchObject({
+      sourceUnitId: 'controller', target: { kind: 'formation', unitIds: ['escort'] },
+    });
+  });
+});

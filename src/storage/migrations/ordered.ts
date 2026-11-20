@@ -25,6 +25,7 @@ import {
   migrateRogueElephantHostRecords,
 } from './steps/crisis';
 import { migrateStrategicStrikeLedger } from './steps/strategic-strikes';
+import { migrateLandmassSeamTags } from './steps/landmass-seam-tags';
 import {
   normalizeLegendaryWonderMilitaryFacts,
   normalizeLegendaryWonderTacticalEffects,
@@ -297,6 +298,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'ships-on-sailable-water',
     reason: 'Pirates now follow the same hull rules as every ship (no coast-only hull on open ocean), and the units-on-enterable-terrain invariant checks every ship. Deep-sea flotillas used to be crewed with coast-only galleys and corsairs on open ocean, where they could never sail. Such a flotilla hull is refitted in place as the lightest ocean-going pirate hull; any other ship on terrain it cannot enter moves once to the nearest water it can sail within three (a pirate hull with none is refitted too). Land units are left to their own designed recovery (#447); nothing is deleted.',
     apply: migrateShipsOnSailableWater,
+  },
+  {
+    version: 41,
+    id: 'landmass-seam-tags',
+    reason: 'Landmass tagging now follows the horizontal seam, so a continent crossing the edge of a wrapping map is one landmass, not two. An older save keeps its split tags (the load path only tags untagged land), which counted a city founded across the seam on the home continent as a foreign-landmass settlement and split threat pressure. The map is re-tagged once; records keyed by an old tag move to its new tag, keeping the later turn where two merge; a flat or already-correct map is unchanged.',
+    apply: migrateLandmassSeamTags,
   },
 ];
 

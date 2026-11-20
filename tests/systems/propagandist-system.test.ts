@@ -96,4 +96,16 @@ describe('Propagandist actions', () => {
     state.cities.enemy = { ...state.cities.enemy, position: { q: 3, r: 0 } };
     expect(usePropagandistAction(state, 'propagandist', 'undermine', 'enemy')).toMatchObject({ ok: false, reason: 'out-of-range', state });
   });
+
+  it('reaches an enemy city just across the seam of a wrapping map', () => {
+    const state = stateWithCities();
+    state.map = { ...state.map, wrapsHorizontally: true };
+    const last = state.map.width - 1;
+    state.cities.enemy = { ...state.cities.enemy, position: { q: last, r: 0 } };
+    state.cities.enemy.spyUnrestBonus = 0;
+
+    const result = usePropagandistAction(state, 'propagandist', 'undermine', 'enemy');
+
+    expect(result).toMatchObject({ ok: true });
+  });
 });

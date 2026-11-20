@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import type { GameState } from '@/core/types';
 import {
   canInspectTileOwnerForViewer,
@@ -105,6 +106,25 @@ function makeState(): GameState {
 }
 
 describe('viewer intel', () => {
+  it('an undetected submarine cannot identify an unmet rival or establish bilateral contact', () => {
+    const state = makeState();
+    const unit = state.units['rival-unit'];
+    unit.type = 'submarine';
+    state.civilizations.player.visibility.tiles['3,3'] = 'visible';
+    const contact = (s: GameState) => {
+      const listed = shouldListMajorCivForViewer(s, 'player', 'rival');
+      const events = syncCivilizationContactsFromVisibility(s, 'player');
+      return { listed, events, remembered: s.civilizations.player.knownCivilizations ?? [] };
+    };
+    const absent = structuredClone(state);
+    delete absent.units[unit.id];
+    absent.civilizations.rival.units = [];
+    expect(contact(structuredClone(state))).toEqual(contact(absent));
+    unit.revealedThisTurn = true;
+    expect(contact(state)).toEqual({
+      listed: true, events: [{ civA: 'player', civB: 'rival' }], remembered: ['rival'],
+    });
+  });
   it('does not list or inspect rivals known only through stale fogged ownership', () => {
     const state = makeState();
     state.civilizations.player.visibility.tiles['2,2'] = 'fog';

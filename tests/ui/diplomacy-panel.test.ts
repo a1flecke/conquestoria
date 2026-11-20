@@ -1524,3 +1524,27 @@ describe('#989 rivalry through the shared diplomacy panel viewer-safety harness'
     });
   });
 });
+
+describe('diplomacy-panel border tension', () => {
+  function stateWithWarriorNearOutsiderCity(): { container: HTMLElement; state: GameState } {
+    const fixture = makeDiplomacyFixture({ includeThirdCiv: true });
+    const unit = createUnit('warrior', 'player', { q: 5, r: 0 }, fixture.state.idCounters);
+    fixture.state.units[unit.id] = unit;
+    fixture.state.civilizations.player.units.push(unit.id);
+    fixture.state.civilizations.player.knownCivilizations = ['outsider'];
+    return fixture;
+  }
+
+  it('tells the player their troops near a rival city are souring the rival', () => {
+    const { container, state } = stateWithWarriorNearOutsiderCity();
+    state.civilizations.player.visibility.tiles['6,0'] = 'fog';
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+    expect(panel.innerHTML).toContain('Your troops near their cities are souring their opinion of you.');
+  });
+
+  it('says nothing about a rival city the player has not found', () => {
+    const { container, state } = stateWithWarriorNearOutsiderCity();
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+    expect(panel.innerHTML).not.toContain('souring');
+  });
+});

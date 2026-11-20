@@ -6,6 +6,7 @@ import { foundCityInState } from '@/systems/city-founding-system';
 import { foundCity } from '@/systems/city-system';
 import { canFoundCityAt, cityDistance } from '@/systems/city-territory-system';
 import { hexKey } from '@/systems/hex-utils';
+import { tagLandmassRegions } from '@/systems/landmass-tagger';
 
 function getSettlerId(state: GameState, civId: string): string {
   const settlerId = state.civilizations[civId].units
@@ -248,5 +249,45 @@ describe('foundCityInState — colonial-charter founding production bonus', () =
 
     const secondResult = foundCityInState(firstResult.state, 'second-settler', new EventBus());
     expect(secondResult.state.cities[secondResult.cityId].productionProgress).toBe(0);
+  });
+
+  // One continent crossing the horizontal seam: an ocean channel down the middle of the map leaves only the seam
+  // joining the left and right edges. The real tagger decides the regions, so a seam-blind tagger fails this.
+  function setUpSeamContinent(seed: string, wrapsHorizontally: boolean) {
+    const state = createNewGame(undefined, seed, 'small');
+    const civId = 'player';
+    const { width } = state.map;
+    const channel = Math.floor(width / 2);
+    for (const tile of Object.values(state.map.tiles)) {
+      tile.terrain = Math.abs(tile.coord.q - channel) <= 1 ? 'ocean' : 'grassland';
+      tile.wonder = null;
+      tile.regionKey = undefined;
+    }
+    state.map.wrapsHorizontally = wrapsHorizontally;
+    state.map.tiles = tagLandmassRegions(state.map);
+
+    const settlerId = getSettlerId(state, civId);
+    state.units[settlerId].position = { q: width - 3, r: 5 };
+    const existing = foundCity(civId, { q: 2, r: 5 }, state.map, state.idCounters);
+    state.cities[existing.id] = existing;
+    state.civilizations[civId].cities = [existing.id];
+    state.civilizations[civId].techState.completed.push('colonial-charter');
+    return { state, settlerId };
+  }
+
+  it('does not grant the bonus founding across the seam on the home continent', () => {
+    const { state, settlerId } = setUpSeamContinent('founding-colonial-seam', true);
+
+    const result = foundCityInState(state, settlerId, new EventBus());
+
+    expect(result.state.cities[result.cityId].productionProgress).toBe(0);
+  });
+
+  it('control: without the wrap the far edge is a different landmass and earns the bonus', () => {
+    const { state, settlerId } = setUpSeamContinent('founding-colonial-seam-flat', false);
+
+    const result = foundCityInState(state, settlerId, new EventBus());
+
+    expect(result.state.cities[result.cityId].productionProgress).toBe(5);
   });
 });

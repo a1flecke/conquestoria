@@ -3122,6 +3122,28 @@ describe('renderSelectedUnitInfo — Cyber Unit intent launcher', () => {
     rally?.click();
     expect(onUsePropagandistAction).toHaveBeenCalledWith('propagandist', 'rally', 'own');
   });
+
+  it('offers Rally for a friendly city just across the wrapping edge', () => {
+    const state = createNewGame(undefined, 'propagandist-rally-seam', 'small');
+    expect(state.map.wrapsHorizontally).toBe(true);
+    state.currentPlayer = 'player';
+    state.units = {
+      propagandist: { ...createUnit('propagandist', 'player', { q: state.map.width - 1, r: 1 }, state.idCounters), id: 'propagandist' },
+    };
+    state.cities = {
+      own: {
+        id: 'own', name: 'Own', owner: 'player', position: { q: 0, r: 1 }, population: 2, food: 0, foodNeeded: 10,
+        buildings: [], productionQueue: [], productionProgress: 0, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village', unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 10, idleProduction: null,
+      },
+    };
+    state.civilizations.player.units = ['propagandist'];
+    state.civilizations.player.cities = ['own'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'propagandist', { onUsePropagandistAction: vi.fn() });
+
+    expect(findButtons(container).find(button => button.textContent === 'Rally Own')).toBeDefined();
+  });
 });
 
 function makeParatrooperState(overrides: { hasActed?: boolean } = {}): GameState {

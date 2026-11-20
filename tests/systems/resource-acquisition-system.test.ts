@@ -742,6 +742,25 @@ describe('performEstablishOutpost', () => {
     expect(canEstablishOutpost(state, unitId)).toBe(false);
   });
 
+  it('is unavailable on a resource tile inside another civ\'s territory, and the executor refuses it too', () => {
+    const { state, unitId } = makeStateWithExpedition({
+      resource: 'iron',
+      improvement: 'none',
+      tileInCityTerritory: false,
+      civTechs: ['bronze-working'],
+    });
+    const key = hexKey({ q: 5, r: 5 });
+    const rivalState = {
+      ...state,
+      map: { ...state.map, tiles: { ...state.map.tiles, [key]: { ...state.map.tiles[key], owner: 'ai-1' } } },
+    } as GameState;
+    expect(canEstablishOutpost(rivalState, unitId)).toBe(false);
+    const after = performEstablishOutpost(rivalState, unitId);
+    expect(after.map.tiles[key].owner).toBe('ai-1');
+    expect(after.map.tiles[key].improvement).toBe('none');
+    expect(after.units[unitId]).toBeDefined();
+  });
+
   it('returns a new state object (immutability)', () => {
     const { state, unitId } = makeStateWithExpedition({
       resource: 'iron',

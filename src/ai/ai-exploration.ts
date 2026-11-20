@@ -11,7 +11,7 @@ import type { Civilization, GameState, HexCoord, Unit } from '@/core/types';
 import type { PreparedMajorCivPlan } from '@/ai/ai-prepared-turn';
 import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
 import type { AutoExploreLeash } from '@/systems/auto-explore-system';
-import { hexDistance } from '@/systems/hex-utils';
+import { mapDistance } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 /**
@@ -87,7 +87,7 @@ export function computeAdministrativeExploreLeash(state: GameState, unitId: stri
   for (const cityId of civ.cities) {
     const city = state.cities[cityId];
     if (!city) continue;
-    const distance = hexDistance(unit.position, city.position);
+    const distance = mapDistance(state.map, unit.position, city.position);
     if (distance < anchorDistance) {
       anchorDistance = distance;
       anchor = city.position;

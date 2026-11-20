@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 import { isAtWar } from './diplomacy-queries';
 import { isAutonomyActivated } from './network-plan-system';
 import { createSimulationRng } from './simulation-rng';
@@ -55,7 +55,7 @@ export function processCyberDrain(
         && u.owner !== civId
         && !isAutonomyActivated(state, u.owner)
         && isAtWar(civ.diplomacy, u.owner)
-        && hexDistance(u.position, city.position) === 1)
+        && mapDistance(state.map, u.position, city.position) === 1)
       .sort((a, b) => a.id.localeCompare(b.id));
     if (enemyCyberUnits.length === 0) continue;
 

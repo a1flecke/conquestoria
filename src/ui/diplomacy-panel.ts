@@ -3,6 +3,9 @@ import { createTributeControls } from '@/ui/tribute-controls';
 import type { GameState } from '@/core/types';
 import type { DiplomaticAction, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types/diplomacy';
 import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
+import { hasBorderTension } from '@/systems/border-tension';
+import { hasExploredCoord } from '@/systems/discovery-system';
+import { isVisible } from '@/systems/fog-of-war';
 import { getPendingPeaceRequestForPair, getPendingTreatyProposalsFor, PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
 import { canReabsorbBreakaway, getAvailableDiplomaticActions } from '@/systems/diplomacy-system';
 import { isVassalBlocked } from '@/systems/diplomacy-vassal-rules';
@@ -148,6 +151,8 @@ interface CivRowData {
   incomingTreatyProposals: Array<{ id: string; label: string; expiresInTurns: number }>;
   atWar: boolean;
   warSinceText: string | null;
+  /** Troops near cities souring opinion, either way; only units and cities this viewer can see or has found. */
+  borderTensionText: string | null;
   /** #497: "Formerly a city-state" -- only for a viewer that had discovered the city-state (`graduatedFrom.knownBy`). */
   formerCityStateText: string | null;
   worldPressureStatusText: string | null;
@@ -318,6 +323,22 @@ export function createDiplomacyPanel(
         : '⚔ At war';
     }
 
+    let borderTensionText: string | null = null;
+    if (!atWar) {
+      const viewer = state.currentPlayer;
+      const viewerVisibility = state.civilizations[viewer]?.visibility;
+      const ourTroopsNearThem = hasBorderTension(state, civId, viewer, {
+        cityKnown: city => hasExploredCoord(state, viewer, city.position),
+      });
+      const theirTroopsNearUs = !!viewerVisibility && hasBorderTension(state, viewer, civId, {
+        unitKnown: unit => isVisible(viewerVisibility, unit.position),
+      });
+      const notes: string[] = [];
+      if (ourTroopsNearThem) notes.push('Your troops near their cities are souring their opinion of you.');
+      if (theirTroopsNearUs) notes.push('Their troops near your cities are souring your opinion of them.');
+      borderTensionText = notes.length > 0 ? `⚠ ${notes.join(' ')}` : null;
+    }
+
     // #554: don't offer the generic treaty action again while a proposal for
     // that exact type already sits pending between the viewer and this civ
     // (either direction) -- mirrors the existing request_peace suppression
@@ -412,6 +433,7 @@ export function createDiplomacyPanel(
       incomingTreatyProposals,
       atWar,
       warSinceText,
+      borderTensionText,
       formerCityStateText: civ.graduatedFrom?.knownBy?.includes(state.currentPlayer)
         ? `Formerly a city-state, independent since turn ${civ.graduatedFrom.turn}.`
         : null,
@@ -546,6 +568,9 @@ export function createDiplomacyPanel(
         </div>`;
     });
 
+    const borderTensionHtml = row.borderTensionText
+      ? `<div style="font-size:11px;color:#e8c170;margin-bottom:8px;" data-text="border-tension-${row.civIdx}"></div>`
+      : '';
     const warSinceHtml = row.warSinceText
       ? `<div style="font-size:11px;color:#d94a4a;margin-bottom:8px;" data-text="war-since-${row.civIdx}"></div>`
       : '';
@@ -624,6 +649,7 @@ export function createDiplomacyPanel(
             <div style="font-weight:bold;font-size:14px;" data-text="civ-name-${row.civIdx}"></div>
             <div style="font-size:11px;opacity:0.6;"><span data-text="civ-bonus-${row.civIdx}"></span> · <span data-text="civ-status-${row.civIdx}"></span></div>
             ${warSinceHtml}
+            ${borderTensionHtml}
             ${formerCityStateHtml}
             ${worldPressureHtml}
             ${worldPressureDetailHtml}
@@ -736,6 +762,9 @@ export function createDiplomacyPanel(
     });
     if (row.warSinceText) {
       setText(`war-since-${row.civIdx}`, row.warSinceText);
+    }
+    if (row.borderTensionText) {
+      setText(`border-tension-${row.civIdx}`, row.borderTensionText);
     }
     if (row.formerCityStateText) {
       setText(`former-city-state-${row.civIdx}`, row.formerCityStateText);

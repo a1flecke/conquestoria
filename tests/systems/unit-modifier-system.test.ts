@@ -617,8 +617,9 @@ describe('getHealingBonus — stacking order and conditions', () => {
 });
 
 describe('isWithinRangeOfTelemedicineHub', () => {
-  function makeState(hubBuildings: string[], distance: number): GameState {
+  function makeState(hubBuildings: string[], distance: number, wraps = false): GameState {
     return {
+      map: { width: 20, height: 20, wrapsHorizontally: wraps, tiles: {}, rivers: [] },
       cities: {
         'city-1': {
           id: 'city-1', owner: 'p1', position: { q: 0, r: 0 }, buildings: hubBuildings,
@@ -641,6 +642,11 @@ describe('isWithinRangeOfTelemedicineHub', () => {
   it('false when out of range (negative test)', () => {
     const state = makeState(['telemedicine_hub'], 2);
     expect(isWithinRangeOfTelemedicineHub(state, 'p1', { q: 10, r: 10 }, 3)).toBe(false);
+  });
+
+  it('reaches a unit just across the seam of a wrapping map', () => {
+    expect(isWithinRangeOfTelemedicineHub(makeState(['telemedicine_hub'], 2, true), 'p1', { q: 19, r: 0 }, 3)).toBe(true);
+    expect(isWithinRangeOfTelemedicineHub(makeState(['telemedicine_hub'], 2, false), 'p1', { q: 19, r: 0 }, 3)).toBe(false);
   });
 });
 

@@ -117,7 +117,7 @@ describe('unit spawn placement', () => {
   // #1724: city-generated units prefer the centre, fall back to a legal neighbour when a
   // foreign occupant makes the centre illegal, and keep the port exception for hulls.
   it('places a city unit at the centre, falls back to a neighbour, and preserves the port exception', () => {
-    const state = makeState({ '0,0': 'grassland', '1,0': 'grassland' });
+    const state = makeState({ '0,0': 'grassland', '1,0': 'grassland', '0,1': 'coast' });
     state.cities = { c: { id: 'c', owner: 'p1', position: { q: 0, r: 0 } } } as unknown as GameState['cities'];
     expect(findCityUnitSpawnTile(state, warrior, { q: 0, r: 0 })).toEqual({ q: 0, r: 0 });
 
@@ -136,6 +136,7 @@ describe('unit spawn placement', () => {
 
     // No legal centre or neighbour: the caller must report no placement, not force a stack.
     state.map.tiles['1,0'].terrain = 'ocean';
+    state.map.tiles['0,1'].terrain = 'ocean';
     expect(findCityUnitSpawnTile(state, warrior, { q: 0, r: 0 })).toBeNull();
     expect(findCityUnitSpawnTile(state, { ...warrior, unitType: 'galley' }, { q: 0, r: 0 })).toBeNull();
   });

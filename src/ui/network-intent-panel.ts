@@ -2,7 +2,7 @@ import type { NetworkPlanDefinitionId } from '@/core/autonomy-state';
 import type { GameState } from '@/core/types';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { isAtWar } from '@/systems/diplomacy-queries';
-import { hexDistance } from '@/systems/hex-utils';
+import { mapDistance } from '@/systems/hex-utils';
 import { NETWORK_PLAN_DEFINITIONS } from '@/systems/network-plan-definitions';
 import { createGameButton } from '@/ui/ui-kit';
 
@@ -45,7 +45,7 @@ export function getNetworkIntentPanelModel(
   const harden = NETWORK_PLAN_DEFINITIONS.harden;
   const exploit = NETWORK_PLAN_DEFINITIONS.exploit;
   const candidates = Object.values(state.cities)
-    .filter(city => source && hexDistance(source.position, city.position) <= Math.max(harden.range, exploit.range))
+    .filter(city => source && mapDistance(state.map, source.position, city.position) <= Math.max(harden.range, exploit.range))
     .sort((left, right) => left.id.localeCompare(right.id));
   const hardenTargets = candidates
     .filter(city => city.owner === ownerCivId)

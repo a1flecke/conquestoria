@@ -54,6 +54,7 @@ tasks (output is saved to .verification/logs/<task>.log; the last 60 lines are p
   maintainability-check     node scripts/maintainability-audit.mjs --check (read-only drift check)
   maintainability-report    node scripts/maintainability-audit.mjs --report (rewrites docs/maintainability-audit-report.md)
   maintainability-baseline  node scripts/maintainability-audit.mjs --baseline (rewrites docs/maintainability-audit-baseline.json)
+  src-rules          bash scripts/check-src-rule-violations.sh --all (full-tree source rule sweep)
   log <task> [N]    last N lines (default 200, max 5000) of that task's saved log
 USAGE
 }
@@ -65,7 +66,7 @@ deny() {
 
 is_task() {
   case "$1" in
-    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-playability-status|ai-long|ai-long-status|web-smoke|web-smoke-cross-engine|docs-lifecycle|verify-impact|yarn-parity|known-gap-owners|known-gap-owners-refresh|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
+    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-playability-status|ai-long|ai-long-status|web-smoke|web-smoke-cross-engine|docs-lifecycle|verify-impact|yarn-parity|known-gap-owners|known-gap-owners-refresh|maintainability-check|maintainability-report|maintainability-baseline|src-rules) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -139,6 +140,7 @@ execute() {
     maintainability-check) bash "$MISE" node scripts/maintainability-audit.mjs --check ;;
     maintainability-report) bash "$MISE" node scripts/maintainability-audit.mjs --report ;;
     maintainability-baseline) bash "$MISE" node scripts/maintainability-audit.mjs --baseline ;;
+    src-rules) bash "$MISE" bash scripts/check-src-rule-violations.sh --all ;;
   esac
 }
 

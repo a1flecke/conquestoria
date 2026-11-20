@@ -2,7 +2,7 @@ import type { NetworkPlanDefinitionId } from '@/core/autonomy-state';
 import type { GameState } from '@/core/types';
 import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { createRng } from '@/systems/map-generator';
-import { hexDistance } from '@/systems/hex-utils';
+import { mapDistance } from '@/systems/hex-utils';
 import { isMilitaryUnitType } from '@/systems/unit-modifier-definitions';
 import {
   assignNetworkPlan,
@@ -52,7 +52,7 @@ export function getNetworkPlanCandidates(state: GameState, civId: string): reado
       .filter((unit): unit is NonNullable<typeof unit> => Boolean(unit)
         && unit.id !== controller.id
         && isMilitaryUnitType(unit.type)
-        && hexDistance(controller.position, unit.position) <= 2)
+        && mapDistance(state.map, controller.position, unit.position) <= 2)
       .sort((left, right) => left.id.localeCompare(right.id))
       .slice(0, 3)
       .map(unit => unit.id);

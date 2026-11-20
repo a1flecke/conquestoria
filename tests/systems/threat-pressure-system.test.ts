@@ -132,6 +132,23 @@ describe('tagLandmassRegions', () => {
     expect(tagged['1,0'].regionKey).toBeUndefined();
   });
 
+  it('tags land joined only by the horizontal seam as one landmass on a wrapping map', () => {
+    const tiles: Record<string, HexTile> = {};
+    for (let r = 0; r < 3; r++) {
+      for (let q = 0; q < 10; q++) {
+        tiles[`${q},${r}`] = makeTile(q, r, q >= 4 && q <= 5 ? 'ocean' : 'grassland');
+      }
+    }
+    const flat: GameMap = { width: 10, height: 3, tiles, wrapsHorizontally: false, rivers: [] };
+    const wrapping: GameMap = { ...flat, wrapsHorizontally: true };
+
+    const wrapped = tagLandmassRegions(wrapping);
+    expect(wrapped['0,1'].regionKey).toBe(wrapped['9,1'].regionKey);
+    expect(wrapped['0,1'].regionKey).toBe(wrapped['3,1'].regionKey);
+    const unwrapped = tagLandmassRegions(flat);
+    expect(unwrapped['0,1'].regionKey).not.toBe(unwrapped['9,1'].regionKey);
+  });
+
   it('joins separately tagged land only when the horizontal seam connects it', () => {
     const tiles: Record<string, HexTile> = {
       '0,0': { ...makeTile(0, 0, 'grassland'), regionKey: 'island-0' },

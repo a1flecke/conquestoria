@@ -712,3 +712,24 @@ describe('amphibious combat context', () => {
     ]));
   });
 });
+
+describe('counter-attack range across a wrapping seam', () => {
+  function grassMap(width: number, wraps: boolean): GameMap {
+    const tiles: GameMap['tiles'] = {};
+    for (let q = 0; q < width; q++) for (let r = 0; r < 4; r++) {
+      tiles[hexKey({ q, r })] = { coord: { q, r }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', improvementTurnsLeft: 0, owner: null, hasRiver: false, wonder: null } as GameMap['tiles'][string];
+    }
+    return { width, height: 4, tiles, wrapsHorizontally: wraps, rivers: [] };
+  }
+
+  it('a melee defender adjacent through the seam strikes back exactly like any adjacent defender', () => {
+    const map = grassMap(20, true);
+    const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 1 }, mkC()), id: 'a' };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 19, r: 1 }, mkC()), id: 'd' };
+    const seam = resolveCombat(attacker, defender, map, 12345);
+    const plain = resolveCombat({ ...attacker, position: { q: 5, r: 1 } }, { ...defender, position: { q: 6, r: 1 } }, map, 12345);
+    expect(plain.attackerDamage).toBeGreaterThan(0);
+    expect(seam.attackerDamage).toBe(plain.attackerDamage);
+    expect(seam.defenderDamage).toBe(plain.defenderDamage);
+  });
+});

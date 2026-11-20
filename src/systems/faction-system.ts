@@ -8,7 +8,7 @@ import type { EventBus } from '../core/event-bus';
 import { createRng } from './map-generator';
 import { createUnit } from './unit-lifecycle';
 import { REBEL_SPAWN_OFFSETS, filterLegalSpawnTiles, spawnNeighbours } from './unit-spawn-placement';
-import { hexDistance } from './hex-utils';
+import { mapDistance } from './hex-utils';
 import { createBreakawayFromCity } from './breakaway-system';
 import { getCivHappinessFromResources } from './resource-acquisition-system';
 import { resolveCivilizationEra } from './tech-definitions';
@@ -168,7 +168,7 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
     } else if (updated.unrestLevel === 2) {
       // Revolt: resolve when rebels nearby are defeated AND pressure drops or city garrisoned
       const nearbyRebels = Object.values(nextState.units).filter(
-        u => u.owner === 'rebels' && hexDistance(u.position, city.position) <= 3,
+        u => u.owner === 'rebels' && mapDistance(nextState.map, u.position, city.position) <= 3,
       );
       if (nearbyRebels.length === 0 && pressure <= UNREST_TRIGGER_PRESSURE) {
         updated = { ...updated, unrestLevel: 0, unrestTurns: 0 };
