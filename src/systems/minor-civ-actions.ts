@@ -22,6 +22,20 @@ export interface MinorCivActionResult {
   transitions: ChainTransition[];
 }
 
+/**
+ * A copy of the state with fresh objects for the named civilizations and city-states, so their fields can be
+ * replaced without touching the input. These actions run in the AI's round (gifts, city-state war and peace),
+ * and a whole-state `structuredClone` per call made the round's cloning grow with the number of entities.
+ * Callers replace fields (`civ.gold = …`, `civ.diplomacy = …`) and never mutate a nested object in place.
+ */
+function withWritable(state: GameState, civIds: readonly string[], minorCivIds: readonly string[]): GameState {
+  const civilizations = { ...state.civilizations };
+  for (const id of civIds) if (civilizations[id]) civilizations[id] = { ...civilizations[id] };
+  const minorCivs = { ...state.minorCivs };
+  for (const id of minorCivIds) if (minorCivs[id]) minorCivs[id] = { ...minorCivs[id] };
+  return { ...state, civilizations, minorCivs };
+}
+
 function validatePair(state: GameState, majorCivId: string, minorCivId: string): string | null {
   if (!state.civilizations[majorCivId]) return 'Civilization not found.';
   const minorCiv = state.minorCivs[minorCivId];
@@ -50,7 +64,7 @@ export function performMinorCivGift(
     return { ...result, ok: true };
   }
 
-  const nextState = structuredClone(state);
+  const nextState = withWritable(state, [majorCivId], [minorCivId]);
   nextState.civilizations[majorCivId].gold -= amount;
   const minorCiv = nextState.minorCivs[minorCivId];
   minorCiv.diplomacy = modifyRelationship(minorCiv.diplomacy, majorCivId, 10);
@@ -107,12 +121,12 @@ export function performMinorCivReparations(
     return { state, ok: false, reason: `Requires ${cost} gold.`, transitions: [] };
   }
 
-  const nextState = structuredClone(state);
+  const nextState = withWritable(state, [majorCivId], [minorCivId]);
   nextState.civilizations[majorCivId].gold -= cost;
   const nextMinor = nextState.minorCivs[minorCivId];
   const nextPressure = Math.max(0, grievance.pressure - REPARATIONS_PRESSURE_REDUCTION);
   nextMinor.diplomacy = modifyRelationship(nextMinor.diplomacy, majorCivId, REPARATIONS_RELATIONSHIP_REPAIR);
-  nextMinor.regionalGrievanceByCiv ??= {};
+  nextMinor.regionalGrievanceByCiv = { ...(nextMinor.regionalGrievanceByCiv ?? {}) };
   const reparationsCause = {
     type: 'reparations' as const,
     turn: nextState.turn,
@@ -148,7 +162,7 @@ export function setMinorCivWarState(
     return { state, ok: true, transitions: [] };
   }
 
-  const nextState = structuredClone(state);
+  const nextState = withWritable(state, [majorCivId, ...getActiveVassalIds(state, majorCivId)], [minorCivId]);
   const nextMajor = nextState.civilizations[majorCivId];
   const nextMinor = nextState.minorCivs[minorCivId];
   if (atWar) {
