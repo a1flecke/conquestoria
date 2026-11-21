@@ -1,5 +1,4 @@
 import type { EventBus } from '@/core/event-bus';
-import type { GameState, Unit } from '@/core/types';
 import { getCommercialPassagePermission } from '@/systems/commerce-permissions';
 import { hasDiscoveredCity, hasExploredCoord } from '@/systems/discovery-system';
 import { getRushBuyQuote } from '@/systems/economy-system';
@@ -11,6 +10,7 @@ import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
 import { getNavalRouteTripRounds } from '@/systems/trade-route-travel';
 import { FREIGHT_REPLAY as replay } from './scenario-steps/freight-replay';
+import type { ScenarioState } from './scenario-types';
 
 export type CapitalChoice = 'passage' | 'Harbor';
 
@@ -23,7 +23,7 @@ export interface CapitalOffer {
   occurrence?: number;
 }
 
-function openPassage(state: GameState): GameState {
+function openPassage(state: ScenarioState): ScenarioState {
   const key = hexKey(replay.passage);
   const tile = state.map.tiles[key]!;
   return {
@@ -32,7 +32,7 @@ function openPassage(state: GameState): GameState {
   };
 }
 
-function knownTrip(state: GameState, trader: Unit): number | undefined {
+function knownTrip(state: ScenarioState, trader: ScenarioState['units'][string]): number | undefined {
   const home = state.cities[replay.west];
   const atHome = { ...trader, position: home.position };
   // An unexplored shortcut cannot influence even the availability of a forecast.
@@ -43,7 +43,7 @@ function knownTrip(state: GameState, trader: Unit): number | undefined {
   return rounds ? rounds.outbound + rounds.inbound : undefined;
 }
 
-export function getCapitalComparison(state: GameState, viewer: string) {
+export function getCapitalComparison(state: ScenarioState, viewer: string) {
   const viewerCiv = state.civilizations[viewer];
   const west = state.cities[replay.west];
   const north = state.cities[replay.north];
@@ -85,17 +85,26 @@ export function getCapitalComparison(state: GameState, viewer: string) {
   };
 }
 
-export function applyCapitalOffer(state: GameState, viewer: string, expected: CapitalOffer, bus: EventBus): GameState | undefined {
+type CapitalResult = { ok: true; state: ScenarioState }
+  | { ok: false; reason: 'terms-changed' | 'purchase-refused'; message: string };
+
+export function applyCapitalOffer(state: ScenarioState, viewer: string, expected: CapitalOffer, bus: EventBus): CapitalResult {
   const comparison = getCapitalComparison(state, viewer);
   const current = expected.choice === 'Harbor' ? comparison?.harbor : comparison?.passage;
   if (!current || current.round !== expected.round || current.cost !== expected.cost
     || current.currentRounds !== expected.currentRounds || current.openRounds !== expected.openRounds
-    || current.occurrence !== expected.occurrence) return undefined;
+    || current.occurrence !== expected.occurrence) {
+    return { ok: false, reason: 'terms-changed', message: 'Terms changed. Review the current offer.' };
+  }
   if (expected.choice === 'Harbor') {
     const purchase = rushBuyActiveProduction(state, viewer, replay.north, bus, { expectedOccurrence: current.occurrence });
-    return purchase.success ? purchase.state : undefined;
+    return purchase.success ? { ok: true, state: purchase.state }
+      : { ok: false, reason: 'purchase-refused', message: purchase.message };
   }
   const opened = openPassage(state);
   const civ = opened.civilizations[viewer];
-  return { ...opened, civilizations: { ...opened.civilizations, [viewer]: { ...civ, gold: civ.gold - current.cost } } };
+  return {
+    ok: true,
+    state: { ...opened, civilizations: { ...opened.civilizations, [viewer]: { ...civ, gold: civ.gold - current.cost } } },
+  };
 }

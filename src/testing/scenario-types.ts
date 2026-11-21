@@ -1,12 +1,13 @@
 /**
  * Canonical scenario representation (#846). A ScenarioDefinition never carries
- * raw partial GameState -- every step maps 1:1 to a canonical system call in
- * scenario-builder.ts, so a scenario can never bypass the same construction
- * rules real gameplay uses. See docs/superpowers/specs/
+ * raw partial GameState. The scenario builder and its steps use the same
+ * construction rules as gameplay. See docs/superpowers/specs/
  * 2026-08-16-issue-846-scenario-infrastructure-design.md for the full design.
  */
-import type { City, HexCoord, HexTile, HotSeatConfig, SoloSetupConfig, Unit, UnitType } from '@/core/types';
+import type { City, GameState, HexCoord, HexTile, HotSeatConfig, SoloSetupConfig, Unit, UnitType } from '@/core/types';
 import type { TreatyType } from '@/core/types/diplomacy';
+
+export type ScenarioState = GameState;
 
 export class ScenarioError extends Error {
   constructor(message: string) {

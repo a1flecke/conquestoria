@@ -1,5 +1,5 @@
-import type { Civilization, GameMap, GameState, HexCoord } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
+import type { HexCoord } from '@/core/types/hex';
 import { hexKey } from '@/systems/hex-utils';
 import { enqueueCityProduction } from '@/systems/planning-system';
 import { getProductionCostForCivItem } from '@/systems/production-cost-context';
@@ -8,7 +8,7 @@ import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
 import { establishTradeRoute } from '@/systems/trade-route-contract';
 import { executeUnitMove } from '@/systems/unit-movement-system';
-import { ScenarioError } from '@/testing/scenario-types';
+import { ScenarioError, type ScenarioState } from '@/testing/scenario-types';
 import { applyCityStep } from './city-step';
 import { applyUnitStep } from './unit-step';
 
@@ -33,6 +33,7 @@ const SUPPLIER_POSITION = { q: 7, r: 5 };
 const OUTPOST = { q: 0, r: 9 };
 const COAL = resourceGoodId('coal');
 const IRON = resourceGoodId('iron');
+type GameMap = ScenarioState['map'];
 
 function createMap(shortDetour: boolean): GameMap {
   const rows = [
@@ -60,7 +61,7 @@ function createMap(shortDetour: boolean): GameMap {
   return { width: rows[0].length, height: rows.length, tiles, wrapsHorizontally: false, rivers: [] };
 }
 
-function addTrader(state: GameState, id: string, position: HexCoord, home: string, good: typeof COAL): GameState {
+function addTrader(state: ScenarioState, id: string, position: HexCoord, home: string, good: typeof COAL): ScenarioState {
   const ready = applyUnitStep(state, { kind: 'unit', civId: BUYER, position, type: 'naval_trader', overrides: { id } });
   const route = establishTradeRoute(ready, {
     actingCivId: BUYER, caravanUnitId: id, originCityId: home, toCityId: SUPPLIER,
@@ -71,9 +72,9 @@ function addTrader(state: GameState, id: string, position: HexCoord, home: strin
 }
 
 /** The authored strait starts with ordinary live production, cargo and Expedition state. */
-export function configureFreightReplay(initial: GameState, shortDetour: boolean): GameState {
+export function configureFreightReplay(initial: ScenarioState, shortDetour: boolean): ScenarioState {
   const map = createMap(shortDetour);
-  const civilizations = Object.fromEntries(Object.entries(initial.civilizations).map(([id, civ]): [string, Civilization] => {
+  const civilizations = Object.fromEntries(Object.entries(initial.civilizations).map(([id, civ]): [string, ScenarioState['civilizations'][string]] => {
     const buyer = id === BUYER;
     const partner = buyer ? SELLER : BUYER;
     return [id, {
@@ -93,7 +94,7 @@ export function configureFreightReplay(initial: GameState, shortDetour: boolean)
       },
     }];
   }));
-  let state: GameState = {
+  let state: ScenarioState = {
     ...initial, turn: 10, map, civilizations, units: {}, tribalVillages: {}, minorCivs: {}, barbarianCamps: {},
     beasts: { mode: 'off', lairs: {}, sightingsByCiv: {} },
     tutorial: { ...initial.tutorial, active: false },
