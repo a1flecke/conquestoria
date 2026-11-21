@@ -12,13 +12,21 @@ import { findPath } from '@/systems/unit-pathfinding';
 import { hexKey, mapNeighbors, mapDistance } from '@/systems/hex-utils';
 import { getHerdRoutePresentationForViewer } from '@/systems/stampede-route-system';
 import { resolveUnitMoveIntent } from '@/systems/unit-movement-validation';
+import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 
-export interface CrisisDispatchCandidate {
-  kind: 'pirate-fleet' | 'hunt-foe' | 'stampede' | 'rogue-elephant-host';
-  sourceId: string;        // fleetId or crisisId — used for expiry checks
-  targetUnitId: string;    // the pirate ship / hunt foe unit
-  score: number;           // base score × profile.crisisDispatchWeight
-}
+export type CrisisDispatchCandidate =
+  | {
+    kind: 'pirate-fleet' | 'hunt-foe' | 'stampede' | 'rogue-elephant-host';
+    sourceId: string;        // fleetId, forceId or crisisId — used for expiry checks
+    targetUnitId: string;    // the pirate ship / herd / hunt foe unit
+    score: number;           // base score × profile.crisisDispatchWeight
+  }
+  | {
+    kind: 'hunt-camp';       // a bandit hunt's foe is the camp it raised
+    sourceId: string;        // crisisId
+    targetCampId: string;
+    score: number;
+  };
 
 // 100 matches the ceiling of AICityThreat.captureRisk (ai-plan-portfolio.ts), the
 // existing defend-city candidate magnitude this competes against for primaryPlan.
@@ -106,6 +114,39 @@ export function getCrisisDispatchCandidates(state: GameState, civId: string): Cr
       if (!unit || !isVisible(civ.visibility, unit.position)) continue;
       candidates.push({ kind: 'rogue-elephant-host', sourceId: hostForce.id, targetUnitId: unitId,
         score: PIRATE_FLEET_DISPATCH_BASE_SCORE * profile.crisisDispatchWeight });
+    }
+  }
+  candidates.push(...getHuntDispatchCandidates(state, civId, profile.crisisDispatchWeight));
+  return candidates;
+}
+
+/**
+ * A hunt crisis ends only when its foe dies (`tickHuntCrisis`), so a civ that never goes after the foe
+ * carries the crisis for the rest of the game. One candidate per hunt aimed at this civ whose foe has
+ * spawned and is visible now: the beast or pirate ship as a unit target, a bandit hunt's camp as a camp.
+ */
+function getHuntDispatchCandidates(state: GameState, civId: string, weight: number): CrisisDispatchCandidate[] {
+  const visibility = state.civilizations[civId]?.visibility;
+  if (!visibility) return [];
+  const candidates: CrisisDispatchCandidate[] = [];
+  const crises = Object.values(state.activeCrises ?? {})
+    .filter(crisis => crisis.archetype === 'hunt' && crisis.targetCivId === civId && crisis.huntEntityId)
+    .sort((a, b) => a.id.localeCompare(b.id));
+  for (const crisis of crises) {
+    const entityId = crisis.huntEntityId!;
+    const spawnKind = getCrisisFlavor(crisis.flavorId)?.hunt?.spawnKind;
+    const score = PIRATE_FLEET_DISPATCH_BASE_SCORE * weight;
+    if (spawnKind === 'barbarian-camp') {
+      const camp = state.barbarianCamps?.[entityId];
+      if (camp && isVisible(visibility, camp.position)) {
+        candidates.push({ kind: 'hunt-camp', sourceId: crisis.id, targetCampId: camp.id, score });
+      }
+      continue;
+    }
+    const unitId = spawnKind === 'pirate' ? state.pirateFleets?.[entityId]?.unitId : spawnKind === 'beast' ? entityId : undefined;
+    const unit = unitId ? state.units[unitId] : undefined;
+    if (unit && isVisible(visibility, unit.position)) {
+      candidates.push({ kind: 'hunt-foe', sourceId: crisis.id, targetUnitId: unit.id, score });
     }
   }
   return candidates;

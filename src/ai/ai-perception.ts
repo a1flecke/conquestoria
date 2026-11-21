@@ -20,7 +20,7 @@ import {
   type PerceivedUnit,
   type PerceptionConfidence,
 } from '@/systems/viewer-military-intel';
-import { isAIHostileOwner } from './ai-hostility';
+import { getOwnHuntFoeUnitIds, isAIHostileOwner } from './ai-hostility';
 
 /** #1334: the unit/city collection and its confidence vocabulary live in `src/systems/viewer-military-intel.ts`. */
 export type AIPerceptionConfidence = PerceptionConfidence;
@@ -85,10 +85,14 @@ export function buildMajorCivPerception(
 
   const contacted = getContactedCivIds(state, actorId);
   const contactedSet = new Set(contacted);
+  // The foe of a hunt aimed at this civ may be a beast the AI otherwise ignores; it must still be seen,
+  // or a plan against it could never confirm its target.
+  const huntFoeOwners = new Set([...getOwnHuntFoeUnitIds(state, actorId)].map(id => state.units[id]?.owner).filter(Boolean));
   const relevantOwner = (ownerId: string) =>
     contactedSet.has(ownerId)
     || actor.diplomacy.atWarWith.includes(ownerId)
-    || isAIHostileOwner(state, actorId, ownerId);
+    || isAIHostileOwner(state, actorId, ownerId)
+    || huntFoeOwners.has(ownerId);
   const ownCities = actor.cities
     .map(id => state.cities[id])
     .filter((city): city is City => city?.owner === actorId)
