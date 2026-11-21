@@ -202,3 +202,40 @@ it('clears a vassal city-state alliance and quest when it joins its overlord war
   expect(result.state.minorCivs[minorCivId].questCooldownUntilByCiv[vassalId]).toBe(state.turn + 3);
   expect(minorCiv.chainStatusByCiv[vassalId].status).toBe('allied');
 });
+
+// These actions run inside every AI round (gifts, city-state war and peace). Each used to copy the whole game
+// state with structuredClone, which made the round's cloning grow with the number of entities. They now copy
+// only what they write, and must still never touch their input.
+describe('minor-civ actions leave their input untouched', () => {
+  it('a gift', () => {
+    const { state, minorCivId } = actionState('untouched-gift');
+    const before = structuredClone(state);
+    const result = performMinorCivGift(state, 'player', minorCivId);
+    expect(result.ok).toBe(true);
+    expect(state).toEqual(before);
+    expect(result.state.units).toBe(state.units);
+  });
+
+  it('reparations', () => {
+    const { state, minorCivId, minorCiv } = actionState('untouched-reparations');
+    minorCiv.regionalGrievanceByCiv = {
+      player: { targetCivId: 'player', pressure: 50, status: 'mobilizing', lastUpdatedTurn: 1, causes: [] },
+    } as typeof minorCiv.regionalGrievanceByCiv;
+    const before = structuredClone(state);
+    const result = performMinorCivReparations(state, 'player', minorCivId);
+    expect(result.ok).toBe(true);
+    expect(state).toEqual(before);
+  });
+
+  it('war, then peace', () => {
+    const { state, minorCivId } = actionState('untouched-war');
+    const before = structuredClone(state);
+    const atWar = setMinorCivWarState(state, 'player', minorCivId, true, new EventBus());
+    expect(atWar.ok).toBe(true);
+    expect(state).toEqual(before);
+    const atWarBefore = structuredClone(atWar.state);
+    const peace = setMinorCivWarState(atWar.state, 'player', minorCivId, false, new EventBus());
+    expect(peace.ok).toBe(true);
+    expect(atWar.state).toEqual(atWarBefore);
+  });
+});
