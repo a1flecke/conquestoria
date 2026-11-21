@@ -1,6 +1,40 @@
 import { expect, test } from '@playwright/test';
 import { auditWithAxe, findPointerOnlyControls, focusIsWithin } from './helpers/a11y-audit';
+import { clickVisibleHex } from './helpers/canvas-interaction';
 import { requestEndTurn } from './helpers/primary-action-bar';
+
+for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+  test(`both straits frame the home ports and Expedition at ${viewport.width}px on entry and reload`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    const ready = page.getByRole('button', { name: 'Freight investment', exact: true });
+    const expectOpeningView = async () => {
+      await expect(ready).toBeVisible();
+      for (const [name, coord] of [
+        ['Westport', { q: 0, r: 5 }],
+        ['Northport', { q: 0, r: 2 }],
+        ['Expedition', { q: 0, r: 7 }],
+      ] as const) {
+        const point = await page.evaluate(hex => window.__CONQUESTORIA_E2E_GET_VISIBLE_HEX_COPIES__?.(hex)[0], coord);
+        expect(point, `${name} should have a visible map copy`).toBeDefined();
+        expect(point?.x, `${name} x in viewport`).toBeGreaterThan(0);
+        expect(point?.x, `${name} x in viewport`).toBeLessThan(viewport.width);
+        expect(point?.y, `${name} y in viewport`).toBeGreaterThan(0);
+        expect(point?.y, `${name} y in viewport`).toBeLessThan(viewport.height);
+      }
+    };
+
+    for (const scenario of ['freight-strait-a', 'freight-strait-b']) {
+      await page.goto(`/?scenario=${scenario}`);
+      await expectOpeningView();
+      await page.reload();
+      await expectOpeningView();
+      if (viewport.width === 1280) {
+        await clickVisibleHex(page, { q: 0, r: 7 });
+        await expect(page.getByLabel('Selected unit details and actions (scroll for more)')).toContainText('Expedition');
+      }
+    }
+  });
+}
 
 test('the strait compare-and-confirm flow works with a keyboard and survives a reload', async ({ page }) => {
   await page.goto('/?scenario=freight-strait-a');
