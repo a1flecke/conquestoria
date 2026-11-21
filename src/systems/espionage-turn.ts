@@ -23,7 +23,9 @@ import { applyInteractionReputation, getCrisisInteractionDefinition } from './cr
 import { EXPULSION_COOLDOWN, ESPIONAGE_TECH_MAX_SPIES, getMissionXp } from './espionage-catalog';
 import { getEspionageModifierBreakdown, getSpySuccessChance } from './espionage-probability';
 import {
+  attemptSweep,
   autoExposeConfirmedIncidents,
+  expelSpy,
   handleSpyCaptured,
   handleSpyExpelled,
   recordOperationIncident,
@@ -1074,4 +1076,64 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
     }
   }
   return state;
+}
+
+export type SweepDenialReason = 'no-spy' | 'not-embedded' | 'already-swept';
+
+export const SWEEP_DENIAL_MESSAGES: Record<SweepDenialReason, string> = {
+  'no-spy': 'That spy is not available.',
+  'not-embedded': 'Only a spy guarding one of your cities can run a sweep.',
+  'already-swept': 'This spy has already run a sweep this turn.',
+};
+
+export type SweepResult =
+  | { ok: true; state: GameState; expelledSpyIds: string[] }
+  | { ok: false; reason: SweepDenialReason };
+
+/**
+ * A counter-intelligence sweep by a spy guarding one of the sweeper's cities, for the player's panel and
+ * the AI alike. Every foreign spy it detects there is expelled the way a spy caught failing a mission is
+ * (`processSpyTurn`'s expulsion): sent home on cooldown, with the sweeper's relations toward its owner and
+ * the owner's toward the sweeper both worse, and its owner told (`espionage:spy-expelled`). Before this the
+ * detected ids reached only a toast and the infiltrator kept working. One sweep per spy per turn.
+ */
+export function runCounterIntelSweep(
+  state: GameState,
+  sweeperCivId: string,
+  spyId: string,
+  bus?: EventBus,
+): SweepResult {
+  const sweeperEsp = state.espionage?.[sweeperCivId];
+  const spy = sweeperEsp?.spies[spyId];
+  if (!sweeperEsp || !spy) return { ok: false, reason: 'no-spy' };
+  if (spy.status !== 'embedded' || !spy.targetCityId) return { ok: false, reason: 'not-embedded' };
+  if (spy.lastSweepTurn === state.turn) return { ok: false, reason: 'already-swept' };
+
+  const swept = attemptSweep(sweeperEsp, spyId, `sweep-${spyId}-${state.turn}`, state);
+  let next: GameState = { ...state, espionage: { ...state.espionage, [sweeperCivId]: swept.state } };
+  const expelledSpyIds: string[] = [];
+  for (const [ownerId, ownerEsp] of Object.entries(state.espionage ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
+    if (ownerId === sweeperCivId) continue;
+    for (const caughtId of swept.detectedSpyIds.filter(id => ownerEsp.spies[id]).sort()) {
+      const caught = ownerEsp.spies[caughtId];
+      next = { ...next, espionage: { ...next.espionage, [ownerId]: expelSpy(next.espionage![ownerId], caughtId, EXPULSION_COOLDOWN) } };
+      const sweeper = next.civilizations[sweeperCivId];
+      const owner = next.civilizations[ownerId];
+      if (sweeper && owner) {
+        next = {
+          ...next,
+          civilizations: {
+            ...next.civilizations,
+            [sweeperCivId]: { ...sweeper, diplomacy: handleSpyExpelled(sweeper.diplomacy, ownerId, state.turn) },
+            [ownerId]: { ...owner, diplomacy: modifyRelationship(owner.diplomacy, sweeperCivId, -5) },
+          },
+        };
+      }
+      expelledSpyIds.push(caughtId);
+      bus?.emit('espionage:spy-expelled', {
+        civId: ownerId, spyId: caughtId, spyName: caught.name, fromCivId: sweeperCivId, cooldownTurns: EXPULSION_COOLDOWN,
+      });
+    }
+  }
+  return { ok: true, state: next, expelledSpyIds };
 }

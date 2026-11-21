@@ -48,11 +48,11 @@
  "crossLayerEdges": [
   {
    "pair": "ai -> core",
-   "count": 22
+   "count": 23
   },
   {
    "pair": "ai -> systems",
-   "count": 351
+   "count": 360
   },
   {
    "pair": "app -> ai",
@@ -92,7 +92,7 @@
   },
   {
    "pair": "app -> testing",
-   "count": 4
+   "count": 5
   },
   {
    "pair": "app -> ui",
@@ -192,11 +192,19 @@
   },
   {
    "pair": "testing -> core",
-   "count": 2
+   "count": 3
+  },
+  {
+   "pair": "testing -> storage",
+   "count": 1
   },
   {
    "pair": "testing -> systems",
-   "count": 17
+   "count": 36
+  },
+  {
+   "pair": "testing -> ui",
+   "count": 2
   },
   {
    "pair": "ui -> ai",

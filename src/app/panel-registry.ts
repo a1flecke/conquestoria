@@ -13,7 +13,13 @@ export type PanelId =
   | 'council' | 'tech' | 'city' | 'espionage' | 'diplomacy' | 'marketplace'
   | 'network' | 'wonder' | 'wonder-atlas' | 'bestiary' | 'pirate-waters'
   | 'notification-log' | 'city-overview' | 'territory-inspection' | 'pacing-debug'
-  | 'strategic-arsenal' | 'hall-of-fame' | 'victory-progress' | 'governance';
+  | 'strategic-arsenal' | 'hall-of-fame' | 'victory-progress' | 'governance'
+  // Imperatively-opened action panels: they are never opened through the router
+  // (their open() throws), but registering their domIds puts them inside the
+  // closeGroup teardown so a hot-seat boundary cannot carry them across the veil.
+  | 'foreign-city-entry' | 'war-goal' | 'war-conference' | 'settlement-offer'
+  | 'establish-route' | 'unit-delete' | 'worker-task-warning'
+  | 'worker-replacement-confirm' | 'pirate-assault' | 'city-grid';
 
 /**
  * Panels in the same group close each other. 'main' is the mutually-exclusive

@@ -5,6 +5,7 @@ import {
   chooseAiSpyTarget,
   chooseAiMission,
   rankAiMissions,
+  AI_SWEEP_INTERVAL_TURNS,
   processAITurn,
 } from '@/ai/basic-ai';
 import {
@@ -1091,5 +1092,68 @@ describe('AI infiltration from the adjacent tile', () => {
     }
     expect(checked).toBeGreaterThan(0);
     expect(succeeded).toBeGreaterThan(0);
+  });
+});
+
+// The AI stationed a defensive spy in its capital and never swept with it, so an infiltrator there was
+// only ever caught by the per-turn passive check. It now sweeps every turn, through the player's command.
+describe('AI counter-intelligence sweeps', () => {
+  function guardedCapital(turn: number): GameState {
+    const state = makeAiTestState();
+    state.turn = turn;
+    let aiEsp = { ...createEspionageCivState(), maxSpies: 2 };
+    ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'spy-guard', 'ai-egypt', 'spy_scout', 'guard'));
+    aiEsp = {
+      ...aiEsp,
+      spies: {
+        'spy-guard': {
+          ...aiEsp.spies['spy-guard'], experience: 100, status: 'embedded',
+          targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+        },
+      },
+    };
+    let playerEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: playerEsp } = createSpyFromUnit(playerEsp, 'spy-in', 'player', 'spy_scout', 'in'));
+    playerEsp = {
+      ...playerEsp,
+      spies: {
+        'spy-in': {
+          ...playerEsp.spies['spy-in'], status: 'stationed', infiltrationCityId: 'city-egypt-1',
+          targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+        },
+      },
+    };
+    state.espionage = { player: playerEsp, 'ai-egypt': aiEsp };
+    return state;
+  }
+
+  it('sweeps with a spy guarding its city', () => {
+    const state = guardedCapital(20);
+    const after = processAITurn(state, 'ai-egypt', new EventBus());
+    expect(after.espionage!['ai-egypt'].spies['spy-guard'].lastSweepTurn).toBe(20);
+  });
+
+  // A sweep catches each infiltrator at 40% or more; sweeping every turn left a rival's spy almost no time in
+  // the city. The AI sweeps a guarded city every AI_SWEEP_INTERVAL_TURNS instead.
+  it('waits AI_SWEEP_INTERVAL_TURNS between sweeps of the same city', () => {
+    const state = guardedCapital(20);
+    state.espionage!['ai-egypt'].spies['spy-guard'].lastSweepTurn = 20 - AI_SWEEP_INTERVAL_TURNS + 1;
+    const early = processAITurn(state, 'ai-egypt', new EventBus());
+    expect(early.espionage!['ai-egypt'].spies['spy-guard'].lastSweepTurn).toBe(20 - AI_SWEEP_INTERVAL_TURNS + 1);
+
+    const due = guardedCapital(20);
+    due.espionage!['ai-egypt'].spies['spy-guard'].lastSweepTurn = 20 - AI_SWEEP_INTERVAL_TURNS;
+    expect(processAITurn(due, 'ai-egypt', new EventBus()).espionage!['ai-egypt'].spies['spy-guard'].lastSweepTurn).toBe(20);
+  });
+
+  it('expels an infiltrator its sweep catches', () => {
+    const expelled = Array.from({ length: 20 }, (_, index) => {
+      const bus = new EventBus();
+      const events: string[] = [];
+      bus.on('espionage:spy-expelled', event => events.push(event.spyId));
+      processAITurn(guardedCapital(20 + index), 'ai-egypt', bus);
+      return events;
+    }).flat();
+    expect(expelled).toContain('spy-in');
   });
 });

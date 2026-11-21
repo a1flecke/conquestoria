@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ActiveCrisis, City, GameState, HexCoord, HexTile, Unit } from '@/core/types';
-import { getCrisisDispatchCandidates, getCrisisResponseActions, applyCrisisResponses } from '@/ai/ai-crisis-response';
+import { getAiCrisisRemedyReserve, getCrisisDispatchCandidates, getCrisisResponseActions, applyCrisisResponses } from '@/ai/ai-crisis-response';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -124,16 +124,16 @@ describe('getCrisisDispatchCandidates', () => {
       expect.objectContaining({ kind: 'stampede', sourceId: 'stampede-ai-1-4', targetUnitId: 'herd' }),
       expect.objectContaining({ kind: 'stampede', sourceId: 'stampede-ai-1-4', targetUnitId: 'herd-screened' }),
     ]));
-    expect(visibleCandidates.find(candidate => candidate.targetUnitId === 'herd')!.score)
-      .toBeGreaterThan(visibleCandidates.find(candidate => candidate.targetUnitId === 'herd-screened')!.score);
+    expect(visibleCandidates.find(candidate => 'targetUnitId' in candidate && candidate.targetUnitId === 'herd')!.score)
+      .toBeGreaterThan(visibleCandidates.find(candidate => 'targetUnitId' in candidate && candidate.targetUnitId === 'herd-screened')!.score);
 
-    const scoreBeforeHiddenUnit = visibleCandidates.find(candidate => candidate.targetUnitId === 'herd')!.score;
+    const scoreBeforeHiddenUnit = visibleCandidates.find(candidate => 'targetUnitId' in candidate && candidate.targetUnitId === 'herd')!.score;
     state.units['hidden-rival'] = {
       id: 'hidden-rival', type: 'warrior', owner: 'rival', position: { q: 3, r: 0 },
       movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true,
       isResting: false, isFortified: true,
     };
-    expect(getCrisisDispatchCandidates(state, 'ai-1').find(candidate => candidate.targetUnitId === 'herd')!.score)
+    expect(getCrisisDispatchCandidates(state, 'ai-1').find(candidate => 'targetUnitId' in candidate && candidate.targetUnitId === 'herd')!.score)
       .toBe(scoreBeforeHiddenUnit);
 
     state.civilizations['ai-1'].visibility.tiles = {};
@@ -553,5 +553,98 @@ describe('applyCrisisResponses', () => {
     expect(Object.keys(crisis.remedyCompletionByCity ?? {}).sort()).toEqual(['c1', 'c2', 'c3']);
     expect((next.civilizations['ai-1'] as { gold: number }).gold).toBe(100_000 - (5 + 4 + 3) * 15);
     expect(events).toHaveLength(1);
+  });
+});
+
+// The cure the AI is saving for: what `getCrisisResponseActions` needs in the treasury before it
+// funds its next single-city remedy. The treasury holds this back from rush-buys, so an AI with a
+// lingering outbreak saves up for the cure instead of spending down to its upkeep reserve forever.
+describe('getAiCrisisRemedyReserve', () => {
+  it('is the gold the remedy rule waits for (standard: appease cost 75 x 2.0)', () => {
+    const state = responseState({ civilizations: { 'ai-1': { id: 'ai-1', isHuman: false, gold: 0 } } });
+    expect(getAiCrisisRemedyReserve(state, 'ai-1')).toBe(150);
+  });
+
+  it('matches the threshold at which the response actually funds the remedy', () => {
+    const reserve = getAiCrisisRemedyReserve(responseState(), 'ai-1');
+    const at = getCrisisResponseActions(
+      responseState({ civilizations: { 'ai-1': { id: 'ai-1', isHuman: false, gold: reserve } } }), 'ai-1',
+    );
+    expect(at).toContainEqual({ kind: 'fund-remedy', crisisId: 'crisis-1', cityId: 'c1' });
+  });
+
+  it('is zero once every infected city already has a remedy underway', () => {
+    const state = responseState({ activeCrises: { 'crisis-1': outbreakCrisis({ remedyCompletionByCity: { c1: 6 } }) } });
+    expect(getAiCrisisRemedyReserve(state, 'ai-1')).toBe(0);
+  });
+
+  it('is zero with no outbreak or famine of its own', () => {
+    expect(getAiCrisisRemedyReserve(responseState({ activeCrises: {} }), 'ai-1')).toBe(0);
+    const someoneElses = responseState({ activeCrises: { 'crisis-1': outbreakCrisis({ targetCivId: 'ai-2' }) } });
+    expect(getAiCrisisRemedyReserve(someoneElses, 'ai-1')).toBe(0);
+  });
+
+  it('is zero for a human civ, whose crisis choices stay theirs', () => {
+    const state = responseState({
+      civilizations: { p1: { id: 'p1', isHuman: true, isEliminated: false, gold: 0 } },
+      activeCrises: { 'crisis-1': outbreakCrisis({ targetCivId: 'p1' }) },
+    });
+    expect(getAiCrisisRemedyReserve(state, 'p1')).toBe(0);
+  });
+});
+
+// #hunt: a hunt crisis ends only when its foe dies, and the AI never went after one.
+describe('getCrisisDispatchCandidates for hunt crises', () => {
+  function huntState(flavorId: string, huntEntityId: string): GameState {
+    const state = baseState('standard');
+    state.pirates = { factions: {} } as GameState['pirates'];
+    state.units = {
+      beast: { id: 'beast', type: 'beast_wolf', owner: 'beasts', position: { q: 2, r: 1 } },
+      ship: { id: 'ship', type: 'pirate_frigate', owner: 'pirate-1', position: { q: 2, r: 1 } },
+    } as unknown as GameState['units'];
+    state.barbarianCamps = { camp: { id: 'camp', position: { q: 2, r: 1 } } } as unknown as GameState['barbarianCamps'];
+    state.pirateFleets = { fleet: { unitId: 'ship' } } as unknown as GameState['pirateFleets'];
+    state.activeCrises = {
+      hunt: {
+        id: 'hunt', flavorId, archetype: 'hunt', targetCivId: 'ai-1', cityIds: [], tileKeys: [],
+        startedTurn: 1, stage: 'menacing', turnsInStage: 1, huntEntityId,
+      },
+    };
+    return state;
+  }
+
+  it('targets the beast of a beast hunt aimed at the civ', () => {
+    expect(getCrisisDispatchCandidates(huntState('beast-awakening', 'beast'), 'ai-1')).toEqual([
+      expect.objectContaining({ kind: 'hunt-foe', sourceId: 'hunt', targetUnitId: 'beast' }),
+    ]);
+  });
+
+  it('targets the ship of a pirate hunt', () => {
+    expect(getCrisisDispatchCandidates(huntState('corsair-armada', 'fleet'), 'ai-1')).toEqual([
+      expect.objectContaining({ kind: 'hunt-foe', sourceId: 'hunt', targetUnitId: 'ship' }),
+    ]);
+  });
+
+  it('targets the camp of a bandit hunt', () => {
+    expect(getCrisisDispatchCandidates(huntState('bandit-uprising', 'camp'), 'ai-1')).toEqual([
+      expect.objectContaining({ kind: 'hunt-camp', sourceId: 'hunt', targetCampId: 'camp' }),
+    ]);
+  });
+
+  it('needs the foe to be visible now (no unearned exact targets)', () => {
+    for (const [flavor, entity] of [['beast-awakening', 'beast'], ['corsair-armada', 'fleet'], ['bandit-uprising', 'camp']]) {
+      const state = huntState(flavor, entity);
+      state.civilizations['ai-1'].visibility.tiles = {};
+      expect(getCrisisDispatchCandidates(state, 'ai-1')).toEqual([]);
+    }
+  });
+
+  it('ignores a hunt aimed at another civ, and one with no foe yet', () => {
+    const other = huntState('beast-awakening', 'beast');
+    other.activeCrises!.hunt.targetCivId = 'ai-2';
+    expect(getCrisisDispatchCandidates(other, 'ai-1')).toEqual([]);
+    const unspawned = huntState('beast-awakening', 'beast');
+    unspawned.activeCrises!.hunt = { ...unspawned.activeCrises!.hunt, stage: 'active', huntEntityId: undefined };
+    expect(getCrisisDispatchCandidates(unspawned, 'ai-1')).toEqual([]);
   });
 });

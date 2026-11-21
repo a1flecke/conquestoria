@@ -7,7 +7,7 @@ import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-s
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { ENQUEUE_DENIAL_MESSAGES } from '@/systems/planning-system';
-import { createEspionageCivState, START_MISSION_FAILURE_MESSAGES } from '@/systems/espionage-system';
+import { createEspionageCivState, START_MISSION_FAILURE_MESSAGES, SWEEP_DENIAL_MESSAGES } from '@/systems/espionage-system';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { NotificationMapTarget } from '@/core/notification-log';
 import type { CouncilTalkLevel, GameState, HexCoord, Spy } from '@/core/types';
@@ -1265,7 +1265,7 @@ describe('PanelActionsController', () => {
 
     it('onSweep commits the sweep result, publishes through session subscribers, and still refreshes the panel', () => {
       const { state } = makeFixture('espionage-sweep-publish');
-      placeSpy(state, 'sweeper-1', { status: 'embedded' });
+      placeSpy(state, 'sweeper-1', { status: 'embedded', targetCityId: 'test-city' });
       const { deps, controller } = build(state);
       const listener = vi.fn();
       deps.session.subscribe(listener);
@@ -1278,6 +1278,55 @@ describe('PanelActionsController', () => {
       expect(listener).toHaveBeenCalled();
       expect(deps.getElementById).toHaveBeenCalledWith('espionage-panel');
       expect(deps.router.open).toHaveBeenCalledWith('espionage');
+    });
+
+    it('onSweep refuses a spy that is not guarding a city, with copy, and commits nothing', () => {
+      const { state } = makeFixture('espionage-sweep-refused');
+      placeSpy(state, 'spy-1', { status: 'idle' });
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onSweep: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onSweep('spy-1');
+
+      expect(deps.showNotification).toHaveBeenCalledWith(SWEEP_DENIAL_MESSAGES['not-embedded'], 'warning');
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('onSweep expels an infiltrator it catches and says so', () => {
+      for (let turn = 1; turn <= 30; turn++) {
+        const { state } = makeFixture(`espionage-sweep-expel-${turn}`);
+        state.turn = turn;
+        placeSpy(state, 'spy-1', { status: 'embedded', targetCityId: 'test-city', experience: 100 });
+        const rivalId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+        const rivalEsp = state.espionage?.[rivalId] ?? createEspionageCivState();
+        state.espionage = {
+          ...state.espionage,
+          [rivalId]: {
+            ...rivalEsp,
+            spies: {
+              'spy-in': {
+                id: 'spy-in', owner: rivalId, name: 'Agent in', unitType: 'spy_scout',
+                targetCivId: 'player', targetCityId: 'test-city', position: null, infiltrationCityId: 'test-city',
+                status: 'stationed', experience: 0, currentMission: null, cooldownTurns: 0,
+                promotion: undefined, promotionAvailable: false, feedsFalseIntel: false,
+              },
+            },
+          },
+        };
+        vi.mocked(createEspionagePanel).mockClear();
+        const { deps, controller } = build(state);
+        controller.openEspionagePanel();
+        const options = mockedCallArg<{ onSweep: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+        options.onSweep('spy-1');
+        if (deps.session.getState().espionage![rivalId].spies['spy-in'].status !== 'cooldown') continue;
+        expect(deps.showNotification).toHaveBeenCalledWith(
+          'Sweep caught 1 enemy spy and expelled them from the city.', 'warning');
+        return;
+      }
+      throw new Error('no sweep caught the infiltrator');
     });
 
     it('toggles cooldown mode for a real spy on cooldown', () => {

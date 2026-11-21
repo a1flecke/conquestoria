@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
+  applyAIFuelConservation,
   applyAIProduction,
   applyAIProductionWithReport,
   economyValue,
@@ -13,6 +14,7 @@ import type {
   ResourceType,
 } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
+import { getFuelConservationPolicy } from '@/systems/resource-fuel-system';
 import { grantTestResourceAccess, revokeTestResourceAccess } from '../helpers/resource-access-fixtures';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import {
@@ -1644,5 +1646,29 @@ describe('#1113 — production-idle: resource-locked successor no longer starves
     );
     const selected = next.cities['city-a']!.productionQueue[0];
     expect(getAIStrategicRoles(selected as never)).toContain('frontline');
+  });
+});
+
+// Fuel conservation hands scarce fuel first to the buildings that lose the most production without it;
+// "balanced" hands it out by city name. With no shortage they are identical, so conserve is never worse,
+// and the AI never switched to it: in a shortage it fuelled its buildings in alphabetical order.
+describe('applyAIFuelConservation', () => {
+  it('switches to conserve once the civ has a fuel-burning building', () => {
+    const state = setupState([]);
+    state.cities['city-a']!.buildings.push('factory');
+
+    expect(getFuelConservationPolicy(applyAIFuelConservation(state, 'ai-1'), 'ai-1')).toBe('conserve');
+  });
+
+  it('leaves a civ with no fuel demand on its current policy', () => {
+    const state = setupState([]);
+    expect(applyAIFuelConservation(state, 'ai-1')).toBe(state);
+  });
+
+  it('never changes a human civilization\'s choice', () => {
+    const state = setupState([]);
+    state.cities['city-a']!.buildings.push('factory');
+    state.civilizations['ai-1'].isHuman = true;
+    expect(applyAIFuelConservation(state, 'ai-1')).toBe(state);
   });
 });

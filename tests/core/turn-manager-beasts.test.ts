@@ -79,6 +79,30 @@ describe('turn-manager hoard handling', () => {
     expect(next.civilizations[aiCivId].gold).toBeGreaterThan(goldBefore);
   });
 
+  // A human's unit can slay a beast outside that human's turn (defending in the beasts phase). The round
+  // used to settle every choice but the current player's as gold, so in hot seat that human was told
+  // "Choose your reward" and then had the choice taken away before their turn came.
+  it('leaves a human\'s hoard choice for that human, even when another seat is current', () => {
+    const state = createNewGame('rome', 'beast-turn-seed', 'small', 'Human Hoard Test');
+    const otherHumanId = Object.keys(state.civilizations).find(id => id !== state.currentPlayer)!;
+    state.civilizations[otherHumanId].isHuman = true;
+    state.beasts = {
+      mode: 'wild',
+      lairs: {
+        'lair-emerald_basilisk': {
+          id: 'lair-emerald_basilisk', beastId: 'emerald_basilisk',
+          position: { q: 10, r: 10 }, status: 'slain', strength: 0, unitIds: [],
+          slainBy: otherHumanId, slainTurn: 1,
+        },
+      },
+      sightingsByCiv: {},
+      pendingHoardChoices: [{ lairId: 'lair-emerald_basilisk', civId: otherHumanId }],
+    };
+    const next = processTurn(state, new EventBus());
+
+    expect(next.beasts!.pendingHoardChoices).toEqual([{ lairId: 'lair-emerald_basilisk', civId: otherHumanId }]);
+  });
+
   it('hydra regen is applied and clamped at 100 by processTurn', () => {
     const state = createNewGame('rome', 'beast-turn-seed', 'small', 'Hydra Regen Test');
     state.era = 3;
