@@ -53,6 +53,7 @@
     "tests/ai/ai-bombardment.test.ts": 104.0048828125,
     "tests/ai/ai-crisis-response.test.ts": 737.240234375,
     "tests/ai/ai-decision-trace.test.ts": 2.322021484375,
+    "tests/ai/ai-diplomacy-city-state-spending.test.ts": 4.0,
     "tests/ai/ai-diplomacy.test.ts": 3.130859375,
     "tests/ai/ai-domination.test.ts": 2.172607421875,
     "tests/ai/ai-espionage.test.ts": 726.311279296875,
@@ -1044,6 +1045,7 @@
     "test-suite-shard-b": [
       "tests/ai/ai-amphibious-routing.test.ts",
       "tests/ai/ai-decision-trace.test.ts",
+      "tests/ai/ai-diplomacy-city-state-spending.test.ts",
       "tests/ai/ai-diplomacy.test.ts",
       "tests/ai/ai-domination.test.ts",
       "tests/ai/ai-exploration.test.ts",
