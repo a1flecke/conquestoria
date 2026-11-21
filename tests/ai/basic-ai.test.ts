@@ -1,11 +1,13 @@
 import {
   applyAiCityLevyPolicy,
   canDeclareWarForPreparedPlan,
+  chooseAiGovernorMove,
   chooseAiSpyTarget,
   processAITurn,
   processPreparedAITurn,
 } from '@/ai/basic-ai';
 import { buildMajorCivPerception } from '@/ai/ai-perception';
+import { assignGovernor, GOVERNOR_REASSIGNMENT_LOCK_TURNS } from '@/systems/governor-system';
 import {
   prepareMajorCivStrategicPlan,
   type PreparedMajorCivPlan,
@@ -3306,6 +3308,57 @@ describe('#928 AI governor assignment', () => {
     for (const [cityId, turn] of Object.entries(changedTurnByCity)) {
       expect(secondPass.civilizations['ai-1'].governorAssignmentChangedTurn?.[cityId]).toBe(turn);
     }
+  });
+});
+
+// The AI only ever assigned governors. With no room for another, a governor stayed in a city that had calmed
+// down while a city in serious unrest went without, for the rest of the game.
+describe('AI governor moves', () => {
+  function governedEmpire(seed: string): GameState {
+    const state = createNewGame(undefined, seed, 'small');
+    const civ = state.civilizations['ai-1'];
+    const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
+    civ.cities = [];
+    for (const [index, id] of ['ai1-capital', 'ai1-calm', 'ai1-troubled'].entries()) {
+      const city = foundCity(civ.id, { q: settler.position.q + index, r: settler.position.r }, state.map, state.idCounters);
+      city.id = id;
+      state.cities[id] = city;
+      civ.cities.push(id);
+    }
+    // Fill every governor slot: the capital and the calm city.
+    let governed: GameState = state;
+    for (const cityId of ['ai1-capital', 'ai1-calm']) {
+      const assigned = assignGovernor(governed, 'ai-1', cityId);
+      if (!assigned.success) throw new Error(assigned.message);
+      governed = assigned.state;
+    }
+    if (assignGovernor(governed, 'ai-1', 'ai1-troubled').success) throw new Error('fixture left a free slot');
+    return { ...governed, turn: governed.turn + GOVERNOR_REASSIGNMENT_LOCK_TURNS };
+  }
+  // The capital stays in enough unrest (18, 24 without its governor) to keep its own governor.
+  const pressures = (calm: number, troubled: number) =>
+    new Map([['ai1-capital', 18], ['ai1-calm', calm], ['ai1-troubled', troubled]]);
+
+  it('moves a governor from a city that would stay calm without it to a city in serious unrest', () => {
+    const state = governedEmpire('governor-move');
+    expect(chooseAiGovernorMove(state, 'ai-1', pressures(5, 30))).toEqual({ fromCityId: 'ai1-calm', toCityId: 'ai1-troubled' });
+  });
+
+  it('keeps a governor whose city would fall back into unrest without it', () => {
+    const state = governedEmpire('governor-keep');
+    // 15 now, with the governor's 6 relief: 21 without it, over the AI's bar of 20.
+    expect(chooseAiGovernorMove(state, 'ai-1', pressures(15, 30))).toBeNull();
+  });
+
+  it('does not move while the governor is still locked', () => {
+    const state = governedEmpire('governor-locked');
+    const locked = { ...state, turn: state.turn - 1 };
+    expect(chooseAiGovernorMove(locked, 'ai-1', pressures(5, 30))).toBeNull();
+  });
+
+  it('does not move when no other city needs one', () => {
+    const state = governedEmpire('governor-no-need');
+    expect(chooseAiGovernorMove(state, 'ai-1', pressures(5, 10))).toBeNull();
   });
 });
 
