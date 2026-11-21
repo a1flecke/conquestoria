@@ -49,7 +49,7 @@ import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-sys
 import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
 
 import { chooseProduction } from './ai-strategy';
-import { applyAiMinorCivGifts, applyAiMinorCivPeace, applyAiMinorCivQuestPayments, evaluateDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
+import { applyAiCityStateWar, applyAiMinorCivGifts, applyAiMinorCivPeace, applyAiMinorCivQuestPayments, evaluateDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import { getKnownSharedBorderOwners } from './ai-known-borders';
 import { NATIONAL_INTENT_POSTURE } from './ai-national-intent-posture';
 import { chooseWarGoal } from './ai-war-goals';
@@ -1596,7 +1596,8 @@ function processAITurnInternal(
 
   // --- Minor civ diplomacy ---
   if (newState.minorCivs) {
-    newState = applyAiMinorCivPeace(newState, civId, minorCivsTargetedByPlan(newState, preparedForTurn.portfolio.primaryPlan), bus);
+    newState = applyAiMinorCivPeace(newState, civId, minorCivsTargetedByPlan(newState, preparedForTurn.portfolio.primaryPlan), bus, personality, posture);
+    newState = applyAiCityStateWar(newState, civId, personality, posture, bus);
     newState = applyAiMinorCivGifts(newState, civId, personality, posture);
     civ = newState.civilizations[civId];
   }

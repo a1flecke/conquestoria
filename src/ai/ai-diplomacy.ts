@@ -13,6 +13,11 @@ import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { performMinorCivFestival, performMinorCivGift, setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { getAiCrisisRemedyReserve } from './ai-crisis-response';
+import { hasAICombatRole } from './ai-unit-roles';
+import { classifyOwner, majorCivWarOpponentIds } from '@/core/owner-kind';
+import { mapDistance } from '@/systems/hex-utils';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 export interface DiplomaticDecision {
   action: DiplomaticAction;
@@ -155,7 +160,7 @@ export function evaluateDiplomacy(
 
 export interface MinorCivDecision {
   mcId: string;
-  action: 'gift_gold' | 'declare_war';
+  action: 'gift_gold';
 }
 
 export function evaluateMinorCivDiplomacy(
@@ -182,21 +187,99 @@ export function evaluateMinorCivDiplomacy(
   return decisions;
 }
 
+/** `warLikelihood` plus the posture's war bias a civ needs before it will attack a city-state. */
+export const CITY_STATE_CONQUEST_AGGRESSION = 0.7;
+/** The city-state must lie within this many tiles of one of the civ's own cities. */
+export const CITY_STATE_CONQUEST_RADIUS = 8;
+/** Land combat units the civ must field before it starts such a war. */
+export const CITY_STATE_CONQUEST_MIN_ARMY = 4;
+/** No city-state wars in the first era: a young city-state would be gone before the game began. */
+const CITY_STATE_CONQUEST_MIN_ERA = 2;
+/** A city-state that likes the civ this much is a friend, not a target. */
+const CITY_STATE_CONQUEST_MAX_RELATIONSHIP = 30;
+
 /**
- * Ends the civ's wars with city-states, except those its current plan is fighting (`keepWarWith`).
- * The AI never starts a city-state war, so any it holds was declared on it (a coalition) and only the
- * player could ever end one: an AI drawn in stayed at war for the rest of the game, and the coalition with
- * it. Peace goes through `setMinorCivWarState`, the player's own command, which refuses a vassal.
+ * Whether a civ wants to conquer this city-state now. Personality and posture decide the appetite (only a
+ * warlike civ, or one set on domination, has it); the rest is opportunity, judged only from what the civ
+ * itself knows: a discovered city-state, near one of its cities, not an ally or friend, while the civ is at
+ * peace with every major civilization and fields an army. The same test keeps a war going, so a war the AI
+ * starts is not undone the next turn while the reasons for it still hold.
+ */
+export function wantsCityStateConquest(
+  state: GameState,
+  civId: string,
+  minorCivId: string,
+  personality: PersonalityTraits,
+  posture: NationalIntentPosture,
+): boolean {
+  const civ = state.civilizations[civId];
+  const minorCiv = state.minorCivs?.[minorCivId];
+  const target = minorCiv ? state.cities[minorCiv.cityId] : undefined;
+  if (!civ || civ.isHuman || !minorCiv || minorCiv.isDestroyed || !target) return false;
+  if (personality.warLikelihood + posture.warDeclarationBias < CITY_STATE_CONQUEST_AGGRESSION) return false;
+  if (resolveCivilizationEra(civ.techState.completed) < CITY_STATE_CONQUEST_MIN_ERA) return false;
+  if (majorCivWarOpponentIds(civ.diplomacy.atWarWith).length > 0) return false;
+  if (!hasDiscoveredMinorCiv(state, civId, minorCivId)) return false;
+  if (minorCiv.chainStatusByCiv?.[civId]?.status === 'allied') return false;
+  if ((minorCiv.diplomacy.relationships[civId] ?? 0) > CITY_STATE_CONQUEST_MAX_RELATIONSHIP) return false;
+  const near = civ.cities.some(cityId => {
+    const city = state.cities[cityId];
+    return city?.owner === civId && mapDistance(state.map, city.position, target.position) <= CITY_STATE_CONQUEST_RADIUS;
+  });
+  if (!near) return false;
+  const army = civ.units.filter(unitId => {
+    const unit = state.units[unitId];
+    return unit?.owner === civId && !unit.transportId && hasAICombatRole(unit.type)
+      && (UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'land';
+  }).length;
+  return army >= CITY_STATE_CONQUEST_MIN_ARMY;
+}
+
+/**
+ * Declares war on the nearest city-state the civ wants to conquer, one city-state war at a time, through
+ * `setMinorCivWarState` (the player's own command). Its capture plans then treat the city as a target.
+ */
+export function applyAiCityStateWar(
+  state: GameState,
+  civId: string,
+  personality: PersonalityTraits,
+  posture: NationalIntentPosture,
+  bus: EventBus,
+): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.diplomacy.atWarWith.some(id => classifyOwner(id) === 'minor')) return state;
+  const distanceTo = (minorCivId: string): number => {
+    const target = state.cities[state.minorCivs[minorCivId].cityId];
+    return Math.min(...civ.cities.map(cityId => state.cities[cityId])
+      .filter(city => city?.owner === civId)
+      .map(city => mapDistance(state.map, city!.position, target.position)));
+  };
+  const targetId = Object.keys(state.minorCivs ?? {})
+    .filter(minorCivId => wantsCityStateConquest(state, civId, minorCivId, personality, posture))
+    .sort((a, b) => distanceTo(a) - distanceTo(b) || a.localeCompare(b))[0];
+  if (!targetId) return state;
+  const result = setMinorCivWarState(state, civId, targetId, true, bus);
+  return result.ok ? result.state : state;
+}
+
+/**
+ * Ends the civ's wars with city-states it no longer wants: those its current plan is not fighting
+ * (`keepWarWith`) and it would not start today (`wantsCityStateConquest`). A war declared on the AI by a
+ * coalition, or one dragged in as a vassal, used to last the rest of the game: only the player could end
+ * one. Peace goes through `setMinorCivWarState`, the player's own command, which refuses a vassal.
  */
 export function applyAiMinorCivPeace(
   state: GameState,
   civId: string,
   keepWarWith: ReadonlySet<string>,
   bus: EventBus,
+  personality?: PersonalityTraits,
+  posture?: NationalIntentPosture,
 ): GameState {
   let next = state;
   for (const minorCivId of Object.keys(next.minorCivs ?? {}).sort()) {
     if (keepWarWith.has(minorCivId) || !isMinorCivAtWar(next, civId, minorCivId)) continue;
+    if (personality && posture && wantsCityStateConquest(next, civId, minorCivId, personality, posture)) continue;
     const result = setMinorCivWarState(next, civId, minorCivId, false, bus);
     if (result.ok) next = result.state;
   }
