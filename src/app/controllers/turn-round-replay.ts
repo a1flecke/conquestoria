@@ -19,6 +19,21 @@ export interface TurnRoundReplay {
   runCurrentCompletedRound: TurnFlowController['runCurrentCompletedRound'];
 }
 
+export function runCampaignRound(state: GameState, bus: TurnFlowControllerDeps['bus']): CompletedRoundResult {
+  return runCompletedRound(state, bus, {
+    improvements: (current, eventBus) => processImprovementTurns(current, eventBus),
+    majors: (current, eventBus) => processNonHumanMajorRound(current, eventBus).state,
+    world: (current, eventBus) => processTurn(current, eventBus),
+    postprocess: (beforeRound, current, eventBus) => {
+      const afterStrategic = applyStrategicWarningTransitions(beforeRound, current, eventBus);
+      const afterCompacts = reconcileMinorCivLeagues(afterStrategic);
+      applySupplyWarningTransitions(beforeRound, afterCompacts, eventBus);
+      emitMinorCivLeagueNotices(beforeRound, afterCompacts, eventBus);
+      return afterCompacts;
+    },
+  });
+}
+
 export function createTurnRoundReplay(deps: TurnFlowControllerDeps): TurnRoundReplay {
   const { session, renderLoop, bus, roundPresentationGate } = deps;
 
@@ -55,20 +70,5 @@ export function createTurnRoundReplay(deps: TurnFlowControllerDeps): TurnRoundRe
     }
   }
 
-  function runCurrentCompletedRound(state: GameState): CompletedRoundResult {
-    return runCompletedRound(state, bus, {
-      improvements: (current, eventBus) => processImprovementTurns(current, eventBus),
-      majors: (current, eventBus) => processNonHumanMajorRound(current, eventBus).state,
-      world: (current, eventBus) => processTurn(current, eventBus),
-      postprocess: (beforeRound, current, eventBus) => {
-        const afterStrategic = applyStrategicWarningTransitions(beforeRound, current, eventBus);
-        const afterCompacts = reconcileMinorCivLeagues(afterStrategic);
-        applySupplyWarningTransitions(beforeRound, afterCompacts, eventBus);
-        emitMinorCivLeagueNotices(beforeRound, afterCompacts, eventBus);
-        return afterCompacts;
-      },
-    });
-  }
-
-  return { captureAIMoves, replayAIMoves, runCurrentCompletedRound };
+  return { captureAIMoves, replayAIMoves, runCurrentCompletedRound: state => runCampaignRound(state, bus) };
 }

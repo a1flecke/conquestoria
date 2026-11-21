@@ -454,7 +454,16 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
         // #1456: a scenario on a geographic map needs that map's data loaded before the sync builder runs.
         const scenarioScript = definition.base.config.mapScript;
         if (isGeographicMapScript(scenarioScript)) await loadGeoMapData(scenarioScript);
-        await deps.campaignEntry.enterCampaign(buildScenario(definition), `Scenario: ${definition.name}`);
+        const baseline = buildScenario(definition);
+        if (scenarioName === 'freight-strait-a' || scenarioName === 'freight-strait-b') {
+          const { mountFreightReplayPanel, resumeFreightReplay } = await import('@/testing/freight-replay-panel');
+          const replay = await resumeFreightReplay(scenarioName, baseline);
+          await deps.campaignEntry.enterCampaign(replay, 'The Strait');
+          const toolbar = deps.getElementById('utility-toolbar');
+          if (toolbar) mountFreightReplayPanel(deps.uiLayer, toolbar, deps.session, deps.bus);
+          return;
+        }
+        await deps.campaignEntry.enterCampaign(baseline, `Scenario: ${definition.name}`);
         return;
       }
     }

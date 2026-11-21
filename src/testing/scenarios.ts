@@ -5,7 +5,22 @@
  */
 import type { ScenarioDefinition } from '@/testing/scenario-types';
 
+function freightReplay(name: string, shortDetour: boolean): ScenarioDefinition {
+  return {
+    name,
+    description: 'A port system with a known freight prospect and an active resource Expedition.',
+    seed: 'freight-replay',
+    base: {
+      kind: 'solo',
+      config: { civType: 'generic', mapSize: 'small', opponentCount: 1, gameTitle: 'The Strait' },
+    },
+    steps: [{ kind: 'freight-replay', shortDetour }],
+  };
+}
+
 export const SCENARIOS: Record<string, ScenarioDefinition> = {
+  'freight-strait-a': freightReplay('freight-strait-a', false),
+  'freight-strait-b': freightReplay('freight-strait-b', true),
   'undefended-enemy-city': {
     name: 'undefended-enemy-city',
     description:

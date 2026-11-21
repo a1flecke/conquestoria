@@ -23,7 +23,7 @@ export function createUnitActionCommands(
   core: SelectionCore,
   args: SelectionCommandArgs,
 ): Pick<SelectedUnitCommands, 'onOpenNetworkIntent' | 'onUsePropagandistAction' | 'onFoundCity' | 'onWorkerAction' | 'onPreach' | 'onRest' | 'onSkipTurn' | 'onDeleteUnit' | 'onFortify' | 'onPillage' | 'onStartAutoExplore' | 'onCancelAutoExplore' | 'onCancelJourney' | 'onOpenStack' | 'onUpgradeUnit' | 'onEstablishOutpost' | 'onEstablishRoute' | 'onReplaceImprovement'> {
-  const { session, selection, renderLoop } = deps;
+  const { session, selection } = deps;
   const { unitId } = args;
 
   return {
@@ -115,8 +115,7 @@ export function createUnitActionCommands(
       if (!canEstablishOutpost(session.getState(), unitId)) return;
       session.commit(performEstablishOutpost(session.getState(), unitId));
       autoSave(session.getState()).catch(() => {});
-      selection.setSelectedUnitId(null);
-      renderLoop.setSelectedUnitId(null);
+      core.deselectUnit();
       deps.showNotification('Expedition planted a flag! Outpost completes in 2 turns.', 'success');
     },
     onEstablishRoute: deps.handleEstablishRoute,

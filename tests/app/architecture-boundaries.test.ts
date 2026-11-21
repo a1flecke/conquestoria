@@ -1862,6 +1862,7 @@ describe('#1220 — a production queue grows through exactly one validated enque
       'src/ai/ai-production.ts',
       'src/app/controllers/city-panel-actions-controller.ts',
       'src/app/controllers/turn-required-choices.ts',
+      'src/testing/scenario-steps/freight-replay.ts',
     ]);
     for (const caller of callers) {
       expect(strip(caller.source), caller.path).toMatch(/enqueueCityProduction\([^)]*\)[\s\S]{0,400}\.ok\b|\.ok\b[\s\S]{0,400}enqueueCityProduction\(/);
