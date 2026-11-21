@@ -4,9 +4,8 @@ import { getRouteControlOptions, type RouteControlAction } from '@/systems/trade
 import { getEntitledRouteDanger, getTradeDangerFacts, type TradeDangerFacts } from '@/systems/trade-danger-adapters';
 import { getRouteManifestQuantity } from '@/systems/resource-shipment-system';
 import { getProcurementRemaining, getRouteManifestPaid } from '@/systems/resource-procurement';
-import { getRouteLegRounds } from '@/systems/trade-route-travel';
+import { getRouteLegRounds, isNavalRouteRunner } from '@/systems/trade-route-travel';
 import { findTradeGood } from '@/systems/trade-good-definitions';
-import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createGameButton } from '@/ui/ui-kit';
 
 // Trade Routes Overhaul (#553 MR4/4) — shared route-list rendering, extracted from
@@ -31,7 +30,7 @@ export { NOT_OPERATING_LABEL };
 export type RouteControlHandler = (routeId: string, action: RouteControlAction) => void;
 
 export function getNavalTradeLegLabel(unit: Unit): string | undefined {
-  if (UNIT_DEFINITIONS[unit.type]?.domain !== 'naval') return undefined;
+  if (!isNavalRouteRunner(unit)) return undefined;
   if (unit.routeDirection === 'positioning') return 'bound for home port';
   if (unit.routeDirection === 'inbound') return 'homebound';
   return 'outbound to supplier';
