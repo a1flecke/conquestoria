@@ -2,6 +2,7 @@ import {
   applyAiCityLevyPolicy,
   canDeclareWarForPreparedPlan,
   chooseAiGovernorMove,
+  fortifyIdleAIGarrisons,
   chooseAiSpyTarget,
   processAITurn,
   processPreparedAITurn,
@@ -3359,6 +3360,43 @@ describe('AI governor moves', () => {
   it('does not move when no other city needs one', () => {
     const state = governedEmpire('governor-no-need');
     expect(chooseAiGovernorMove(state, 'ai-1', pressures(5, 10))).toBeNull();
+  });
+});
+
+// A fortified defender fights at +25%. The AI never fortified, not even the home guard it stations in its cities.
+describe('fortifyIdleAIGarrisons', () => {
+  function garrisoned(seed: string) {
+    const state = createNewGame(undefined, seed, 'small');
+    const civ = state.civilizations['ai-1'];
+    const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
+    const city = foundCity('ai-1', settler.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    civ.cities = [city.id];
+    const guard = createUnit('warrior', 'ai-1', city.position, state.idCounters);
+    const field = createUnit('warrior', 'ai-1', { q: city.position.q + 2, r: city.position.r }, state.idCounters);
+    for (const unit of [guard, field]) { state.units[unit.id] = unit; civ.units.push(unit.id); }
+    return { state, guard, field };
+  }
+
+  it('fortifies an idle land combat unit standing in its own city', () => {
+    const { state, guard } = garrisoned('fortify-guard');
+    expect(fortifyIdleAIGarrisons(state, 'ai-1').units[guard.id].isFortified).toBe(true);
+  });
+
+  it('leaves a unit outside its cities, one that moved this turn, and a civilian alone', () => {
+    const { state, guard, field } = garrisoned('fortify-skip');
+    state.units[guard.id] = { ...state.units[guard.id], hasMoved: true };
+    const settlerId = state.civilizations['ai-1'].units.find(id => state.units[id]?.type === 'settler')!;
+    const next = fortifyIdleAIGarrisons(state, 'ai-1');
+    expect(next.units[guard.id].isFortified).toBeFalsy();
+    expect(next.units[field.id].isFortified).toBeFalsy();
+    expect(next.units[settlerId].isFortified).toBeFalsy();
+  });
+
+  it('never fortifies a human player\'s units', () => {
+    const { state } = garrisoned('fortify-human');
+    state.civilizations['ai-1'].isHuman = true;
+    expect(fortifyIdleAIGarrisons(state, 'ai-1')).toBe(state);
   });
 });
 

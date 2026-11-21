@@ -10,7 +10,7 @@ import type { NationalIntentPosture } from './ai-national-intent-posture';
 import type { MilitaryStrengthEstimate } from '@/systems/diplomatic-strength';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
-import { performMinorCivFestival, performMinorCivGift, setMinorCivWarState } from '@/systems/minor-civ-actions';
+import { performMinorCivFestival, performMinorCivGift, performMinorCivReparations, setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { getAiCrisisRemedyReserve } from './ai-crisis-response';
 import { hasAICombatRole } from './ai-unit-roles';
@@ -284,6 +284,34 @@ export function applyAiMinorCivPeace(
     if (result.ok) next = result.state;
   }
   return next;
+}
+
+/**
+ * Pays reparations to one city-state a turn whose grievance against the civ has reached 'mobilizing' or
+ * 'coalition-talks', so its neighbours do not band together and declare war. Skips a city-state the civ
+ * itself wants to conquer, and never dips into the gold saved for the civ's own crisis cure. The payment
+ * goes through `performMinorCivReparations`, the player's own command.
+ */
+export function applyAiMinorCivReparations(
+  state: GameState,
+  civId: string,
+  personality: PersonalityTraits,
+  posture: NationalIntentPosture,
+): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.isHuman) return state;
+  const reserve = getAiCrisisRemedyReserve(state, civId);
+  const targetId = Object.keys(state.minorCivs ?? {})
+    .filter(minorCivId => {
+      const status = state.minorCivs[minorCivId].regionalGrievanceByCiv?.[civId]?.status;
+      return (status === 'mobilizing' || status === 'coalition-talks')
+        && !wantsCityStateConquest(state, civId, minorCivId, personality, posture);
+    })
+    .sort((a, b) => (state.minorCivs[b].regionalGrievanceByCiv![civId]!.pressure - state.minorCivs[a].regionalGrievanceByCiv![civId]!.pressure)
+      || a.localeCompare(b))[0];
+  if (!targetId) return state;
+  const result = performMinorCivReparations(state, civId, targetId);
+  return result.ok && keepsCureReserve(result.state, civId, reserve) ? result.state : state;
 }
 
 /**

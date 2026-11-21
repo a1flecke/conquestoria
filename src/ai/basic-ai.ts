@@ -49,7 +49,7 @@ import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-sys
 import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
 
 import { chooseProduction } from './ai-strategy';
-import { applyAiCityStateWar, applyAiMinorCivGifts, applyAiMinorCivPeace, applyAiMinorCivQuestPayments, evaluateDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
+import { applyAiCityStateWar, applyAiMinorCivGifts, applyAiMinorCivPeace, applyAiMinorCivReparations, applyAiMinorCivQuestPayments, evaluateDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import { getKnownSharedBorderOwners } from './ai-known-borders';
 import { NATIONAL_INTENT_POSTURE } from './ai-national-intent-posture';
 import { chooseWarGoal } from './ai-war-goals';
@@ -142,7 +142,8 @@ import {
   type PreparedMajorCivPlan,
 } from './ai-prepared-turn';
 import { isAIHostileOwner } from './ai-hostility';
-import { hasAITradeRole } from './ai-unit-roles';
+import { hasAICombatRole, hasAITradeRole } from './ai-unit-roles';
+import { fortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { applyAIFuelConservation, applyAIProduction, refillAIQueuesEmptiedByPurchase, releaseAISpyQueueHeads } from './ai-production';
 import { applyAIGoldSpending } from './ai-treasury';
 import { applyAIResearch } from './ai-research';
@@ -666,6 +667,37 @@ export function canDeclareWarForPreparedPlan(
   }
   return false;
 }
+
+/**
+ * Fortifies every idle land combat unit standing in one of the civ's own cities: a fortified defender fights
+ * at +25%, and the AI never fortified, not even the home guard it stations. Runs at the end of the AI's turn,
+ * after its plans have moved, so it only touches a unit that has neither moved nor acted this turn and was
+ * not going to; moving again clears the fortification.
+ */
+export function fortifyIdleAIGarrisons(state: GameState, civId: string): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.isHuman) return state;
+  const cityTiles = new Set(civ.cities
+    .map(cityId => state.cities[cityId])
+    .filter(city => city?.owner === civId)
+    .map(city => hexKey(city!.position)));
+  let next = state;
+  for (const unitId of [...civ.units].sort()) {
+    const unit = next.units[unitId];
+    if (!unit || unit.owner !== civId || unit.isFortified || unit.hasMoved || unit.hasActed || unit.transportId) continue;
+    if (!cityTiles.has(hexKey(unit.position)) || !hasAICombatRole(unit.type)) continue;
+    if ((UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') !== 'land') continue;
+    next = fortifyUnitInState(next, civId, unitId);
+  }
+  return next;
+}
+
+/**
+ * Turns between an AI guard's counter-intelligence sweeps of its city. A sweep catches each infiltrator at
+ * 40% or more, so sweeping every turn left a rival's spy almost no time in an AI city; one sweep in five
+ * turns is still well above the passive detection a spy otherwise risks.
+ */
+export const AI_SWEEP_INTERVAL_TURNS = 5;
 
 /** Unrest pressure at which the AI wants a governor in a city. */
 const AI_GOVERNOR_PRESSURE_THRESHOLD = 20;
@@ -1632,6 +1664,7 @@ function processAITurnInternal(
   if (newState.minorCivs) {
     newState = applyAiMinorCivPeace(newState, civId, minorCivsTargetedByPlan(newState, preparedForTurn.portfolio.primaryPlan), bus, personality, posture);
     newState = applyAiCityStateWar(newState, civId, personality, posture, bus);
+    newState = applyAiMinorCivReparations(newState, civId, personality, posture);
     newState = applyAiMinorCivGifts(newState, civId, personality, posture);
     civ = newState.civilizations[civId];
   }
@@ -1652,10 +1685,11 @@ function processAITurnInternal(
     }
   }
 
-  // A spy guarding one of the civ's cities sweeps it every turn, through the player's own command
-  // (which refuses a second sweep in a turn and expels whatever it catches).
+  // A spy guarding one of the civ's cities sweeps it every AI_SWEEP_INTERVAL_TURNS, through the player's own
+  // command (which expels whatever it catches).
   for (const guard of Object.values(newState.espionage?.[civId]?.spies ?? {}).sort((a, b) => a.id.localeCompare(b.id))) {
     if (guard.status !== 'embedded') continue;
+    if (guard.lastSweepTurn !== undefined && newState.turn - guard.lastSweepTurn < AI_SWEEP_INTERVAL_TURNS) continue;
     const sweep = runCounterIntelSweep(newState, civId, guard.id, bus);
     if (sweep.ok) newState = sweep.state;
   }
@@ -1960,6 +1994,8 @@ function processAITurnInternal(
       }
     }
   }
+
+  newState = fortifyIdleAIGarrisons(newState, civId);
 
   // Update AI visibility
   newState = updateAndRefreshVisibility(newState, civId);
