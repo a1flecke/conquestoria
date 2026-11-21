@@ -143,7 +143,7 @@ import {
 } from './ai-prepared-turn';
 import { isAIHostileOwner } from './ai-hostility';
 import { hasAITradeRole } from './ai-unit-roles';
-import { applyAIProduction, refillAIQueuesEmptiedByPurchase, releaseAISpyQueueHeads } from './ai-production';
+import { applyAIFuelConservation, applyAIProduction, refillAIQueuesEmptiedByPurchase, releaseAISpyQueueHeads } from './ai-production';
 import { applyAIGoldSpending } from './ai-treasury';
 import { applyAIResearch } from './ai-research';
 import { getAIProcurementTerms, processAIResourceMarketplace } from './ai-resource-marketplace';
@@ -1254,6 +1254,7 @@ function processAITurnInternal(
     return head ? [{ cityId, purchasedItemId: head }] : [];
   });
   newState = applyAIGoldSpending(newState, civId, bus);
+  newState = applyAIFuelConservation(newState, civId);
   const spentState = newState;
   newState = refillAIQueuesEmptiedByPurchase(
     spentState,
