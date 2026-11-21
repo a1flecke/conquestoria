@@ -1,14 +1,14 @@
 import type { GameSession } from '@/app/ports';
 import type { EventBus } from '@/core/event-bus';
-import type { GameState } from '@/core/types';
 import { autoSave } from '@/storage/save-manager';
 import { BUILDINGS } from '@/systems/city-building-catalog';
 import { markModal } from '@/ui/modal-contract';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 import { applyCapitalOffer, getCapitalComparison, type CapitalOffer } from './freight-replay-capital';
 import { FREIGHT_REPLAY } from './scenario-steps/freight-replay';
+import type { ScenarioState } from './scenario-types';
 
-export function matchesFreightReplay(candidate: GameState, baseline: GameState): boolean {
+export function matchesFreightReplay(candidate: ScenarioState, baseline: ScenarioState): boolean {
   return candidate.gameId === baseline.gameId
     && candidate.cities[FREIGHT_REPLAY.west]?.id === FREIGHT_REPLAY.west
     && candidate.map.tiles['3,6']?.terrain === baseline.map.tiles['3,6']?.terrain;
@@ -122,10 +122,10 @@ export function mountFreightReplayPanel(
       if (!reviewed) return;
       const result = applyCapitalOffer(session.getState(), viewer, reviewed, bus);
       reviewed = undefined;
-      status.textContent = result ? 'Saving investment…' : 'Terms changed. Review the current offer.';
-      if (result) {
-        session.commit(result);
-        void autoSave(result).then(
+      status.textContent = result.ok ? 'Saving investment…' : result.message;
+      if (result.ok) {
+        session.commit(result.state);
+        void autoSave(result.state).then(
           () => { if (modal.isConnected) status.textContent = 'Investment confirmed.'; },
           () => { if (modal.isConnected) status.textContent = 'Investment applied. Save failed.'; },
         );

@@ -57,12 +57,12 @@ describe('#1125 freight replay', () => {
       const offer = choice === 'Harbor' ? before!.harbor : before!.passage;
       expect(offer).toMatchObject({ choice, cost: 45 });
       const changed = { ...offer!, cost: 44 };
-      expect(applyCapitalOffer(state, buyer, changed, new EventBus())).toBeUndefined();
+      expect(applyCapitalOffer(state, buyer, changed, new EventBus())).toMatchObject({ ok: false, reason: 'terms-changed' });
       const purchase = applyCapitalOffer(state, buyer, offer!, new EventBus());
-      expect(purchase).toBeDefined();
-      state = purchase!;
+      if (!purchase.ok) throw new Error(purchase.message);
+      state = purchase.state;
       expect(state.civilizations[buyer].gold).toBe(35);
-      expect(applyCapitalOffer(state, buyer, offer!, new EventBus())).toBeUndefined();
+      expect(applyCapitalOffer(state, buyer, offer!, new EventBus())).toMatchObject({ ok: false, reason: 'terms-changed' });
       expect(getCapitalComparison(state, buyer)).toMatchObject({ freeGold: 5, passage: undefined, harbor: undefined });
     }
 
