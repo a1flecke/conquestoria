@@ -10,7 +10,7 @@ import type { NationalIntentPosture } from './ai-national-intent-posture';
 import type { MilitaryStrengthEstimate } from '@/systems/diplomatic-strength';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
-import { performMinorCivFestival, performMinorCivGift } from '@/systems/minor-civ-actions';
+import { performMinorCivFestival, performMinorCivGift, setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { getAiCrisisRemedyReserve } from './ai-crisis-response';
 
@@ -180,6 +180,27 @@ export function evaluateMinorCivDiplomacy(
   }
 
   return decisions;
+}
+
+/**
+ * Ends the civ's wars with city-states, except those its current plan is fighting (`keepWarWith`).
+ * The AI never starts a city-state war, so any it holds was declared on it (a coalition) and only the
+ * player could ever end one: an AI drawn in stayed at war for the rest of the game, and the coalition with
+ * it. Peace goes through `setMinorCivWarState`, the player's own command, which refuses a vassal.
+ */
+export function applyAiMinorCivPeace(
+  state: GameState,
+  civId: string,
+  keepWarWith: ReadonlySet<string>,
+  bus: EventBus,
+): GameState {
+  let next = state;
+  for (const minorCivId of Object.keys(next.minorCivs ?? {}).sort()) {
+    if (keepWarWith.has(minorCivId) || !isMinorCivAtWar(next, civId, minorCivId)) continue;
+    const result = setMinorCivWarState(next, civId, minorCivId, false, bus);
+    if (result.ok) next = result.state;
+  }
+  return next;
 }
 
 /**

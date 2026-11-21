@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP, evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from '@/ai/ai-diplomacy';
+import { OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP, applyAiMinorCivPeace, evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from '@/ai/ai-diplomacy';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 import type { PersonalityTraits, MinorCivState, DiplomacyState } from '@/core/types';
+import { createNewGame } from '@/core/game-state';
+import { EventBus } from '@/core/event-bus';
+import { setMinorCivWarState } from '@/systems/minor-civ-actions';
+import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import type { MilitaryStrengthEstimate } from '@/systems/diplomatic-strength';
 
 const NEUTRAL_POSTURE = NATIONAL_INTENT_POSTURE.develop;
@@ -532,5 +536,40 @@ describe('#870 AI values Open Borders now that it is real passage', () => {
     const withAlliance = decide({ relationship: 80, sharesKnownBorder: true });
     expect(withAlliance.some(decision => decision.action === 'alliance')).toBe(true);
     expect(proposesOpenBorders(withAlliance)).toBe(false);
+  });
+});
+
+// Only the player could ever end a war with a city-state. An AI drawn into one (a coalition declaring on it)
+// stayed at war for the rest of the game, which also kept the coalition alive forever.
+describe('applyAiMinorCivPeace', () => {
+  function atWarWithCityState(seed: string) {
+    const state = createNewGame(undefined, seed, 'small');
+    const minorCivId = Object.keys(state.minorCivs).find(id => !state.minorCivs[id].isDestroyed)!;
+    return { state: setMinorCivWarState(state, 'ai-1', minorCivId, true).state, minorCivId };
+  }
+
+  it('makes peace with a city-state it is not trying to conquer', () => {
+    const { state, minorCivId } = atWarWithCityState('ai-minor-peace');
+
+    const next = applyAiMinorCivPeace(state, 'ai-1', new Set(), new EventBus());
+
+    expect(isMinorCivAtWar(next, 'ai-1', minorCivId)).toBe(false);
+  });
+
+  it('keeps a war its current plan is fighting', () => {
+    const { state, minorCivId } = atWarWithCityState('ai-minor-keep-war');
+
+    const next = applyAiMinorCivPeace(state, 'ai-1', new Set([minorCivId]), new EventBus());
+
+    expect(isMinorCivAtWar(next, 'ai-1', minorCivId)).toBe(true);
+  });
+
+  it('leaves a vassal at war: its overlord controls war and peace', () => {
+    const { state, minorCivId } = atWarWithCityState('ai-minor-vassal');
+    state.civilizations['ai-1'].diplomacy.vassalage.overlord = 'player';
+
+    const next = applyAiMinorCivPeace(state, 'ai-1', new Set(), new EventBus());
+
+    expect(isMinorCivAtWar(next, 'ai-1', minorCivId)).toBe(true);
   });
 });
