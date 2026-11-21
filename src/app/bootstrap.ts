@@ -404,6 +404,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     router: {
       close: panel => router.close(panel),
       open: panel => router.open(panel),
+      closeGroup: group => router.closeGroup(group),
     },
     roundPresentationGate,
     ceremonies,
