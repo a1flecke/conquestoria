@@ -416,6 +416,20 @@ export function getHoardChoicePreview(state: GameState, lairId: string, civId?: 
   };
 }
 
+/** Turns within which a trophy's gold must repay the hoard's gold option for the AI to take it. */
+const AI_TROPHY_PAYBACK_TURNS = 20;
+
+/**
+ * An AI civ's choice from a beast hoard. A trophy pays gold every turn for the rest of the game, so the AI
+ * takes it when it repays the gold option within `AI_TROPHY_PAYBACK_TURNS`; otherwise the gold. (Before,
+ * every AI hoard was settled as gold.) Lore is never chosen: there is no shared rate of research to gold.
+ */
+export function chooseAiHoardChoice(preview: Pick<HoardChoicePreview, 'gold' | 'trophyGoldPerTurn'>): 'gold' | 'trophy' {
+  return preview.trophyGoldPerTurn > 0 && preview.trophyGoldPerTurn * AI_TROPHY_PAYBACK_TURNS >= preview.gold
+    ? 'trophy'
+    : 'gold';
+}
+
 export function getClaimedTrophyGoldPerTurn(state: GameState, civId: string): number {
   if (!state.beasts) return 0;
   let total = 0;

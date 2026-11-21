@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS, processBeasts, recordBeastSlain, getBeastHoardGold, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, getClaimedTrophyGoldPerTurn, isTerrainPassableForBeast, canUnitAttackBeast, isCivUnitInBeastTerritory } from '@/systems/beast-system';
+import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS, processBeasts, recordBeastSlain, getBeastHoardGold, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, getClaimedTrophyGoldPerTurn, chooseAiHoardChoice, isTerrainPassableForBeast, canUnitAttackBeast, isCivUnitInBeastTerritory } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { generateMap } from '@/systems/map-generator';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
@@ -650,5 +650,23 @@ describe('isCivUnitInBeastTerritory', () => {
     state.units['scout-1'].position = { q: 12, r: 10 };
     state.beasts.lairs['lair-giant_boar'].status = 'dormant';
     expect(isCivUnitInBeastTerritory(state, me)).toBe(false);
+  });
+});
+
+// The AI took the gold from every beast hoard. A trophy pays gold every turn for the rest of the game, so
+// when it repays the gold option within 20 turns it is the better buy.
+describe('chooseAiHoardChoice', () => {
+  const preview = (gold: number, trophyGoldPerTurn: number) => ({ gold, lore: Math.round(gold * 0.75), trophyGoldPerTurn, beastName: 'Wolf' });
+
+  it('takes the trophy when it repays the gold within 20 turns', () => {
+    expect(chooseAiHoardChoice(preview(60, 3))).toBe('trophy');
+  });
+
+  it('takes the gold when the trophy would take longer to repay it', () => {
+    expect(chooseAiHoardChoice(preview(180, 3))).toBe('gold');
+  });
+
+  it('takes the gold when there is no trophy', () => {
+    expect(chooseAiHoardChoice(preview(60, 0))).toBe('gold');
   });
 });
