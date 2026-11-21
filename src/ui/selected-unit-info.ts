@@ -20,6 +20,7 @@ import { classifyLandSupplyTerritory } from '@/systems/supply-territory';
 import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES, getAirAssaultLaunchState, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { getAirReadinessPresentation } from '@/ui/air-readiness-presentation';
 import { getNavalOperationsPresentation } from '@/ui/naval-operations-presentation';
+import { getNavalTradeLegLabel } from '@/ui/trade-route-presentation';
 import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/veterancy-tiers';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
@@ -969,16 +970,18 @@ export function renderSelectedUnitInfo(
   if (hasAITradeRole(unit.type) && unit.owner === state.currentPlayer) {
     if (unit.committedToRouteId) {
       const route = state.marketplace?.tradeRoutes.find(candidate => candidate.id === unit.committedToRouteId);
-      const leg = unit.routeDirection === 'positioning'
+      const navalLeg = getNavalTradeLegLabel(unit);
+      const leg = navalLeg ?? (unit.routeDirection === 'positioning'
         ? 'travelling to its origin'
         : (route?.cancelPending || unit.routeDirection === 'inbound')
           ? 'returning home'
-          : 'delivering';
+          : 'delivering');
+      const movement = navalLeg && route?.paused ? `paused · ${leg}` : leg;
       const statusEl = document.createElement('div');
       statusEl.style.cssText = 'font-size:12px;opacity:0.7;padding:8px 0;';
-      statusEl.textContent = route
+      statusEl.textContent = route && !navalLeg
         ? `Committed to route (${leg} · ${route.turnsPerTrip * 2}-round round trip)`
-        : `Committed to route (${leg})`;
+        : `Committed to route (${movement})`;
       actionsDiv.appendChild(statusEl);
     } else if (callbacks.onEstablishRoute) {
       const fromCity = resolveFromCity(state, unit);
