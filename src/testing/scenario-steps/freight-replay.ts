@@ -95,7 +95,7 @@ export function configureFreightReplay(initial: ScenarioState, shortDetour: bool
     }];
   }));
   let state: ScenarioState = {
-    ...initial, turn: 10, map, civilizations, units: {}, tribalVillages: {}, minorCivs: {}, barbarianCamps: {},
+    ...initial, turn: 10, map, civilizations, cities: {}, units: {}, tribalVillages: {}, minorCivs: {}, barbarianCamps: {},
     beasts: { mode: 'off', lairs: {}, sightingsByCiv: {} },
     tutorial: { ...initial.tutorial, active: false },
   };

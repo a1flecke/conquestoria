@@ -94,6 +94,50 @@ test('the two strait maps resume their own progress in the same browser', async 
   await expect(panel).toContainText('5 rounds now, 4 rounds with the passage');
 });
 
+test('the funded Expedition can establish its ivory outpost through the map', async ({ page }) => {
+  await page.goto('/?scenario=freight-strait-b');
+  await expect(page.getByRole('button', { name: 'Freight investment' })).toBeVisible();
+  const warning = page.getByRole('button', { name: 'End Turn Anyway', exact: true });
+  const advance = async (turn: number) => {
+    const next = page.locator('#hud').getByText(new RegExp(`^Turn ${turn} ·`));
+    await requestEndTurn(page, warning.or(next));
+    await expect(warning.or(next)).toBeVisible();
+    if (await warning.isVisible()) await warning.click();
+    await expect(next).toBeVisible();
+  };
+
+  await advance(11);
+  await page.getByRole('button', { name: 'Select next unmoved unit' }).click();
+  const unit = page.getByLabel('Selected unit details and actions (scroll for more)');
+  await expect(unit).toContainText('Expedition');
+  const establish = unit.getByRole('button', { name: 'Establish Outpost' });
+  await expect(establish).toHaveCount(0);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Shift+ArrowDown');
+  const cursor = page.locator('#keyboard-cursor-status');
+  await expect(cursor).toContainText('your Expedition');
+  await page.keyboard.press('Shift+ArrowDown');
+  await page.keyboard.press('Shift+ArrowDown');
+  await expect(cursor).toContainText('Forest at 0, 9');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Shift+ArrowUp');
+  await page.keyboard.press('Shift+ArrowDown');
+  await expect(cursor).toContainText('your Expedition');
+  // The move spends the Expedition's movement and the game clears selection.
+  await expect(unit).toBeHidden();
+  await page.keyboard.press('Enter');
+  await expect(establish).toBeVisible();
+  await establish.click();
+  await expect(unit).toBeHidden();
+
+  await advance(12);
+  await advance(13);
+  await page.getByRole('button', { name: 'Trade', exact: true }).click();
+  const supplies = page.getByRole('dialog', { name: 'Trade & Supply' });
+  const owned = supplies.getByText('✓ Owned', { exact: true });
+  await expect(owned.locator('..')).toContainText('Ivory');
+});
+
 test.describe('strait comparison on touch', () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
   test('can defer, reopen and authorize the Harbor on the closer detour', async ({ page }) => {

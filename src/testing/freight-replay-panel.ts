@@ -1,6 +1,6 @@
 import type { GameSession } from '@/app/ports';
 import type { EventBus } from '@/core/event-bus';
-import { autoSave, listSaves, loadGame } from '@/storage/save-manager';
+import { autoSave, listSaves, loadGame, normalizeLoadedState } from '@/storage/save-manager';
 import { BUILDINGS } from '@/systems/city-building-catalog';
 import { markModal } from '@/ui/modal-contract';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
@@ -14,6 +14,15 @@ function matchesLegacyFreightReplay(candidate: ScenarioState, baseline: Scenario
     && candidate.map.tiles['3,6']?.terrain === baseline.map.tiles['3,6']?.terrain;
 }
 
+function restoreFreightReplay(saved: ScenarioState, playthroughId: string): ScenarioState {
+  const replay = { ...saved, playthroughId };
+  // Early fixtures kept generated city-state cities after removing their owners.
+  const entries = Object.entries(replay.cities);
+  const cities = entries.filter(([, city]) => !city.owner.startsWith('mc-') || replay.minorCivs[city.owner]);
+  if (cities.length === entries.length) return replay;
+  return normalizeLoadedState({ ...replay, cities: Object.fromEntries(cities) });
+}
+
 export async function resumeFreightReplay(scenarioName: string, baseline: ScenarioState): Promise<ScenarioState> {
   // Both maps share a seed. Give each map a stable autosave group so the latest
   // save for a different map or campaign cannot hide its progress.
@@ -22,13 +31,13 @@ export async function resumeFreightReplay(scenarioName: string, baseline: Scenar
   const autosaves = (await listSaves({ includeAutoSave: true })).filter(save => save.kind === 'autosave');
   const ownSave = autosaves.find(save => save.gameId === playthroughId);
   const resumed = ownSave && await loadGame(ownSave.id);
-  if (resumed) return resumed;
+  if (resumed) return restoreFreightReplay(resumed, playthroughId);
 
   // Preserve progress from before these replays had dedicated autosave groups.
   for (const save of autosaves) {
     if (save.gameTitle !== baseline.gameTitle || save.gameId?.startsWith(prefix)) continue;
     const candidate = await loadGame(save.id);
-    if (candidate && matchesLegacyFreightReplay(candidate, baseline)) return { ...candidate, playthroughId };
+    if (candidate && matchesLegacyFreightReplay(candidate, baseline)) return restoreFreightReplay(candidate, playthroughId);
   }
   return { ...baseline, playthroughId };
 }
