@@ -7,12 +7,11 @@ import { isCityCoastal } from './city-system';
 import { getTradeRouteTechGold } from './tech-yield-system';
 import { getNetworkRouteGoldBonus } from './network-infrastructure-plans';
 import { getCivAvailableResources } from './resource-acquisition-system';
-import { getNavalRouteTripRounds, getRouteRoundsBetween } from './trade-route-travel';
+import { getNavalRouteTripRounds, getRouteRoundsBetween, isNavalRouteRunner } from './trade-route-travel';
 import { getTradeDangerFacts, getRouteDangerConsequences, isRouteServiceSuspended, type TradeDangerFacts } from './trade-danger-adapters';
 import { getRouteModeId, getTradeRouteMode } from './trade-route-modes';
 import type { TradeRouteDelivery } from './trade-route-delivery';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
-import { UNIT_DEFINITIONS } from './unit-definitions';
 
 export function calculateTradeRouteGold(
   distance: number,
@@ -143,7 +142,7 @@ export function getTradeRouteQuote(
     ? wrappedHexDistance(origin.position, destination.position, state.map.width)
     : hexDistance(origin.position, destination.position);
   const resourceDiversity = getCivAvailableResources(state, ownerCivId).size;
-  const navalTrip = unit && UNIT_DEFINITIONS[unit.type]?.domain === 'naval'
+  const navalTrip = unit && isNavalRouteRunner(unit)
     ? getNavalRouteTripRounds(state, unit, origin.id, destination.id)
     : null;
   const legRounds = navalTrip?.outbound
