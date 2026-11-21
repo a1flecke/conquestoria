@@ -57,6 +57,54 @@ test('ordinary campaign entry has no freight investment controls', async ({ page
   await expect(page.getByRole('button', { name: 'Freight investment', exact: true })).toHaveCount(0);
 });
 
+test('pausing loaded freight holds the cargo and updates its arrival forecast', async ({ page }) => {
+  await page.goto('/?scenario=freight-strait-a');
+  await page.getByRole('button', { name: 'Freight investment', exact: true }).click();
+  const investment = page.getByRole('dialog', { name: 'Freight investment' });
+  await investment.getByRole('button', { name: 'Review passage' }).click();
+  await investment.getByRole('button', { name: 'Confirm passage' }).click();
+  await expect(investment).toContainText('Passage opened');
+  await investment.getByRole('button', { name: 'Close', exact: true }).click();
+
+  const warning = page.getByRole('button', { name: 'End Turn Anyway', exact: true });
+  const advance = async (turn: number) => {
+    const next = page.locator('#hud').getByText(new RegExp(`^Turn ${turn} ·`));
+    await requestEndTurn(page, warning.or(next));
+    await expect(warning.or(next)).toBeVisible();
+    if (await warning.isVisible()) await warning.click();
+    await expect(next).toBeVisible();
+  };
+  for (const turn of [11, 12, 13]) await advance(turn);
+
+  const tradeButton = page.getByRole('button', { name: 'Trade', exact: true });
+  const trade = page.getByRole('dialog', { name: 'Trade & Supply' });
+  const route = trade.getByRole('button', { name: 'Select the trade unit on Westport → Eastport' }).locator('../..');
+  const cargo = route.getByText(/Confirmed cargo: 3 Coal/);
+  const closeTrade = trade.getByRole('button', { name: 'Close Trade & Supply' });
+
+  await tradeButton.click();
+  await expect(cargo).toContainText('returning home in 1 round');
+  await route.getByRole('button', { name: 'Pause the trade route Westport → Eastport' }).click();
+  await expect(route).toContainText('earning 0 · paused');
+  await expect(cargo).toContainText('Held on board until you resume');
+  await expect(cargo).not.toContainText('returning home in');
+  await expect(route).toContainText('Forecast: Paused');
+  await closeTrade.click();
+  await advance(14);
+
+  await tradeButton.click();
+  await expect(cargo).toContainText('Held on board until you resume');
+  await route.getByRole('button', { name: 'Resume the trade route Westport → Eastport' }).click();
+  await expect(route).toContainText('awaiting next move');
+  await expect(cargo).toContainText('Awaiting next move');
+  await expect(cargo).not.toContainText('Delayed');
+  await closeTrade.click();
+  await advance(15);
+
+  await page.getByRole('button', { name: 'Freight investment', exact: true }).click();
+  await expect(investment).toContainText('3 imported coal in reserve');
+});
+
 test('the two strait maps resume their own progress in the same browser', async ({ page }) => {
   const open = page.getByRole('button', { name: 'Freight investment', exact: true });
   const panel = page.getByRole('dialog', { name: 'Freight investment' });
