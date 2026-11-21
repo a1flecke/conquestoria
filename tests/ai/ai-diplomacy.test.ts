@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP, applyAiCityStateWar, applyAiMinorCivPeace, evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from '@/ai/ai-diplomacy';
+import { OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP, applyAiCityStateWar, applyAiMinorCivReparations, applyAiMinorCivPeace, evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from '@/ai/ai-diplomacy';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 import type { PersonalityTraits, MinorCivState, DiplomacyState } from '@/core/types';
@@ -659,5 +659,55 @@ describe('applyAiCityStateWar', () => {
 
     const ended = applyAiMinorCivPeace(atWar, 'ai-1', new Set(), new EventBus(), PEACEFUL, EXPAND);
     expect(isMinorCivAtWar(ended, 'ai-1', minorCivId)).toBe(false);
+  });
+});
+
+// Conquering a city-state raises the grievance of its neighbours until they form a coalition and declare war.
+// The player can pay reparations to calm them; the AI never did, even once it started conquering city-states.
+describe('applyAiMinorCivReparations', () => {
+  const PEACEFUL: PersonalityTraits = { traits: ['diplomatic'], warLikelihood: 0.2, expansionDrive: 0.3, diplomacyFocus: 0.8 };
+  function aggrieved(seed: string, pressure: number): { state: GameState; minorCivId: string } {
+    const state = createNewGame(undefined, seed, 'small');
+    const minorCivId = Object.keys(state.minorCivs).sort().find(id => !state.minorCivs[id].isDestroyed)!;
+    state.minorCivs[minorCivId].regionalGrievanceByCiv = {
+      'ai-1': {
+        targetCivId: 'ai-1', pressure, status: pressure >= 70 ? 'coalition-talks' : pressure >= 45 ? 'mobilizing' : 'wary',
+        lastUpdatedTurn: state.turn, causes: [],
+      },
+    } as GameState['minorCivs'][string]['regionalGrievanceByCiv'];
+    state.civilizations['ai-1'].gold = 500;
+    return { state, minorCivId };
+  }
+  const pressureOf = (state: GameState, minorCivId: string) =>
+    state.minorCivs[minorCivId].regionalGrievanceByCiv?.['ai-1']?.pressure;
+
+  it('pays reparations to a city-state mobilizing against it', () => {
+    const { state, minorCivId } = aggrieved('reparations-pay', 50);
+    const next = applyAiMinorCivReparations(state, 'ai-1', PEACEFUL, NATIONAL_INTENT_POSTURE.develop);
+    expect(pressureOf(next, minorCivId)).toBe(30);
+    expect(next.civilizations['ai-1'].gold).toBeLessThan(500);
+  });
+
+  it('leaves a merely wary city-state alone', () => {
+    const { state, minorCivId } = aggrieved('reparations-wary', 30);
+    expect(pressureOf(applyAiMinorCivReparations(state, 'ai-1', PEACEFUL, NATIONAL_INTENT_POSTURE.develop), minorCivId)).toBe(30);
+  });
+
+  it('does not pay what it cannot spare', () => {
+    const { state, minorCivId } = aggrieved('reparations-broke', 50);
+    state.civilizations['ai-1'].gold = 10;
+    expect(pressureOf(applyAiMinorCivReparations(state, 'ai-1', PEACEFUL, NATIONAL_INTENT_POSTURE.develop), minorCivId)).toBe(50);
+  });
+
+  it('pays at most one city-state a turn', () => {
+    const { state } = aggrieved('reparations-one', 50);
+    const ids = Object.keys(state.minorCivs).sort().filter(id => !state.minorCivs[id].isDestroyed).slice(0, 2);
+    for (const id of ids) {
+      state.minorCivs[id].regionalGrievanceByCiv = {
+        'ai-1': { targetCivId: 'ai-1', pressure: 50, status: 'mobilizing', lastUpdatedTurn: state.turn, causes: [] },
+      } as GameState['minorCivs'][string]['regionalGrievanceByCiv'];
+    }
+    const next = applyAiMinorCivReparations(state, 'ai-1', PEACEFUL, NATIONAL_INTENT_POSTURE.develop);
+    expect(ids.map(id => pressureOf(next, id)).filter(pressure => pressure === 30)).toHaveLength(1);
   });
 });
