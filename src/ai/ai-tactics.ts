@@ -70,7 +70,7 @@ import { chooseRoadBuilderUnit } from '@/systems/road-network';
 import { canBuildRoad } from '@/systems/road-system';
 import { findFortificationCandidate } from '@/systems/fortification-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
-import { isAIHostileOwner } from './ai-hostility';
+import { isAIHostileOwner, isAIHostileUnit } from './ai-hostility';
 import { getNavalEnduranceStatus } from '@/systems/naval-endurance';
 import { getNavalPorts } from '@/systems/naval-operations';
 import { AIR_RECOVERY_PER_ROUND, getAirBaseSupport, getAirMissionDenial, getAirReadinessStatus } from '@/systems/air-readiness';
@@ -476,7 +476,7 @@ function rankAttacks(
     }
     const defender = observedDefender(context.state, context.actorId, target.result.targetUnitId);
     if (!defender) continue;
-    if (!isAIHostileOwner(context.state, context.actorId, defender.owner)) {
+    if (!isAIHostileUnit(context.state, context.actorId, defender)) {
       continue;
     }
     const combatContext = buildObservedCombatContext(context.state, context.actorId, unit, defender);
@@ -1033,7 +1033,7 @@ function scorePostMovePositioning(
   }).reduce((bonus, target) => {
     if (target.result.targetType !== 'unit') return bonus;
     const defender = observedDefender(projectedState, context.actorId, target.result.targetUnitId);
-    if (!defender || !isAIHostileOwner(projectedState, context.actorId, defender.owner)) {
+    if (!defender || !isAIHostileUnit(projectedState, context.actorId, defender)) {
       return bonus;
     }
     const combatContext = buildObservedCombatContext(projectedState, context.actorId, projectedUnit, defender);
