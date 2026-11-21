@@ -76,6 +76,7 @@ import {
 import {
   getAvailableMissions,
   embedSpy,
+  runCounterIntelSweep,
   attemptInfiltration,
   resolveMissionResult,
   expelSpy,
@@ -1613,6 +1614,14 @@ function processAITurnInternal(
       // Remove unit from map — embedded spy goes off-map ('consumed': its espionage record IS the spy now)
       newState = removeUnits(newState, [idleSpy.id], { reason: 'consumed' }).state;
     }
+  }
+
+  // A spy guarding one of the civ's cities sweeps it every turn, through the player's own command
+  // (which refuses a second sweep in a turn and expels whatever it catches).
+  for (const guard of Object.values(newState.espionage?.[civId]?.spies ?? {}).sort((a, b) => a.id.localeCompare(b.id))) {
+    if (guard.status !== 'embedded') continue;
+    const sweep = runCounterIntelSweep(newState, civId, guard.id, bus);
+    if (sweep.ok) newState = sweep.state;
   }
 
   // AI spy movement, infiltration, and mission issuance for infiltrated spies
