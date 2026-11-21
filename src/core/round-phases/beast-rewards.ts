@@ -4,8 +4,9 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import type { RoundPhase, RoundPhaseContext } from './types';
 
 /**
- * Beast hoards and trophies. A hoard choice pending for a civ other than the current player is resolved as gold
- * (the player at the controls decides their own); every living civ's per-turn trophy gold is credited into
+ * Beast hoards and trophies. An AI civ's pending hoard choice is resolved as gold; a human decides their own,
+ * whoever's turn it is (a unit can slay a beast while defending, outside its owner's turn, and the choice waits
+ * for that human's next turn). Every living civ's per-turn trophy gold is credited into
  * `context.grossGoldByCiv` for the economy phase to settle.
  */
 function runBeastRewards(state: GameState, context: RoundPhaseContext): GameState {
@@ -13,7 +14,7 @@ function runBeastRewards(state: GameState, context: RoundPhaseContext): GameStat
   const { grossGoldByCiv } = context;
   if (newState.beasts) {
     for (const pending of [...(newState.beasts.pendingHoardChoices ?? [])]) {
-      if (pending.civId === newState.currentPlayer) continue;
+      if (newState.civilizations[pending.civId]?.isHuman) continue;
       newState = applyHoardChoice(newState, pending.lairId, pending.civId, 'gold');
     }
     for (const civId of Object.keys(newState.civilizations)) {
