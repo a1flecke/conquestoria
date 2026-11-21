@@ -28,7 +28,12 @@ import { getQueueableProductionForCity } from '@/systems/city-production-eligibi
 import { evaluateMaterialFunding, getMaterialRecipe } from '@/systems/resource-material-costs';
 import { accrueNativeStockForCompletedRound, getCivMaterialLedger } from '@/systems/resource-material-state';
 import { getCityMaterialProjection, syncCityMaterialCommitment } from '@/systems/city-production-materials';
-import { getFuelRunway } from '@/systems/resource-fuel-system';
+import {
+  getCityFuelDemands,
+  getFuelConservationPolicy,
+  getFuelRunway,
+  setFuelConservationPolicy,
+} from '@/systems/resource-fuel-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import { canUnitFulfillAIStrategicRole, getAIStrategicRoles } from './ai-unit-roles';
@@ -1228,4 +1233,20 @@ export function applyAIProduction(
   personality: PersonalityTraits,
 ): GameState {
   return applyAIProductionWithReport(state, civId, demands, personality).state;
+}
+
+/**
+ * Puts an AI civ that burns fuel on the 'conserve' policy. Conserve hands scarce fuel first to the buildings
+ * that lose the most production without it; 'balanced' hands it out by city name. With fuel to spare the two
+ * are identical, so conserve is never worse, but the AI never chose it and fuelled its buildings in
+ * alphabetical order through every shortage. A human civilization's choice is never changed.
+ */
+export function applyAIFuelConservation(state: GameState, civId: string): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.isHuman || getFuelConservationPolicy(state, civId) === 'conserve') return state;
+  const burnsFuel = civ.cities.some(cityId => {
+    const city = state.cities[cityId];
+    return city?.owner === civId && getCityFuelDemands(city).length > 0;
+  });
+  return burnsFuel ? setFuelConservationPolicy(state, civId, 'conserve') : state;
 }
