@@ -308,6 +308,14 @@ function activateCoalitionWar(state: GameState, coalition: MinorCivCoalitionReco
   };
 }
 
+/** A coalition's war goes on while a surviving member is still at war with its target. */
+function isCoalitionWarOngoing(state: GameState, coalition: MinorCivCoalitionRecord): boolean {
+  return coalition.memberIds.some(memberId => {
+    const member = state.minorCivs[memberId];
+    return Boolean(member && !member.isDestroyed && member.diplomacy.atWarWith.includes(coalition.targetCivId));
+  });
+}
+
 export function processMinorCivCoalitionsTurn(state: GameState): GameState {
   let nextState: GameState = {
     ...state,
@@ -318,6 +326,16 @@ export function processMinorCivCoalitionsTurn(state: GameState): GameState {
   for (const coalition of Object.values(nextState.minorCivCoalitions ?? {})) {
     if (coalition.status === 'forming' && coalition.cooldownUntilTurn <= nextState.turn) {
       nextState = activateCoalitionWar(nextState, coalition);
+    } else if (coalition.status === 'active' && !isCoalitionWarOngoing(nextState, coalition)) {
+      // Nothing else ends a coalition: an 'active' one whose war is over would keep its members mobilized,
+      // bar them from graduating and block any new coalition against the same civilization forever.
+      nextState = {
+        ...nextState,
+        minorCivCoalitions: {
+          ...nextState.minorCivCoalitions,
+          [coalition.id]: { ...coalition, status: 'cooling', updatedTurn: nextState.turn },
+        },
+      };
     }
   }
 
