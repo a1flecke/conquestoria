@@ -53,7 +53,7 @@ function makeAiTestState(): GameState {
         isHuman: true, civType: 'egypt',
         cities: ['city-player-1'], units: [],
         techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
-        gold: 100, visibility: { tiles: {} }, score: 50,
+        gold: 100, visibility: { tiles: {} }, score: 50, knownCivilizations: ['ai-egypt'],
         diplomacy: {
           relationships: { 'ai-egypt': -10 }, treaties: [], events: [], atWarWith: [],
           treacheryScore: 0,
@@ -68,7 +68,8 @@ function makeAiTestState(): GameState {
           completed: ['espionage-scouting', 'espionage-informants'],
           currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any,
         },
-        gold: 150, visibility: { tiles: {} }, score: 100,
+        // #1780: Egypt has met the player and found its capital, so remote missions may target it.
+        gold: 150, visibility: { tiles: { '0,0': 'fog' } }, score: 100, knownCivilizations: ['player'],
         diplomacy: {
           relationships: { player: -40 }, treaties: [], events: [], atWarWith: [],
           treacheryScore: 0,
@@ -518,6 +519,29 @@ describe('AI espionage decisions', () => {
 
       expect(after.espionage!['ai-egypt'].spies['spy-mobile'].currentMission?.type).toBe('cyber_attack');
       expect(started).toEqual(['cyber_attack']);
+    });
+
+    it('#1780: never aims a remote mission at an empire it has not met', () => {
+      const state = remoteFallbackState();
+      state.civilizations['ai-egypt'].knownCivilizations = [];
+      state.civilizations.player.knownCivilizations = [];
+
+      const bus = new EventBus();
+      const started: string[] = [];
+      bus.on('espionage:mission-started', event => started.push(event.missionType));
+      const after = processAITurn(state, 'ai-egypt', bus);
+
+      expect(after.espionage!['ai-egypt'].spies['spy-mobile'].currentMission).toBeNull();
+      expect(started).toEqual([]);
+    });
+
+    it('#1780: never aims a remote mission at a city it has not found', () => {
+      const state = remoteFallbackState();
+      state.civilizations['ai-egypt'].visibility.tiles = {};
+
+      const after = processAITurn(state, 'ai-egypt', new EventBus());
+
+      expect(after.espionage!['ai-egypt'].spies['spy-mobile'].currentMission).toBeNull();
     });
 
     it('leaves an embedded defender out of mission selection', () => {

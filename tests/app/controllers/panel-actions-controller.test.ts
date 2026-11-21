@@ -38,7 +38,10 @@ vi.mock('@/ui/network-panel', async () => {
 vi.mock('@/storage/save-manager', () => ({ saveSettings: vi.fn(() => Promise.resolve()) }));
 vi.mock('@/ui/city-panel', () => ({ createCityPanel: vi.fn(), createCityPanelView: vi.fn() }));
 vi.mock('@/ui/strategic-launch-flow', () => ({ createStrategicLaunchFlow: vi.fn() }));
-vi.mock('@/ui/espionage-panel', () => ({ createEspionagePanel: vi.fn(() => document.createElement('div')) }));
+vi.mock('@/ui/espionage-panel', () => ({
+  createEspionagePanel: vi.fn(() => document.createElement('div')),
+  getSpyMissionLabel: (mission: string) => `label:${mission}`,
+}));
 
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
@@ -62,6 +65,7 @@ import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { SFX } from '@/audio/sfx';
 import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { createEspionagePanel } from '@/ui/espionage-panel';
+import { recordCivilizationContact } from '@/systems/discovery-system';
 
 function mockedCallArg<T = unknown>(mockFn: unknown, callIndex: number, argIndex: number): T {
   return (mockFn as ReturnType<typeof vi.fn>).mock.calls[callIndex][argIndex] as T;
@@ -1437,6 +1441,113 @@ describe('PanelActionsController', () => {
       expect(deps.session.getState().espionage!.player.spies['spy-1'].status).toBe('idle');
       expect(deps.session.getState().espionage!.player.spies['spy-1'].currentMission).toBeNull();
       expect(listener).not.toHaveBeenCalled();
+      promptSpy.mockRestore();
+    });
+
+    // #1780: a remote mission's target comes from a viewer-scoped picker, never a prompt that lists
+    // every foreign city in the world.
+    function remoteMissionFixture(seed: string): { state: GameState; aiCivId: string; otherAiId: string } {
+      const { state, aiCivId } = makeFixture(seed);
+      // A second rival the player never meets, cloned from the first so the record is complete.
+      const otherAiId = 'ai-stranger';
+      state.civilizations[otherAiId] = {
+        ...structuredClone(state.civilizations[aiCivId]!), id: otherAiId, name: 'Strangers', cities: [], units: [],
+      };
+      state.civilizations.player.techState.completed = ['satellite-surveillance', 'cyber-intelligence'];
+      for (const civ of Object.values(state.civilizations)) civ.knownCivilizations = [];
+      for (const key of Object.keys(state.civilizations.player.visibility.tiles)) {
+        state.civilizations.player.visibility.tiles[key] = 'unexplored';
+      }
+      const known = makeCity('known-city', { owner: aiCivId, name: 'Knownville', position: { q: 2, r: 2 } });
+      const unfound = makeCity('unfound-city', { owner: aiCivId, name: 'Hiddenburg', position: { q: 5, r: 5 } });
+      const stranger = makeCity('stranger-city', { owner: otherAiId, name: 'Strangeport', position: { q: 8, r: 8 } });
+      for (const city of [known, unfound, stranger]) {
+        state.cities[city.id] = city;
+        state.civilizations[city.owner]!.cities = [city.id, ...state.civilizations[city.owner]!.cities];
+      }
+      state.civilizations.player.visibility.tiles[hexKey(known.position)] = 'fog';
+      state.civilizations.player.visibility.tiles[hexKey(stranger.position)] = 'fog';
+      recordCivilizationContact(state, 'player', aiCivId);
+      placeSpy(state, 'spy-1', { status: 'idle' });
+      return { state, aiCivId, otherAiId };
+    }
+
+    it('opens a picker of met empires with found cities for an empire mission, and starts it on a choice (#1780)', () => {
+      const { state, aiCivId, otherAiId } = remoteMissionFixture('espionage-remote-empire');
+      const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('satellite_surveillance');
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      mockedCallArg<{ onStartMission: (spyId: string) => void }>(createEspionagePanel, 0, 1).onStartMission('spy-1');
+
+      expect(promptSpy).toHaveBeenCalledTimes(1); // the mission choice only; no target prompt
+      const picker = deps.uiLayer.querySelector('#espionage-target-picker')!;
+      expect(picker).not.toBeNull();
+      const choices = [...picker.querySelectorAll<HTMLButtonElement>('button[data-target-civ-id]')];
+      expect(choices.map(button => button.dataset.targetCivId)).toEqual([aiCivId]);
+      expect(choices[0]!.textContent).toBe(state.civilizations[aiCivId]!.name);
+      expect(picker.textContent).not.toContain(otherAiId);
+      expect(picker.textContent).not.toContain('Strangeport');
+
+      choices[0]!.click();
+      expect(deps.uiLayer.querySelector('#espionage-target-picker')).toBeNull();
+      expect(deps.session.getState().espionage!.player.spies['spy-1']!.currentMission)
+        .toMatchObject({ type: 'satellite_surveillance', targetCivId: aiCivId, targetCityId: 'known-city' });
+      promptSpy.mockRestore();
+    });
+
+    it('lists only found cities of met empires for a cyber attack (#1780)', () => {
+      const { state } = remoteMissionFixture('espionage-remote-city');
+      const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('cyber_attack');
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      mockedCallArg<{ onStartMission: (spyId: string) => void }>(createEspionagePanel, 0, 1).onStartMission('spy-1');
+
+      const picker = deps.uiLayer.querySelector('#espionage-target-picker')!;
+      const cityIds = [...picker.querySelectorAll<HTMLButtonElement>('button[data-target-city-id]')].map(b => b.dataset.targetCityId);
+      expect(cityIds).toEqual(['known-city']);
+      expect(picker.textContent).not.toContain('Hiddenburg');
+      promptSpy.mockRestore();
+    });
+
+    it('shows an empty state and starts nothing when no rival is targetable; Cancel changes nothing (#1780)', () => {
+      const { state } = remoteMissionFixture('espionage-remote-empty');
+      for (const civ of Object.values(state.civilizations)) civ.knownCivilizations = [];
+      const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('signals_intercept');
+      const { deps, controller } = build(state);
+      const before = deps.session.getState();
+
+      controller.openEspionagePanel();
+      mockedCallArg<{ onStartMission: (spyId: string) => void }>(createEspionagePanel, 0, 1).onStartMission('spy-1');
+
+      const picker = deps.uiLayer.querySelector('#espionage-target-picker')!;
+      expect(picker.querySelector('[data-target-picker-empty]')).not.toBeNull();
+      expect(picker.querySelectorAll('button[data-target-civ-id]')).toHaveLength(0);
+      picker.querySelector<HTMLButtonElement>('[data-target-picker-cancel]')!.click();
+      expect(deps.uiLayer.querySelector('#espionage-target-picker')).toBeNull();
+      expect(deps.session.getState()).toBe(before);
+      promptSpy.mockRestore();
+    });
+
+    it('refuses a picked target that stopped being earned before the click (#1780)', () => {
+      const { state } = remoteMissionFixture('espionage-remote-stale-target');
+      const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('satellite_surveillance');
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      mockedCallArg<{ onStartMission: (spyId: string) => void }>(createEspionagePanel, 0, 1).onStartMission('spy-1');
+      const choice = deps.uiLayer.querySelector<HTMLButtonElement>('button[data-target-civ-id]')!;
+      const current = deps.session.getState();
+      deps.session.commit({
+        ...current,
+        cities: { ...current.cities, 'known-city': { ...current.cities['known-city']!, owner: 'player' } },
+      });
+      vi.mocked(deps.showNotification).mockClear();
+      choice.click();
+
+      expect(deps.showNotification).toHaveBeenCalledWith(START_MISSION_FAILURE_MESSAGES['target-unknown'], 'warning');
+      expect(deps.session.getState().espionage!.player.spies['spy-1']!.currentMission).toBeNull();
       promptSpy.mockRestore();
     });
 

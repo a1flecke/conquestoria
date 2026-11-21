@@ -816,6 +816,7 @@ describe('#1009 — espionage-system decomposition boundaries', () => {
     'espionage-interrogation',
     'espionage-turn',
     'espionage-presentation',
+    'espionage-remote-targets',
   ];
 
   const siblingsOnly = (name: string) => importsOf(name).filter(s => ESPIONAGE_MODULES.includes(s));
@@ -1972,20 +1973,28 @@ describe('#1222 — starting a spy mission is a typed command that revalidates, 
     expect(throwsOrSkipsEligibility(read('src/systems/espionage-missions.ts'))).toBe(false);
   });
 
+  const callersOf = (pattern: RegExp) => readdirSync(resolve(root, 'src'), { recursive: true, withFileTypes: true })
+    .filter(entry => entry.isFile() && /\.tsx?$/.test(entry.name))
+    .map(entry => resolve(entry.parentPath, entry.name))
+    .filter(file => pattern.test(stripComments(readFileSync(file, 'utf8'))))
+    .map(file => file.slice(root.length + 1))
+    .sort();
+
+  it('#1780: startMission is reached only through startMissionForCiv, which adds the remote-target gate', () => {
+    expect(callersOf(/\bstartMission\(/).filter(path => path !== 'src/systems/espionage-missions.ts'))
+      .toEqual(['src/systems/espionage-remote-targets.ts']);
+    const wrapper = stripComments(read('src/systems/espionage-remote-targets.ts'));
+    expect(wrapper).toMatch(/getRemoteMissionTargetDenial\(/);
+  });
+
   it('the only callers are the player handler and the AI, and each inspects the typed result', () => {
-    const callers = readdirSync(resolve(root, 'src'), { recursive: true, withFileTypes: true })
-      .filter(entry => entry.isFile() && /\.tsx?$/.test(entry.name))
-      .map(entry => resolve(entry.parentPath, entry.name))
-      .filter(file => /\bstartMission\(/.test(stripComments(readFileSync(file, 'utf8'))))
-      .map(file => file.slice(root.length + 1))
-      .filter(path => path !== 'src/systems/espionage-missions.ts')
-      .sort();
+    const callers = callersOf(/\bstartMissionForCiv\(/).filter(path => path !== 'src/systems/espionage-remote-targets.ts');
     expect(callers).toEqual(['src/ai/basic-ai.ts', 'src/app/controllers/espionage-panel-actions-controller.ts']);
     for (const path of callers) {
       const source = stripComments(read(path));
-      const calls = source.match(/\bstartMission\(/g)?.length ?? 0;
+      const calls = source.match(/\bstartMissionForCiv\(/g)?.length ?? 0;
       const checks = source.match(/\bstarted\.ok\b|!started\.ok\b/g)?.length ?? 0;
-      expect(checks, `${path} must inspect every startMission result`).toBeGreaterThanOrEqual(calls);
+      expect(checks, `${path} must inspect every startMissionForCiv result`).toBeGreaterThanOrEqual(calls);
     }
   });
 

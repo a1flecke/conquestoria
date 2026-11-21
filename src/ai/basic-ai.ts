@@ -83,11 +83,11 @@ import {
   executeSpy,
   startInterrogation,
   missionRequiresPlacedSpy,
-  startMission,
   isOperationEffectFullyActive,
   isSpyUnitType,
   getSpyCaptureRelationshipPenalty,
 } from '@/systems/espionage-system';
+import { startMissionForCiv } from '@/systems/espionage-remote-targets';
 import { getAiGrudgeBonuses, applyAiGoPublic } from './ai-espionage-grudges';
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { createRng } from '@/systems/map-generator';
@@ -214,7 +214,7 @@ function shouldAiStationDefensiveSpy(state: GameState, civId: string): boolean {
 /**
  * #1693: the one place an AI spy mission start becomes observable.
  *
- * `startMission` is the only authority on whether a mission actually started, and the
+ * `startMissionForCiv` (over `startMission`) is the only authority on whether a mission actually started, and the
  * accepted spy record is the only authority on *which* mission — so the event is emitted
  * from that result, never from the candidate the AI considered first. The payload stays
  * `civId`/`spyId`/`missionType`: it never names the (hidden) target. A refused start
@@ -1814,8 +1814,8 @@ function processAITurnInternal(
             // #419: a full-strength lockout/penalty cannot be improved by repeating
             // the operation, so try the next-best mission instead of wasting this spy.
             if (isOperationEffectFullyActive(newState, missionType, city.owner, city.id)) continue;
-            const started = startMission(
-              newState.espionage![civId], spy.id, missionType, undefined, city.owner, city.id,
+            const started = startMissionForCiv(
+              newState, civId, spy.id, missionType, undefined, city.owner, city.id,
             );
             if (!started.ok) continue; // not eligible for this mission — try the next best
             newState.espionage![civId] = started.state;
@@ -1851,8 +1851,10 @@ function processAITurnInternal(
         if (missionRequiresPlacedSpy(missionType) && !(spy.status === 'stationed' && spy.targetCivId)) continue;
         // Repeating a fully active lockout/penalty only overwrites the timer with the same value.
         if (isOperationEffectFullyActive(newState, missionType, target.civId, target.cityId)) continue;
-        const started = startMission(
-          newState.espionage![civId],
+        // #1780: the same remote-target gate as the player's panel (met empire, found city).
+        const started = startMissionForCiv(
+          newState,
+          civId,
           spy.id,
           missionType,
           resolveCivDefinition(newState, newState.civilizations[civId]?.civType ?? '')?.bonusEffect,

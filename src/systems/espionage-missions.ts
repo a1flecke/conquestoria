@@ -72,13 +72,17 @@ export type StartMissionFailureReason =
   | 'spy-not-found'
   | 'spy-not-stationed'
   | 'spy-unavailable'
-  | 'target-missing';
+  | 'target-missing'
+  | 'target-unknown';
 
 export const START_MISSION_FAILURE_MESSAGES: Record<StartMissionFailureReason, string> = {
   'spy-not-found': 'That spy is no longer available.',
   'spy-not-stationed': 'This spy is not stationed in a foreign city, so it cannot start that mission right now.',
   'spy-unavailable': 'This spy is busy or out of action, so it cannot start a mission right now.',
   'target-missing': 'This mission needs a target city, and none has been chosen.',
+  // #1780: a remote mission aimed at an empire the acting civ has not met, or a city it has not found.
+  // Same answer for a target that does not exist, so it reveals nothing.
+  'target-unknown': 'Your empire has not found that target, so this mission cannot be aimed at it.',
 };
 
 export type StartMissionResult =

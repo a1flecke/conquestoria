@@ -128,6 +128,10 @@ const MISSION_LABELS: Record<SpyMissionType, string> = {
   signals_intercept: 'Signals Intercept',
 };
 
+export function getSpyMissionLabel(mission: SpyMissionType): string {
+  return MISSION_LABELS[mission];
+}
+
 // #442 MR1 review: the mission catalog previously showed only a label, stage tag, and
 // access tag — no plain-language effect text anywhere, for any mission (not just the two
 // added here). That fails CLAUDE.md's "all UI elements must be self-explanatory" rule and

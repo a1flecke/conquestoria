@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { EspionageCivState, Spy, SpyMissionType } from '@/core/types';
+import type { EspionageCivState, GameState, Spy, SpyMissionType } from '@/core/types';
+import { getRemoteMissionTargetDenial } from '@/systems/espionage-remote-targets';
 import {
   createEspionageCivState,
   getMissionStartDenial,
@@ -120,6 +121,10 @@ describe('startMission typed contract (#1222)', () => {
       const reason = getMissionStartDenial(state, spyId, mission, civ, city);
       if (reason) produced.add(reason);
     }
+    // #1780: the remote-target gate owns the one reason about the target's earned knowledge.
+    const world = { civilizations: {}, cities: {} } as unknown as GameState;
+    const unknown = getRemoteMissionTargetDenial(world, 'ai-egypt', 'cyber_attack', 'player', 'city-player-1');
+    if (unknown) produced.add(unknown);
     expect([...produced].sort()).toEqual(Object.keys(START_MISSION_FAILURE_MESSAGES).sort());
   });
 
