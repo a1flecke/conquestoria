@@ -18,6 +18,7 @@ import { buildProductionCostContext, getProductionCostForCivItem } from '@/syste
 import { completeRouteLeg } from '@/systems/trade-route-runner';
 import { establishTradeRoute } from '@/systems/trade-route-contract';
 import { getTradeRouteQuote, settleTradeRouteForCiv } from '@/systems/trade-route-economy';
+import { getRouteLegPath } from '@/systems/trade-route-travel';
 import { setMarketProcurementPolicy } from '@/systems/resource-market-offers';
 import { canEstablishOutpost, getCivAvailableResources, performEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { allocateFuelForRound } from '@/systems/resource-fuel-system';
@@ -337,15 +338,17 @@ describe('#1125 engineering passage feasibility', () => {
     goodId: COAL,
   };
   const authoredPassage = { id: 'isthmus', site: { q: 4, r: 5 } };
+  const detourBend = { q: 4, r: 6 };
   const freightPartner = 'freight-partner';
 
   function evaluationWorld(
     open: boolean,
-    { northernRegion = 'north-coast', fuelPort = 'north', targetQuantity = 20, claimant }: {
+    { northernRegion = 'north-coast', fuelPort = 'north', targetQuantity = 20, claimant, shortDetour = false }: {
       northernRegion?: string;
       fuelPort?: 'north' | 'west';
       targetQuantity?: number;
       claimant?: 'independent' | 'shared';
+      shortDetour?: boolean;
     } = {},
   ): GameState {
     const state = passageWorld(open);
@@ -374,6 +377,11 @@ describe('#1125 engineering passage feasibility', () => {
       }
     }
     tiles['1,4']!.terrain = 'coast';
+    if (shortDetour) {
+      // Bring the southern waterway around the isthmus closer without changing either port.
+      tiles['3,6']!.terrain = 'coast';
+      tiles[hexKey(detourBend)]!.terrain = 'coast';
+    }
     if (claimant === 'shared') {
       // Adjacent waters let two foreign hulls pass each other on either side of the channel.
       for (const key of ['2,4', '3,4', '6,4']) tiles[key]!.terrain = 'coast';
@@ -608,12 +616,15 @@ describe('#1125 engineering passage feasibility', () => {
     expect(evaluateAuthoredClaimants(stale, authoredPassage, sharedUndertaking, 25)).toEqual([]);
   });
 
-  it('keeps a separately funded Expedition operating while weighing a passage against a Harbor', () => {
+  it.each([
+    { geography: 'long detour', shortDetour: false, detourDeliveryRound: 18 },
+    { geography: 'short detour', shortDetour: true, detourDeliveryRound: 15 },
+  ])('weighs a passage against a Harbor with a funded Expedition ($geography)', ({ shortDetour, detourDeliveryRound }) => {
     const liquidGold = 80;
     const protectedGold = 30;
     const passageCost = 45;
     const expeditionBudget = 45;
-    const scenario = evaluationWorld(false, { fuelPort: 'west' });
+    const scenario = evaluationWorld(false, { fuelPort: 'west', shortDetour });
     const buyer = scenario.civilizations[BUYER]!;
     const freightFunds = buyer.gold;
     buyer.gold += liquidGold + expeditionBudget;
@@ -681,6 +692,11 @@ describe('#1125 engineering passage feasibility', () => {
     expect(uncommitted(passageState, freightFunds)).toBe(5);
     expect(uncommitted(bought.state, freightFunds)).toBe(5);
     expect(bought.state.cities[northernHomeId]!.buildings).toContain('harbor');
+    if (shortDetour) {
+      expect(getRouteLegPath(start, start.units[traderId]!, SELLER_CITY)).toContainEqual(detourBend);
+    }
+    expect(getTradeRouteQuote(start, request)).toMatchObject({ roundTripRounds: detourDeliveryRound - start.turn });
+    expect(getTradeRouteQuote(passageState, request)).toMatchObject({ roundTripRounds: 4 });
 
     const yieldsAt = (state: GameState, cityId: string) =>
       calculateCityYields(state.cities[cityId]!, state.map, undefined, buyer.techState.completed);
@@ -755,14 +771,21 @@ describe('#1125 engineering passage feasibility', () => {
       stock: [{ goodId: COAL, quantity: 5 }],
     }));
     for (const withoutPassage of [harbor, deferred]) {
-      expect(firstCoal(withoutPassage.rounds)).toMatchObject({ turn: 18, beforeFuel: unfueled, afterFuel: unfueled });
-      expect(firstPowered(withoutPassage.rounds)?.turn).toBe(19);
+      expect(firstCoal(withoutPassage.rounds)).toMatchObject({
+        turn: detourDeliveryRound, beforeFuel: unfueled, afterFuel: unfueled, afterDelivery: { native: 0, imported: 5 },
+      });
+      expect(firstPowered(withoutPassage.rounds)).toMatchObject({
+        turn: detourDeliveryRound + 1, beforeFuel: { native: 0, imported: 5 }, afterFuel: { native: 0, imported: 4 },
+      });
+      expect(Object.values(withoutPassage.state.freightVoyageReceipts ?? {})).toHaveLength(0);
+      const sameRoundWithPassage = passage.rounds.find(round => round.turn === detourDeliveryRound + 1);
+      expect(firstPowered(withoutPassage.rounds)?.west).toEqual(sameRoundWithPassage?.west);
     }
     expect(firstPowered(passage.rounds)).toMatchObject({
       turn: 15, beforeFuel: { native: 0, imported: 5 }, afterFuel: { native: 0, imported: 4 },
     });
-    const factoryLead = passage.rounds.filter(round => round.turn >= 15 && round.turn < 19);
-    expect(factoryLead).toHaveLength(4);
+    const factoryLead = passage.rounds.filter(round => round.turn >= 15 && round.turn <= detourDeliveryRound);
+    expect(factoryLead).toHaveLength(detourDeliveryRound - 14);
     for (const round of factoryLead) {
       const detour = deferred.rounds.find(candidate => candidate.turn === round.turn)!;
       expect(round.west.production - detour.west.production).toBe(2);
@@ -771,6 +794,8 @@ describe('#1125 engineering passage feasibility', () => {
 
     expect(harbor.rounds[0]!.north.gold - deferred.rounds[0]!.north.gold).toBe(3);
     expect(harbor.rounds[0]!.north.food - deferred.rounds[0]!.north.food).toBe(1);
+    expect(harbor.rounds[0]!.north.gold - passage.rounds[0]!.north.gold).toBe(3);
+    expect(harbor.rounds[0]!.north.food - passage.rounds[0]!.north.food).toBe(1);
     expect(harbor.rounds[0]!.turn).toBe(11);
     const harborAvailable = passage.rounds.find(({ harborBuilt, quote, uncommitted: gold }) =>
       harborBuilt || (quote.available && gold >= quote.cost));
