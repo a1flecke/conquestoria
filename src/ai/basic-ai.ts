@@ -142,7 +142,8 @@ import {
   type PreparedMajorCivPlan,
 } from './ai-prepared-turn';
 import { isAIHostileOwner } from './ai-hostility';
-import { hasAITradeRole } from './ai-unit-roles';
+import { hasAICombatRole, hasAITradeRole } from './ai-unit-roles';
+import { fortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { applyAIFuelConservation, applyAIProduction, refillAIQueuesEmptiedByPurchase, releaseAISpyQueueHeads } from './ai-production';
 import { applyAIGoldSpending } from './ai-treasury';
 import { applyAIResearch } from './ai-research';
@@ -665,6 +666,30 @@ export function canDeclareWarForPreparedPlan(
       unit.id === target.id && unit.owner === targetCivId);
   }
   return false;
+}
+
+/**
+ * Fortifies every idle land combat unit standing in one of the civ's own cities: a fortified defender fights
+ * at +25%, and the AI never fortified, not even the home guard it stations. Runs at the end of the AI's turn,
+ * after its plans have moved, so it only touches a unit that has neither moved nor acted this turn and was
+ * not going to; moving again clears the fortification.
+ */
+export function fortifyIdleAIGarrisons(state: GameState, civId: string): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.isHuman) return state;
+  const cityTiles = new Set(civ.cities
+    .map(cityId => state.cities[cityId])
+    .filter(city => city?.owner === civId)
+    .map(city => hexKey(city!.position)));
+  let next = state;
+  for (const unitId of [...civ.units].sort()) {
+    const unit = next.units[unitId];
+    if (!unit || unit.owner !== civId || unit.isFortified || unit.hasMoved || unit.hasActed || unit.transportId) continue;
+    if (!cityTiles.has(hexKey(unit.position)) || !hasAICombatRole(unit.type)) continue;
+    if ((UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') !== 'land') continue;
+    next = fortifyUnitInState(next, civId, unitId);
+  }
+  return next;
 }
 
 /**
@@ -1969,6 +1994,8 @@ function processAITurnInternal(
       }
     }
   }
+
+  newState = fortifyIdleAIGarrisons(newState, civId);
 
   // Update AI visibility
   newState = updateAndRefreshVisibility(newState, civId);
