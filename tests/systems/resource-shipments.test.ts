@@ -11,6 +11,7 @@ import { reconcileCivilizationLiveness } from '@/systems/civilization-eliminatio
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { applyEconomyTurn, getRushBuyQuote } from '@/systems/economy-system';
 import { hexKey } from '@/systems/hex-utils';
+import { processImprovementTurns } from '@/systems/improvement-turn-system';
 import { getEntitledTradeDestinations } from '@/systems/commerce-projection';
 import { enqueueCityProduction } from '@/systems/planning-system';
 import { buildProductionCostContext, getProductionCostForCivItem } from '@/systems/production-cost-context';
@@ -18,6 +19,7 @@ import { completeRouteLeg } from '@/systems/trade-route-runner';
 import { establishTradeRoute } from '@/systems/trade-route-contract';
 import { getTradeRouteQuote, settleTradeRouteForCiv } from '@/systems/trade-route-economy';
 import { setMarketProcurementPolicy } from '@/systems/resource-market-offers';
+import { canEstablishOutpost, getCivAvailableResources, performEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { allocateFuelForRound } from '@/systems/resource-fuel-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
@@ -606,21 +608,44 @@ describe('#1125 engineering passage feasibility', () => {
     expect(evaluateAuthoredClaimants(stale, authoredPassage, sharedUndertaking, 25)).toEqual([]);
   });
 
-  it('compares an earlier coal-powered Factory with an immediate Harbor investment', () => {
+  it('keeps a separately funded Expedition operating while weighing a passage against a Harbor', () => {
     const liquidGold = 80;
     const protectedGold = 30;
     const passageCost = 45;
+    const expeditionBudget = 45;
     const scenario = evaluationWorld(false, { fuelPort: 'west' });
     const buyer = scenario.civilizations[BUYER]!;
     const freightFunds = buyer.gold;
-    buyer.gold += liquidGold;
-    buyer.techState.completed.push('harbor-tech', 'banking');
+    buyer.gold += liquidGold + expeditionBudget;
+    buyer.techState.completed.push('harbor-tech', 'banking', 'foraging');
     scenario.cities[BUYER_CITY]!.buildings = ['factory'];
     scenario.cities[northernHomeId]!.buildings = ['bank'];
     const channel = scenario.map.tiles[hexKey(authoredPassage.site)]!.freightPassage!;
     channel.ownerId = BUYER;
 
-    const fundedScenario = setMarketProcurementPolicy(scenario, BUYER, { maxUnitPrice: 100, treasuryFloor: protectedGold });
+    const waypoint = { q: 0, r: 7 };
+    const outpost = { q: 0, r: 9 };
+    const outpostKey = hexKey(outpost);
+    const resource = 'ivory';
+    scenario.map.tiles[outpostKey] = { ...scenario.map.tiles[outpostKey]!, terrain: 'forest', resource };
+    const bus = new EventBus();
+    const moveOptions = { actor: 'player', civId: BUYER } as const;
+    const expeditionOrder = enqueueCityProduction(scenario, BUYER_CITY, 'expedition');
+    if (!expeditionOrder.ok) throw new Error(expeditionOrder.reason);
+    const launch = rushBuyActiveProduction(expeditionOrder.state, BUYER, BUYER_CITY, bus);
+    if (!launch.success) throw new Error(launch.message);
+    expect(launch.cost).toBe(expeditionBudget);
+    expect(launch.state.civilizations[BUYER]!.gold).toBe(freightFunds + liquidGold);
+    const expedition = Object.values(launch.state.units).find(unit => unit.type === 'expedition' && unit.owner === BUYER);
+    if (!expedition) throw new Error('The completed purchase did not place an Expedition');
+    expect(expedition.position).toEqual(scenario.cities[BUYER_CITY]!.position);
+    const dispatched = executeUnitMove(launch.state, expedition.id, waypoint, moveOptions);
+    if (!dispatched.ok) throw new Error(dispatched.reason);
+    expect(dispatched.to).toEqual(waypoint);
+    expect(canEstablishOutpost(dispatched.state, expedition.id)).toBe(false);
+    expect(getCivAvailableResources(dispatched.state, BUYER).has(resource)).toBe(false);
+
+    const fundedScenario = setMarketProcurementPolicy(dispatched.state, BUYER, { maxUnitPrice: 100, treasuryFloor: protectedGold });
     const queued = enqueueCityProduction(fundedScenario, northernHomeId, 'harbor');
     if (!queued.ok) throw new Error(queued.reason);
     const start = queued.state;
@@ -631,7 +656,6 @@ describe('#1125 engineering passage feasibility', () => {
     expect(harborQuote).toMatchObject({ itemId: 'harbor', available: true, cost: 45 });
     expect(liquidGold - protectedGold).toBeGreaterThanOrEqual(passageCost);
 
-    const bus = new EventBus();
     const bought = rushBuyActiveProduction(start, BUYER, northernHomeId, bus);
     if (!bought.success) throw new Error(bought.message);
     // The panel for commissioning is a later slice. Apply its authored quote to the same
@@ -639,7 +663,10 @@ describe('#1125 engineering passage feasibility', () => {
     const passageKey = hexKey(authoredPassage.site);
     const passageState: GameState = {
       ...start,
-      civilizations: { ...start.civilizations, [BUYER]: { ...buyer, gold: buyer.gold - passageCost } },
+      civilizations: {
+        ...start.civilizations,
+        [BUYER]: { ...start.civilizations[BUYER]!, gold: start.civilizations[BUYER]!.gold - passageCost },
+      },
       map: {
         ...start.map,
         tiles: {
@@ -660,7 +687,19 @@ describe('#1125 engineering passage feasibility', () => {
     const run = (state: GameState) => {
       let earmarked = freightFunds;
       const rounds = [];
+      expect(state.units[expedition.id]).toEqual(start.units[expedition.id]);
       while (state.turn < 26) {
+        if (state.turn === start.turn + 1) {
+          const arrived = executeUnitMove(state, expedition.id, outpost, moveOptions);
+          if (!arrived.ok) throw new Error(arrived.reason);
+          expect(arrived.to).toEqual(outpost);
+          expect(canEstablishOutpost(arrived.state, expedition.id)).toBe(true);
+          state = performEstablishOutpost(arrived.state, expedition.id);
+          expect(state.map.tiles[outpostKey]?.improvementTurnsLeft).toBe(2);
+          expect(state.civilizations[BUYER]!.gold).toBe(arrived.state.civilizations[BUYER]!.gold);
+        }
+        // The live turn closes pending improvements before allocating resources and moving freight.
+        state = processImprovementTurns(state, bus);
         const beforeFuel = getReserveBalance(state.materialReservesByCiv![BUYER]!, COAL);
         // The live round allocates fuel and calculates city yields before trade delivery.
         const funded = allocateFuelForRound(state);
@@ -686,6 +725,7 @@ describe('#1125 engineering passage feasibility', () => {
           afterFuel,
           afterDelivery: getReserveBalance(state.materialReservesByCiv![BUYER]!, COAL),
           uncommitted: uncommitted(state, earmarked),
+          hasExpeditionResource: getCivAvailableResources(state, BUYER).has(resource),
           harborBuilt: northAfterProduction.buildings.includes('harbor'),
           quote: getRushBuyQuote(state, BUYER, northernHomeId),
         });
@@ -696,6 +736,14 @@ describe('#1125 engineering passage feasibility', () => {
     const passage = run(passageState);
     const harbor = run(bought.state);
     const deferred = run(start);
+    for (const replay of [passage, harbor, deferred]) {
+      expect(replay.state.units[expedition.id]).toBeUndefined();
+      expect(replay.state.map.tiles[outpostKey]).toMatchObject({
+        improvement: 'resource_outpost', improvementTurnsLeft: 0, owner: BUYER,
+      });
+      expect(getCivAvailableResources(replay.state, BUYER).has(resource)).toBe(true);
+      expect(replay.rounds.find(round => round.hasExpeditionResource)?.turn).toBe(13);
+    }
     const firstCoal = (rounds: typeof passage.rounds) => rounds.find(round => round.afterDelivery.imported > 0);
     const firstPowered = (rounds: typeof passage.rounds) =>
       rounds.find(round => round.beforeFuel.imported > round.afterFuel.imported);
