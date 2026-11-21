@@ -631,6 +631,32 @@ describe('createMarketplacePanel', () => {
       expect(panel?.textContent).toContain('round trip 2 rounds');
     });
 
+    it('shows service from the completed round without calling the route blocked', () => {
+      const state = buildStateWithRoute();
+      state.turn = 13;
+      const route = state.marketplace!.tradeRoutes[0]!;
+      route.lastProgressTurn = 12;
+      route.lastSettledTurn = 12;
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+
+      const routes = container.querySelector('[data-section="trade-supply-routes"]');
+      expect(routes?.textContent).toContain('served last round');
+      expect(routes?.textContent).not.toContain('blocked');
+    });
+
+    it('still reports a blocked route when the trader missed the completed round', () => {
+      const state = buildStateWithRoute();
+      state.turn = 13;
+      const route = state.marketplace!.tradeRoutes[0]!;
+      route.lastProgressTurn = 11;
+      route.lastSettledTurn = 11;
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+
+      const routes = container.querySelector('[data-section="trade-supply-routes"]');
+      expect(routes?.textContent).toContain('earning 0 · blocked');
+      expect(routes?.textContent).not.toContain('served last round');
+    });
+
     it('clicking a route row with a committed unit calls onSelectUnit with the unit id', () => {
       const state = buildStateWithRoute();
       const onSelectUnit = vi.fn();
@@ -878,6 +904,7 @@ describe('createMarketplacePanel material reserves (#1506 MR09)', () => {
     expect(text).toContain('+2 units/round');
     expect(text).toContain('1 source');
     expect(text).not.toContain('Not in inventory');
+    expect(text).not.toContain('Fuel demand');
   });
 
   it('labels migration assistance and storage capping separately from free stock', () => {

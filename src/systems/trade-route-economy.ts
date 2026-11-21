@@ -200,6 +200,7 @@ export function getRouteOperatingStatus(
   state: GameState,
   routeId: string,
   danger: TradeDangerFacts = getTradeDangerFacts(state),
+  progressTurn = state.turn,
 ): TradeRouteOperatingStatus {
   const route = state.marketplace?.tradeRoutes.find(candidate => candidate.id === routeId);
   const promised = route ? promisedGoldPerTurn(state, route) : 0;
@@ -228,10 +229,10 @@ export function getRouteOperatingStatus(
   if (!runner && settlementAware) return notOperating('no-trader');
   if (runner?.routeDirection === 'positioning') return notOperating('positioning');
   if (route.serviceRoundsRemaining !== undefined && route.serviceRoundsRemaining <= 0) return notOperating('service-complete');
-  // A recorded progress turn that is not the current round means the trader did not serve this
-  // round (blocked or waiting). A route with no record yet (fresh or from an older save) is treated
-  // as operating until its first settlement round decides.
-  if (route.lastProgressTurn !== undefined && route.lastProgressTurn !== state.turn) return notOperating('blocked');
+  // Settlement checks progress in the current round. The route list can report confirmed service
+  // from the completed round while still checking live route controls and danger above.
+  // Fresh routes and older saves with no record remain operating until first settlement.
+  if (route.lastProgressTurn !== undefined && route.lastProgressTurn !== progressTurn) return notOperating('blocked');
 
   return {
     routeId,

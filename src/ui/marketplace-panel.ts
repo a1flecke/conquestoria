@@ -157,7 +157,7 @@ export function createMarketplacePanel(
       setText(`res-cap-${idx}`, capParts.join(' · '));
       setText(
         `res-fuel-${idx}`,
-        reserve.fuelStatus === 'no-demand'
+        reserve.fuelStatus === undefined || reserve.fuelStatus === 'no-demand'
           ? ''
           : reserve.fuelStatus === 'funded'
             ? `Fuel demand ${reserve.fuelDemandPerRound}/round · runway ${reserve.fuelRunwayRounds ?? '∞'} round(s)`
