@@ -818,6 +818,25 @@ describe('createTurnFlowController', () => {
       expect(order.lastIndexOf('showRequiredChoicesIfNeeded')).toBeGreaterThan(updateHUDIndex);
     });
 
+    // A Great General choice is queued at round end, and a hoard choice when a unit slays a beast while
+    // defending. Hot seat opens both when the seat's turn begins; solo opened neither after a round, so the
+    // player was told "Choose your reward" and saw no chooser until the game was reloaded.
+    it('solo endTurn opens a pending hoard or Great General choice once the round is shown', async () => {
+      const state = makeFixture();
+      const order: string[] = [];
+      const deps = baseDeps(state, {
+        updateHUD: vi.fn(() => order.push('updateHUD')),
+        maybeShowPendingHoardChoice: vi.fn(() => order.push('hoard')),
+        maybeShowPendingGeneralChoice: vi.fn(() => order.push('general')),
+      });
+
+      await createTurnFlowController(deps).endTurn();
+
+      expect(deps.maybeShowPendingHoardChoice).toHaveBeenCalledTimes(1);
+      expect(deps.maybeShowPendingGeneralChoice).toHaveBeenCalledTimes(1);
+      expect(order.indexOf('hoard')).toBeGreaterThan(order.indexOf('updateHUD'));
+    });
+
     it('enterViewerTurn shows required choices last, after refreshing render/HUD state', () => {
       const state = makeFixture();
       const order: string[] = [];
