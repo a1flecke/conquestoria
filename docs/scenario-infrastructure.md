@@ -79,9 +79,9 @@ Everything not named in `base`/`steps` -- map, starting units for every civ, ini
 visibility, minor civs, espionage state, idCounters -- comes from
 `createNewGame`/`createHotSeatGame`, called once at the start of `buildScenario`. Steps
 only add the specific delta a scenario needs. After all steps run, `buildScenario`
-recomputes visibility/contacts for every civ via the same system calls `createNewGame`
-itself uses -- never hand-set. IDs come from the built state's own `idCounters`, so
-they stay collision-free the same way real gameplay's do.
+recomputes current visibility and contacts for every civ through the game systems.
+An authored mid-campaign scenario can seed prior survey knowledge before this refresh.
+IDs for regular units and cities come from the built state's own `idCounters`.
 
 ## Production/debug isolation guarantees
 
@@ -107,3 +107,32 @@ conditions two real, previously-hard-to-reproduce bugs needed:
 Both are asserted against in `tests/testing/scenarios.test.ts`, and both can be opened
 directly with `?scenario=undefended-enemy-city` / `?scenario=undefended-barbarian-camp`
 under `yarn dev` -- no manual play required to reach either state.
+
+## Freight investment playtest (#1125)
+
+Run `./scripts/dev-server.sh start` in the worktree. Use its dev URL with
+`?scenario=freight-strait-a&playtest=1` or `?scenario=freight-strait-b&playtest=1` in
+a fresh browser profile for each session. These links enter the campaign directly.
+Reloading a link resumes the matching scenario when its autosave is the most recent.
+
+Both maps start in round 10 with Westport's Factory, an active Expedition, and
+80 gold. The Freight investment control compares the two commitments and lets
+the player defer. The capital comparison and freight procurement both preserve
+30 gold. Each purchase costs 45 gold on entry, leaving five available. Ordinary
+income then finances the purchases at the supplier.
+
+In the automated full-round replay, the passage brings home three coal in round
+14 and the Factory uses it in round 15. Via the long detour, the first five coal
+arrive in round 18. Via the short detour they arrive in round 15. The detour's
+Factory uses the coal in the round following delivery. When the Expedition
+establishes the outpost in round 11, it supplies ivory by round 13 across both
+maps and all three choices.
+
+For an uncoached session, use a neutral objective such as “keep your ports
+productive and decide where to spend your available gold.” Vary the order of
+the two maps across sessions and observe desktop and touch. Ask the player to
+explain their choice, what they expect to happen next, and which place they
+remember. Record the first control they use, unused turns, repeated actions,
+and any confusion between the quote, a shipment in transit, fuel in reserve,
+and the Factory's use of it. The optional recorder exports local turn and
+interaction data. Use facilitator notes to capture the reasoning and choices.

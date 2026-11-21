@@ -17,6 +17,7 @@ import { applyCampStep } from '@/testing/scenario-steps/camp-step';
 import { applyTechStep } from '@/testing/scenario-steps/tech-step';
 import { applyDiplomacyStep } from '@/testing/scenario-steps/diplomacy-step';
 import { applyGoldStep } from '@/testing/scenario-steps/gold-step';
+import { configureFreightReplay } from '@/testing/scenario-steps/freight-replay';
 
 function applyTerrainStep(state: GameState, step: Extract<ScenarioStep, { kind: 'terrain' }>): GameState {
   const key = hexKey(step.position);
@@ -34,6 +35,7 @@ function applyStep(state: GameState, step: ScenarioStep): GameState {
     case 'tech': return applyTechStep(state, step);
     case 'diplomacy': return applyDiplomacyStep(state, step);
     case 'gold': return applyGoldStep(state, step);
+    case 'freight-replay': return configureFreightReplay(state, step.shortDetour);
   }
 }
 
