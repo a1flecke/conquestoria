@@ -72,7 +72,8 @@ export type ScenarioStep =
   | CampStep
   | TechStep
   | DiplomacyStep
-  | GoldStep;
+  | GoldStep
+  | { readonly kind: 'freight-replay'; readonly shortDetour: boolean };
 
 export type ScenarioBase =
   | { readonly kind: 'solo'; readonly config: SoloSetupConfig }
