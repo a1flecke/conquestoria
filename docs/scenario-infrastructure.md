@@ -112,8 +112,9 @@ under `yarn dev` -- no manual play required to reach either state.
 
 Run `./scripts/dev-server.sh start` in the worktree. Use its dev URL with
 `?scenario=freight-strait-a&playtest=1` or `?scenario=freight-strait-b&playtest=1` in
-a fresh browser profile for each session. These links enter the campaign directly.
-Reloading a link resumes the matching scenario when its autosave is the most recent.
+a fresh browser profile for each session that should begin on round 10. These links
+enter the campaign directly. Each map resumes its own latest autosave, including
+after playing the other map.
 
 Both maps start in round 10 with Westport's Factory, an active Expedition, and
 80 gold. The Freight investment control compares the two commitments and lets

@@ -456,9 +456,8 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
         if (isGeographicMapScript(scenarioScript)) await loadGeoMapData(scenarioScript);
         const baseline = buildScenario(definition);
         if (scenarioName === 'freight-strait-a' || scenarioName === 'freight-strait-b') {
-          const { matchesFreightReplay, mountFreightReplayPanel } = await import('@/testing/freight-replay-panel');
-          const saved = await loadMostRecentAutoSaveEntry();
-          const replay = saved && matchesFreightReplay(saved.state, baseline) ? saved.state : baseline;
+          const { mountFreightReplayPanel, resumeFreightReplay } = await import('@/testing/freight-replay-panel');
+          const replay = await resumeFreightReplay(scenarioName, baseline);
           await deps.campaignEntry.enterCampaign(replay, 'The Strait');
           const toolbar = deps.getElementById('utility-toolbar');
           if (toolbar) mountFreightReplayPanel(deps.uiLayer, toolbar, deps.session, deps.bus);

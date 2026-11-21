@@ -1,6 +1,6 @@
 import type { GameSession } from '@/app/ports';
 import type { EventBus } from '@/core/event-bus';
-import { autoSave } from '@/storage/save-manager';
+import { autoSave, listSaves, loadGame } from '@/storage/save-manager';
 import { BUILDINGS } from '@/systems/city-building-catalog';
 import { markModal } from '@/ui/modal-contract';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
@@ -8,10 +8,29 @@ import { applyCapitalOffer, getCapitalComparison, type CapitalOffer } from './fr
 import { FREIGHT_REPLAY } from './scenario-steps/freight-replay';
 import type { ScenarioState } from './scenario-types';
 
-export function matchesFreightReplay(candidate: ScenarioState, baseline: ScenarioState): boolean {
+function matchesLegacyFreightReplay(candidate: ScenarioState, baseline: ScenarioState): boolean {
   return candidate.gameId === baseline.gameId
     && candidate.cities[FREIGHT_REPLAY.west]?.id === FREIGHT_REPLAY.west
     && candidate.map.tiles['3,6']?.terrain === baseline.map.tiles['3,6']?.terrain;
+}
+
+export async function resumeFreightReplay(scenarioName: string, baseline: ScenarioState): Promise<ScenarioState> {
+  // Both maps share a seed. Give each map a stable autosave group so the latest
+  // save for a different map or campaign cannot hide its progress.
+  const prefix = 'dev-freight-replay-';
+  const playthroughId = `${prefix}${scenarioName}`;
+  const autosaves = (await listSaves({ includeAutoSave: true })).filter(save => save.kind === 'autosave');
+  const ownSave = autosaves.find(save => save.gameId === playthroughId);
+  const resumed = ownSave && await loadGame(ownSave.id);
+  if (resumed) return resumed;
+
+  // Preserve progress from before these replays had dedicated autosave groups.
+  for (const save of autosaves) {
+    if (save.gameTitle !== baseline.gameTitle || save.gameId?.startsWith(prefix)) continue;
+    const candidate = await loadGame(save.id);
+    if (candidate && matchesLegacyFreightReplay(candidate, baseline)) return { ...candidate, playthroughId };
+  }
+  return { ...baseline, playthroughId };
 }
 
 export function mountFreightReplayPanel(

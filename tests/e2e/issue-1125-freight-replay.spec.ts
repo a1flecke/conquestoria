@@ -57,6 +57,43 @@ test('ordinary campaign entry has no freight investment controls', async ({ page
   await expect(page.getByRole('button', { name: 'Freight investment', exact: true })).toHaveCount(0);
 });
 
+test('the two strait maps resume their own progress in the same browser', async ({ page }) => {
+  const open = page.getByRole('button', { name: 'Freight investment', exact: true });
+  const panel = page.getByRole('dialog', { name: 'Freight investment' });
+  const choose = async (choice: 'passage' | 'Harbor') => {
+    await panel.getByRole('button', { name: `Review ${choice}` }).click();
+    await panel.getByRole('button', { name: `Confirm ${choice}` }).click();
+    await expect(panel.getByRole('status')).toHaveText('Investment confirmed.');
+    await panel.getByRole('button', { name: 'Close', exact: true }).click();
+  };
+
+  await page.goto('/?scenario=freight-strait-a');
+  await open.click();
+  await expect(panel).toContainText('8 rounds now, 4 rounds with the passage');
+  await choose('passage');
+  const next = page.locator('#hud').getByText(/^Turn 11 ·/);
+  const warning = page.getByRole('button', { name: 'End Turn Anyway', exact: true });
+  await requestEndTurn(page, warning.or(next));
+  await expect(warning.or(next)).toBeVisible();
+  if (await warning.isVisible()) await warning.click();
+  await expect(next).toBeVisible();
+
+  await page.goto('/?scenario=freight-strait-b');
+  await open.click();
+  await expect(panel).toContainText('5 rounds now, 4 rounds with the passage');
+  await choose('Harbor');
+
+  await page.goto('/?scenario=freight-strait-a');
+  await open.click();
+  await expect(next).toBeVisible();
+  await expect(panel).toContainText('Passage opened');
+
+  await page.goto('/?scenario=freight-strait-b');
+  await open.click();
+  await expect(panel).toContainText('Harbor completed');
+  await expect(panel).toContainText('5 rounds now, 4 rounds with the passage');
+});
+
 test.describe('strait comparison on touch', () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
   test('can defer, reopen and authorize the Harbor on the closer detour', async ({ page }) => {
