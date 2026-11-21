@@ -1,4 +1,5 @@
-import type { PersonalityTraits, MinorCivState } from '@/core/types';
+import type { EventBus } from '@/core/event-bus';
+import type { GameState, PersonalityTraits, MinorCivState } from '@/core/types';
 import type { DiplomacyState, DiplomaticAction, WarGoalStatus } from '@/core/types/diplomacy';
 import type { CivilizationEra } from '@/systems/era-types';
 import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
@@ -7,6 +8,11 @@ import { canOfferVassalage } from '@/systems/diplomacy-vassal-rules';
 import { shouldDeclareWar } from './ai-personality';
 import type { NationalIntentPosture } from './ai-national-intent-posture';
 import type { MilitaryStrengthEstimate } from '@/systems/diplomatic-strength';
+import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
+import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
+import { performMinorCivFestival, performMinorCivGift } from '@/systems/minor-civ-actions';
+import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
+import { getAiCrisisRemedyReserve } from './ai-crisis-response';
 
 export interface DiplomaticDecision {
   action: DiplomaticAction;
@@ -174,6 +180,70 @@ export function evaluateMinorCivDiplomacy(
   }
 
   return decisions;
+}
+
+/**
+ * A major AI's gold spending on city-states: paying their gift and festival quests, then discretionary
+ * gifts. Every payment goes through the action the player's buttons use (`performMinorCivGift`,
+ * `performMinorCivFestival`), which re-checks legality and the treasury.
+ *
+ * Neither kind of payment may dip into the gold the civ is saving to cure its own outbreak or famine
+ * (`getAiCrisisRemedyReserve`). A quarantined outbreak halves every yield of its city until it is
+ * cured, so a city-state's request waits until the cure is paid for.
+ */
+function keepsCureReserve(next: GameState, civId: string, reserve: number): boolean {
+  return next.civilizations[civId].gold >= reserve;
+}
+
+/** Pays the civ's assigned city-state gift and festival quests, in a stable order. */
+export function applyAiMinorCivQuestPayments(state: GameState, civId: string, bus: EventBus): GameState {
+  const reserve = getAiCrisisRemedyReserve(state, civId);
+  let next = state;
+  for (const minorCivId of Object.keys(next.minorCivs ?? {}).sort()) {
+    const quest = next.minorCivs[minorCivId].activeQuests[civId];
+    const action = quest?.target.type === 'gift_gold'
+      ? performMinorCivGift(next, civId, minorCivId)
+      : quest?.target.type === 'sponsor_festival'
+        ? performMinorCivFestival(next, civId, minorCivId)
+        : null;
+    if (!action?.ok || !keepsCureReserve(action.state, civId, reserve)) continue;
+    next = action.state;
+    emitMinorCivQuestTransitions(bus, action.transitions, next);
+  }
+  return next;
+}
+
+/**
+ * Discretionary gold gifts. The AI may only consider a city-state it has discovered (the same fact that
+ * puts it in the player's diplomacy panel) and is not at war with. A city-state with an active
+ * `gift_gold` quest is left to `applyAiMinorCivQuestPayments`, which pays the quest's own amount.
+ */
+export function applyAiMinorCivGifts(
+  state: GameState,
+  civId: string,
+  personality: PersonalityTraits,
+  posture: NationalIntentPosture,
+): GameState {
+  const candidates: Record<string, MinorCivState> = {};
+  for (const minorCivId of Object.keys(state.minorCivs ?? {}).sort()) {
+    const minorCiv = state.minorCivs[minorCivId];
+    if (minorCiv.activeQuests[civId]?.target.type === 'gift_gold') continue;
+    if (!hasDiscoveredMinorCiv(state, civId, minorCivId)) continue;
+    if (isMinorCivAtWar(state, civId, minorCivId)) continue;
+    candidates[minorCivId] = minorCiv;
+  }
+
+  const reserve = getAiCrisisRemedyReserve(state, civId);
+  const decisions = evaluateMinorCivDiplomacy(
+    personality, candidates, civId, state.civilizations[civId].gold, posture,
+  );
+  let next = state;
+  for (const decision of decisions) {
+    if (decision.action !== 'gift_gold') continue;
+    const result = performMinorCivGift(next, civId, decision.mcId);
+    if (result.ok && keepsCureReserve(result.state, civId, reserve)) next = result.state;
+  }
+  return next;
 }
 
 // #901: `evaluateProposal` used to live here -- a per-treaty acceptance policy

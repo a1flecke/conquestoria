@@ -48,7 +48,7 @@ import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-sys
 import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
 
 import { chooseProduction } from './ai-strategy';
-import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
+import { applyAiMinorCivGifts, applyAiMinorCivQuestPayments, evaluateDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import { getKnownSharedBorderOwners } from './ai-known-borders';
 import { NATIONAL_INTENT_POSTURE } from './ai-national-intent-posture';
 import { chooseWarGoal } from './ai-war-goals';
@@ -118,7 +118,6 @@ import { BEAST_OWNER } from '@/systems/beast-system';
 import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
-import { performMinorCivFestival, performMinorCivGift } from '@/systems/minor-civ-actions';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import { classifyOwner, isAlwaysHostilePair } from '@/core/owner-kind';
 import { getPirateWatersPresentation, type PirateFactionPresentation } from '@/systems/pirate-presentation';
@@ -1028,22 +1027,7 @@ function processAITurnInternal(
   civ = newState.civilizations[civId];
 
   // Pursue assigned economic chain steps before discretionary spending.
-  for (const minorCivId of Object.keys(newState.minorCivs).sort()) {
-    const quest = newState.minorCivs[minorCivId].activeQuests[civId];
-    if (quest?.target.type === 'gift_gold') {
-      const action = performMinorCivGift(newState, civId, minorCivId);
-      if (action.ok) {
-        newState = action.state;
-        emitMinorCivQuestTransitions(bus, action.transitions, newState);
-      }
-    } else if (quest?.target.type === 'sponsor_festival') {
-      const action = performMinorCivFestival(newState, civId, minorCivId);
-      if (action.ok) {
-        newState = action.state;
-        emitMinorCivQuestTransitions(bus, action.transitions, newState);
-      }
-    }
-  }
+  newState = applyAiMinorCivQuestPayments(newState, civId, bus);
   civ = newState.civilizations[civId];
 
   // --- Handle trade-unit route establishment (all trade-role types: caravan +
@@ -1600,18 +1584,8 @@ function processAITurnInternal(
 
   // --- Minor civ diplomacy ---
   if (newState.minorCivs) {
-    const mcDecisions = evaluateMinorCivDiplomacy(
-      personality, newState.minorCivs, civId, civ.gold, posture,
-    );
-    for (const d of mcDecisions) {
-      if (d.action === 'gift_gold') {
-        const mc = newState.minorCivs[d.mcId];
-        if (mc && civ.gold >= 25) {
-          newState.civilizations[civId].gold -= 25;
-          mc.diplomacy = modifyRelationship(mc.diplomacy, civId, 10);
-        }
-      }
-    }
+    newState = applyAiMinorCivGifts(newState, civId, personality, posture);
+    civ = newState.civilizations[civId];
   }
 
   if (shouldAiStationDefensiveSpy(newState, civId)) {
