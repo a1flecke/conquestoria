@@ -181,6 +181,54 @@ describe('applyAIGoldSpending (#1094)', () => {
   });
 });
 
+describe('applyAIGoldSpending saves for a pending crisis cure', () => {
+  // A quarantined outbreak at standard difficulty halves every yield of its city until it is cured, and
+  // the AI funds a cure only once it holds the remedy rule's reserve (getAiCrisisRemedyReserve). Rush-buys
+  // spent the treasury down to the upkeep reserve every round, so the cure was never funded.
+  function withOutbreak(state: GameState): GameState {
+    state.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'ai-1',
+        cityIds: ['city-a'], quarantinedCityIds: ['city-a'], tileKeys: [], startedTurn: 0, stage: 'active', turnsInStage: 10,
+      },
+    };
+    return state;
+  }
+
+  it('keeps the cure reserve instead of rush-buying through it', () => {
+    // city-a population 4 -> cure cost 60; standard multiplier 2.0 -> reserve 120.
+    const state = withOutbreak(setupState());
+    state.civilizations['ai-1']!.gold = 130;
+    state.cities['city-a']!.productionQueue = ['warrior'];
+
+    const result = applyAIGoldSpending(state, 'ai-1', new EventBus());
+
+    expect(result.civilizations['ai-1']!.gold).toBe(130);
+    expect(result.cities['city-a']!.productionQueue).toEqual(['warrior']);
+  });
+
+  it('still rush-buys with gold above the cure reserve', () => {
+    const state = withOutbreak(setupState());
+    state.civilizations['ai-1']!.gold = 5000;
+    state.cities['city-a']!.productionQueue = ['warrior'];
+
+    const result = applyAIGoldSpending(state, 'ai-1', new EventBus());
+
+    expect(result.cities['city-a']!.productionQueue).toEqual([]);
+    expect(result.civilizations['ai-1']!.gold).toBeGreaterThanOrEqual(120);
+  });
+
+  it('rush-buys the same purchase when there is no outbreak', () => {
+    const state = setupState();
+    state.civilizations['ai-1']!.gold = 130;
+    state.cities['city-a']!.productionQueue = ['warrior'];
+
+    const result = applyAIGoldSpending(state, 'ai-1', new EventBus());
+
+    expect(result.cities['city-a']!.productionQueue).toEqual([]);
+  });
+});
+
 describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
   const FOUR_CITIES = ['city-a', 'city-b', 'city-c', 'city-d'];
 

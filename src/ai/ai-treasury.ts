@@ -7,6 +7,7 @@ import {
   getRushBuyQuote,
 } from '@/systems/economy-system';
 import { completesFromOwnProduction, rushBuyActiveProduction } from '@/systems/rush-buy-system';
+import { getAiCrisisRemedyReserve } from './ai-crisis-response';
 
 /**
  * #1094: the AI never called `rushBuyActiveProduction` -- the same gold-for-
@@ -113,6 +114,8 @@ export function applyAIGoldSpending(state: GameState, civId: string, bus: EventB
   if (!civ) return state;
   let nextState = state;
   let cachedMaintenance: number | null = null;
+  // A purchase changes no crisis or infected city, so the cure the civ is saving for holds all round.
+  let cureReserve: number | null = null;
   let ownerStatus: EconomyProjection | null = null;
   for (const cityId of civ.cities) {
     const city = nextState.cities[cityId];
@@ -121,8 +124,9 @@ export function applyAIGoldSpending(state: GameState, civId: string, bus: EventB
     const quote = getRushBuyQuote(nextState, civId, cityId, ownerStatus);
     if (!quote.available) continue;
     cachedMaintenance ??= totalMaintenanceFor(nextState, civId);
+    cureReserve ??= getAiCrisisRemedyReserve(nextState, civId);
     const civGold = nextState.civilizations[civId]!.gold;
-    if (civGold - quote.cost < cachedMaintenance * RESERVE_ROUNDS) continue;
+    if (civGold - quote.cost < cachedMaintenance * RESERVE_ROUNDS + cureReserve) continue;
     // #1415: last, because it is the only check that projects city yields -- it runs only for a purchase that
     // would otherwise happen. A purchase production makes redundant forfeits the turn's output.
     if (completesFromOwnProduction(nextState, civId, cityId)) continue;
