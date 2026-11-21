@@ -39,8 +39,10 @@ function renderRouteRow(
 ): HTMLElement {
   const toCity = state.cities[route.toCityId];
   const committedUnit = Object.values(state.units).find(u => u.committedToRouteId === route.id);
-  // #1501 MR04: show the promised operating rate and what the route is *actually* earning now.
-  const status = getRouteOperatingStatus(state, route.id, danger);
+  // Round finalization advances the turn after settlement. The saved service still describes the
+  // latest completed round until the trader moves again.
+  const servedLastRound = route.lastProgressTurn === state.turn - 1 && route.lastSettledTurn === state.turn - 1;
+  const status = getRouteOperatingStatus(state, route.id, danger, servedLastRound ? state.turn - 1 : state.turn);
   const gold = status.promisedGoldPerTurn;
   // #1503 MR06: the cause of a blockade is only named when the viewer is entitled to know it (its own
   // city is blockaded); otherwise the row reports the interruption without leaking a hidden fleet.
@@ -82,7 +84,7 @@ function renderRouteRow(
     ? 'service interrupted'
     : NOT_OPERATING_LABEL[status.reason ?? 'blocked'];
   const actual = status.paying
-    ? 'earning now'
+    ? (servedLastRound ? 'served last round' : 'earning now')
     : `earning 0 · ${reasonLabel}`;
   routeDetail.appendChild(document.createTextNode(`${promised} · ${actual} · round trip ${route.turnsPerTrip * 2} rounds`));
   summary.appendChild(routeDetail);
