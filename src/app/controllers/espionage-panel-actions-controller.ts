@@ -9,12 +9,16 @@
  * factory symmetry.
  */
 import type { GameState, HexCoord, SpyMissionType } from '@/core/types';
-import { createEspionagePanel } from '@/ui/espionage-panel';
+import { createEspionagePanel, getSpyMissionLabel } from '@/ui/espionage-panel';
+import { createEspionageTargetPicker } from '@/ui/espionage-target-picker';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import {
   embedSpy, recallSpy, runCounterIntelSweep, SWEEP_DENIAL_MESSAGES, getAvailableMissions, getMissionStartDenial, missionRequiresPlacedSpy,
-  START_MISSION_FAILURE_MESSAGES, startMission, unembedSpy, verifyAgent,
+  START_MISSION_FAILURE_MESSAGES, unembedSpy, verifyAgent,
 } from '@/systems/espionage-system';
+import {
+  getRemoteMissionTargetMode, getRemoteMissionTargetsForViewer, startMissionForCiv,
+} from '@/systems/espionage-remote-targets';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { findSpyReturnTile } from '@/systems/unit-spawn-placement';
 import { removeUnits } from '@/systems/unit-removal-system';
@@ -30,27 +34,6 @@ export function createEspionagePanelActionsController(
 ): EspionagePanelActionsController {
   function openEspionagePanel(): void {
     deps.hud.closeDrawer();
-    const chooseForeignCityTarget = (): { civId: string; cityId: string; position: HexCoord } | null => {
-      const choices = Object.values(deps.session.getState().cities)
-        .filter(city => city.owner !== deps.session.getState().currentPlayer)
-        .sort((a, b) => a.name.localeCompare(b.name));
-      if (choices.length === 0) {
-        deps.showNotification('No foreign cities available for espionage.', 'info');
-        return null;
-      }
-      const selection = window.prompt(
-        `Choose target city by id:\n${choices.map(city => `${city.id} (${city.owner})`).join('\n')}`,
-        choices[0].id,
-      );
-      if (!selection) return null;
-      const city = deps.session.getState().cities[selection];
-      if (!city || city.owner === deps.session.getState().currentPlayer) {
-        deps.showNotification('Invalid espionage target.', 'warning');
-        return null;
-      }
-      return { civId: city.owner, cityId: city.id, position: city.position };
-    };
-
     const chooseFriendlyCityTarget = (): { cityId: string; position: HexCoord } | null => {
       const choices = deps.currentCiv().cities
         .map(cityId => deps.session.getState().cities[cityId])
@@ -136,30 +119,41 @@ export function createEspionagePanelActionsController(
         }
         const mission = chooseMission(spyId);
         if (!mission) return;
-        let targetCivId = spy.targetCivId ?? undefined;
-        let targetCityId = spy.targetCityId ?? undefined;
-        if (!missionRequiresPlacedSpy(mission)) {
-          const target = chooseForeignCityTarget();
-          if (!target) return;
-          targetCivId = target.civId;
-          targetCityId = target.cityId;
-        }
-        const currentPlayer = deps.session.getState().currentPlayer;
-        // Revalidate against the live state: the prompts above can outlive the spy's status (#1222).
-        const started = startMission(deps.session.getState().espionage![currentPlayer], spyId, mission, deps.currentCivDef()?.bonusEffect, targetCivId, targetCityId);
-        if (!started.ok) {
-          deps.showNotification(START_MISSION_FAILURE_MESSAGES[started.reason], 'warning');
+        const finishStart = (targetCivId: string | undefined, targetCityId: string | undefined): void => {
+          const currentPlayer = deps.session.getState().currentPlayer;
+          // Revalidate against the live state: the choices above can outlive the spy's status (#1222)
+          // and the target's eligibility (#1780).
+          const started = startMissionForCiv(
+            deps.session.getState(), currentPlayer, spyId, mission, deps.currentCivDef()?.bonusEffect, targetCivId, targetCityId,
+          );
+          if (!started.ok) {
+            deps.showNotification(START_MISSION_FAILURE_MESSAGES[started.reason], 'warning');
+            return;
+          }
+          deps.session.commit({
+            ...deps.session.getState(),
+            espionage: {
+              ...deps.session.getState().espionage,
+              [currentPlayer]: started.state,
+            },
+          });
+          deps.router.open('espionage');
+          deps.showNotification(`Mission ${mission} started.`, 'info');
+        };
+        if (missionRequiresPlacedSpy(mission)) {
+          finishStart(spy.targetCivId ?? undefined, spy.targetCityId ?? undefined);
           return;
         }
-        deps.session.commit({
-          ...deps.session.getState(),
-          espionage: {
-            ...deps.session.getState().espionage,
-            [currentPlayer]: started.state,
-          },
+        // #1780: a remote mission may only be aimed at what this player has earned: met empires
+        // with a found city (or, for a city strike, the found cities themselves).
+        const state = deps.session.getState();
+        createEspionageTargetPicker(deps.uiLayer, {
+          missionLabel: getSpyMissionLabel(mission),
+          mode: getRemoteMissionTargetMode(mission),
+          targets: getRemoteMissionTargetsForViewer(state, state.currentPlayer, mission),
+          onChoose: target => finishStart(target.civId, target.cityId),
+          onCancel: () => {},
         });
-        deps.router.open('espionage');
-        deps.showNotification(`Mission ${mission} started.`, 'info');
       },
       onRecall: (spyId) => {
         const currentPlayer = deps.session.getState().currentPlayer;
