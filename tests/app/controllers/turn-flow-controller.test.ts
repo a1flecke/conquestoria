@@ -1542,6 +1542,108 @@ describe('createTurnFlowController', () => {
       await handoff;
     });
 
+    it('a hot-seat handoff tears down the outgoing seat\'s open decision modals but keeps their pending records', async () => {
+      const state = makeHotSeatFixture();
+      const nextPlayerId = state.hotSeat!.players.find(player => player.slotId !== 'player')!.slotId;
+      clearRequiredChoices(state, nextPlayerId);
+      const uiLayer = document.createElement('div');
+      // The outgoing seat's deferrable decision modals, left open at End Turn: a
+      // slain beast's hoard choice, a Great General candidate choice, and a
+      // captured-spy verdict. The pending RECORDS are savable state that the
+      // decision's owner sees again on their next turn; the MODALS are the
+      // outgoing seat's private decision surfaces and must not survive the veil —
+      // the incoming seat could read them and even click them (the espionage
+      // verdict's handlers read currentPlayer at click time, so the click would
+      // execute a mixed-identity action).
+      const hoard = document.createElement('div');
+      hoard.id = 'beast-hoard-panel';
+      hoard.textContent = 'The Emerald Basilisk is slain! Gold Hoard — +640 gold';
+      uiLayer.appendChild(hoard);
+      const general = document.createElement('div');
+      general.id = 'general-candidate-panel';
+      general.textContent = 'Choose your Great General: Sun Tzu';
+      uiLayer.appendChild(general);
+      const verdict = document.createElement('div');
+      verdict.id = 'capture-verdict-modal';
+      verdict.textContent = 'You have captured Whisper, a spy_agent belonging to Rival.';
+      document.body.appendChild(verdict);
+      const deps = baseDeps(state, {
+        uiLayer,
+        getElementById: id => (id === 'capture-verdict-modal' ? verdict : null),
+      });
+
+      const handoff = createTurnFlowController(deps).beginHotSeatHandoff(state.hotSeat!, false);
+
+      expect(uiLayer.querySelector('#beast-hoard-panel')).toBeNull();
+      expect(uiLayer.querySelector('#general-candidate-panel')).toBeNull();
+      expect(verdict.isConnected).toBe(false);
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await handoff;
+    });
+
+    it('a hot-seat handoff closes the outgoing seat\'s imperative action panels and extracted-intel modal', async () => {
+      const state = makeHotSeatFixture();
+      const nextPlayerId = state.hotSeat!.players.find(player => player.slotId !== 'player')!.slotId;
+      clearRequiredChoices(state, nextPlayerId);
+      const uiLayer = document.createElement('div');
+      // Imperatively-opened action panels (no registry entry today): the outgoing
+      // seat's war-declaration confirm — whose Continue button DECLARES WAR —
+      // war goal / war conference / settlement terms, the trade-route planner,
+      // unit-delete and worker confirms, the pirate HQ assault confirm, the
+      // empire city grid, and the body-mounted extracted-intel modal. Nothing
+      // gated End Turn on them, so the incoming seat could read the outgoing
+      // seat's strategy and even click their decisions.
+      const actionPanelIds = [
+        'foreign-city-entry-panel',
+        'war-goal-panel',
+        'war-conference-panel',
+        'settlement-offer-panel',
+        'establish-route-panel',
+        'unit-delete-confirmation-panel',
+        'worker-task-warning-panel',
+        'worker-replacement-confirm-panel',
+        'pirate-headquarters-assault-panel',
+        'city-grid',
+      ];
+      for (const domId of actionPanelIds) {
+        const panel = document.createElement('div');
+        panel.id = domId;
+        panel.textContent = 'outgoing seat private surface';
+        uiLayer.appendChild(panel);
+      }
+      const intelModal = document.createElement('div');
+      intelModal.id = 'intel-modal';
+      intelModal.textContent = 'Extracted Intel: Research hint: militarism';
+      // The production router's closeGroup is DOM-derived by domId; mirror the
+      // real registry's transient set (the ten registered action panels plus the
+      // original transient panels) so these DOM assertions exercise the same
+      // teardown the real router performs at the seat boundary.
+      const transientDomIds = [
+        ...actionPanelIds,
+        'network-panel', 'wonder-codex-panel', 'bestiary-panel', 'hall-of-fame-panel',
+        'pirate-waters-panel', 'notification-log', 'territory-inspection-panel',
+        'pacing-debug-panel', 'strategic-arsenal-panel', 'governance-panel',
+      ];
+      const closeGroup = vi.fn((group: 'main' | 'transient') => {
+        if (group !== 'transient') return;
+        for (const domId of transientDomIds) uiLayer.querySelector(`#${domId}`)?.remove();
+      });
+      const deps = baseDeps(state, {
+        uiLayer,
+        router: { close: vi.fn(), open: vi.fn(), closeGroup },
+        getElementById: id => (id === 'intel-modal' ? intelModal : null),
+      });
+
+      const handoff = createTurnFlowController(deps).beginHotSeatHandoff(state.hotSeat!, false);
+
+      for (const domId of actionPanelIds) {
+        expect(uiLayer.querySelector(`#${domId}`), domId).toBeNull();
+      }
+      expect(intelModal.isConnected).toBe(false);
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await handoff;
+    });
+
     it('maybeShowCouncilInterrupt is silent when there is no interrupt', () => {
       const state = makeFixture();
       const deps = baseDeps(state);
