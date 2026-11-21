@@ -46,7 +46,7 @@ export interface TurnFlowControllerDeps {
   readonly bus: EventBus;
   readonly uiLayer: HTMLElement;
   readonly audio: TurnFlowAudio;
-  readonly router: Pick<PanelRouter, 'close' | 'open'>;
+  readonly router: Pick<PanelRouter, 'close' | 'open' | 'closeGroup'>;
   /** The concrete class -- `RoundPresentationGate` has a private field, same reasoning as `bus` above. */
   readonly roundPresentationGate: RoundPresentationGate;
   readonly ceremonies: Pick<CeremonyCoordinator, 'clearForHandoff' | 'enqueueVictory'>;
@@ -82,7 +82,8 @@ export interface TurnFlowController {
   beginHotSeatHandoff(hotSeat: NonNullable<GameState['hotSeat']>, completesRound: boolean): Promise<void>;
   /** Renamed from `releaseHandoffToViewer` -- see file docblock. */
   enterViewerTurn(nextSlotId: string): void;
-  closeNetworkPanelsForHandoff(): void;
+  /** Renamed from `closeNetworkPanelsForHandoff` when the teardown grew from a hand-picked list to every registry panel. */
+  closePanelsForHandoff(): void;
   beginNetworkPlansForCurrentViewer(): void;
   runCurrentCompletedRound(state: GameState): CompletedRoundResult;
   captureAIMoves(fn: () => void): AIMoveRecord[];

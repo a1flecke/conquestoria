@@ -57,7 +57,7 @@ export interface CampaignEntryControllerDeps {
   readonly bus: EventBus;
   readonly roundPresentationGate: RoundPresentationGate;
   readonly host: Pick<PanelHost, 'setBlockingOverlay'>;
-  readonly turnFlow: Pick<TurnFlowController, 'handleVictoryIfNeeded' | 'closeNetworkPanelsForHandoff'>;
+  readonly turnFlow: Pick<TurnFlowController, 'handleVictoryIfNeeded' | 'closePanelsForHandoff'>;
   readonly userSettingsStore: Pick<UserSettingsStore, 'getPersisted' | 'refresh' | 'getMasterVolume' | 'setCustomCivilizations' | 'getOverrides'>;
   readonly getElementById: (id: string) => HTMLElement | null;
   readonly showNotification: (message: string, type?: 'info' | 'success' | 'warning') => void;
@@ -87,7 +87,7 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
     }
 
     deps.audio.setMasterVolume(0);
-    deps.turnFlow.closeNetworkPanelsForHandoff();
+    deps.turnFlow.closePanelsForHandoff();
     const player = hotSeat.players.find(candidate => candidate.slotId === deps.session.getState().currentPlayer);
     deps.host.setBlockingOverlay('turn-handoff');
     deps.roundPresentationGate.suppress();

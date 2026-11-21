@@ -147,7 +147,7 @@ function baseDeps(state: GameState, overrides: Partial<TurnFlowControllerDeps> =
     bus: new EventBus(),
     uiLayer,
     audio: fakeAudio(),
-    router: { close: vi.fn(), open: vi.fn() },
+    router: { close: vi.fn(), open: vi.fn(), closeGroup: vi.fn() },
     roundPresentationGate: new RoundPresentationGate(),
     ceremonies: {
       clearForHandoff: vi.fn(),
@@ -1475,10 +1475,11 @@ describe('createTurnFlowController', () => {
       const hallOfFame = document.createElement('div');
       hallOfFame.id = 'hall-of-fame-panel';
       const router = {
-        close: vi.fn((panel: string) => {
-          if (panel === 'hall-of-fame') hallOfFame.remove();
-        }),
+        close: vi.fn(),
         open: vi.fn(),
+        closeGroup: vi.fn((group: string) => {
+          if (group === 'transient') hallOfFame.remove();
+        }),
       };
       const deps = baseDeps(state, { router });
       deps.uiLayer.appendChild(hallOfFame);
@@ -1486,20 +1487,59 @@ describe('createTurnFlowController', () => {
       const handoff = createTurnFlowController(deps).beginHotSeatHandoff(state.hotSeat!, false);
 
       expect(deps.uiLayer.querySelector('#hall-of-fame-panel')).toBeNull();
-      expect(router.close).toHaveBeenCalledWith('hall-of-fame');
+      expect(router.closeGroup).toHaveBeenCalledWith('transient');
       document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
       await handoff;
     });
 
-    it('closeNetworkPanelsForHandoff closes viewer-private panels and removes the intent panel', () => {
+    it('closePanelsForHandoff closes every registry panel and removes the intent panel', () => {
       const state = makeFixture();
       const panel = document.createElement('div');
       const deps = baseDeps(state, { getNetworkIntentPanel: () => panel });
-      createTurnFlowController(deps).closeNetworkPanelsForHandoff();
+      createTurnFlowController(deps).closePanelsForHandoff();
       expect(deps.closeVictoryProgressPanel).toHaveBeenCalledTimes(1);
-      expect(deps.router.close).toHaveBeenCalledWith('network');
-      expect(deps.router.close).toHaveBeenCalledWith('hall-of-fame');
+      expect(deps.router.closeGroup).toHaveBeenCalledWith('main');
+      expect(deps.router.closeGroup).toHaveBeenCalledWith('transient');
       expect(panel.isConnected).toBe(false);
+    });
+
+    it('a hot-seat handoff closes every open registry panel, not only the hand-picked ones', async () => {
+      const state = makeHotSeatFixture();
+      const nextPlayerId = state.hotSeat!.players.find(player => player.slotId !== 'player')!.slotId;
+      clearRequiredChoices(state, nextPlayerId);
+      const uiLayer = document.createElement('div');
+      // The outgoing seat's private surfaces, left open at End Turn: their espionage
+      // roster, their notification log, their council advice, a city's production
+      // queue, and the rest of the registry. The handoff veil covers them while the
+      // device changes hands; none may survive to the incoming seat's screen.
+      const domIdsByGroup = {
+        main: ['council-panel', 'tech-panel', 'city-panel', 'espionage-panel', 'diplomacy-panel', 'marketplace-panel', 'city-overview-panel', 'victory-progress-panel'],
+        transient: ['network-panel', 'wonder-codex-panel', 'bestiary-panel', 'hall-of-fame-panel', 'pirate-waters-panel', 'notification-log', 'territory-inspection-panel', 'pacing-debug-panel', 'strategic-arsenal-panel', 'governance-panel'],
+      } as const;
+      for (const domId of [...domIdsByGroup.main, ...domIdsByGroup.transient]) {
+        const panel = document.createElement('div');
+        panel.id = domId;
+        panel.textContent = 'outgoing seat private surface';
+        uiLayer.appendChild(panel);
+      }
+      // The production router's close is DOM-derived by domId (panels opened through
+      // the parameterized helpers close too); mirror it so the DOM assertions below
+      // exercise the same teardown the real router performs.
+      const closeGroup = vi.fn((group: 'main' | 'transient') => {
+        for (const domId of domIdsByGroup[group]) uiLayer.querySelector(`#${domId}`)?.remove();
+      });
+      const router = { close: vi.fn(), open: vi.fn(), closeGroup };
+      const deps = baseDeps(state, { uiLayer, router });
+
+      const handoff = createTurnFlowController(deps).beginHotSeatHandoff(state.hotSeat!, false);
+
+      expect(router.closeGroup).toHaveBeenCalledWith('main');
+      expect(router.closeGroup).toHaveBeenCalledWith('transient');
+      for (const domId of [...domIdsByGroup.main, ...domIdsByGroup.transient]) {
+        expect(uiLayer.querySelector(`#${domId}`), domId).toBeNull();
+      }
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await handoff;
     });
 
     it('maybeShowCouncilInterrupt is silent when there is no interrupt', () => {

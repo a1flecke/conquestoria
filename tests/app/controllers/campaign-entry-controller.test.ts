@@ -104,7 +104,7 @@ function baseDeps(state: GameState, overrides: Partial<CampaignEntryControllerDe
     bus: new EventBus(),
     roundPresentationGate: new RoundPresentationGate(),
     host,
-    turnFlow: { handleVictoryIfNeeded: vi.fn(), closeNetworkPanelsForHandoff: vi.fn() },
+    turnFlow: { handleVictoryIfNeeded: vi.fn(), closePanelsForHandoff: vi.fn() },
     userSettingsStore: {
       getPersisted: () => undefined,
       refresh: vi.fn().mockResolvedValue({ customCivilizations: [] }),
