@@ -1,7 +1,7 @@
 {
   "e1": {
     "state": {
-      "__whole": "6cbf4b569f55",
+      "__whole": "f84a6075d556",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "ffd07905fec0",
@@ -58,7 +58,7 @@
       "tribalVillages": "0b6efedf2a50",
       "turn": "6b86b273ff34",
       "tutorial": "8036676ee8e5",
-      "units": "f3549dacff6b",
+      "units": "ee8787ebcf68",
       "wars": "77b5821c1dcf",
       "winner": "74234e98afe7",
       "wonderDiscoverers": "51a4f000d1fe"
@@ -67,7 +67,7 @@
   },
   "e2": {
     "state": {
-      "__whole": "3122158edf08",
+      "__whole": "fd82775bd3d3",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "3844da1b263b",
@@ -124,7 +124,7 @@
       "tribalVillages": "251de3907d98",
       "turn": "6b86b273ff34",
       "tutorial": "8036676ee8e5",
-      "units": "381deb18ea74",
+      "units": "f45095114044",
       "wars": "77b5821c1dcf",
       "winner": "74234e98afe7",
       "wonderDiscoverers": "3cdc07515c8d"
