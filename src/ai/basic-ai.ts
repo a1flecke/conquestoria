@@ -667,6 +667,13 @@ export function canDeclareWarForPreparedPlan(
   return false;
 }
 
+/**
+ * Turns between an AI guard's counter-intelligence sweeps of its city. A sweep catches each infiltrator at
+ * 40% or more, so sweeping every turn left a rival's spy almost no time in an AI city; one sweep in five
+ * turns is still well above the passive detection a spy otherwise risks.
+ */
+export const AI_SWEEP_INTERVAL_TURNS = 5;
+
 /** Unrest pressure at which the AI wants a governor in a city. */
 const AI_GOVERNOR_PRESSURE_THRESHOLD = 20;
 
@@ -1653,10 +1660,11 @@ function processAITurnInternal(
     }
   }
 
-  // A spy guarding one of the civ's cities sweeps it every turn, through the player's own command
-  // (which refuses a second sweep in a turn and expels whatever it catches).
+  // A spy guarding one of the civ's cities sweeps it every AI_SWEEP_INTERVAL_TURNS, through the player's own
+  // command (which expels whatever it catches).
   for (const guard of Object.values(newState.espionage?.[civId]?.spies ?? {}).sort((a, b) => a.id.localeCompare(b.id))) {
     if (guard.status !== 'embedded') continue;
+    if (guard.lastSweepTurn !== undefined && newState.turn - guard.lastSweepTurn < AI_SWEEP_INTERVAL_TURNS) continue;
     const sweep = runCounterIntelSweep(newState, civId, guard.id, bus);
     if (sweep.ok) newState = sweep.state;
   }
