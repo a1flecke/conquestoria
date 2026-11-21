@@ -124,14 +124,43 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     showRequiredChoicesIfNeeded();
   }
 
-  /** These viewer-owned surfaces may expose private history or strategic targets; never carry them across a hot-seat veil. */
-  function closeNetworkPanelsForHandoff(): void {
+  /**
+   * A hot-seat boundary hands the screen to a different viewer, and every open panel is a viewer-owned
+   * surface: the outgoing seat's espionage roster, notification log, city production queues, council
+   * advice, governance choices and earned-intel atlases are the incoming seat's leaks. The earlier
+   * hand-picked list ("network panels") leaked exactly this way one panel at a time -- the strike-target
+   * picker was #545's "missing from this list", and the espionage panel and notification log were still
+   * missing when this became structural. Closing BOTH registry groups at the boundary removes the
+   * "remember to add the next leaky panel" contract: a new panel joins the teardown by being registered,
+   * and `closeGroup` is DOM-derived, so panels opened through the parameterized helpers close too.
+   *
+   * Decision modals are the same class but live outside the registry, so they are removed by DOM id:
+   * the beast-hoard and Great General choices and the captured-spy verdict. Their pending RECORDS are
+   * savable state and deliberately survive the veil -- the decision's owner sees the modal again at
+   * their next turn open (`maybeShowPendingHoardChoice` and friends filter by `currentPlayer`) -- but
+   * the modal DOM must not: the incoming seat could read the outgoing seat's prize, candidates or
+   * spy identity, and clicking the espionage verdict would execute a mixed-identity action (its
+   * handlers read `currentPlayer` at click time, so the captor on record would be the wrong seat).
+   */
+  function closePanelsForHandoff(): void {
+    router.closeGroup('main');
+    router.closeGroup('transient');
+    // The victory-progress panel pins controller state beyond its DOM node.
     deps.closeVictoryProgressPanel();
-    router.close('victory-progress');
-    router.close('diplomacy');
+    // Defense-in-depth, pinned by the #910 regression: the private diplomacy inbox
+    // is removed at the DOM level even when the router slice cannot (a no-op router
+    // mock keeps that test honest about exactly this layer's own teardown).
     uiLayer.querySelector('#diplomacy-panel')?.remove();
-    router.close('network');
-    router.close('hall-of-fame');
+    // The outgoing seat's deferrable decision modals (see docblock): the records
+    // stay savable for their owner; only this seat's open modal DOM dies here.
+    uiLayer.querySelector('#beast-hoard-panel')?.remove();
+    uiLayer.querySelector('#general-candidate-panel')?.remove();
+    deps.getElementById('capture-verdict-modal')?.remove();
+    // The espionage panel's extracted-intel modal mounts on document.body, so
+    // the registry teardown cannot see it; it names the outgoing seat's
+    // interrogation intel and must not reach the incoming viewer either.
+    deps.getElementById('intel-modal')?.remove();
+    // The network intent panel is created outside the panel registry.
     deps.getNetworkIntentPanel()?.remove();
   }
 
@@ -147,7 +176,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       : getNextActiveHumanPlayerId(preSimulationState, previousHumanId);
     const nextPlayer = hotSeat.players.find(player => player.slotId === resolvedNextSlotId);
     closePirateWatersPanels(uiLayer);
-    closeNetworkPanelsForHandoff();
+    closePanelsForHandoff();
     // A discovery ceremony queued (or deferred by an in-flight move animation) at the
     // instant a player ends their turn must not survive to play on the next player's
     // screen once enterViewerTurn's setBlockingOverlay(null) pumps the queues.
@@ -488,7 +517,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     endTurn,
     beginHotSeatHandoff,
     enterViewerTurn,
-    closeNetworkPanelsForHandoff,
+    closePanelsForHandoff,
     beginNetworkPlansForCurrentViewer,
   };
 }

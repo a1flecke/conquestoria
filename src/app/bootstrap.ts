@@ -404,6 +404,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     router: {
       close: panel => router.close(panel),
       open: panel => router.open(panel),
+      closeGroup: group => router.closeGroup(group),
     },
     roundPresentationGate,
     ceremonies,
@@ -668,6 +669,83 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     'strategic-arsenal': { domId: 'strategic-arsenal-panel', group: 'transient', open: () => panelActions.openStrategicArsenalPanel() },
     governance: { domId: 'governance-panel', group: 'transient', open: () => panelActions.openGovernancePanel() },
     'victory-progress': { domId: 'victory-progress-panel', group: 'main', open: () => panelActions.openVictoryProgressPanel() },
+    // Imperatively-opened action panels: parameterized entries whose open()
+    // throws (the parameterized-panel pattern), registered purely so
+    // closeGroup/isOpen cover them — most importantly the hot-seat handoff's
+    // closePanelsForHandoff, which closes BOTH groups at every seat boundary:
+    // none of these may carry a seat's war declaration, settlement terms,
+    // worker or unit decisions, assault confirm, empire grid or route draft to
+    // the next viewer.
+    'foreign-city-entry': {
+      domId: 'foreign-city-entry-panel',
+      group: 'transient',
+      open: () => {
+        throw new Error("'foreign-city-entry' opens only via the map engagement flow -- not router.open('foreign-city-entry').");
+      },
+    },
+    'war-goal': {
+      domId: 'war-goal-panel',
+      group: 'transient',
+      open: () => {
+        throw new Error("'war-goal' opens only via the diplomacy panel's war actions -- not router.open('war-goal').");
+      },
+    },
+    'war-conference': {
+      domId: 'war-conference-panel',
+      group: 'transient',
+      open: () => {
+        throw new Error("'war-conference' opens only via the diplomacy panel's war actions -- not router.open('war-conference').");
+      },
+    },
+    'settlement-offer': {
+      domId: 'settlement-offer-panel',
+      group: 'transient',
+      open: () => {
+        throw new Error("'settlement-offer' opens only via the diplomacy panel's settlement action -- not router.open('settlement-offer').");
+      },
+    },
+    'establish-route': {
+      domId: 'establish-route-panel',
+      group: 'transient',
+      open: () => {
+        throw new Error("'establish-route' opens only via the diplomacy actions controller -- not router.open('establish-route').");
+      },
+    },
+    'unit-delete': {
+      domId: 'unit-delete-confirmation-panel',
+      group: 'transient',
+      open: () => {
+        throw new Error("'unit-delete' opens only via the unit selection command -- not router.open('unit-delete').");
+      },
+    },
+    'worker-task-warning': {
+      domId: 'worker-task-warning-panel',
+      group: 'transient',
+      open: () => {
+        throw new Error("'worker-task-warning' opens only via the map engagement flow -- not router.open('worker-task-warning').");
+      },
+    },
+    'worker-replacement-confirm': {
+      domId: 'worker-replacement-confirm-panel',
+      group: 'transient',
+      open: () => {
+        throw new Error("'worker-replacement-confirm' opens only via the unit selection command -- not router.open('worker-replacement-confirm').");
+      },
+    },
+    'pirate-assault': {
+      domId: 'pirate-headquarters-assault-panel',
+      group: 'transient',
+      open: () => {
+        throw new Error("'pirate-assault' opens only via the pirate headquarters assault flow -- not router.open('pirate-assault').");
+      },
+    },
+    'city-grid': {
+      domId: 'city-grid',
+      group: 'transient',
+      open: () => {
+        throw new Error("'city-grid' opens only via its imperative caller -- not router.open('city-grid').");
+      },
+    },
   } satisfies PanelRegistry;
 
   router = createPanelRouter({ host, registry: panelRegistry, context: panelContext });
