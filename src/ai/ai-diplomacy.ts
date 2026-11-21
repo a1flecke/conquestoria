@@ -1,4 +1,5 @@
-import type { PersonalityTraits, MinorCivState } from '@/core/types';
+import type { EventBus } from '@/core/event-bus';
+import type { GameState, PersonalityTraits, MinorCivState } from '@/core/types';
 import type { DiplomacyState, DiplomaticAction, WarGoalStatus } from '@/core/types/diplomacy';
 import type { CivilizationEra } from '@/systems/era-types';
 import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
@@ -7,6 +8,16 @@ import { canOfferVassalage } from '@/systems/diplomacy-vassal-rules';
 import { shouldDeclareWar } from './ai-personality';
 import type { NationalIntentPosture } from './ai-national-intent-posture';
 import type { MilitaryStrengthEstimate } from '@/systems/diplomatic-strength';
+import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
+import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
+import { performMinorCivFestival, performMinorCivGift, setMinorCivWarState } from '@/systems/minor-civ-actions';
+import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
+import { getAiCrisisRemedyReserve } from './ai-crisis-response';
+import { hasAICombatRole } from './ai-unit-roles';
+import { classifyOwner, majorCivWarOpponentIds } from '@/core/owner-kind';
+import { mapDistance } from '@/systems/hex-utils';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 export interface DiplomaticDecision {
   action: DiplomaticAction;
@@ -149,7 +160,7 @@ export function evaluateDiplomacy(
 
 export interface MinorCivDecision {
   mcId: string;
-  action: 'gift_gold' | 'declare_war';
+  action: 'gift_gold';
 }
 
 export function evaluateMinorCivDiplomacy(
@@ -174,6 +185,169 @@ export function evaluateMinorCivDiplomacy(
   }
 
   return decisions;
+}
+
+/** `warLikelihood` plus the posture's war bias a civ needs before it will attack a city-state. */
+export const CITY_STATE_CONQUEST_AGGRESSION = 0.7;
+/** The city-state must lie within this many tiles of one of the civ's own cities. */
+export const CITY_STATE_CONQUEST_RADIUS = 8;
+/** Land combat units the civ must field before it starts such a war. */
+export const CITY_STATE_CONQUEST_MIN_ARMY = 4;
+/** No city-state wars in the first era: a young city-state would be gone before the game began. */
+const CITY_STATE_CONQUEST_MIN_ERA = 2;
+/** A city-state that likes the civ this much is a friend, not a target. */
+const CITY_STATE_CONQUEST_MAX_RELATIONSHIP = 30;
+
+/**
+ * Whether a civ wants to conquer this city-state now. Personality and posture decide the appetite (only a
+ * warlike civ, or one set on domination, has it); the rest is opportunity, judged only from what the civ
+ * itself knows: a discovered city-state, near one of its cities, not an ally or friend, while the civ is at
+ * peace with every major civilization and fields an army. The same test keeps a war going, so a war the AI
+ * starts is not undone the next turn while the reasons for it still hold.
+ */
+export function wantsCityStateConquest(
+  state: GameState,
+  civId: string,
+  minorCivId: string,
+  personality: PersonalityTraits,
+  posture: NationalIntentPosture,
+): boolean {
+  const civ = state.civilizations[civId];
+  const minorCiv = state.minorCivs?.[minorCivId];
+  const target = minorCiv ? state.cities[minorCiv.cityId] : undefined;
+  if (!civ || civ.isHuman || !minorCiv || minorCiv.isDestroyed || !target) return false;
+  if (personality.warLikelihood + posture.warDeclarationBias < CITY_STATE_CONQUEST_AGGRESSION) return false;
+  if (resolveCivilizationEra(civ.techState.completed) < CITY_STATE_CONQUEST_MIN_ERA) return false;
+  if (majorCivWarOpponentIds(civ.diplomacy.atWarWith).length > 0) return false;
+  if (!hasDiscoveredMinorCiv(state, civId, minorCivId)) return false;
+  if (minorCiv.chainStatusByCiv?.[civId]?.status === 'allied') return false;
+  if ((minorCiv.diplomacy.relationships[civId] ?? 0) > CITY_STATE_CONQUEST_MAX_RELATIONSHIP) return false;
+  const near = civ.cities.some(cityId => {
+    const city = state.cities[cityId];
+    return city?.owner === civId && mapDistance(state.map, city.position, target.position) <= CITY_STATE_CONQUEST_RADIUS;
+  });
+  if (!near) return false;
+  const army = civ.units.filter(unitId => {
+    const unit = state.units[unitId];
+    return unit?.owner === civId && !unit.transportId && hasAICombatRole(unit.type)
+      && (UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'land';
+  }).length;
+  return army >= CITY_STATE_CONQUEST_MIN_ARMY;
+}
+
+/**
+ * Declares war on the nearest city-state the civ wants to conquer, one city-state war at a time, through
+ * `setMinorCivWarState` (the player's own command). Its capture plans then treat the city as a target.
+ */
+export function applyAiCityStateWar(
+  state: GameState,
+  civId: string,
+  personality: PersonalityTraits,
+  posture: NationalIntentPosture,
+  bus: EventBus,
+): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.diplomacy.atWarWith.some(id => classifyOwner(id) === 'minor')) return state;
+  const distanceTo = (minorCivId: string): number => {
+    const target = state.cities[state.minorCivs[minorCivId].cityId];
+    return Math.min(...civ.cities.map(cityId => state.cities[cityId])
+      .filter(city => city?.owner === civId)
+      .map(city => mapDistance(state.map, city!.position, target.position)));
+  };
+  const targetId = Object.keys(state.minorCivs ?? {})
+    .filter(minorCivId => wantsCityStateConquest(state, civId, minorCivId, personality, posture))
+    .sort((a, b) => distanceTo(a) - distanceTo(b) || a.localeCompare(b))[0];
+  if (!targetId) return state;
+  const result = setMinorCivWarState(state, civId, targetId, true, bus);
+  return result.ok ? result.state : state;
+}
+
+/**
+ * Ends the civ's wars with city-states it no longer wants: those its current plan is not fighting
+ * (`keepWarWith`) and it would not start today (`wantsCityStateConquest`). A war declared on the AI by a
+ * coalition, or one dragged in as a vassal, used to last the rest of the game: only the player could end
+ * one. Peace goes through `setMinorCivWarState`, the player's own command, which refuses a vassal.
+ */
+export function applyAiMinorCivPeace(
+  state: GameState,
+  civId: string,
+  keepWarWith: ReadonlySet<string>,
+  bus: EventBus,
+  personality?: PersonalityTraits,
+  posture?: NationalIntentPosture,
+): GameState {
+  let next = state;
+  for (const minorCivId of Object.keys(next.minorCivs ?? {}).sort()) {
+    if (keepWarWith.has(minorCivId) || !isMinorCivAtWar(next, civId, minorCivId)) continue;
+    if (personality && posture && wantsCityStateConquest(next, civId, minorCivId, personality, posture)) continue;
+    const result = setMinorCivWarState(next, civId, minorCivId, false, bus);
+    if (result.ok) next = result.state;
+  }
+  return next;
+}
+
+/**
+ * A major AI's gold spending on city-states: paying their gift and festival quests, then discretionary
+ * gifts. Every payment goes through the action the player's buttons use (`performMinorCivGift`,
+ * `performMinorCivFestival`), which re-checks legality and the treasury.
+ *
+ * Neither kind of payment may dip into the gold the civ is saving to cure its own outbreak or famine
+ * (`getAiCrisisRemedyReserve`). A quarantined outbreak halves every yield of its city until it is
+ * cured, so a city-state's request waits until the cure is paid for.
+ */
+function keepsCureReserve(next: GameState, civId: string, reserve: number): boolean {
+  return next.civilizations[civId].gold >= reserve;
+}
+
+/** Pays the civ's assigned city-state gift and festival quests, in a stable order. */
+export function applyAiMinorCivQuestPayments(state: GameState, civId: string, bus: EventBus): GameState {
+  const reserve = getAiCrisisRemedyReserve(state, civId);
+  let next = state;
+  for (const minorCivId of Object.keys(next.minorCivs ?? {}).sort()) {
+    const quest = next.minorCivs[minorCivId].activeQuests[civId];
+    const action = quest?.target.type === 'gift_gold'
+      ? performMinorCivGift(next, civId, minorCivId)
+      : quest?.target.type === 'sponsor_festival'
+        ? performMinorCivFestival(next, civId, minorCivId)
+        : null;
+    if (!action?.ok || !keepsCureReserve(action.state, civId, reserve)) continue;
+    next = action.state;
+    emitMinorCivQuestTransitions(bus, action.transitions, next);
+  }
+  return next;
+}
+
+/**
+ * Discretionary gold gifts. The AI may only consider a city-state it has discovered (the same fact that
+ * puts it in the player's diplomacy panel) and is not at war with. A city-state with an active
+ * `gift_gold` quest is left to `applyAiMinorCivQuestPayments`, which pays the quest's own amount.
+ */
+export function applyAiMinorCivGifts(
+  state: GameState,
+  civId: string,
+  personality: PersonalityTraits,
+  posture: NationalIntentPosture,
+): GameState {
+  const candidates: Record<string, MinorCivState> = {};
+  for (const minorCivId of Object.keys(state.minorCivs ?? {}).sort()) {
+    const minorCiv = state.minorCivs[minorCivId];
+    if (minorCiv.activeQuests[civId]?.target.type === 'gift_gold') continue;
+    if (!hasDiscoveredMinorCiv(state, civId, minorCivId)) continue;
+    if (isMinorCivAtWar(state, civId, minorCivId)) continue;
+    candidates[minorCivId] = minorCiv;
+  }
+
+  const reserve = getAiCrisisRemedyReserve(state, civId);
+  const decisions = evaluateMinorCivDiplomacy(
+    personality, candidates, civId, state.civilizations[civId].gold, posture,
+  );
+  let next = state;
+  for (const decision of decisions) {
+    if (decision.action !== 'gift_gold') continue;
+    const result = performMinorCivGift(next, civId, decision.mcId);
+    if (result.ok && keepsCureReserve(result.state, civId, reserve)) next = result.state;
+  }
+  return next;
 }
 
 // #901: `evaluateProposal` used to live here -- a per-treaty acceptance policy

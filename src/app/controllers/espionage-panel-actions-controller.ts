@@ -12,7 +12,7 @@ import type { GameState, HexCoord, SpyMissionType } from '@/core/types';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import {
-  embedSpy, recallSpy, attemptSweep, getAvailableMissions, getMissionStartDenial, missionRequiresPlacedSpy,
+  embedSpy, recallSpy, runCounterIntelSweep, SWEEP_DENIAL_MESSAGES, getAvailableMissions, getMissionStartDenial, missionRequiresPlacedSpy,
   START_MISSION_FAILURE_MESSAGES, startMission, unembedSpy, verifyAgent,
 } from '@/systems/espionage-system';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -267,16 +267,19 @@ export function createEspionagePanelActionsController(
         deps.showNotification(`Spy recalled from ${city.name}. Available in 5 turns.`, 'info');
       },
       onSweep: (spyId) => {
-        const ownerEsp = deps.session.getState().espionage?.[deps.session.getState().currentPlayer];
-        if (!ownerEsp) return;
-        const seed = `sweep-${spyId}-${deps.session.getState().turn}`;
-        const { detectedSpyIds, state: updatedEsp } = attemptSweep(ownerEsp, spyId, seed, deps.session.getState());
-        deps.session.commit({ ...deps.session.getState(), espionage: { ...deps.session.getState().espionage, [deps.session.getState().currentPlayer]: updatedEsp } });
-        if (detectedSpyIds.length > 0) {
-          deps.showNotification(`Sweep detected ${detectedSpyIds.length} enemy spy(ies) in the city!`, 'warning');
-        } else {
-          deps.showNotification('Sweep complete — no enemy spies detected.', 'info');
+        const result = runCounterIntelSweep(deps.session.getState(), deps.session.getState().currentPlayer, spyId, deps.bus);
+        if (!result.ok) {
+          deps.showNotification(SWEEP_DENIAL_MESSAGES[result.reason], 'warning');
+          return;
         }
+        deps.session.commit(result.state);
+        const count = result.expelledSpyIds.length;
+        deps.showNotification(
+          count > 0
+            ? `Sweep caught ${count} enemy ${count === 1 ? 'spy' : 'spies'} and expelled them from the city.`
+            : 'Sweep complete — no enemy spies detected.',
+          count > 0 ? 'warning' : 'info',
+        );
         deps.getElementById('espionage-panel')?.remove();
         deps.router.open('espionage');
       },

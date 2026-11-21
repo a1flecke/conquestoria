@@ -2128,3 +2128,37 @@ describe('#1219 lookahead prediction runs the same attack legality as the real e
     expect(next.units).toEqual(state.units);
   });
 });
+
+// A hunt crisis ends only when its foe dies. With beast contests off the AI skipped every beast as a target,
+// so the beast of a hunt aimed at the AI could never be killed and the crisis never ended.
+describe('the foe of the civ\'s own hunt', () => {
+  function huntBattlefield(huntTargetsAi: boolean) {
+    const state = makeState();
+    state.settings = { ...state.settings, aiContestsBeasts: false };
+    const attacker = addUnit(state, 'attacker', 'swordsman', AI, { q: 0, r: 0 });
+    const beast = addUnit(state, 'hunt-beast', 'beast_wolf', 'beasts', { q: 1, r: 0 });
+    state.activeCrises = {
+      hunt: {
+        id: 'hunt', flavorId: 'beast-awakening', archetype: 'hunt', targetCivId: huntTargetsAi ? AI : HUMAN,
+        cityIds: [], tileKeys: [], startedTurn: 10, stage: 'menacing', turnsInStage: 2, huntEntityId: beast.id,
+      },
+    };
+    const plan = makePlan({ kind: 'unit', id: beast.id, lastKnownPosition: beast.position }, [attacker.id],
+      { objective: 'repel', requiredRoles: { frontline: 1 } });
+    return { state, attacker, beast, plan };
+  }
+
+  it('is attacked when the hunt is aimed at this civ', () => {
+    const { state, attacker, beast, plan } = huntBattlefield(true);
+    const attacks = rankUnitTacticalActions(context(state, plan), attacker.id)
+      .filter(candidate => candidate.action.kind === 'attack');
+    expect(attacks.some(candidate => candidate.action.kind === 'attack' && candidate.action.targetUnitId === beast.id)).toBe(true);
+  });
+
+  it('is left alone when the hunt is aimed at someone else', () => {
+    const { state, attacker, plan } = huntBattlefield(false);
+    const attacks = rankUnitTacticalActions(context(state, plan), attacker.id)
+      .filter(candidate => candidate.action.kind === 'attack');
+    expect(attacks).toEqual([]);
+  });
+});

@@ -696,6 +696,75 @@ describe('prepared major-civilization planning', () => {
     });
   });
 
+  // A hunt crisis ends only when its foe dies; before this the AI never went after one, and a beast hunt
+  // (beasts are off-limits to the AI unless aiContestsBeasts is on) could never end at all.
+  function stageHunt(state: GameState, flavorId: string, huntEntityId: string): void {
+    state.activeCrises = {
+      hunt: {
+        id: 'hunt', flavorId, archetype: 'hunt', targetCivId: 'ai-1', cityIds: [], tileKeys: [],
+        startedTurn: state.turn, stage: 'menacing', turnsInStage: 1, huntEntityId,
+      },
+    };
+  }
+
+  it('drafts a repel plan against the beast of its own beast hunt, beast contests off', () => {
+    const state = createNewGame(undefined, 'prepared-beast-hunt', 'small');
+    state.settings = { ...state.settings, aiPressure: 'full', aiContestsBeasts: false };
+    const civ = state.civilizations['ai-1'];
+    const anchor = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'warrior')!.position;
+    const beastPosition = Object.values(state.map.tiles)
+      .filter(tile => hexDistance(anchor, tile.coord) === 2 && findPath(anchor, tile.coord, state.map, 'land') !== null)
+      .sort((left, right) => hexKey(left.coord).localeCompare(hexKey(right.coord)))[0].coord;
+    state.units['hunt-beast'] = {
+      id: 'hunt-beast', type: 'beast_wolf', owner: 'beasts', position: beastPosition,
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    civ.visibility.tiles[hexKey(beastPosition)] = 'visible';
+    stageHunt(state, 'beast-awakening', 'hunt-beast');
+
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    expect(prepared.portfolio.primaryPlan).toMatchObject({
+      objective: 'repel',
+      target: { kind: 'unit', id: 'hunt-beast' },
+    });
+  });
+
+  it('drafts a repel plan against the camp of its own bandit hunt', () => {
+    const state = createNewGame(undefined, 'prepared-camp-hunt', 'small');
+    state.settings = { ...state.settings, aiPressure: 'full' };
+    const civ = state.civilizations['ai-1'];
+    const anchor = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'warrior')!.position;
+    const campPosition = Object.values(state.map.tiles)
+      .filter(tile => hexDistance(anchor, tile.coord) === 3 && findPath(anchor, tile.coord, state.map, 'land') !== null)
+      .sort((left, right) => hexKey(left.coord).localeCompare(hexKey(right.coord)))[0].coord;
+    state.barbarianCamps['hunt-camp'] = { id: 'hunt-camp', position: campPosition, strength: 3, spawnCooldown: 5 };
+    civ.visibility.tiles[hexKey(campPosition)] = 'visible';
+    stageHunt(state, 'bandit-uprising', 'hunt-camp');
+
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    expect(prepared.portfolio.primaryPlan).toMatchObject({
+      objective: 'repel',
+      target: { kind: 'camp', id: 'hunt-camp' },
+    });
+  });
+
+  it('drafts no hunt plan when world crises are not aimed at AI civs', () => {
+    const state = createNewGame(undefined, 'prepared-beast-hunt-off', 'small');
+    state.settings = { ...state.settings, aiPressure: 'off' };
+    const civ = state.civilizations['ai-1'];
+    const anchor = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'warrior')!.position;
+    state.units['hunt-beast'] = {
+      id: 'hunt-beast', type: 'beast_wolf', owner: 'beasts', position: { q: anchor.q + 1, r: anchor.r },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    civ.visibility.tiles[hexKey({ q: anchor.q + 1, r: anchor.r })] = 'visible';
+    stageHunt(state, 'beast-awakening', 'hunt-beast');
+
+    expect(prepareMajorCivStrategicPlan(state, 'ai-1').portfolio.primaryPlan?.objective).not.toBe('repel');
+  });
+
   it('pirate dispatch competes on score, not automatic priority: a strong nearby at-war capture beats it at explorer difficulty (#528 MR2)', () => {
     const state = createNewGame(undefined, 'prepared-pirate-dispatch-compete-lose', 'small');
     state.opponentChallenge = 'explorer'; // crisisDispatchWeight 0.5 -> pirate score 50

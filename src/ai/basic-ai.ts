@@ -8,6 +8,7 @@ import type {
   City,
   UnitType,
 } from '@/core/types';
+import type { AIStrategicPlan } from '@/core/types/ai';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, wrappedHexDistance, hexDistance, mapDistance } from '@/systems/hex-utils';
 import { cityFollowsOwnFaith } from '@/systems/city-system';
@@ -48,7 +49,7 @@ import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-sys
 import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
 
 import { chooseProduction } from './ai-strategy';
-import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
+import { applyAiCityStateWar, applyAiMinorCivGifts, applyAiMinorCivPeace, applyAiMinorCivQuestPayments, evaluateDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import { getKnownSharedBorderOwners } from './ai-known-borders';
 import { NATIONAL_INTENT_POSTURE } from './ai-national-intent-posture';
 import { chooseWarGoal } from './ai-war-goals';
@@ -75,6 +76,7 @@ import {
 import {
   getAvailableMissions,
   embedSpy,
+  runCounterIntelSweep,
   attemptInfiltration,
   resolveMissionResult,
   expelSpy,
@@ -102,7 +104,7 @@ import {
 import { GOVERNANCE_POLICY_DEFINITIONS } from '@/systems/governance-policy-definitions';
 import { setGovernancePolicy, isGovernancePolicyActive, canToggleGovernancePolicy } from '@/systems/governance-policy-system';
 import { getGovernanceCapacity, getGovernanceLoad, GOVERNOR_LOAD_COST } from '@/systems/governance-capacity';
-import { assignGovernor, isCityGoverned, canToggleGovernor } from '@/systems/governor-system';
+import { assignGovernor, canToggleGovernor, GOVERNOR_UNREST_RELIEF, isCityGoverned, moveGovernor } from '@/systems/governor-system';
 import {
   getEligibleLegendaryWonders,
   initializeLegendaryWonderProjectsForAllCities,
@@ -118,7 +120,6 @@ import { BEAST_OWNER } from '@/systems/beast-system';
 import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
-import { performMinorCivFestival, performMinorCivGift } from '@/systems/minor-civ-actions';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import { classifyOwner, isAlwaysHostilePair } from '@/core/owner-kind';
 import { getPirateWatersPresentation, type PirateFactionPresentation } from '@/systems/pirate-presentation';
@@ -142,7 +143,7 @@ import {
 } from './ai-prepared-turn';
 import { isAIHostileOwner } from './ai-hostility';
 import { hasAITradeRole } from './ai-unit-roles';
-import { applyAIProduction, refillAIQueuesEmptiedByPurchase, releaseAISpyQueueHeads } from './ai-production';
+import { applyAIFuelConservation, applyAIProduction, refillAIQueuesEmptiedByPurchase, releaseAISpyQueueHeads } from './ai-production';
 import { applyAIGoldSpending } from './ai-treasury';
 import { applyAIResearch } from './ai-research';
 import { getAIProcurementTerms, processAIResourceMarketplace } from './ai-resource-marketplace';
@@ -666,6 +667,45 @@ export function canDeclareWarForPreparedPlan(
   return false;
 }
 
+/** Unrest pressure at which the AI wants a governor in a city. */
+const AI_GOVERNOR_PRESSURE_THRESHOLD = 20;
+
+/**
+ * One governor move, when there is no room for another governor: from the governed city that would stay
+ * under the AI's governor threshold without its governor (its pressure plus the governor's relief) to the
+ * ungoverned city in the most unrest at or over that threshold. Both ends must be past their reassignment
+ * lock. The city it leaves stays under the threshold by construction, so it cannot pull the governor back.
+ */
+export function chooseAiGovernorMove(
+  state: GameState,
+  civId: string,
+  pressureByCityId: ReadonlyMap<string, number>,
+): { fromCityId: string; toCityId: string } | null {
+  const capacity = getGovernanceCapacity(state, civId).total;
+  const load = getGovernanceLoad(state, civId).total;
+  if (load + GOVERNOR_LOAD_COST <= capacity) return null;
+  const ownCityIds = getOwnedCities(state, civId).map(city => city.id).sort();
+  const pressure = (cityId: string) => pressureByCityId.get(cityId) ?? 0;
+  const from = ownCityIds
+    .filter(cityId => isCityGoverned(state, cityId) && canToggleGovernor(state, civId, cityId))
+    .filter(cityId => pressure(cityId) + GOVERNOR_UNREST_RELIEF < AI_GOVERNOR_PRESSURE_THRESHOLD)
+    .sort((a, b) => pressure(a) - pressure(b))[0];
+  const to = ownCityIds
+    .filter(cityId => !isCityGoverned(state, cityId) && canToggleGovernor(state, civId, cityId))
+    .filter(cityId => pressure(cityId) >= AI_GOVERNOR_PRESSURE_THRESHOLD)
+    .sort((a, b) => pressure(b) - pressure(a))[0];
+  return from && to ? { fromCityId: from, toCityId: to } : null;
+}
+
+/** The city-state a plan is attacking (its city, or one of its units), if any: that war is kept. */
+function minorCivsTargetedByPlan(state: GameState, plan: AIStrategicPlan | null): ReadonlySet<string> {
+  if (!plan) return new Set();
+  const owner = plan.target.kind === 'city' ? state.cities[plan.target.id]?.owner
+    : plan.target.kind === 'unit' ? state.units[plan.target.id]?.owner
+      : undefined;
+  return owner && classifyOwner(owner) === 'minor' ? new Set([owner]) : new Set();
+}
+
 function processAITurnInternal(
   state: GameState,
   civId: string,
@@ -1028,22 +1068,7 @@ function processAITurnInternal(
   civ = newState.civilizations[civId];
 
   // Pursue assigned economic chain steps before discretionary spending.
-  for (const minorCivId of Object.keys(newState.minorCivs).sort()) {
-    const quest = newState.minorCivs[minorCivId].activeQuests[civId];
-    if (quest?.target.type === 'gift_gold') {
-      const action = performMinorCivGift(newState, civId, minorCivId);
-      if (action.ok) {
-        newState = action.state;
-        emitMinorCivQuestTransitions(bus, action.transitions, newState);
-      }
-    } else if (quest?.target.type === 'sponsor_festival') {
-      const action = performMinorCivFestival(newState, civId, minorCivId);
-      if (action.ok) {
-        newState = action.state;
-        emitMinorCivQuestTransitions(bus, action.transitions, newState);
-      }
-    }
-  }
+  newState = applyAiMinorCivQuestPayments(newState, civId, bus);
   civ = newState.civilizations[civId];
 
   // --- Handle trade-unit route establishment (all trade-role types: caravan +
@@ -1185,16 +1210,15 @@ function processAITurnInternal(
     civ = newState.civilizations[civId];
   }
 
-  // #928: AI governor assignment. Assign-only (never proactively reassigns an
-  // already-placed governor) — thrash-free by construction, and a defensible
-  // bounded scope: capacity/lock validation inside assignGovernor is the only
-  // gate, same as the governance-policy block above. Cities are considered in
-  // descending pressure order so scarce capacity goes to the worst city first.
+  // #928: AI governor assignment. Cities are considered in descending pressure order so scarce capacity
+  // goes to the worst city first; capacity/lock validation inside assignGovernor is the only gate, same as
+  // the governance-policy block above. With no room left, chooseAiGovernorMove may move one governor a turn
+  // from a city that no longer needs it (thrash-free: see that function).
   const governorOwnedCityIds = getOwnedCities(newState, civId).map(city => city.id);
   if (governorOwnedCityIds.length > 0) {
     const pressureByCityId = new Map(governorOwnedCityIds.map(cityId => [cityId, computeUnrestPressure(cityId, newState)]));
     const candidateCityIds = governorOwnedCityIds
-      .filter(cityId => (pressureByCityId.get(cityId) ?? 0) >= 20)
+      .filter(cityId => (pressureByCityId.get(cityId) ?? 0) >= AI_GOVERNOR_PRESSURE_THRESHOLD)
       .filter(cityId => !isCityGoverned(newState, cityId))
       .filter(cityId => canToggleGovernor(newState, civId, cityId))
       .sort((a, b) => (pressureByCityId.get(b) ?? 0) - (pressureByCityId.get(a) ?? 0));
@@ -1204,6 +1228,11 @@ function processAITurnInternal(
       if (load + GOVERNOR_LOAD_COST > capacity) break;
       const assigned = assignGovernor(newState, civId, cityId);
       if (assigned.success) newState = assigned.state;
+    }
+    const move = chooseAiGovernorMove(newState, civId, pressureByCityId);
+    if (move) {
+      const moved = moveGovernor(newState, civId, move.fromCityId, move.toCityId);
+      if (moved.success) newState = moved.state;
     }
     civ = newState.civilizations[civId];
   }
@@ -1259,6 +1288,7 @@ function processAITurnInternal(
     return head ? [{ cityId, purchasedItemId: head }] : [];
   });
   newState = applyAIGoldSpending(newState, civId, bus);
+  newState = applyAIFuelConservation(newState, civId);
   const spentState = newState;
   newState = refillAIQueuesEmptiedByPurchase(
     spentState,
@@ -1600,18 +1630,10 @@ function processAITurnInternal(
 
   // --- Minor civ diplomacy ---
   if (newState.minorCivs) {
-    const mcDecisions = evaluateMinorCivDiplomacy(
-      personality, newState.minorCivs, civId, civ.gold, posture,
-    );
-    for (const d of mcDecisions) {
-      if (d.action === 'gift_gold') {
-        const mc = newState.minorCivs[d.mcId];
-        if (mc && civ.gold >= 25) {
-          newState.civilizations[civId].gold -= 25;
-          mc.diplomacy = modifyRelationship(mc.diplomacy, civId, 10);
-        }
-      }
-    }
+    newState = applyAiMinorCivPeace(newState, civId, minorCivsTargetedByPlan(newState, preparedForTurn.portfolio.primaryPlan), bus, personality, posture);
+    newState = applyAiCityStateWar(newState, civId, personality, posture, bus);
+    newState = applyAiMinorCivGifts(newState, civId, personality, posture);
+    civ = newState.civilizations[civId];
   }
 
   if (shouldAiStationDefensiveSpy(newState, civId)) {
@@ -1628,6 +1650,14 @@ function processAITurnInternal(
       // Remove unit from map — embedded spy goes off-map ('consumed': its espionage record IS the spy now)
       newState = removeUnits(newState, [idleSpy.id], { reason: 'consumed' }).state;
     }
+  }
+
+  // A spy guarding one of the civ's cities sweeps it every turn, through the player's own command
+  // (which refuses a second sweep in a turn and expels whatever it catches).
+  for (const guard of Object.values(newState.espionage?.[civId]?.spies ?? {}).sort((a, b) => a.id.localeCompare(b.id))) {
+    if (guard.status !== 'embedded') continue;
+    const sweep = runCounterIntelSweep(newState, civId, guard.id, bus);
+    if (sweep.ok) newState = sweep.state;
   }
 
   // AI spy movement, infiltration, and mission issuance for infiltrated spies

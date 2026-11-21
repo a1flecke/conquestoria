@@ -771,23 +771,34 @@ function crisisDispatchPlanCandidates(
 ): { candidates: AIPlanCandidate[]; unstaffedRoles: AIStrategicRole[] } {
   const unstaffedRoles = new Set<AIStrategicRole>();
   const candidates = getCrisisDispatchCandidates(state, civId).flatMap((candidate): AIPlanCandidate[] => {
-    const eligible = candidate.kind === 'stampede' || candidate.kind === 'rogue-elephant-host'
-      ? isCrisisPressureEligible(state, civId)
-      : isPiratePressureEligible(state, civId);
+    const eligible = candidate.kind === 'pirate-fleet'
+      ? isPiratePressureEligible(state, civId)
+      : isCrisisPressureEligible(state, civId);
     if (!eligible) return [];
-    const unit = state.units[candidate.targetUnitId];
-    if (!unit) return [];
-    const role: AIStrategicRole = candidate.kind === 'stampede' || candidate.kind === 'rogue-elephant-host'
-      ? 'frontline'
-      : 'naval-combat';
+    const target: AIPlanCandidate['target'] | null = candidate.kind === 'hunt-camp'
+      ? (() => {
+        const camp = state.barbarianCamps[candidate.targetCampId];
+        return camp ? { kind: 'camp', id: camp.id, lastKnownPosition: { ...camp.position } } : null;
+      })()
+      : (() => {
+        const unit = state.units[candidate.targetUnitId];
+        return unit ? { kind: 'unit', id: unit.id, lastKnownPosition: { ...unit.position } } : null;
+      })();
+    if (!target) return [];
+    // A pirate ship, at sea, needs a warship; everything else is fought on land. A hunt's foe can be
+    // either: a beast or a camp on land, a pirate hunt's ship at sea.
+    const atSea = candidate.kind === 'pirate-fleet'
+      || (candidate.kind === 'hunt-foe'
+        && UNIT_DEFINITIONS[state.units[candidate.targetUnitId]!.type]?.domain === 'naval');
+    const role: AIStrategicRole = atSea ? 'naval-combat' : 'frontline';
     if ((availableRoles[role] ?? 0) <= 0) {
       unstaffedRoles.add(role);
       return [];
     }
     return [{
       objective: 'repel',
-      target: { kind: 'unit', id: candidate.targetUnitId, lastKnownPosition: { ...unit.position } },
-      theaterId: `local:${unit.position.q},${unit.position.r}`,
+      target,
+      theaterId: `local:${target.lastKnownPosition.q},${target.lastKnownPosition.r}`,
       score: candidate.score,
       reasonCodes: [candidate.kind === 'stampede' ? 'visible-stampede' : 'urgent-defense'],
       requiredRoles: { [role]: 1 },

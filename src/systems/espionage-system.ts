@@ -91,3 +91,5 @@ export { processEspionageTurn, processSpyTurn } from './espionage-turn';
 export type { SpyTurnEvent } from './espionage-turn';
 
 export { isSpyUnitType } from './spy-unit-types';
+export { runCounterIntelSweep, SWEEP_DENIAL_MESSAGES } from './espionage-turn';
+export type { SweepDenialReason, SweepResult } from './espionage-turn';

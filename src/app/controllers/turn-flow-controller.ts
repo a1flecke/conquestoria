@@ -424,6 +424,10 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     renderLoop.setGameState(session.getState());
     await replayAIMoves(soloMoves);
     deps.updateHUD();
+    // The round can leave the player a choice of their own: a Great General queued at round end, or a hoard
+    // from a beast their unit slew while defending. Hot seat opens these when the seat's turn begins.
+    deps.maybeShowPendingHoardChoice();
+    deps.maybeShowPendingGeneralChoice();
     showRequiredChoicesIfNeeded();
 
     deps.showNotification(`Turn ${session.getState().turn}`, 'info');
