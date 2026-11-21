@@ -191,6 +191,60 @@ export function getCrisisRestoreAssignments(
   return results;
 }
 
+/** The civ's own attrition crises (outbreak, famine), in a stable order. */
+function getOwnAttritionCrises(state: GameState, civId: string): ActiveCrisis[] {
+  // Famine (#590 MR3) reuses the same quarantine/fund-remedy response shape as
+  // outbreak — both are attrition-style crises with cityIds-based spread/containment.
+  return Object.values(state.activeCrises ?? {})
+    .filter((c): c is ActiveCrisis => c.targetCivId === civId && (c.archetype === 'outbreak' || c.archetype === 'famine'))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * One remedy per civ per turn: the most-populous infected city across ALL of the civ's
+ * attrition crises that doesn't already have a remedy underway.
+ */
+function chooseRemedyTarget(
+  state: GameState,
+  crises: readonly ActiveCrisis[],
+  excludedCrisisIds: ReadonlySet<string>,
+): { crisisId: string; city: City } | null {
+  let best: { crisisId: string; city: City } | null = null;
+  for (const crisis of crises) {
+    if (excludedCrisisIds.has(crisis.id)) continue; // #919 MR1
+    for (const cityId of crisis.cityIds) {
+      if (crisis.remedyCompletionByCity?.[cityId] !== undefined) continue;
+      const city = state.cities[cityId];
+      if (!city) continue;
+      if (!best || city.population > best.city.population ||
+          (city.population === best.city.population && city.id < best.city.id)) {
+        best = { crisisId: crisis.id, city };
+      }
+    }
+  }
+  return best;
+}
+
+/** Treasury the AI wants on hand before it funds a remedy: the cure's cost times its challenge multiplier. */
+function remedyReserveFor(city: City, multiplier: number): number {
+  return getCityAppeaseCost(city) * multiplier;
+}
+
+/**
+ * The gold an AI civ is saving for its next crisis cure: exactly the treasury `getCrisisResponseActions`
+ * waits for before it funds a single-city remedy, or 0 when there is nothing to cure. The rush-buy loop
+ * (`applyAIGoldSpending`) keeps this back. Without it, rush-buys spent the treasury down to the upkeep
+ * reserve every round, the cure threshold was never met, and a quarantined outbreak at standard difficulty
+ * halved a city's yields for the rest of the game.
+ */
+export function getAiCrisisRemedyReserve(state: GameState, civId: string): number {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.isHuman) return 0;
+  const target = chooseRemedyTarget(state, getOwnAttritionCrises(state, civId), new Set());
+  if (!target) return 0;
+  return remedyReserveFor(target.city, getChallengeProfileForCiv(state, civId).crisisRemedyGoldMultiplier);
+}
+
 export function getCrisisResponseActions(state: GameState, civId: string): CrisisResponseAction[] {
   const civ = state.civilizations[civId];
   if (!civ || civ.isHuman) return [];
@@ -199,11 +253,7 @@ export function getCrisisResponseActions(state: GameState, civId: string): Crisi
   // cities) rather than waiting for 3 — same competence axis as crisisResponseDelayTurns.
   const spreadThreshold = 2 + (resolveChallengeForCiv(state, civId) === 'veteran' ? 0 : 1);
 
-  // Famine (#590 MR3) reuses the same quarantine/fund-remedy response shape as
-  // outbreak — both are attrition-style crises with cityIds-based spread/containment.
-  const crises = Object.values(state.activeCrises ?? {})
-    .filter((c): c is ActiveCrisis => c.targetCivId === civId && (c.archetype === 'outbreak' || c.archetype === 'famine'))
-    .sort((a, b) => a.id.localeCompare(b.id));
+  const crises = getOwnAttritionCrises(state, civId);
 
   const actions: CrisisResponseAction[] = [];
 
@@ -245,26 +295,9 @@ export function getCrisisResponseActions(state: GameState, civId: string): Crisi
     }
   }
 
-  // One remedy per civ per turn: the most-populous infected city across ALL of
-  // this civ's outbreak crises that doesn't already have a remedy underway.
-  let bestRemedy: { crisisId: string; city: City } | null = null;
-  for (const crisis of crises) {
-    if (empireContainedCrisisIds.has(crisis.id)) continue; // #919 MR1
-    for (const cityId of crisis.cityIds) {
-      if (crisis.remedyCompletionByCity?.[cityId] !== undefined) continue;
-      const city = state.cities[cityId];
-      if (!city) continue;
-      if (!bestRemedy || city.population > bestRemedy.city.population ||
-          (city.population === bestRemedy.city.population && city.id < bestRemedy.city.id)) {
-        bestRemedy = { crisisId: crisis.id, city };
-      }
-    }
-  }
-  if (bestRemedy) {
-    const cost = getCityAppeaseCost(bestRemedy.city);
-    if (civ.gold >= cost * profile.crisisRemedyGoldMultiplier) {
-      actions.push({ kind: 'fund-remedy', crisisId: bestRemedy.crisisId, cityId: bestRemedy.city.id });
-    }
+  const bestRemedy = chooseRemedyTarget(state, crises, empireContainedCrisisIds);
+  if (bestRemedy && civ.gold >= remedyReserveFor(bestRemedy.city, profile.crisisRemedyGoldMultiplier)) {
+    actions.push({ kind: 'fund-remedy', crisisId: bestRemedy.crisisId, cityId: bestRemedy.city.id });
   }
 
   actions.push(...getCrisisRestoreAssignments(state, civId));

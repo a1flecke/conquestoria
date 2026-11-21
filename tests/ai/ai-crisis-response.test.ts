@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ActiveCrisis, City, GameState, HexCoord, HexTile, Unit } from '@/core/types';
-import { getCrisisDispatchCandidates, getCrisisResponseActions, applyCrisisResponses } from '@/ai/ai-crisis-response';
+import { getAiCrisisRemedyReserve, getCrisisDispatchCandidates, getCrisisResponseActions, applyCrisisResponses } from '@/ai/ai-crisis-response';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -553,5 +553,42 @@ describe('applyCrisisResponses', () => {
     expect(Object.keys(crisis.remedyCompletionByCity ?? {}).sort()).toEqual(['c1', 'c2', 'c3']);
     expect((next.civilizations['ai-1'] as { gold: number }).gold).toBe(100_000 - (5 + 4 + 3) * 15);
     expect(events).toHaveLength(1);
+  });
+});
+
+// The cure the AI is saving for: what `getCrisisResponseActions` needs in the treasury before it
+// funds its next single-city remedy. The treasury holds this back from rush-buys, so an AI with a
+// lingering outbreak saves up for the cure instead of spending down to its upkeep reserve forever.
+describe('getAiCrisisRemedyReserve', () => {
+  it('is the gold the remedy rule waits for (standard: appease cost 75 x 2.0)', () => {
+    const state = responseState({ civilizations: { 'ai-1': { id: 'ai-1', isHuman: false, gold: 0 } } });
+    expect(getAiCrisisRemedyReserve(state, 'ai-1')).toBe(150);
+  });
+
+  it('matches the threshold at which the response actually funds the remedy', () => {
+    const reserve = getAiCrisisRemedyReserve(responseState(), 'ai-1');
+    const at = getCrisisResponseActions(
+      responseState({ civilizations: { 'ai-1': { id: 'ai-1', isHuman: false, gold: reserve } } }), 'ai-1',
+    );
+    expect(at).toContainEqual({ kind: 'fund-remedy', crisisId: 'crisis-1', cityId: 'c1' });
+  });
+
+  it('is zero once every infected city already has a remedy underway', () => {
+    const state = responseState({ activeCrises: { 'crisis-1': outbreakCrisis({ remedyCompletionByCity: { c1: 6 } }) } });
+    expect(getAiCrisisRemedyReserve(state, 'ai-1')).toBe(0);
+  });
+
+  it('is zero with no outbreak or famine of its own', () => {
+    expect(getAiCrisisRemedyReserve(responseState({ activeCrises: {} }), 'ai-1')).toBe(0);
+    const someoneElses = responseState({ activeCrises: { 'crisis-1': outbreakCrisis({ targetCivId: 'ai-2' }) } });
+    expect(getAiCrisisRemedyReserve(someoneElses, 'ai-1')).toBe(0);
+  });
+
+  it('is zero for a human civ, whose crisis choices stay theirs', () => {
+    const state = responseState({
+      civilizations: { p1: { id: 'p1', isHuman: true, isEliminated: false, gold: 0 } },
+      activeCrises: { 'crisis-1': outbreakCrisis({ targetCivId: 'p1' }) },
+    });
+    expect(getAiCrisisRemedyReserve(state, 'p1')).toBe(0);
   });
 });
