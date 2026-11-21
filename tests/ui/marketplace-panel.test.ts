@@ -644,17 +644,30 @@ describe('createMarketplacePanel', () => {
       expect(routes?.textContent).not.toContain('blocked');
     });
 
-    it('still reports a blocked route when the trader missed the completed round', () => {
+    it('still reports delayed cargo after settlement recorded a blockage', () => {
       const state = buildStateWithRoute();
       state.turn = 13;
       const route = state.marketplace!.tradeRoutes[0]!;
       route.lastProgressTurn = 11;
       route.lastSettledTurn = 11;
+      route.notifiedInterruption = 'blocked';
+      route.manifest = {
+        ownerCivId: 'p1',
+        routeId: route.id,
+        carrierUnitId: 'caravan1',
+        destinationCityId: 'city1',
+        purchaseTurn: 11,
+        items: [{
+          claimId: 'iron-1', goodId: resourceGoodId('iron'), quantity: 1,
+          unitPrice: 6, paid: 6, sellerCivId: 'p1',
+        }],
+      };
       createMarketplacePanel(container, state, { onClose: vi.fn() });
 
       const routes = container.querySelector('[data-section="trade-supply-routes"]');
       expect(routes?.textContent).toContain('earning 0 · blocked');
-      expect(routes?.textContent).not.toContain('served last round');
+      expect(routes?.querySelector('[data-route-manifest]')?.textContent).toContain('Delayed — no promised arrival');
+      expect(routes?.textContent).not.toContain('awaiting next move');
     });
 
     it('clicking a route row with a committed unit calls onSelectUnit with the unit id', () => {

@@ -80,9 +80,15 @@ function renderRouteRow(
   const routeDetail = document.createElement('span');
   routeDetail.style.cssText = 'font-size:11px;color:#6b9b4b;';
   const promised = `+${gold.toFixed(1)} gold/turn`;
-  const reasonLabel = status.reason === 'blockaded' && !entitledDanger
-    ? 'service interrupted'
-    : NOT_OPERATING_LABEL[status.reason ?? 'blocked'];
+  // A missed progress stamp is also expected after a deliberate hold. Settlement records a
+  // blockage when an active route actually fails to make progress.
+  const awaitingNextMove = status.reason === 'blocked' && route.notifiedInterruption !== 'blocked';
+  const paused = status.reason === 'paused';
+  const reasonLabel = awaitingNextMove
+    ? 'awaiting next move'
+    : status.reason === 'blockaded' && !entitledDanger
+      ? 'service interrupted'
+      : NOT_OPERATING_LABEL[status.reason ?? 'blocked'];
   const actual = status.paying
     ? (servedLastRound ? 'served last round' : 'earning now')
     : `earning 0 · ${reasonLabel}`;
@@ -92,7 +98,7 @@ function renderRouteRow(
   // #1509 MR12: the manifest is owned cargo, not route income. Show what is aboard, what it cost,
   // and the target still short; a destroyed trader loses it (the row says so before departure).
   const manifestQuantity = getRouteManifestQuantity(route);
-  const delayed = !status.paying && ['blocked', 'blockaded', 'endpoint-lost', 'cancelled'].includes(status.reason ?? '');
+  const delayed = !awaitingNextMove && ['blocked', 'blockaded', 'endpoint-lost', 'cancelled'].includes(status.reason ?? '');
   if (manifestQuantity > 0) {
     const cargo = document.createElement('span');
     cargo.dataset.routeManifest = 'true';
@@ -100,11 +106,16 @@ function renderRouteRow(
     const goods = (route.manifest?.items ?? [])
       .map(item => `${item.quantity} ${findTradeGood(item.goodId)?.name ?? item.goodId}`)
       .join(', ');
-    const direction = delayed
-      ? 'Delayed — no promised arrival'
-      : committedUnit?.routeDirection === 'inbound'
-        ? `returning home in ${getRouteLegRounds(state, committedUnit, route.fromCityId) ?? '?'} round(s)`
-        : 'awaiting return';
+    let direction = 'awaiting return';
+    if (paused) {
+      direction = 'Held on board until you resume';
+    } else if (awaitingNextMove) {
+      direction = 'Awaiting next move';
+    } else if (delayed) {
+      direction = 'Delayed — no promised arrival';
+    } else if (committedUnit?.routeDirection === 'inbound') {
+      direction = `returning home in ${getRouteLegRounds(state, committedUnit, route.fromCityId) ?? '?'} round(s)`;
+    }
     cargo.textContent = `Confirmed cargo: ${goods} · paid ${getRouteManifestPaid(route)} · ${direction} · lost if the trader is destroyed`;
     summary.appendChild(cargo);
   }
@@ -119,9 +130,11 @@ function renderRouteRow(
     const forecast = document.createElement('span');
     forecast.dataset.routeForecast = 'true';
     forecast.style.cssText = 'font-size:10px;opacity:0.6;';
-    forecast.textContent = delayed
-      ? 'Forecast: Delayed — no promised arrival while the route is interrupted.'
-      : 'Forecast: assumes the route operates each round; confirmed cargo is separate from potential purchases.';
+    forecast.textContent = paused
+      ? 'Forecast: Paused until you resume the route.'
+      : delayed
+        ? 'Forecast: Delayed — no promised arrival while the route is interrupted.'
+        : 'Forecast: assumes the route operates each round; confirmed cargo is separate from potential purchases.';
     summary.appendChild(forecast);
   }
 
