@@ -53,6 +53,12 @@ export const registerFactionCrisisPresentation: PresentationRegistrar = (bus, ct
     bus.on('faction:breakaway-established', event => {
       routeFactionTransition(ctx.session.getState(), { type: 'faction:breakaway-established', ...event }, deliver);
     }),
+    bus.on('faction:reunification-ready', event => {
+      routeFactionTransition(ctx.session.getState(), { type: 'faction:reunification-ready', ...event }, deliver);
+    }),
+    bus.on('faction:breakaway-reabsorbed', event => {
+      routeFactionTransition(ctx.session.getState(), { type: 'faction:breakaway-reabsorbed', ...event }, deliver);
+    }),
     bus.on('faction:critical-status', event => {
       routeFactionTransition(ctx.session.getState(), { type: 'faction:critical-status', ...event }, deliver);
     }),

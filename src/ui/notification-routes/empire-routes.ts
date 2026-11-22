@@ -13,6 +13,8 @@ type FactionTransitionEvent =
   | { type: 'faction:unrest-resolved'; cityId: string; owner: string }
   | { type: 'faction:breakaway-started'; cityId: string; oldOwner: string; breakawayId: string }
   | { type: 'faction:breakaway-established'; civId: string; originOwnerId: string }
+  | { type: 'faction:reunification-ready'; breakawayId: string; originOwnerId: string; cityId: string; offerCost: number }
+  | { type: 'faction:breakaway-reabsorbed'; civId: string; ownerId: string; cityId: string; how: 'vote' | 'offer' }
   | { type: 'faction:critical-status'; cityId: string; owner: string; status: 'unrest' | 'revolt' | 'breakaway'; breakawayId?: string }
   | { type: 'faction:concession-made'; cityId: string; owner: string; concessionType: 'charter' };
 
@@ -68,8 +70,31 @@ export function routeFactionTransition(
       : 0;
     sink(
       event.oldOwner,
-      `${city?.name ?? 'A city'} has broken away. Recapture or reabsorb it before it becomes established${turnsLeft > 0 ? ` in ${turnsLeft} turns` : ''}.`,
+      `${city?.name ?? 'A city'} has broken away. Keep the peace and keep your cities near it and it may vote to rejoin you${turnsLeft > 0 ? ` within ${turnsLeft} turns` : ''}; a war sets that back. You can also retake it by force.`,
       'warning',
+    );
+    return;
+  }
+
+  if (event.type === 'faction:reunification-ready') {
+    const city = state.cities[event.cityId];
+    const offer = ` for ${event.offerCost} gold`;
+    sink(
+      event.originOwnerId,
+      `${city?.name ?? 'Your breakaway city'} is halfway to rejoining you. You can offer to bring it home now${offer} (Diplomacy), or keep the peace and let it vote.`,
+      'success',
+    );
+    return;
+  }
+
+  if (event.type === 'faction:breakaway-reabsorbed') {
+    const city = state.cities[event.cityId];
+    sink(
+      event.ownerId,
+      event.how === 'vote'
+        ? `${city?.name ?? 'Your breakaway city'} voted to rejoin your empire!`
+        : `${city?.name ?? 'Your breakaway city'} accepted your offer and has rejoined your empire.`,
+      'success',
     );
     return;
   }
@@ -88,9 +113,10 @@ export function routeFactionTransition(
     const turnsLeft = breakaway?.breakaway
       ? Math.max(0, breakaway.breakaway.establishesOnTurn - state.turn)
       : 0;
+    const meter = breakaway?.breakaway ? Math.floor(breakaway.breakaway.reunification ?? 0) : 0;
     sink(
       event.owner,
-      `${city?.name ?? 'A city'} is still in secession${turnsLeft > 0 ? ` (${turnsLeft} turns before establishment)` : ''}.`,
+      `${city?.name ?? 'A city'} is still in secession${turnsLeft > 0 ? ` (${turnsLeft} turns before establishment)` : ''}. Reunification ${meter}%.`,
       'warning',
     );
     return;

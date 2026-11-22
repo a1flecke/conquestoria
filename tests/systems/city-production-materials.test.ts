@@ -403,6 +403,7 @@ describe('#1506 MR09 — release on capture and removal', () => {
         },
       },
     };
+    ready.civilizations[breakawayId] = { ...ready.civilizations[breakawayId], breakaway: { ...ready.civilizations[breakawayId].breakaway!, reunification: 60 } };
     const reabsorbed = tryReabsorbBreakaway(ready, 'player', breakawayId);
     expect(reabsorbed.cities[base.a].owner).toBe('player');
     expect(getCommittedQuantity(reabsorbed.materialReservesByCiv!.player, iron)).toBe(10);

@@ -620,16 +620,19 @@ describe('diplomacy-system', () => {
     it('reabsorbs an eligible breakaway state instead of leaving the action as a no-op', () => {
       const { state, breakawayId, cityId } = makeBreakawayFixture({
         breakawayStartedTurn: 12,
-        relationship: 70,
         gold: 250,
+        reunification: 75,
       });
       const bus = new EventBus();
+      const reabsorbed: Array<{ how: string }> = [];
+      bus.on('faction:breakaway-reabsorbed', event => reabsorbed.push(event));
 
       const result = applyDiplomaticAction(state, 'player', breakawayId, 'reabsorb_breakaway', bus).state;
 
       expect(result.cities[cityId].owner).toBe('player');
       expect(result.civilizations[breakawayId]).toBeUndefined();
-      expect(result.civilizations.player.gold).toBe(50);
+      expect(result.civilizations.player.gold).toBe(250 - 25 * 4);
+      expect(reabsorbed).toEqual([expect.objectContaining({ how: 'offer' })]);
     });
 
     it('rejects direct reabsorb actions from non-origin owners', () => {

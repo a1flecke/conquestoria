@@ -69,17 +69,20 @@ export function makeDiplomacyFixture({
   includeThirdCiv = false,
   relationship = 70,
   gold = 250,
+  reunification = 60,
 }: {
   currentPlayer?: string;
   includeBreakaway?: boolean;
   includeThirdCiv?: boolean;
   relationship?: number;
   gold?: number;
+  /** The breakaway city's will to rejoin; 60 is past the halfway mark where an offer opens. */
+  reunification?: number;
 } = {}): { container: HTMLElement; state: GameState } {
   const activeDocument = ensureDocument();
 
   const base = includeBreakaway
-    ? makeBreakawayFixture({ turn: 10, breakawayStartedTurn: 10, includeThirdCiv })
+    ? makeBreakawayFixture({ turn: 10, breakawayStartedTurn: 10, includeThirdCiv, reunification })
     : makeBreakawayFixture();
   const state = base.state;
   state.currentPlayer = currentPlayer;

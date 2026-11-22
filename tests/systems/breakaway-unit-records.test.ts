@@ -92,6 +92,7 @@ describe('breakaway secession carries owner-keyed unit records with its units', 
     }
     seceded.civilizations['ai-1'].diplomacy.relationships[breakawayId] = 80;
     seceded.civilizations['ai-1'].gold = 1000;
+    seceded.civilizations[breakawayId].breakaway!.reunification = 60;
     assertSaveStateInvariants(seceded, 'after the secession');
 
     const reabsorbed = tryReabsorbBreakaway(seceded, 'ai-1', breakawayId, new EventBus());
@@ -119,6 +120,7 @@ describe('breakaway secession carries owner-keyed unit records with its units', 
 
     seceded.civilizations['ai-1'].diplomacy.relationships[breakawayId] = 80;
     seceded.civilizations['ai-1'].gold = 1000;
+    seceded.civilizations[breakawayId].breakaway!.reunification = 60;
     const reabsorbed = tryReabsorbBreakaway(seceded, 'ai-1', breakawayId, new EventBus());
     expect(reabsorbed.units[horseman.id]).toMatchObject({ owner: 'ai-1', movementBonus: 1 });
   });
