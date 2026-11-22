@@ -2,6 +2,8 @@ import type {
   DisguiseType,
   EspionageCivState,
   EspionageState,
+  FalseReportKind,
+  FalseReportRef,
   HexCoord,
   Spy,
   SpyMissionType,
@@ -14,7 +16,12 @@ import {
   INFILTRATOR_MISSIONS,
   PROMOTION_XP_THRESHOLD,
   SPY_NAMES,
+  DEBRIEF_TURNS,
+  getDebriefDenial,
+  type DebriefDenialReason,
 } from './espionage-catalog';
+export { DEBRIEF_DENIAL_MESSAGES, DEBRIEF_TURNS, getDebriefDenial } from './espionage-catalog';
+export type { DebriefDenialReason } from './espionage-catalog';
 import { getInfiltrationSuccessChance } from './espionage-probability';
 import { setCounterIntelligence } from './espionage-counterintel';
 
@@ -130,13 +137,15 @@ export function recallSpy(
   const spy = state.spies[spyId];
   if (!spy) throw new Error(`Spy ${spyId} not found`);
   if (spy.status === 'embedded') return state; // embedded spies must use unembedSpy
+  // Recalling abandons a debrief in progress.
+  const { debriefUntilTurn: _abandonedDebrief, ...rest } = spy;
 
   return {
     ...state,
     spies: {
       ...state.spies,
       [spyId]: {
-        ...spy,
+        ...rest,
         status: 'idle',
         targetCivId: null,
         targetCityId: null,
@@ -166,23 +175,110 @@ export function checkAndApplyPromotion(
   return { ...spy, promotion, promotionAvailable: false };
 }
 
-export function verifyAgent(
-  state: EspionageCivState,
-  spyId: string,
-): EspionageCivState {
+export type DebriefResult =
+  | { ok: true; state: EspionageCivState }
+  | { ok: false; state: EspionageCivState; reason: DebriefDenialReason };
+
+/**
+ * Start a debrief: the spy stops working for `DEBRIEF_TURNS` turns, then the espionage turn checks whether it was
+ * turned. Offered on every stationed spy, so the offer itself says nothing about the spy (the old instant
+ * "verify agent" button appeared only on a turned spy, which gave the secret away).
+ */
+export function startDebrief(state: EspionageCivState, spyId: string, turn: number): DebriefResult {
+  const denial = getDebriefDenial(state, spyId);
+  if (denial) return { ok: false, state, reason: denial };
+  const spy = state.spies[spyId];
+  return {
+    ok: true,
+    state: { ...state, spies: { ...state.spies, [spyId]: { ...spy, debriefUntilTurn: turn + DEBRIEF_TURNS } } },
+  };
+}
+
+/** Chance a debrief exposes a turned spy; a Sentinel (counter-intelligence) spy is harder to fool. */
+export const DEBRIEF_EXPOSE_CHANCE = 0.75;
+export const DEBRIEF_EXPOSE_CHANCE_SENTINEL = 0.9;
+
+export function getDebriefExposeChance(spy: Pick<Spy, 'promotion'>): number {
+  return spy.promotion === 'sentinel' ? DEBRIEF_EXPOSE_CHANCE_SENTINEL : DEBRIEF_EXPOSE_CHANCE;
+}
+
+type ReportRng = () => number;
+
+/**
+ * A double agent's reports lie, its missions do not (a lie misleads, it never secretly wrecks a plan). Each lie is
+ * a plausible distortion of the real figure, never an invention from nothing: a sighting list is halved or doubled,
+ * a count or a treasury is scaled, relations are turned around, half the resources go unreported.
+ */
+export function falsifyUnitSightings<T>(units: readonly T[], rng: ReportRng): T[] {
+  if (rng() < 0.5) return units.filter((_, index) => index % 2 === 0 && index < units.length - 1);
+  return units.flatMap(unit => [unit, unit]);
+}
+
+export function falsifyFigure(value: number, rng: ReportRng): number {
+  return Math.max(0, Math.round(value * (rng() < 0.5 ? 0.5 : 2)));
+}
+
+export function falsifyRelationships(relationships: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(Object.entries(relationships).map(([civId, score]) => [civId, -score]));
+}
+
+export function falsifyResources(resources: readonly string[], rng: ReportRng): string[] {
+  return resources.filter(() => rng() < 0.5);
+}
+
+export function recordFalseReport(state: EspionageCivState, spyId: string, ref: FalseReportRef): EspionageCivState {
   const spy = state.spies[spyId];
   if (!spy) return state;
+  const falseReports = [...(spy.falseReports ?? []).filter(r => !(r.kind === ref.kind && r.key === ref.key)), ref];
+  return { ...state, spies: { ...state.spies, [spyId]: { ...spy, falseReports } } };
+}
 
+function withoutReport<T extends { turn: number }>(
+  reports: Record<string, T> | undefined,
+  key: string,
+  turn: number,
+): Record<string, T> | undefined {
+  if (!reports || reports[key]?.turn !== turn) return reports;
+  const { [key]: _struck, ...rest } = reports;
+  return rest;
+}
+
+const REPORT_FIELD: Record<FalseReportKind, 'troopObservations' | 'intelReports' | 'resourceReports' | 'diplomacyReports' | 'signalsIntelligence'> = {
+  troops: 'troopObservations',
+  intel: 'intelReports',
+  resources: 'resourceReports',
+  diplomacy: 'diplomacyReports',
+  signals: 'signalsIntelligence',
+};
+
+export interface DebriefOutcome {
+  state: EspionageCivState;
+  /** Set when the debrief exposed a double agent. */
+  exposed?: { captorCivId: string; falseReportCount: number; turnsTurned: number };
+}
+
+/**
+ * Finish a debrief. `exposeRoll` is the one draw that decides it; a spy that was never turned always comes back
+ * clean, so the result can only ever be a true exposure or "found nothing". An exposed spy is honest from now on
+ * and every report it falsified that has not since been replaced is struck from the owner's files.
+ */
+export function finishDebrief(state: EspionageCivState, spyId: string, turn: number, exposeRoll: number): DebriefOutcome {
+  const spy = state.spies[spyId];
+  if (!spy) return { state };
+  const { debriefUntilTurn: _done, ...rest } = spy;
+  if (!spy.turnedBy || exposeRoll >= getDebriefExposeChance(spy)) {
+    return { state: { ...state, spies: { ...state.spies, [spyId]: { ...rest, lastDebriefTurn: turn } } } };
+  }
+  let next: EspionageCivState = state;
+  const falseReports = spy.falseReports ?? [];
+  for (const ref of falseReports) {
+    const field = REPORT_FIELD[ref.kind];
+    next = { ...next, [field]: withoutReport(next[field] as Record<string, { turn: number }> | undefined, ref.key, ref.turn) };
+  }
+  const { turnedBy: _captor, feedsFalseIntel: _lying, turnedOnTurn, falseReports: _struck, ...honest } = rest;
   return {
-    ...state,
-    spies: {
-      ...state.spies,
-      [spyId]: {
-        ...spy,
-        turnedBy: undefined,
-        feedsFalseIntel: false,
-      },
-    },
+    state: { ...next, spies: { ...next.spies, [spyId]: { ...honest, feedsFalseIntel: false, lastDebriefTurn: turn } } },
+    exposed: { captorCivId: spy.turnedBy, falseReportCount: falseReports.length, turnsTurned: Math.max(0, turn - (turnedOnTurn ?? turn)) },
   };
 }
 

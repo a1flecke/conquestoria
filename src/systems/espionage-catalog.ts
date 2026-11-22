@@ -1,4 +1,4 @@
-import type { SpyMissionType, UnitType } from '@/core/types';
+import type { EspionageCivState, SpyMissionType, UnitType } from '@/core/types';
 
 /**
  * Espionage mission and spy catalogs (#1009): base success rates, durations,
@@ -240,3 +240,28 @@ export const INFILTRATION_BASE: Partial<Record<UnitType, number>> = {
   spy_operative: 0.75,
   spy_hacker: 0.80,
 };
+
+// --- Debriefing a stationed spy (is it a double agent?) ---
+/** Turns a debrief takes; the spy runs no missions meanwhile. */
+export const DEBRIEF_TURNS = 3;
+
+export type DebriefDenialReason = 'spy-not-found' | 'not-stationed' | 'on-mission' | 'already-debriefing';
+
+export const DEBRIEF_DENIAL_MESSAGES: Record<DebriefDenialReason, string> = {
+  'spy-not-found': 'That spy is not available.',
+  'not-stationed': 'Only a spy stationed abroad can be debriefed.',
+  'on-mission': 'Wait for the current mission to finish before debriefing this spy.',
+  'already-debriefing': 'This spy is already being debriefed.',
+};
+
+
+/** Pure: whether a spy can start a debrief. Read by the panel (via espionage-presentation), the command and the AI. */
+export function getDebriefDenial(state: Pick<EspionageCivState, 'spies'>, spyId: string): DebriefDenialReason | null {
+  const spy = state.spies[spyId];
+  if (!spy) return 'spy-not-found';
+  if (spy.debriefUntilTurn !== undefined) return 'already-debriefing';
+  if (spy.currentMission) return 'on-mission';
+  if (spy.status !== 'stationed') return 'not-stationed';
+  return null;
+}
+

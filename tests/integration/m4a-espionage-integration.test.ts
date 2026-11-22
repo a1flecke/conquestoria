@@ -6,7 +6,7 @@ import {
   processEspionageTurn,
   initializeEspionage,
   turnCapturedSpy,
-  verifyAgent,
+  finishDebrief,
   } from '@/systems/espionage-system';
 import type { GameState, HexCoord, HexTile, Spy } from '@/core/types';
 import { startMissionState } from '../helpers/espionage-mission';
@@ -571,7 +571,7 @@ describe('M4a full integration', () => {
     expect(state.espionage['player'].spies[spy.id].feedsFalseIntel).toBe(true);
     expect(state.espionage['ai-egypt'].detectedThreats?.[spy.id]).toBeDefined();
 
-    state.espionage['player'] = verifyAgent(state.espionage['player'], spy.id);
+    state.espionage['player'] = finishDebrief(state.espionage['player'], spy.id, state.turn, 0).state;
     expect(state.espionage['player'].spies[spy.id].feedsFalseIntel).toBe(false);
     expect(state.espionage['player'].spies[spy.id].turnedBy).toBeUndefined();
   });

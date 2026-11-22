@@ -1,7 +1,7 @@
 // src/ui/espionage-panel.ts
 import type { GameState, Spy, SpyMissionType, SpyPromotion, InterrogationIntel } from '../core/types';
 import type { AdvisorType } from '@/core/types/council';
-import { PROMOTION_XP_THRESHOLD, getAvailableMissions, getEspionageModifierBreakdown, getGoPublicDenial, getMissionDuration, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-presentation';
+import { DEBRIEF_TURNS, PROMOTION_XP_THRESHOLD, getAvailableMissions, getDebriefDenial, getEspionageModifierBreakdown, getGoPublicDenial, getMissionDuration, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-presentation';
 import { getProductionLabel } from '../systems/economy-system';
 
 export interface MissionCatalogEntry {
@@ -28,6 +28,10 @@ export interface SpySummary {
   lastSweepTurn?: number;
   /** cyber-intelligence: full production queue of the infiltrated city, when stationed/embedded there. */
   revealedProductionQueue?: string[];
+  /** Turns left in a debrief in progress. */
+  debriefTurnsLeft?: number;
+  /** Turn this spy was captured, when no debrief has run since: it may have been turned. Owner-known fact only. */
+  capturedSinceDebriefTurn?: number;
 }
 
 export interface EspionagePanelData {
@@ -87,14 +91,14 @@ export interface EspionagePanelViewModel extends EspionagePanelData {
   missionStages: MissionStageGroup[];
 }
 
-export type SpyAction = 'assign' | 'assign_defensive' | 'start_mission' | 'recall' | 'verify_agent';
+export type SpyAction = 'assign' | 'assign_defensive' | 'start_mission' | 'recall' | 'debrief_agent';
 
 export interface EspionagePanelCallbacks {
   onClose: () => void;
   onAssignDefensive?: (spyId: string) => void;
   onStartMission?: (spyId: string) => void;
   onRecall?: (spyId: string) => void;
-  onVerifyAgent?: (spyId: string) => void;
+  onDebriefAgent?: (spyId: string) => void;
   onExfiltrate?: (spyId: string) => void;
   onToggleCooldownMode?: (spyId: string) => void;
   onUnembed?: (spyId: string) => void;
@@ -393,6 +397,22 @@ function appendSpyCard(
   }
 
   const actions = getSpyActions(state, spy.id);
+  if (spy.debriefTurnsLeft !== undefined) {
+    const debriefEl = createEl('div', `Being debriefed: ${spy.debriefTurnsLeft} turn${spy.debriefTurnsLeft === 1 ? '' : 's'} left. No missions until it ends.`);
+    debriefEl.dataset.spyDebrief = 'active';
+    debriefEl.style.cssText = 'font-size:11px;color:#9ecbff;';
+    card.appendChild(debriefEl);
+  } else if (spy.capturedSinceDebriefTurn !== undefined && spy.status === 'stationed') {
+    const cueEl = createEl('div', `Captured on turn ${spy.capturedSinceDebriefTurn} and back at work. A captor may have turned this spy; a debrief can tell.`);
+    cueEl.dataset.spyDebrief = 'suggested';
+    cueEl.style.cssText = 'font-size:11px;color:#ff9966;';
+    card.appendChild(cueEl);
+  }
+  if (spy.status === 'stationed' && spy.debriefTurnsLeft === undefined && actions.includes('debrief_agent')) {
+    const helpEl = createEl('div', `Debrief: the spy stands down for ${DEBRIEF_TURNS} turns while you check whether a rival turned it. A turned spy sends home false reports.`);
+    helpEl.style.cssText = 'font-size:10px;opacity:0.6;';
+    card.appendChild(helpEl);
+  }
   if (spy.status === 'captured') {
     const capturedDiv = createEl('div', `${spy.name} has been captured! Awaiting the captor's verdict.`);
     capturedDiv.className = 'spy-captured-notice';
@@ -411,8 +431,8 @@ function appendSpyCard(
         appendActionButton(actionRow, actionLabel, action, () => callbacks.onStartMission?.(spy.id));
       } else if (action === 'recall' && callbacks.onRecall) {
         appendActionButton(actionRow, action, action, () => callbacks.onRecall?.(spy.id));
-      } else if (action === 'verify_agent' && callbacks.onVerifyAgent) {
-        appendActionButton(actionRow, 'verify agent', action, () => callbacks.onVerifyAgent?.(spy.id));
+      } else if (action === 'debrief_agent' && callbacks.onDebriefAgent) {
+        appendActionButton(actionRow, `debrief (${DEBRIEF_TURNS} turns)`, action, () => callbacks.onDebriefAgent?.(spy.id));
       } else {
         appendChip(actionRow, actionLabel);
       }
@@ -999,6 +1019,10 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
       cooldownMode: spy.cooldownMode,
       lastSweepTurn: spy.lastSweepTurn,
       ...(revealedProductionQueue !== undefined ? { revealedProductionQueue } : {}),
+      ...(spy.debriefUntilTurn !== undefined ? { debriefTurnsLeft: Math.max(1, spy.debriefUntilTurn - state.turn) } : {}),
+      ...(spy.capturedOnTurn !== undefined && spy.capturedOnTurn > (spy.lastDebriefTurn ?? -1)
+        ? { capturedSinceDebriefTurn: spy.capturedOnTurn }
+        : {}),
     };
   });
 
@@ -1152,10 +1176,11 @@ export function getSpyActions(state: GameState, spyId: string): SpyAction[] {
       }
       break;
     case 'stationed':
-      if (spy.turnedBy) {
-        actions.push('verify_agent');
+      // Offered on every stationed spy alike, so the button never gives away which spy was turned.
+      if (getDebriefDenial(civEsp, spyId) === null) {
+        actions.push('debrief_agent');
       }
-      if (!spy.currentMission && (spy.targetCivId || hasRemoteMission)) {
+      if (!spy.currentMission && spy.debriefUntilTurn === undefined && (spy.targetCivId || hasRemoteMission)) {
         actions.push('start_mission');
       }
       actions.push('recall');

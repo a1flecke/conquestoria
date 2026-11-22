@@ -26,7 +26,9 @@ export type EspionageNotificationEventType =
   | 'espionage:spy-detected'
   | 'espionage:operation-landed'
   | 'espionage:incident-traced'
-  | 'espionage:went-public';
+  | 'espionage:went-public'
+  | 'espionage:double-agent-exposed'
+  | 'espionage:debrief-clean';
 
 export type EspionageNotificationEvent =
   | (GameEvents['espionage:sabotage-relief-discovered'] & { type: 'espionage:sabotage-relief-discovered' })
@@ -40,7 +42,9 @@ export type EspionageNotificationEvent =
   | (GameEvents['espionage:spy-detected'] & { type: 'espionage:spy-detected' })
   | (GameEvents['espionage:operation-landed'] & { type: 'espionage:operation-landed' })
   | (GameEvents['espionage:incident-traced'] & { type: 'espionage:incident-traced' })
-  | (GameEvents['espionage:went-public'] & { type: 'espionage:went-public' });
+  | (GameEvents['espionage:went-public'] & { type: 'espionage:went-public' })
+  | (GameEvents['espionage:double-agent-exposed'] & { type: 'espionage:double-agent-exposed' })
+  | (GameEvents['espionage:debrief-clean'] & { type: 'espionage:debrief-clean' });
 
 /**
  * The part a recipient plays in an event. The router maps this to copy; it is never
@@ -67,6 +71,8 @@ export const ESPIONAGE_NOTIFICATION_EVENT_TYPES = [
   'espionage:operation-landed',
   'espionage:incident-traced',
   'espionage:went-public',
+  'espionage:double-agent-exposed',
+  'espionage:debrief-clean',
 ] as const satisfies readonly EspionageNotificationEventType[];
 
 /**
@@ -112,6 +118,15 @@ export function getEspionageNotificationAudience(
       return [{ civId: event.civId, role: 'actor' }];
     case 'espionage:spy-detected':
       return [{ civId: event.detectingCivId, role: 'actor' }];
+    // The owner ran the debrief; the captor learns its double agent was burned. Nobody else is told.
+    case 'espionage:double-agent-exposed':
+      return dedupe([
+        { civId: event.ownerCivId, role: 'actor' },
+        { civId: event.captorCivId, role: 'target' },
+      ]);
+    // A debrief that found nothing is the owner's own business.
+    case 'espionage:debrief-clean':
+      return [{ civId: event.civId, role: 'actor' }];
     case 'espionage:operation-landed':
       return dedupe([
         { civId: event.civId, role: 'actor' },

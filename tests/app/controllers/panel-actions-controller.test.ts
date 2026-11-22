@@ -7,7 +7,7 @@ import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-s
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { ENQUEUE_DENIAL_MESSAGES } from '@/systems/planning-system';
-import { createEspionageCivState, START_MISSION_FAILURE_MESSAGES, SWEEP_DENIAL_MESSAGES } from '@/systems/espionage-system';
+import { createEspionageCivState, DEBRIEF_DENIAL_MESSAGES, DEBRIEF_TURNS, START_MISSION_FAILURE_MESSAGES, SWEEP_DENIAL_MESSAGES } from '@/systems/espionage-system';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { NotificationMapTarget } from '@/core/notification-log';
 import type { CouncilTalkLevel, GameState, HexCoord, Spy } from '@/core/types';
@@ -1225,33 +1225,37 @@ describe('PanelActionsController', () => {
       expect(listener).toHaveBeenCalled();
     });
 
-    it('onVerifyAgent commits the cleared agent and publishes through session subscribers', () => {
-      const { state } = makeFixture('espionage-verify-publish');
-      placeSpy(state, 'spy-1', { status: 'embedded', turnedBy: 'ai-1' });
+    it('onDebriefAgent starts a debrief and publishes through session subscribers', () => {
+      const { state } = makeFixture('espionage-debrief-publish');
+      placeSpy(state, 'spy-1', { status: 'stationed', turnedBy: 'ai-1' });
       const { deps, controller } = build(state);
       const listener = vi.fn();
       deps.session.subscribe(listener);
 
       controller.openEspionagePanel();
-      const options = mockedCallArg<{ onVerifyAgent: (spyId: string) => void }>(createEspionagePanel, 0, 1);
-      options.onVerifyAgent('spy-1');
+      const options = mockedCallArg<{ onDebriefAgent: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onDebriefAgent('spy-1');
 
-      expect(deps.session.getState().espionage!.player.spies['spy-1'].turnedBy).toBeUndefined();
+      const spy = deps.session.getState().espionage!.player.spies['spy-1'];
+      expect(spy.debriefUntilTurn).toBe(state.turn + DEBRIEF_TURNS);
+      // A debrief takes time: nothing about the spy is revealed or cleared when it starts.
+      expect(spy.turnedBy).toBe('ai-1');
       expect(listener).toHaveBeenCalled();
+      expect(deps.router.open).toHaveBeenCalledWith('espionage');
     });
 
-    it('verifies a captured-then-cleared agent via the real system call', () => {
-      const { state } = makeFixture('espionage-verify');
-      placeSpy(state, 'spy-1', { status: 'stationed' });
+    it('refuses a debrief with its typed copy and writes nothing', () => {
+      const { state } = makeFixture('espionage-debrief-refused');
+      placeSpy(state, 'spy-1', { status: 'embedded' });
       const { deps, controller } = build(state);
+      const before = deps.session.getState();
 
       controller.openEspionagePanel();
-      const options = mockedCallArg<{ onVerifyAgent: (spyId: string) => void }>(createEspionagePanel, 0, 1);
-      options.onVerifyAgent('spy-1');
+      const options = mockedCallArg<{ onDebriefAgent: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onDebriefAgent('spy-1');
 
-      expect(deps.renderLoop.setGameState).toHaveBeenCalled();
-      expect(deps.router.open).toHaveBeenCalledWith('espionage');
-      expect(deps.showNotification).toHaveBeenCalledWith('Agent verified and cleared.', 'success');
+      expect(deps.session.getState()).toBe(before);
+      expect(deps.showNotification).toHaveBeenCalledWith(DEBRIEF_DENIAL_MESSAGES['not-stationed'], 'warning');
     });
 
     it('sweeps with a real seed and reports no enemy spies detected', () => {

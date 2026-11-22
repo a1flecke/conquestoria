@@ -706,15 +706,37 @@ describe('espionage-panel', () => {
       expect(actions).toHaveLength(0);
     });
 
-    it('offers verify-agent for turned spies', () => {
+    it('offers a debrief on every stationed spy alike, turned or not, so the button gives nothing away', () => {
+      const state = makeEspUiState();
+      const base = { status: 'stationed' as const, targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 } };
+      const turned = makeTestSpy('spy-1', 'player', { ...base, turnedBy: 'ai-egypt', feedsFalseIntel: true });
+      const loyal = makeTestSpy('spy-2', 'player', base);
+      state.espionage!['player'] = addSpy(addSpy(state.espionage!['player'], turned), loyal);
+      expect(getSpyActions(state, turned.id)).toContain('debrief_agent');
+      expect(getSpyActions(state, turned.id)).toEqual(getSpyActions(state, loyal.id));
+    });
+
+    it('a spy being debriefed offers neither a mission nor a second debrief', () => {
       const state = makeEspUiState();
       const spy = makeTestSpy('spy-1', 'player', {
-        status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
-        turnedBy: 'ai-egypt', feedsFalseIntel: true,
+        status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 }, debriefUntilTurn: state.turn + 2,
       });
       state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
       const actions = getSpyActions(state, spy.id);
-      expect(actions).toContain('verify_agent');
+      expect(actions).not.toContain('debrief_agent');
+      expect(actions).not.toContain('start_mission');
+      expect(actions).toContain('recall');
+    });
+
+    it('the panel shows the capture cue from the owner-known capture turn, never from whether the spy was turned', () => {
+      const state = makeEspUiState();
+      const base = { status: 'stationed' as const, targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 } };
+      state.espionage!['player'] = addSpy(addSpy(state.espionage!['player'],
+        makeTestSpy('spy-turned-uncaught', 'player', { ...base, turnedBy: 'ai-egypt', feedsFalseIntel: true })),
+        makeTestSpy('spy-captured', 'player', { ...base, capturedOnTurn: 3 }));
+      const summaries = getEspionagePanelData(state).spySummaries;
+      expect(summaries.find(s => s.id === 'spy-turned-uncaught')?.capturedSinceDebriefTurn).toBeUndefined();
+      expect(summaries.find(s => s.id === 'spy-captured')?.capturedSinceDebriefTurn).toBe(3);
     });
   });
 

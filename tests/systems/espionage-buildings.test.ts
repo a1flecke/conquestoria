@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createProductionCostContext, processCity, BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
 import { applyBuildingCI, createEspionageCivState, processEspionageTurn } from '@/systems/espionage-system';
-import { createRng } from '@/systems/map-generator';
+import { createSimulationRng } from '@/systems/simulation-rng';
 import { EventBus } from '@/core/event-bus';
 import type { GameState, Spy } from '@/core/types';
 
@@ -186,7 +186,8 @@ describe('espionage building save compatibility', () => {
 //   'sec-bureau-spy1-1' => 0.0535 (< 0.5  → BLOCK)
 //   'sec-bureau-spy1-2' => 0.9923 (>= 0.5 → ALLOW)
 
-function makeSpyTurningState(spyId: string, turn: number, hasSecurityBureau: boolean): GameState {
+/** `bureau` says whose empire holds a Security Bureau: the spy's owner (attacker), its captor (defender), or neither. */
+function makeSpyTurningState(spyId: string, turn: number, bureau: 'attacker' | 'defender' | 'none'): GameState {
   const spy: Spy = {
     id: spyId,
     owner: 'attacker',
@@ -226,7 +227,16 @@ function makeSpyTurningState(spyId: string, turn: number, hasSecurityBureau: boo
       'city-1': {
         id: 'city-1', name: 'Rome', owner: 'defender',
         position: { q: 0, r: 0 }, population: 2, food: 0, foodNeeded: 10,
-        buildings: hasSecurityBureau ? ['security-bureau'] : [],
+        buildings: bureau === 'defender' ? ['security-bureau'] : [],
+        productionQueue: [], productionProgress: 0,
+        ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'city',
+        grid: [[null]], gridSize: 3,
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+      },
+      'city-2': {
+        id: 'city-2', name: 'Memphis', owner: 'attacker',
+        position: { q: 4, r: 4 }, population: 2, food: 0, foodNeeded: 10,
+        buildings: bureau === 'attacker' ? ['security-bureau'] : [],
         productionQueue: [], productionProgress: 0,
         ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'city',
         grid: [[null]], gridSize: 3,
@@ -237,7 +247,7 @@ function makeSpyTurningState(spyId: string, turn: number, hasSecurityBureau: boo
       attacker: {
         id: 'attacker', name: 'Attacker', color: '#ff0000',
         isHuman: false, civType: 'rome',
-        cities: [], units: [],
+        cities: ['city-2'], units: [],
         techState: { completed: ['espionage-scouting'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
         gold: 0, visibility: { tiles: {} }, score: 0,
         diplomacy: { relationships: { defender: -50 }, treaties: [], events: [], atWarWith: ['defender'], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
@@ -268,53 +278,53 @@ function makeSpyTurningState(spyId: string, turn: number, hasSecurityBureau: boo
   } as GameState;
 }
 
-describe('security bureau — turning resistance (50% block)', () => {
-  it('seed sec-bureau-spy1-1 produces value < 0.5 (block path)', () => {
-    // Verify the seed math is deterministic and matches what processEspionageTurn uses
-    const val = createRng('sec-bureau-spy1-1')();
-    expect(val).toBeCloseTo(0.0535, 3);
-    expect(val).toBeLessThan(0.5); // should BLOCK turning
-  });
+describe('security bureau — protects its own side\'s spies from being turned (50%)', () => {
+  // The resist draw is the one the turn makes: keyed on the spy, in the 'spy-turn-resist' domain, for that turn.
+  const resists = (turn: number) => createSimulationRng({ gameId: undefined, turn }, { domain: 'spy-turn-resist', actorId: 'spy1' })() < 0.5;
+  const resistTurn = Array.from({ length: 40 }, (_, i) => i + 1).find(resists)!;
+  const allowTurn = Array.from({ length: 40 }, (_, i) => i + 1).find(turn => !resists(turn))!;
 
-  it('seed sec-bureau-spy1-2 produces value >= 0.5 (allow path)', () => {
-    const val = createRng('sec-bureau-spy1-2')();
-    expect(val).toBeCloseTo(0.9923, 3);
-    expect(val).toBeGreaterThanOrEqual(0.5); // should ALLOW turning
-  });
-
-  it('security bureau blocks turning when RNG < 0.5 (turn 1 → block)', () => {
-    // spy1, turn 1: RNG = 0.0535 < 0.5 → turning should be blocked
-    const state = makeSpyTurningState('spy1', 1, /* hasSecurityBureau */ true);
+  function run(turn: number, bureau: 'attacker' | 'defender' | 'none') {
+    const state = makeSpyTurningState('spy1', turn, bureau);
     const bus = new EventBus();
     const emitted: string[] = [];
     bus.on('espionage:spy-detected', () => emitted.push('detected'));
+    return { result: processEspionageTurn(state, bus), emitted };
+  }
 
-    const result = processEspionageTurn(state, bus);
-    // Spy should still be captured (not turned into a stationed double agent)
+  it('the spy owner\'s bureau makes a capture resist turning when the draw falls under 0.5', () => {
+    const { result, emitted } = run(resistTurn, 'attacker');
     expect(result.espionage!['attacker'].spies['spy1'].status).toBe('captured');
     expect(result.espionage!['attacker'].spies['spy1'].feedsFalseIntel).toBe(false);
     expect(emitted).toHaveLength(0);
   });
 
-  it('security bureau allows turning when RNG >= 0.5 (turn 2 → allow)', () => {
-    // spy1, turn 2: RNG = 0.9923 >= 0.5 → turning should succeed
-    const state = makeSpyTurningState('spy1', 2, /* hasSecurityBureau */ true);
-    const bus = new EventBus();
-    const emitted: string[] = [];
-    bus.on('espionage:spy-detected', () => emitted.push('detected'));
-
-    const result = processEspionageTurn(state, bus);
-    // Spy should be turned (status = stationed, feedsFalseIntel = true)
+  it('the spy owner\'s bureau lets the turning through when the draw is 0.5 or more', () => {
+    const { result, emitted } = run(allowTurn, 'attacker');
     expect(result.espionage!['attacker'].spies['spy1'].status).toBe('stationed');
     expect(result.espionage!['attacker'].spies['spy1'].feedsFalseIntel).toBe(true);
     expect(emitted).toHaveLength(1);
   });
 
-  it('without security bureau, captured spy is always turned (no RNG gate)', () => {
-    // turn 1 without security bureau: the RNG check is skipped entirely → always turns
-    const state = makeSpyTurningState('spy1', 1, /* hasSecurityBureau */ false);
+  it('a capture that resisted is not re-rolled on a later turn', () => {
+    const first = run(resistTurn, 'attacker').result;
+    const later = { ...first, turn: allowTurn };
     const bus = new EventBus();
-    const result = processEspionageTurn(state, bus);
+    const after = processEspionageTurn(later, bus);
+    expect(after.espionage!['attacker'].spies['spy1'].status).toBe('captured');
+    expect(after.espionage!['attacker'].spies['spy1'].turnedBy).toBeUndefined();
+  });
+
+  it('the captor\'s own bureau never protects the enemy spy it is holding', () => {
+    for (const turn of [resistTurn, allowTurn]) {
+      const { result } = run(turn, 'defender');
+      expect(result.espionage!['attacker'].spies['spy1'].status).toBe('stationed');
+      expect(result.espionage!['attacker'].spies['spy1'].turnedBy).toBe('defender');
+    }
+  });
+
+  it('without a bureau on the spy\'s side, a captured spy is always turned', () => {
+    const { result } = run(resistTurn, 'none');
     expect(result.espionage!['attacker'].spies['spy1'].status).toBe('stationed');
     expect(result.espionage!['attacker'].spies['spy1'].feedsFalseIntel).toBe(true);
   });

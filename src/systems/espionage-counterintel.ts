@@ -206,6 +206,7 @@ export function turnCapturedSpy(
           cooldownTurns: 0,
           turnedBy: captorId,
           feedsFalseIntel: true,
+          turnedOnTurn: turn,
         },
       },
     },

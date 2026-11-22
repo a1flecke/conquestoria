@@ -72,6 +72,7 @@ export type StartMissionFailureReason =
   | 'spy-not-found'
   | 'spy-not-stationed'
   | 'spy-unavailable'
+  | 'spy-debriefing'
   | 'target-missing'
   | 'target-unknown';
 
@@ -79,6 +80,7 @@ export const START_MISSION_FAILURE_MESSAGES: Record<StartMissionFailureReason, s
   'spy-not-found': 'That spy is no longer available.',
   'spy-not-stationed': 'This spy is not stationed in a foreign city, so it cannot start that mission right now.',
   'spy-unavailable': 'This spy is busy or out of action, so it cannot start a mission right now.',
+  'spy-debriefing': 'This spy is being debriefed and cannot start a mission until the debrief ends.',
   'target-missing': 'This mission needs a target city, and none has been chosen.',
   // #1780: a remote mission aimed at an empire the acting civ has not met, or a city it has not found.
   // Same answer for a target that does not exist, so it reveals nothing.
@@ -112,6 +114,7 @@ export function getMissionStartDenial(
 ): StartMissionFailureReason | null {
   const spy = state.spies[spyId];
   if (!spy) return 'spy-not-found';
+  if (spy.debriefUntilTurn !== undefined) return 'spy-debriefing';
   if (missionRequiresPlacedSpy(missionType)) {
     if (spy.status !== 'stationed') return 'spy-not-stationed';
   } else if (!['idle', 'stationed'].includes(spy.status)) {

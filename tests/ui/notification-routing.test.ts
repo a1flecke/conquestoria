@@ -1636,7 +1636,7 @@ describe('espionage spy career routing (#419)', () => {
     expect(calls).toEqual([
       expect.objectContaining({
         civId: 'rome',
-        message: 'Your counterintelligence turned Agent X into a double agent in Thebes. They will feed false intelligence to their old masters.',
+        message: 'Your counterintelligence turned Agent X into a double agent in Thebes. The intelligence reports it sends home will be false until its masters debrief it.',
         type: 'success',
       }),
     ]);
@@ -1787,6 +1787,8 @@ describe('espionage notification audience contract (#1201)', () => {
     'espionage:operation-landed': { civId: 'rome', targetCivId: 'carthage', missionType: 'cyber_attack', cityId: 'city-2', effect: { kind: 'production-lockout', turns: 3 } },
     'espionage:incident-traced': { civId: 'carthage', incidentId: 'i-1', actorCivId: 'rome', missionType: 'cyber_attack', cityId: 'city-2' },
     'espionage:went-public': { civId: 'carthage', culpritCivId: 'rome', partnerCivIds: ['egypt'], missionType: 'cyber_attack' },
+    'espionage:double-agent-exposed': { ownerCivId: 'carthage', captorCivId: 'rome', spyId: 'spy-1', spyName: 'Agent X', falseReportCount: 2, turnsTurned: 6 },
+    'espionage:debrief-clean': { civId: 'carthage', spyId: 'spy-1', spyName: 'Agent X' },
   };
 
   for (const type of ESPIONAGE_NOTIFICATION_EVENT_TYPES) {

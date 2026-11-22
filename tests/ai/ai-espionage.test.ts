@@ -1181,3 +1181,42 @@ describe('AI counter-intelligence sweeps', () => {
     expect(expelled).toContain('spy-in');
   });
 });
+
+// A turned spy used to stay turned for good: the AI never checked one. It now debriefs a spy it was told was
+// captured once that spy is back at work, and it decides from that owner-known fact only, never from whether the
+// spy really was turned.
+describe('AI debriefs a spy that came back from capture', () => {
+  function stationedAiSpy(overrides: Partial<EspionageCivState['spies'][string]>): GameState {
+    const state = makeAiTestState();
+    state.turn = 30;
+    let aiEsp = { ...createEspionageCivState(), maxSpies: 2 };
+    ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'spy-out', 'ai-egypt', 'spy_scout', 'out'));
+    aiEsp = {
+      ...aiEsp,
+      spies: {
+        'spy-out': {
+          ...aiEsp.spies['spy-out'], status: 'stationed', infiltrationCityId: 'city-player-1',
+          targetCivId: 'player', targetCityId: 'city-player-1', position: { q: 0, r: 0 },
+          ...overrides,
+        },
+      },
+    };
+    state.espionage = { player: { ...createEspionageCivState(), maxSpies: 1 }, 'ai-egypt': aiEsp };
+    return state;
+  }
+
+  it('debriefs a stationed spy it was told was captured', () => {
+    const after = processAITurn(stationedAiSpy({ capturedOnTurn: 25 }), 'ai-egypt', new EventBus());
+    expect(after.espionage!['ai-egypt'].spies['spy-out'].debriefUntilTurn).toBeDefined();
+  });
+
+  it('does not debrief again once a debrief ran after the capture', () => {
+    const after = processAITurn(stationedAiSpy({ capturedOnTurn: 25, lastDebriefTurn: 28 }), 'ai-egypt', new EventBus());
+    expect(after.espionage!['ai-egypt'].spies['spy-out'].debriefUntilTurn).toBeUndefined();
+  });
+
+  it('does not debrief a turned spy it was never told was captured (it cannot know)', () => {
+    const after = processAITurn(stationedAiSpy({ turnedBy: 'player', feedsFalseIntel: true }), 'ai-egypt', new EventBus());
+    expect(after.espionage!['ai-egypt'].spies['spy-out'].debriefUntilTurn).toBeUndefined();
+  });
+});

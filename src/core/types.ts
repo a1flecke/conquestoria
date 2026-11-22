@@ -1302,6 +1302,17 @@ export interface Spy {
   promotionAvailable: boolean;       // true when XP >= 60 and no promotion yet (unused for now, for future UI)
   turnedBy?: string;
   feedsFalseIntel?: boolean;
+  /** Turn a captor turned this spy; hidden truth on the owner's record, never rendered (only `capturedOnTurn` is owner-known). */
+  turnedOnTurn?: number;
+  /** Reports this turned spy falsified, so an exposure can strike exactly those (hidden truth, never rendered). */
+  falseReports?: FalseReportRef[];
+  /** Last turn the owner was told this spy was captured: a fact the owner knows, and the cue to debrief it. */
+  capturedOnTurn?: number;
+  /** `capturedOnTurn` of a capture whose turning the owner's Security Bureau already resisted. */
+  resistedTurningOnCapture?: number;
+  /** While set, the spy is being debriefed and runs no missions; resolved on this turn. */
+  debriefUntilTurn?: number;
+  lastDebriefTurn?: number;
   unitType: UnitType;                   // physical unit type — needed to recreate unit on expulsion
   disguiseAs?: DisguiseType | null;
   infiltrationCityId?: string | null;  // city spy is currently inside
@@ -1309,6 +1320,15 @@ export interface Spy {
   cooldownMode?: 'stay_low' | 'passive_observe';
   stolenTechFrom?: Record<string, string[]>; // civId -> techIds already stolen
   lastSweepTurn?: number;              // turn the spy last ran a sweep (prevents double-sweep)
+}
+
+export type FalseReportKind = 'troops' | 'intel' | 'resources' | 'diplomacy' | 'signals';
+
+/** One report a turned spy falsified: the report map it lives in, its key there, and the turn it was written. */
+export interface FalseReportRef {
+  kind: FalseReportKind;
+  key: string;
+  turn: number;
 }
 
 export interface DetectedSpyThreat {
@@ -2422,6 +2442,10 @@ export interface GameEvents extends DiplomacyEvents, CivilizationEvents, WorldEv
   // consequence today, so the target is never notified (unlike courier-intercepted/
   // official-bribed/scandal-exposed above, which are all detectable disruptive acts).
   'espionage:intel-report-acquired': { civId: string; spyId: string; missionType: SpyMissionType; targetCivId: string };
+  /** A debrief exposed a double agent: its owner learns who turned it and its false reports are struck. */
+  'espionage:double-agent-exposed': { ownerCivId: string; captorCivId: string; spyId: string; spyName: string; falseReportCount: number; turnsTurned: number };
+  /** A debrief found nothing. Says nothing about whether the spy is really clean. */
+  'espionage:debrief-clean': { civId: string; spyId: string; spyName: string };
 }
 
 // --- Crisis Events & Revolutionary Movements ---

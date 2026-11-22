@@ -51,9 +51,13 @@ export {
   recallSpy,
   setDisguise,
   unembedSpy,
-  verifyAgent,
+  DEBRIEF_DENIAL_MESSAGES,
+  DEBRIEF_TURNS,
+  finishDebrief,
+  getDebriefDenial,
+  startDebrief,
 } from './espionage-spy-lifecycle';
-export type { InfiltrationResult } from './espionage-spy-lifecycle';
+export type { DebriefDenialReason, DebriefResult, InfiltrationResult } from './espionage-spy-lifecycle';
 
 export {
   applyBuildingCI,
