@@ -114,11 +114,14 @@ export function mountFreightReplayPanel(
         route.textContent = `${passage} ${estimate}`;
       }
       const yields = BUILDINGS.harbor.yields;
+      const netGold = yields.gold - model.harborUpkeep;
       harbor.textContent = model.harborBuilt ? `Harbor completed in ${model.northName}.`
-        : `Harbor in ${model.northName}${model.harborCost === undefined ? '' : ` · ${model.harborCost} gold`} · +${yields.gold} gold and +${yields.food} food per round when completed.`;
+        : `Harbor in ${model.northName}${model.harborCost === undefined ? '' : ` · ${model.harborCost} gold`} · ${netGold > 0 ? '+' : ''}${netGold} net gold and +${yields.food} food per round when completed.`;
       const fuel = model.factoryFueled === undefined ? '' : model.factoryFueled
-        ? ' Factory fueled this round.' : ' Factory is waiting for fuel.';
-      stock.textContent = `${model.westName} has ${model.coal} imported coal in reserve.${fuel}`;
+        ? ' Factory was fueled last round.' : ' Factory lacked coal last round.';
+      const ready = model.factoryFueled !== undefined && model.factoryCoalReady
+        ? ' Coal is available for the next Factory fuel allocation.' : '';
+      stock.textContent = `${model.westName} has ${model.coal} imported coal in reserve.${fuel}${ready}`;
       setButtonDisabled(reviewPassage, !model.passage);
       setButtonDisabled(reviewHarbor, !model.harbor);
       confirm.hidden = !reviewed;

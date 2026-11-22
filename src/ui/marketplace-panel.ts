@@ -149,7 +149,7 @@ export function createMarketplacePanel(
         `res-rate-${idx}`,
         reserve.sources > 0
           ? `+${reserve.extractionPerRound} ${reserve.unitLabel}/round from ${reserve.sources} source${reserve.sources === 1 ? '' : 's'}`
-          : `No eligible source — 0/${reserve.unitLabel} per round`,
+          : 'No local extraction',
       );
       const capParts: string[] = [];
       if (reserve.capped) capParts.push(`Storage capped — ${units(reserve.cappedQuantity)} cannot fit this round`);
@@ -161,8 +161,8 @@ export function createMarketplacePanel(
           ? ''
           : reserve.fuelStatus === 'funded'
             ? `Fuel demand ${reserve.fuelDemandPerRound}/round · runway ${reserve.fuelRunwayRounds ?? '∞'} round(s)`
-            : reserve.fuelStatus === 'delivery-uncertain'
-              ? `Fuel demand ${reserve.fuelDemandPerRound}/round · delivery uncertain`
+            : reserve.incoming > 0
+              ? `Fuel demand ${reserve.fuelDemandPerRound}/round · Awaiting confirmed cargo`
               : `Fuel demand ${reserve.fuelDemandPerRound}/round · projected shortage`,
       );
       setText(

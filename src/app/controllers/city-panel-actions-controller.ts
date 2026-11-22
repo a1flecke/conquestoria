@@ -21,7 +21,6 @@ import { assignGovernor, removeGovernor, moveGovernor } from '@/systems/governor
 import { createVictoryProgressPanel } from '@/ui/victory-progress-panel';
 import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
 import { createCityPanelView, type CityPanelView } from '@/ui/city-panel';
-import { applyRouteControl, ROUTE_CONTROL_DENIAL_MESSAGES, ROUTE_CONTROL_NOTIFICATIONS } from '@/systems/trade-route-lifecycle';
 import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
@@ -36,7 +35,7 @@ import { setCityLevy } from '@/systems/city-levy-system';
 import { applyEmpireContainment, applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
-import type { PanelActionsCommonDeps, PanelActionsCrossCalls } from './panel-actions-shared';
+import { controlTradeRoute, type PanelActionsCommonDeps, type PanelActionsCrossCalls } from './panel-actions-shared';
 
 export interface CityPanelActionsController {
   openCityPanelForCity(city: City): void;
@@ -347,17 +346,7 @@ export function createCityPanelActionsController(
       onClose: () => closeCityPanel(),
       onTip: (message) => { deps.showNotification(message, 'info'); },
       onSelectUnit: (unitId) => deps.selectionController.selectUnit(unitId),
-      onRouteControl: (routeId, action) => {
-        const state = deps.session.getState();
-        const result = applyRouteControl(state, routeId, action, state.currentPlayer, deps.bus);
-        if (!result.ok) {
-          deps.showNotification(ROUTE_CONTROL_DENIAL_MESSAGES[result.reason], 'warning');
-          return state;
-        }
-        deps.session.commit(result.state);
-        deps.showNotification(ROUTE_CONTROL_NOTIFICATIONS[action], 'info');
-        return result.state;
-      },
+      onRouteControl: (routeId, action) => controlTradeRoute(deps, routeId, action),
       onEstablishRoute: deps.diplomacyActions.handleEstablishRoute,
       onPrevCity: () => {
         const cities = deps.currentCiv().cities;
