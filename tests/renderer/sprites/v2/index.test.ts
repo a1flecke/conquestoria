@@ -29,18 +29,18 @@ describe('getUnitSpriteV2', () => {
   });
 
   it('falls back to a live-rendered sprite for a known unit type with an unrecognized faction (e.g. a minor civ)', () => {
-    // Before #755's fix this silently returned null (static Canvas fallback forever) — 'warrior'
+    // Before #755's fix this silently returned null (static Canvas fallback forever) — 'knight'
     // is a v2-native type, but 'unknownfaction' isn't one of the 6 baked archetype-family keys,
     // which is exactly what happens for any minor-civ-owned unit today (getFaction() returns the
     // raw owner id for any owner not in state.civilizations).
-    const result = getUnitSpriteV2('warrior', 'unknownfaction', '#7a5a16');
+    const result = getUnitSpriteV2('knight', 'unknownfaction', '#7a5a16');
     expect(result).not.toBeNull();
     expect(result).toContain('cq-sprite-wrap');
     expect(result).toContain('cq-v2');
   });
 
-  it('returns a cq-sprite-wrap string for warrior/imperials', () => {
-    const r = getUnitSpriteV2('warrior', 'imperials');
+  it('returns a cq-sprite-wrap string for knight/imperials', () => {
+    const r = getUnitSpriteV2('knight', 'imperials');
     expect(r).not.toBeNull();
     expect(r!).toContain('cq-sprite-wrap');
     expect(r!).toContain('cq-v2');
