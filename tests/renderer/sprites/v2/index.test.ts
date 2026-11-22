@@ -544,7 +544,7 @@ describe('full building coverage — every type returns a cq-sprite-wrap for imp
 // test fails when an entry is stale, so the list can only shrink. PNG units
 // (tinted spritesheets) and live-fallback units are separate follow-ups.
 const COMBAT_UNITS_AWAITING_WOUND_ART: readonly string[] = [
-  'swordsman', 'galley', 'trireme', 'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative',
+  'galley', 'trireme', 'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative',
   'spy_hacker', 'scout_hound', 'shadow_warden', 'war_hound', 'beast_handler', 'war_elephant',
   'armored_car', 'knight', 'cuirassier', 'catapult', 'trebuchet', 'ballista', 'rocket_artillery',
   'battleship', 'missile_cruiser', 'main_battle_tank',
