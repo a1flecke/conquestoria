@@ -218,6 +218,13 @@ describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
     expect(result.units['unit-1'].hasActed).toBe(false);
   });
 
+  it('keeps hasMoved set (contract §19: only hasActed is cleared — a bounded extra action, not a reset)', () => {
+    const result = issueSeizeTheMoment(setup(), 'gen-1', ['unit-1']);
+    // unit-1 had moved before being seized; Seize grants one more attack, never a
+    // movement/turn reset, so the round-end "did this unit act" flags must stay honest.
+    expect(result.units['unit-1'].hasMoved).toBe(true);
+  });
+
   it('does NOT restore movementPointsLeft (contract §19: "no full movement refresh")', () => {
     const state = setup();
     state.units['unit-1'] = { ...state.units['unit-1'], movementPointsLeft: 0 };
