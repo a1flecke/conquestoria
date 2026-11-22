@@ -237,6 +237,9 @@ function buildRoundPhaseFixture(): GameState {
   // A hoard choice waiting on a civ that is not the current player (AI civs resolve theirs at round end).
   const lairId = Object.keys(state.beasts?.lairs ?? {}).sort()[0];
   if (state.beasts && lairId) {
+    // The choice must name a slain lair (beast-lair-integrity); a stale one is discarded, not resolved (#1791).
+    const lair = state.beasts.lairs[lairId];
+    state.beasts.lairs[lairId] = { ...lair, status: 'slain', strength: 0, unitIds: [], slainBy: 'player-6', slainTurn: state.turn };
     state.beasts.pendingHoardChoices = [{ lairId, civId: 'player-6' }];
   }
 
