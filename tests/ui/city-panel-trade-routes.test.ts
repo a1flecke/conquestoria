@@ -19,7 +19,7 @@ function baseCallbacks() {
 }
 
 describe('city-panel Trade Routes section', () => {
-  it('is not rendered when trade-routes is not researched', () => {
+  it('hides the section without research or existing routes', () => {
     const { container, city, state } = makeWonderPanelFixture();
     // Fixture's default completedTechs (['philosophy', 'sacred-sites']) does not include trade-routes.
 
@@ -36,7 +36,7 @@ describe('city-panel Trade Routes section', () => {
 
     const section = panel.querySelector('[data-section="trade-routes"]');
     expect(section).toBeTruthy();
-    expect(section!.textContent).toContain('Trade routes earn gold every turn.');
+    expect(section!.textContent).toContain('Train a trade unit, then use Establish Route to start a new route.');
   });
 
   it('shows "No active routes from this city" and capacity 0/1 when the city has no outgoing routes', () => {
@@ -170,9 +170,10 @@ describe('city-panel Trade Routes section', () => {
     expect(onEstablishRoute).toHaveBeenCalledWith('caravan1');
   });
 
-  it('renders the owner controls on a route row and reports the chosen action', () => {
+  it('lets the owner manage an existing route before the technology unlocks new routes', () => {
     const { container, city, state } = makeWonderPanelFixture();
-    state.civilizations.player.techState.completed.push('trade-routes');
+    expect(state.civilizations.player.techState.completed).not.toContain('trade-routes');
+    city.buildings.push('bank');
     state.cities['city-rival'] = { ...state.cities['city-rival'], owner: 'player', name: 'Ostia' } as never;
     state.marketplace = {
       prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0,
@@ -182,11 +183,16 @@ describe('city-panel Trade Routes section', () => {
       id: 'caravan1', type: 'caravan', owner: 'player', position: { ...city.position },
       health: 100, movementPointsLeft: 3, committedToRouteId: 'route-1', routeDirection: 'outbound',
     } as never;
+    state.units['idle-caravan'] = { ...state.units.caravan1, id: 'idle-caravan', committedToRouteId: undefined };
     const onRouteControl = vi.fn();
 
-    const panel = createCityPanel(container, city, state, { ...baseCallbacks(), onRouteControl });
+    const panel = createCityPanel(container, city, state, { ...baseCallbacks(), onRouteControl, onEstablishRoute: vi.fn() });
+    const section = panel.querySelector('[data-section="trade-routes"]')!;
+    expect(section.textContent).toContain('Route capacity: 1/2');
+    expect(section.textContent).toContain('Research Trade Routes to start new routes.');
+    expect(Array.from(section.querySelectorAll('button')).some(button => button.textContent === 'Establish Route')).toBe(false);
 
-    const pause = panel.querySelector<HTMLButtonElement>('[data-action="route-pause"]');
+    const pause = section.querySelector<HTMLButtonElement>('[data-action="route-pause"]');
     expect(pause).toBeTruthy();
     expect(panel.querySelector('[data-action="route-cancel-and-return"]')).toBeTruthy();
     pause!.click();

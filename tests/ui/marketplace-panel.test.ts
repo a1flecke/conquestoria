@@ -670,6 +670,19 @@ describe('createMarketplacePanel', () => {
       expect(routes?.textContent).not.toContain('awaiting next move');
     });
 
+    it('identifies the end of a trip’s earnings without marking the voyage complete', () => {
+      const state = buildStateWithRoute();
+      state.turn = 13;
+      const route = state.marketplace!.tradeRoutes[0]!;
+      route.serviceRoundsRemaining = 0;
+      state.units.caravan1.routeDirection = 'inbound';
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+
+      const routes = container.querySelector('[data-section="trade-supply-routes"]');
+      expect(routes?.textContent).toContain('trip earnings exhausted');
+      expect(routes?.textContent).not.toContain('service complete');
+    });
+
     it('clicking a route row with a committed unit calls onSelectUnit with the unit id', () => {
       const state = buildStateWithRoute();
       const onSelectUnit = vi.fn();
