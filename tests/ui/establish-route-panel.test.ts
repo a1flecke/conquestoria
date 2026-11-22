@@ -241,6 +241,25 @@ describe('openEstablishRoutePanel (#1500 MR03)', () => {
     expect(panel.textContent).not.toContain('Betatown (Origin)');
   });
 
+  it('shows no positioning needed for a ship beside its home port', () => {
+    const state = makeState({ unitPosition: { q: 0, r: 1 } });
+    state.units['trader-1']!.type = 'naval_trader';
+    for (const key of ['0,1', '1,1', '2,1', '3,1', '4,1']) {
+      state.map.tiles[key]!.terrain = 'coast';
+    }
+    openEstablishRoutePanel(container, state, 'trader-1', vi.fn());
+
+    const panel = document.getElementById('establish-route-panel')!;
+    const home = panel.querySelector('[data-origin-city-id="alpha-city"]');
+    const other = panel.querySelector('[data-origin-city-id="alpha-port"]');
+    expect(home?.getAttribute('aria-pressed')).toBe('true');
+    expect(other?.textContent).toMatch(/Alphaport \([1-9]\d* turns\)/);
+    const destination = panel.querySelector<HTMLElement>('[data-destination-city="beta-city"]')!;
+    destination.click();
+    expect(panel.querySelector('[data-route-summary="selected"]')?.textContent).toContain('positioning already at origin');
+    expect(home?.textContent).toBe('Alphaville');
+  });
+
   it('renders the definition-driven purpose selector and the complete known-destination catalog (#1504)', () => {
     openEstablishRoutePanel(container, makeState(), 'trader-1', vi.fn());
 
