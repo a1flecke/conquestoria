@@ -53,7 +53,11 @@ export function usePropagandistAction(
       state: {
         ...state,
         cities: { ...state.cities, [cityId]: nextCity },
-        units: { ...state.units, [unitId]: { ...unit, hasActed: true } },
+        // The action is spent like every other in-place action (fortify, rest, worker
+        // action, spy disguise): movement legality never re-reads hasActed, so the
+        // executor must consume the unit's remaining movement together with its action
+        // or the unit gets to act and then still move this turn.
+        units: { ...state.units, [unitId]: { ...unit, hasActed: true, movementPointsLeft: 0 } },
       },
       message: `${city.name} rallies against unrest.`,
     };
@@ -71,7 +75,7 @@ export function usePropagandistAction(
     state: {
       ...state,
       cities: { ...state.cities, [cityId]: nextCity },
-      units: { ...state.units, [unitId]: { ...unit, hasActed: true } },
+      units: { ...state.units, [unitId]: { ...unit, hasActed: true, movementPointsLeft: 0 } },
     },
     message: `${city.name} faces a visible misinformation campaign.`,
   };

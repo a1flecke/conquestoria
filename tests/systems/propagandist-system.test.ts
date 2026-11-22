@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import type { City, Unit } from '@/core/types';
+import type { City, HexCoord, Unit } from '@/core/types';
 import { usePropagandistAction } from '@/systems/propagandist-system';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
+import { resolveUnitMoveIntent } from '@/systems/unit-movement-validation';
+import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 
 function city(id: string, owner: string, q: number): City {
   return {
@@ -107,5 +110,58 @@ describe('Propagandist actions', () => {
     const result = usePropagandistAction(state, 'propagandist', 'undermine', 'enemy');
 
     expect(result).toMatchObject({ ok: true });
+  });
+});
+
+describe('Propagandist action economy', () => {
+  // Movement legality never re-reads hasActed (the resolver, the range preview and the
+  // selected-unit highlights all gate on movementPointsLeft alone), so the codebase-wide
+  // convention is that every action executor consumes the actor's movement together with
+  // its action. The live-path regression below proves a spent propagandist cannot act
+  // and then still move.
+  const ENTERABLE_TERRAINS = new Set(['grassland', 'plains', 'desert', 'tundra', 'forest', 'jungle', 'hills']);
+
+  function findEnterableAdjacentPair(state: ReturnType<typeof createNewGame>): { from: HexCoord; to: HexCoord } {
+    for (const tile of Object.values(state.map.tiles)) {
+      if (!ENTERABLE_TERRAINS.has(tile.terrain)) continue;
+      for (const neighbor of hexNeighbors(tile.coord)) {
+        const neighborTile = state.map.tiles[hexKey(neighbor)];
+        if (neighborTile && ENTERABLE_TERRAINS.has(neighborTile.terrain)) {
+          return { from: tile.coord, to: neighbor };
+        }
+      }
+    }
+    throw new Error('fixture map has no adjacent enterable land pair');
+  }
+
+  function stateOnRealTiles() {
+    const state = stateWithCities();
+    const pair = findEnterableAdjacentPair(state);
+    state.units.propagandist = { ...state.units.propagandist, position: pair.from };
+    state.cities.own = { ...state.cities.own, position: pair.to };
+    return { state, pair };
+  }
+
+  it("ends the unit's remaining movement when its action is spent, so Rally is not followed by a free move", () => {
+    const { state, pair } = stateOnRealTiles();
+
+    // Fixture precondition: the move is otherwise legal this turn (movement allowance intact,
+    // destination enterable and unoccupied) — the exploit is exactly that this stays true
+    // after the civic action.
+    const before = resolveUnitMoveIntent(state, 'propagandist', pair.to, { actor: 'player', civId: 'player' });
+    expect(before.ok).toBe(true);
+    expect(getMovementRangeDetails(state, 'propagandist').reachable.length).toBeGreaterThan(0);
+
+    const result = usePropagandistAction(state, 'propagandist', 'rally', 'own');
+
+    expect(result.ok).toBe(true);
+    expect(result.state.units.propagandist.hasActed).toBe(true);
+    // The action consumed the unit's action economy like every other in-place action
+    // (fortify, rest, worker action, spy disguise).
+    expect(result.state.units.propagandist.movementPointsLeft).toBe(0);
+    // The live movement layer (which never re-checks hasActed) offers the unit nothing afterward.
+    expect(getMovementRangeDetails(result.state, 'propagandist').reachable).toHaveLength(0);
+    const after = resolveUnitMoveIntent(result.state, 'propagandist', pair.to, { actor: 'player', civId: 'player' });
+    expect(after.ok).toBe(false);
   });
 });
