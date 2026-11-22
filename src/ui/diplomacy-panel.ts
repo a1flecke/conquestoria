@@ -7,7 +7,8 @@ import { hasBorderTension } from '@/systems/border-tension';
 import { hasExploredCoord } from '@/systems/discovery-system';
 import { isVisible } from '@/systems/fog-of-war';
 import { getPendingPeaceRequestForPair, getPendingTreatyProposalsFor, PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
-import { canReabsorbBreakaway, getAvailableDiplomaticActions } from '@/systems/diplomacy-system';
+import { getAvailableDiplomaticActions } from '@/systems/diplomacy-system';
+import { getReabsorbQuote, getReunificationRate, REUNIFICATION_NEIGHBOUR_RADIUS, REUNIFICATION_OFFER_THRESHOLD } from '@/systems/breakaway-system';
 import { isVassalBlocked } from '@/systems/diplomacy-vassal-rules';
 import { describeWarGoalLabel } from '@/systems/war-goal-system';
 import { getPendingSettlementOfferForPair } from '@/systems/settlement-system';
@@ -145,7 +146,9 @@ interface CivRowData {
   barColor: string;
   statusText: string;
   treaties: Array<{ label: string; turns: number; type: TreatyType }>;
-  actions: Array<{ action: DiplomaticAction; isHostile: boolean }>;
+  actions: Array<{ action: DiplomaticAction; isHostile: boolean; label?: string }>;
+  /** For the viewer's own seceding city: how close it is to rejoining, and what moves it. */
+  reunificationText: string | null;
   peaceRequestState: 'none' | 'incoming' | 'outgoing';
   peaceRequestId: string | null;
   incomingTreatyProposals: Array<{ id: string; label: string; expiresInTurns: number }>;
@@ -271,18 +274,28 @@ export function createDiplomacyPanel(
       : '😠 Hostile';
 
     const rowActions = [...actions];
+    let reunificationText: string | null = null;
+    let reabsorbLabel: string | undefined;
     if (civ.breakaway) {
       const turnsLeft = Math.max(0, civ.breakaway.establishesOnTurn - state.turn);
       statusText = civ.breakaway.status === 'secession'
         ? `Breakaway · ${turnsLeft} turns to establishment`
         : 'Established breakaway civ';
 
-      if (
-        civ.breakaway.originOwnerId === state.currentPlayer
-        && canReabsorbBreakaway(state, state.currentPlayer, civId)
-        && !rowActions.includes('reabsorb_breakaway')
-      ) {
-        rowActions.push('reabsorb_breakaway');
+      if (civ.breakaway.originOwnerId === state.currentPlayer) {
+        const rate = civ.breakaway.status === 'secession' ? getReunificationRate(state, civId) : null;
+        if (rate) {
+          const meter = Math.floor(civ.breakaway.reunification ?? 0);
+          const trend = rate.atWar
+            ? `falling ${-rate.perTurn} a turn while you are at war`
+            : `+${rate.perTurn} a turn (peace${rate.nearbyCities > 0 ? `, ${rate.nearbyCities} of your cities nearby` : ''})`;
+          reunificationText = `Reunification ${meter}%: ${trend}. At 100% it votes to rejoin you; from ${REUNIFICATION_OFFER_THRESHOLD}% you can offer to bring it home. Your cities within ${REUNIFICATION_NEIGHBOUR_RADIUS} tiles speed it up, war sets it back, and after ${turnsLeft} turns it stays independent.`;
+        }
+        const quote = getReabsorbQuote(state, state.currentPlayer, civId);
+        if (quote.ok && !rowActions.includes('reabsorb_breakaway')) {
+          rowActions.push('reabsorb_breakaway');
+          reabsorbLabel = `offer reunification (${quote.cost} gold)`;
+        }
       }
     }
 
@@ -427,7 +440,12 @@ export function createDiplomacyPanel(
         .filter(action => action !== 'offer_vassalage' && action !== 'petition_independence')
         .filter(action => !(action === 'request_peace' && peaceRequestState !== 'none'))
         .filter(action => !pendingTreatyTypes.has(action as TreatyType))
-        .map(action => ({ action, isHostile: action === 'declare_war' })),
+        .map(action => ({
+          action,
+          isHostile: action === 'declare_war',
+          ...(action === 'reabsorb_breakaway' && reabsorbLabel ? { label: reabsorbLabel } : {}),
+        })),
+      reunificationText,
       peaceRequestState,
       peaceRequestId: pendingPeaceRequest?.id ?? null,
       incomingTreatyProposals,
@@ -575,6 +593,10 @@ export function createDiplomacyPanel(
       ? `<div style="font-size:11px;color:#d94a4a;margin-bottom:8px;" data-text="war-since-${row.civIdx}"></div>`
       : '';
 
+    const reunificationHtml = row.reunificationText
+      ? `<div style="font-size:11px;color:#9ecbff;margin-bottom:8px;" data-text="reunification-${row.civIdx}"></div>`
+      : '';
+
     const formerCityStateHtml = row.formerCityStateText
       ? `<div style="font-size:11px;opacity:0.7;margin-bottom:8px;" data-text="former-city-state-${row.civIdx}"></div>`
       : '';
@@ -650,6 +672,7 @@ export function createDiplomacyPanel(
             <div style="font-size:11px;opacity:0.6;"><span data-text="civ-bonus-${row.civIdx}"></span> · <span data-text="civ-status-${row.civIdx}"></span></div>
             ${warSinceHtml}
             ${borderTensionHtml}
+            ${reunificationHtml}
             ${formerCityStateHtml}
             ${worldPressureHtml}
             ${worldPressureDetailHtml}
@@ -758,13 +781,16 @@ export function createDiplomacyPanel(
       }
     });
     row.actions.forEach((a, aIdx) => {
-      setText(`action-label-${row.civIdx}-${aIdx}`, a.action.replace(/_/g, ' '));
+      setText(`action-label-${row.civIdx}-${aIdx}`, a.label ?? a.action.replace(/_/g, ' '));
     });
     if (row.warSinceText) {
       setText(`war-since-${row.civIdx}`, row.warSinceText);
     }
     if (row.borderTensionText) {
       setText(`border-tension-${row.civIdx}`, row.borderTensionText);
+    }
+    if (row.reunificationText) {
+      setText(`reunification-${row.civIdx}`, row.reunificationText);
     }
     if (row.formerCityStateText) {
       setText(`former-city-state-${row.civIdx}`, row.formerCityStateText);

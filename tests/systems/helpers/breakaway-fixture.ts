@@ -62,6 +62,7 @@ export function makeBreakawayFixture({
   breakawayStartedTurn,
   established = false,
   includeThirdCiv = false,
+  reunification,
 }: {
   turn?: number;
   unrestLevel?: 0 | 1 | 2;
@@ -71,6 +72,8 @@ export function makeBreakawayFixture({
   breakawayStartedTurn?: number;
   established?: boolean;
   includeThirdCiv?: boolean;
+  /** The seceding city's will to rejoin (0-100); absent means none yet. */
+  reunification?: number;
 } = {}): { state: GameState; breakawayId: string; cityId: string } {
   const playerId = 'player';
   const breakawayId = 'breakaway-city-border';
@@ -155,6 +158,7 @@ export function makeBreakawayFixture({
             startedTurn: breakawayStartedTurn,
             establishesOnTurn: breakawayStartedTurn + 50,
             status: established ? 'established' : 'secession',
+            ...(reunification !== undefined ? { reunification } : {}),
           },
         },
       } : {}),

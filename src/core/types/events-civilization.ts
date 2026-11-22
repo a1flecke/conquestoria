@@ -63,7 +63,9 @@ export interface CivilizationEvents {
   'faction:unrest-resolved': { cityId: string; owner: string };
   'faction:breakaway-started': { cityId: string; oldOwner: string; breakawayId: string };
   'faction:breakaway-established': { civId: string; originOwnerId: string };
-  'faction:breakaway-reabsorbed': { civId: string; ownerId: string; cityId: string };
+  'faction:breakaway-reabsorbed': { civId: string; ownerId: string; cityId: string; how: 'vote' | 'offer' };
+  /** A seceding city's reunification passed halfway: its origin owner may now offer to bring it home. */
+  'faction:reunification-ready': { breakawayId: string; originOwnerId: string; cityId: string; offerCost: number };
   'faction:critical-status': { cityId: string; owner: string; status: 'unrest' | 'revolt' | 'breakaway'; breakawayId?: string };
   'faction:contagion-spread': { fromCityId: string; toCityId: string; owner: string };
   'faction:concession-made': { cityId: string; owner: string; concessionType: 'charter' };

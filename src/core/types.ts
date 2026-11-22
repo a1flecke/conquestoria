@@ -20,6 +20,8 @@ import type {
 import type { AdvisorType, CouncilGameState, CouncilTalkLevel } from './types/council';
 import type { CombatExchangeSummary, CombatModifierFact, CombatRewardNotification, CombatSpyIdentifications, CaptureKind } from './types/combat';
 import type { OperationIncident } from './types/espionage-incident';
+import type { FalseReportRef } from './types/espionage-double-agent';
+export type { FalseReportKind, FalseReportRef } from './types/espionage-double-agent';
 import type { CityBreachState } from './types/city-breach';
 import type { DiplomacyEvents } from './types/events-diplomacy';
 export type { DiplomacyEvents } from './types/events-diplomacy';
@@ -1322,15 +1324,6 @@ export interface Spy {
   lastSweepTurn?: number;              // turn the spy last ran a sweep (prevents double-sweep)
 }
 
-export type FalseReportKind = 'troops' | 'intel' | 'resources' | 'diplomacy' | 'signals';
-
-/** One report a turned spy falsified: the report map it lives in, its key there, and the turn it was written. */
-export interface FalseReportRef {
-  kind: FalseReportKind;
-  key: string;
-  turn: number;
-}
-
 export interface DetectedSpyThreat {
   cityId: string;
   foreignCivId: string;
@@ -1571,6 +1564,11 @@ export interface BreakawayMetadata {
   startedTurn: number;
   establishesOnTurn: number;
   status: 'secession' | 'established';
+  /**
+   * 0-100. While seceding, the city's will to rejoin its origin owner: it grows with peace and with the owner's
+   * cities nearby, and falls during war. At 100 the city votes to come home. Absent means 0 (older saves).
+   */
+  reunification?: number;
 }
 
 // --- Barbarians ---

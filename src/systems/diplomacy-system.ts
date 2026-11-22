@@ -33,8 +33,7 @@ import type { DiplomaticAction } from '@/core/types/diplomacy';
 import type { EventBus } from '@/core/event-bus';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import {
-  REABSORB_GOLD_COST,
-  REABSORB_RELATIONSHIP_MINIMUM,
+  getReabsorbQuote,
   tryReabsorbBreakaway,
 } from '@/systems/breakaway-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -157,17 +156,7 @@ export function canReabsorbBreakaway(
   ownerId: string,
   breakawayId: string,
 ): boolean {
-  const owner = state.civilizations[ownerId];
-  const breakaway = state.civilizations[breakawayId];
-  if (!owner || !breakaway?.breakaway) {
-    return false;
-  }
-  if (breakaway.breakaway.originOwnerId !== ownerId) {
-    return false;
-  }
-
-  const relationship = getRelationship(owner.diplomacy, breakawayId);
-  return relationship >= REABSORB_RELATIONSHIP_MINIMUM && owner.gold >= REABSORB_GOLD_COST;
+  return getReabsorbQuote(state, ownerId, breakawayId).ok;
 }
 
 /**
@@ -330,6 +319,7 @@ export function applyDiplomaticAction(
           civId: targetCivId,
           ownerId: actorId,
           cityId,
+          how: 'offer',
         });
       }
       return done(nextState);

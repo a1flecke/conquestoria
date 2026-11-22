@@ -63,6 +63,7 @@ import { getRelationship } from '@/systems/diplomacy-queries';
 import { getPendingPeaceRequestForPair, hasPendingTreatyProposalBetween } from '@/systems/diplomacy-requests';
 import { modifyRelationship, recordSpyCaught } from '@/systems/diplomacy-state';
 import { applyDiplomaticAction, declareMajorWar, proposeTreatyAgreement, getAvailableActions, resolveDiplomaticAction } from '@/systems/diplomacy-system';
+import { getReabsorbQuote } from '@/systems/breakaway-system';
 import { chooseTributeDemandTarget } from './ai-tribute';
 import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
 import { getVassalageEligibility, getVassalageMilitaryCount } from '@/systems/diplomacy-vassal-rules';
@@ -698,6 +699,9 @@ export function fortifyIdleAIGarrisons(state: GameState, civId: string): GameSta
  * 40% or more, so sweeping every turn left a rival's spy almost no time in an AI city; one sweep in five
  * turns is still well above the passive detection a spy otherwise risks.
  */
+/** Gold an AI keeps after paying to bring a breakaway city home. */
+export const AI_REUNIFICATION_GOLD_RESERVE = 50;
+
 export const AI_SWEEP_INTERVAL_TURNS = 5;
 
 /** Unrest pressure at which the AI wants a governor in a city. */
@@ -1487,6 +1491,18 @@ function processAITurnInternal(
       if (tributeTarget) decisions.push({ action: 'demand_tribute', targetCiv: tributeTarget });
     }
 
+    {
+      // A city that broke away from this civ and is ready to come home is bought back when the civ can pay and
+      // still keep a reserve; the price is the same quote the player is offered.
+      for (const breakawayId of Object.keys(newState.civilizations).sort()) {
+        if (newState.civilizations[breakawayId]?.breakaway?.originOwnerId !== civId) continue;
+        const quote = getReabsorbQuote(newState, civId, breakawayId);
+        if (quote.ok && newState.civilizations[civId]!.gold - quote.cost >= AI_REUNIFICATION_GOLD_RESERVE) {
+          decisions.push({ action: 'reabsorb_breakaway', targetCiv: breakawayId });
+        }
+      }
+    }
+
     for (const decision of decisions) {
       const currentDiplomacy = newState.civilizations[civId]?.diplomacy;
       if (!currentDiplomacy) {
@@ -1557,6 +1573,9 @@ function processAITurnInternal(
         }
         case 'demand_tribute':
           newState = applyDiplomaticAction(newState, civId, decision.targetCiv, 'demand_tribute', bus).state;
+          break;
+        case 'reabsorb_breakaway':
+          newState = applyDiplomaticAction(newState, civId, decision.targetCiv, 'reabsorb_breakaway', bus).state;
           break;
       }
     }

@@ -155,6 +155,7 @@ describe('#997 breakaway and reabsorption keep owner and roster in agreement', (
     const breakawayId = `breakaway-${aiCityId}`;
     seceded.civilizations['ai-1'].gold = 500;
     seceded.civilizations['ai-1'].diplomacy.relationships[breakawayId] = 80;
+    seceded.civilizations[breakawayId].breakaway!.reunification = 60;
 
     const next = tryReabsorbBreakaway(seceded, 'ai-1', breakawayId);
 

@@ -45,35 +45,45 @@ describe('diplomacy-panel cityless rivals', () => {
 });
 
 describe('diplomacy-panel breakaway rows', () => {
-  it('renders breakaway status, countdown, and reabsorb action for the current player only', () => {
+  it('renders breakaway status, countdown, reunification and the priced offer for the origin owner', () => {
     const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player-2', includeBreakaway: true });
     const panel = createDiplomacyPanel(container, state, {
       onAction: () => {},
       onClose: () => {},
     });
 
-    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    const rendered = panel.textContent ?? '';
     expect(rendered).toContain('Breakaway');
     expect(rendered).toContain('50 turns');
-    expect(rendered).toContain('reabsorb breakaway');
+    expect(rendered).toContain('Reunification 60%');
+    expect(rendered).toContain(`offer reunification (${40 * 4} gold)`);
     expect(rendered).not.toContain('player-1 hidden spies');
   });
 
-  it('hides the reabsorb action when the current player lacks the required relationship or gold', () => {
+  it('hides the offer, but still shows the meter, while the city is not yet halfway', () => {
     const { container, state } = makeDiplomacyFixture({
       currentPlayer: 'player-2',
       includeBreakaway: true,
-      relationship: 45,
-      gold: 150,
+      reunification: 30,
     });
     const panel = createDiplomacyPanel(container, state, {
       onAction: () => {},
       onClose: () => {},
     });
 
-    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
-    expect(rendered).toContain('Breakaway');
-    expect(rendered).not.toContain('reabsorb breakaway');
+    const rendered = panel.textContent ?? '';
+    expect(rendered).toContain('Reunification 30%');
+    expect(rendered).not.toContain('offer reunification');
+  });
+
+  it('hides the offer when the origin owner cannot afford it', () => {
+    const { container, state } = makeDiplomacyFixture({
+      currentPlayer: 'player-2',
+      includeBreakaway: true,
+      gold: 100,
+    });
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+    expect(panel.textContent ?? '').not.toContain('offer reunification');
   });
 
   it('omits unmet major civs from the panel', () => {

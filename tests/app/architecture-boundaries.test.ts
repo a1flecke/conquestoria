@@ -931,7 +931,8 @@ describe('#1009 — espionage-system decomposition boundaries', () => {
       'checkAndApplyPromotion', 'processSpyTurn', 'resolveMissionResult',
       'handleSpyExpelled', 'handleSpyCaptured', 'setCounterIntelligence', 'applyBuildingCI',
       'getSpyCaptureRelationshipPenalty', 'expelSpy', 'executeSpy', 'startInterrogation',
-      'processInterrogation', 'turnCapturedSpy', 'verifyAgent', 'ESPIONAGE_TECH_MAX_SPIES',
+      // verifyAgent (a free, instant clear shown only on a turned spy) was replaced by the debrief.
+      'processInterrogation', 'turnCapturedSpy', 'startDebrief', 'finishDebrief', 'ESPIONAGE_TECH_MAX_SPIES',
       'initializeEspionage', 'processEspionageTurn', 'getInfiltrationSuccessChance',
       'attemptInfiltration', 'isSpyUnitType',
     ];
