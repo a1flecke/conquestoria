@@ -8,7 +8,8 @@ import {
   processAITurn,
   processPreparedAITurn,
 } from '@/ai/basic-ai';
-import { wantsCityStateConquest } from '@/ai/ai-diplomacy';
+import { applyAiCityStateWar, wantsCityStateConquest } from '@/ai/ai-diplomacy';
+import { createOperationalRouting, getOperationalRoute } from '@/ai/ai-operational-routing';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 import { buildMajorCivPerception } from '@/ai/ai-perception';
 import { assignGovernor, GOVERNOR_REASSIGNMENT_LOCK_TURNS } from '@/systems/governor-system';
@@ -160,6 +161,33 @@ describe('#1784 city-state conquest through the AI turn', () => {
     expect(next.opponentAI?.majorCivs[aiId]?.primaryPlan?.target).toMatchObject({ kind: 'city', id: target.id });
     expect(next.civilizations[aiId].diplomacy.atWarWith).toContain(minorId);
     expect(next.minorCivs[minorId].diplomacy.atWarWith).toContain(aiId);
+  });
+
+  it('requires a staged capture force to renew a settled war after the cooldown', () => {
+    const { state, minorId, target } = setup();
+    const bus = new EventBus();
+    const atWar = processAITurn(state, aiId, bus);
+    const plan = atWar.opponentAI!.majorCivs[aiId].primaryPlan!;
+    expect(plan).toMatchObject({ phase: 'advancing', target: { kind: 'city', id: target.id } });
+    expect(atWar.civilizations[aiId].diplomacy.atWarWith).toContain(minorId);
+    const peace = setMinorCivWarState(atWar, aiId, minorId, false, bus).state;
+    peace.turn += 6;
+    for (const unitId of plan.assignedUnitIds) {
+      peace.units[unitId].position = { ...state.units[unitId].position };
+    }
+    const unit = peace.units[plan.assignedUnitIds[0]];
+    expect(mapDistance(peace.map, unit.position, target.position)).toBe(2);
+    const route = getOperationalRoute(peace, unit, target.position, createOperationalRouting());
+    expect(route?.length).toBeGreaterThan(2);
+    const personality = resolveCivDefinition(peace, 'zulu')!.personality;
+    const attempt = () => applyAiCityStateWar(peace, aiId, personality, NATIONAL_INTENT_POSTURE.develop, bus);
+
+    expect(attempt().civilizations[aiId].diplomacy.atWarWith).not.toContain(minorId);
+
+    unit.position = route!.at(-2)!;
+    const staged = attempt();
+    expect(staged.civilizations[aiId].diplomacy.atWarWith).toContain(minorId);
+    expect(staged.minorCivs[minorId].diplomacy.atWarWith).toContain(aiId);
   });
 });
 
