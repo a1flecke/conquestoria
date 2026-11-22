@@ -2,15 +2,13 @@
  * Diplomacy / trade panel openers (#1242), split out of the monolithic
  * `panel-actions-controller.ts`. Covers the Diplomacy and Marketplace panels.
  *
- * No behaviour change: same panels, same publication (`session.commit`), same
- * copy. Depends only on the shared ports.
+ * Depends only on the shared ports.
  */
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
 import { createMarketplacePanel } from '@/ui/marketplace-panel';
-import { applyRouteControl, ROUTE_CONTROL_DENIAL_MESSAGES, ROUTE_CONTROL_NOTIFICATIONS, type RouteControlAction } from '@/systems/trade-route-lifecycle';
 import { setCommerceResourcePolicy } from '@/systems/resource-market-offers';
 import { setFuelConservationPolicy } from '@/systems/resource-fuel-system';
-import type { PanelActionsCommonDeps } from './panel-actions-shared';
+import { controlTradeRoute, type PanelActionsCommonDeps } from './panel-actions-shared';
 
 export interface DiplomacyTradePanelActionsController {
   openDiplomacyPanel(focusMinorCivId?: string): void;
@@ -40,7 +38,7 @@ export function createDiplomacyTradePanelActionsController(
         const unit = deps.session.getState().units[unitId];
         if (unit) deps.renderLoop.camera.centerOn(unit.position);
       },
-      onRouteControl: handleRouteControl,
+      onRouteControl: (routeId, action) => controlTradeRoute(deps, routeId, action),
       onSetResourcePolicy: policy => {
         deps.session.commit(setCommerceResourcePolicy(deps.session.getState(), policy));
         renderMarketplacePanel();
@@ -76,18 +74,6 @@ export function createDiplomacyTradePanelActionsController(
       onRejectSettlementOffer: deps.diplomacyActions.handleRejectSettlementOffer,
       onClose: () => {},
     });
-  }
-
-  function handleRouteControl(routeId: string, action: RouteControlAction): void {
-    const state = deps.session.getState();
-    const result = applyRouteControl(state, routeId, action, state.currentPlayer, deps.bus);
-    if (!result.ok) {
-      deps.showNotification(ROUTE_CONTROL_DENIAL_MESSAGES[result.reason], 'warning');
-      return;
-    }
-    deps.session.commit(result.state);
-    deps.showNotification(ROUTE_CONTROL_NOTIFICATIONS[action], 'info');
-    // The open panel refreshes from the committed state through its session subscription.
   }
 
   function openMarketplacePanel(): void {

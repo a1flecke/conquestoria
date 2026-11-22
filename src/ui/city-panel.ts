@@ -777,13 +777,11 @@ export function createCityPanelView(
   const completedTechs = currentCiv.techState.completed;
   const availableUnits = queueableProduction.units;
 
-  // Trade Routes Overhaul (#553 MR4/4) — City panel Trade Routes section. Gated behind
-  // the same 'trade-routes' tech marketplace-panel.ts already uses. Scoped to this
-  // city's own outgoing routes only (fromCityId === city.id) — never derives ownership
-  // from a second computation, per ui-panels.md's Cities[0] Is Never The Answer rule.
-  const showTradeRoutes = completedTechs.includes('trade-routes');
+  // An existing route still needs controls when it came from a scenario or an older save.
+  const hasTradeRoutesTech = completedTechs.includes('trade-routes');
+  const outgoingTradeRoutes = getOutgoingRoutesForCity(state, city.id);
+  const showTradeRoutes = hasTradeRoutesTech || outgoingTradeRoutes.length > 0;
   const tradeRouteCapacity = showTradeRoutes ? getRouteCapacity(state, city.id) : 0;
-  const outgoingTradeRoutes = showTradeRoutes ? getOutgoingRoutesForCity(state, city.id) : [];
   const tradeRouteRemainingCapacity = Math.max(0, tradeRouteCapacity - outgoingTradeRoutes.length);
   // Idle trade unit check is scoped to units that would actually resolve to THIS city
   // via resolveFromCity (nearest city with capacity) — not just any owned idle trade
@@ -791,7 +789,7 @@ export function createCityPanelView(
   // could silently consume city B's capacity slot instead (whichever city
   // resolveFromCity picks as nearest to that unit), which is confusing: the panel's
   // capacity/action affordances must stay locally coherent to the city actually open.
-  const idleTradeUnits = showTradeRoutes
+  const idleTradeUnits = hasTradeRoutesTech
     ? Object.values(state.units).filter(u =>
         u.owner === city.owner && hasAITradeRole(u.type) && !u.committedToRouteId
         && resolveFromCity(state, u)?.id === city.id)
@@ -799,7 +797,7 @@ export function createCityPanelView(
   // Derived from getTrainableUnitsForCity (the same city-aware eligibility helper used
   // for the Build tab above) filtered to trade-role units — naturally offers Naval
   // Trader for coastal cities and stays generic as new trade lines are added.
-  const eligibleTradeUnitTypes = showTradeRoutes
+  const eligibleTradeUnitTypes = hasTradeRoutesTech
     ? availableUnits.filter(u => hasAITradeRole(u.type))
     : [];
 
@@ -1708,7 +1706,9 @@ export function createCityPanelView(
       tradeSection.appendChild(heading);
 
       const helpText = document.createElement('div');
-      helpText.textContent = 'Trade routes earn gold every turn. Train a trade unit, then use Establish Route to start one.';
+      helpText.textContent = hasTradeRoutesTech
+        ? 'Train a trade unit, then use Establish Route to start a new route.'
+        : 'Research Trade Routes to start new routes.';
       helpText.style.cssText = 'font-size:11px;opacity:0.7;margin-bottom:8px;';
       tradeSection.appendChild(helpText);
 

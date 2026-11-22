@@ -1,10 +1,10 @@
 import type { EventBus } from '@/core/event-bus';
 import { getCommercialPassagePermission } from '@/systems/commerce-permissions';
 import { hasDiscoveredCity, hasExploredCoord } from '@/systems/discovery-system';
-import { getRushBuyQuote } from '@/systems/economy-system';
+import { calculateCityBuildingMaintenance, getRushBuyQuote } from '@/systems/economy-system';
 import { hexKey } from '@/systems/hex-utils';
 import { getMarketProcurementPolicy } from '@/systems/resource-market-offers';
-import { getCityFuelStatus } from '@/systems/resource-fuel-system';
+import { getCityFuelStatus, getFuelRunway } from '@/systems/resource-fuel-system';
 import { getReserveBalance } from '@/systems/resource-reserve-system';
 import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
@@ -73,15 +73,22 @@ export function getCapitalComparison(state: ScenarioState, viewer: string) {
     ? { choice: 'Harbor', round: state.turn, cost: harborQuote.cost, occurrence: north.productionMaterials?.activeOccurrence ?? 0 }
     : undefined;
   const reserves = state.materialReservesByCiv?.[viewer];
-  const coal = reserves ? getReserveBalance(reserves, resourceGoodId('coal')).imported : 0;
+  const coalId = resourceGoodId('coal');
+  const coal = reserves ? getReserveBalance(reserves, coalId).imported : 0;
+  const harborBuilt = north.buildings.includes('harbor');
+  const harborUpkeep = harborBuilt ? 0 : calculateCityBuildingMaintenance(state, {
+    ...north, buildings: [...north.buildings, 'harbor'],
+  }).upkeep - calculateCityBuildingMaintenance(state, north).upkeep;
   return {
     protectedGold, freeGold, westName: west.name, northName: north.name,
     currentRounds, openRounds, passage, harbor, coal,
     passageKnown: siteKnown,
     passageOpened: siteKnown && channel.open,
-    harborBuilt: north.buildings.includes('harbor'),
+    harborBuilt,
+    harborUpkeep,
     harborCost: harborQuote.itemId === 'harbor' && harborQuote.cost > 0 ? harborQuote.cost : undefined,
     factoryFueled: getCityFuelStatus(state, west).find(building => building.buildingId === 'factory')?.powered,
+    factoryCoalReady: getFuelRunway(state, viewer, coalId).status === 'funded',
   };
 }
 

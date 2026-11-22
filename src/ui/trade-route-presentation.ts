@@ -18,7 +18,7 @@ const NOT_OPERATING_LABEL: Record<TradeRouteNonOperatingReason, string> = {
   'no-trader': 'no trader',
   blocked: 'blocked',
   blockaded: 'blockaded',
-  'service-complete': 'service complete',
+  'service-complete': 'trip earnings exhausted',
   paused: 'paused',
   cancelled: 'cancelled',
   'endpoint-lost': 'endpoint lost',
@@ -108,7 +108,10 @@ function renderRouteRow(
   // #1509 MR12: the manifest is owned cargo, not route income. Show what is aboard, what it cost,
   // and the target still short; a destroyed trader loses it (the row says so before departure).
   const manifestQuantity = getRouteManifestQuantity(route);
-  const delayed = !awaitingNextMove && ['blocked', 'blockaded', 'endpoint-lost', 'cancelled'].includes(status.reason ?? '');
+  const ending = Boolean(route.cancelPending || route.endpointLost);
+  const delayed = status.reason === 'blockaded' || status.reason === 'endpoint-lost'
+    || (status.reason === 'blocked' && !awaitingNextMove)
+    || (status.reason === 'cancelled' && route.notifiedInterruption === 'blocked');
   if (manifestQuantity > 0) {
     const cargo = document.createElement('span');
     cargo.dataset.routeManifest = 'true';
@@ -124,13 +127,14 @@ function renderRouteRow(
     } else if (delayed) {
       direction = 'Delayed — no promised arrival';
     } else if (committedUnit?.routeDirection === 'inbound') {
-      direction = `returning home in ${getRouteLegRounds(state, committedUnit, route.fromCityId) ?? '?'} round(s)`;
+      const rounds = getRouteLegRounds(state, committedUnit, route.returnHomeCityId ?? route.fromCityId);
+      direction = rounds === null ? 'Delayed — no promised arrival' : `returning home in ${Math.max(1, rounds)} round(s)`;
     }
     cargo.textContent = `Confirmed cargo: ${goods} · paid ${getRouteManifestPaid(route)} · ${direction} · lost if the trader is destroyed`;
     summary.appendChild(cargo);
   }
   const order = route.procurement?.orders?.[0];
-  if (order) {
+  if (order && !ending) {
     const remaining = getProcurementRemaining(state, fromCity.owner, order);
     const target = document.createElement('span');
     target.dataset.routeProcurement = 'true';
