@@ -1,6 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameMap, GameState, PersonalityTraits, UnitType } from '@/core/types';
 import { HOME_GUARD_ROAMERS } from '@/ai/ai-home-guard';
+import { classifyOwner } from '@/core/owner-kind';
 import type { AiGameState } from '@/core/types/ai';
 import type {
   AIStrategicPlan,
@@ -71,6 +72,7 @@ import {
   resolveOpponentChallenge,
 } from '@/core/opponent-challenge';
 import { getCrisisDispatchCandidates } from './ai-crisis-response';
+import { canStartAiCityStateConquest } from './ai-diplomacy';
 import { isCrisisPressureEligible, isPiratePressureEligible } from '@/systems/world-pressure-eligibility';
 import {
   evaluateDominationDoctrine,
@@ -444,17 +446,25 @@ function objectiveCandidates(
   const startByCandidate = new Map<AIObjectiveCandidate, { q: number; r: number }>();
   const actorEra = resolveCivilizationEra(actor.techState.completed);
   const ownStrength = estimatePerceivedCivStrength(perception, civId, actorEra).midpoint;
-  for (const city of perception.knownCities) {
+  const cityStateIntelligence = {
+    ...perception,
+    knownCities: perception.cityStateIntel.cities,
+    units: perception.cityStateIntel.units,
+  };
+  for (const city of [...perception.knownCities, ...perception.cityStateIntel.cities]) {
     if (!city.position || city.owner === civId) continue;
+    const activeWar = actor.diplomacy.atWarWith.includes(city.owner);
+    const minorTarget = classifyOwner(city.owner) === 'minor';
+    if (minorTarget && !activeWar && !canStartAiCityStateConquest(state, civId, city.owner, personality, posture)) continue;
     const anchor = nearestAnchor(city.position);
     const travelTurns = Math.ceil(distance(state, anchor, city.position) / 2);
     const recentAttack = actor.diplomacy.events.some(event =>
       event.type === 'military_attacked'
       && event.otherCiv === city.owner
       && state.turn - event.turn <= 6);
-    const activeWar = actor.diplomacy.atWarWith.includes(city.owner);
+    const intelligence = minorTarget ? cityStateIntelligence : perception;
     const rivalStrength = estimatePerceivedCivStrength(
-      perception,
+      intelligence,
       city.owner,
       actorEra,
     ).midpoint;
@@ -467,8 +477,10 @@ function objectiveCandidates(
         hasArmsControlTreaty: hasArmsControlTreaty(state as GameState, civId),
       }).includes('declare_war');
     const expectedLossRatio = Math.min(2, rivalStrength / Math.max(1, ownStrength));
-    if (!activeWar && !recentAttack && (!peacefulDominationTarget || expectedLossRatio > 1)) continue;
-    const observedGarrison = perception.units.some(unit => unit.owner === city.owner && unit.position
+    if (!activeWar && (minorTarget
+      ? expectedLossRatio > 1
+      : !recentAttack && (!peacefulDominationTarget || expectedLossRatio > 1))) continue;
+    const observedGarrison = intelligence.units.some(unit => unit.owner === city.owner && unit.position
       && hexKey(unit.position) === hexKey(city.position!));
     const hardened = city.defense === 'fortified' && observedGarrison && city.hpBand === 'healthy';
     const supportRole = hardened
@@ -551,18 +563,8 @@ function objectiveCandidates(
     // every round, permanently freezing the assigned settler (found-city refused,
     // move-to-self is a zero-length path). A live 25-round determinism run caught this;
     // no isolated unit test exercised the real perception.knownCities/ownCities split.
-    // #1107: perception.knownCities only ever includes MAJOR civs --
-    // buildMajorCivPerception's remembered-city and contacted-civ loops never
-    // touch minor-civ (city-state) cities at all. A visible city-state is
-    // real and always inside canFoundCityAt's canonical distance check, but
-    // was completely invisible to this belief-layer legality filter: found
-    // via #1107, where the belief layer kept re-proposing a site 2 tiles
-    // from a real, currently-visible minor civ forever, because it had no
-    // way to ever learn the site was illegal -- the same class of bug the
-    // ownCities fix above (see comment) already fixed for the civ's own
-    // capital. Scoped to CURRENTLY VISIBLE minor-civ cities, matching this
-    // bug's exact shape; a remembered-but-now-fogged minor-civ city is a
-    // smaller completeness gap, not reproduced here.
+    // #1107: visible city-states count toward the canonical founding distance.
+    // The belief layer once re-proposed an illegal site two tiles from a city-state.
     const knownCityPositions = [
       ...perception.ownCities.map(city => city.position),
       ...perception.knownCities.flatMap(city => city.position ? [city.position] : []),

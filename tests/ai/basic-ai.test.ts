@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import {
   applyAiCityLevyPolicy,
   canDeclareWarForPreparedPlan,
@@ -7,6 +8,8 @@ import {
   processAITurn,
   processPreparedAITurn,
 } from '@/ai/basic-ai';
+import { wantsCityStateConquest } from '@/ai/ai-diplomacy';
+import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 import { buildMajorCivPerception } from '@/ai/ai-perception';
 import { assignGovernor, GOVERNOR_REASSIGNMENT_LOCK_TURNS } from '@/systems/governor-system';
 import {
@@ -18,19 +21,147 @@ import { EventBus } from '@/core/event-bus';
 import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
 import type { City, GameEvents, GameState, HexCoord } from '@/core/types';
 import { BUILDINGS, foundCity } from '@/systems/city-system';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 import { appeaseFaction, getCityAppeaseCost } from '@/systems/faction-commands';
 import { setFederalismStance, FEDERALISM_LOCK_TURNS } from '@/systems/faction-federalism';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
-import { hexKey, hexDistance } from '@/systems/hex-utils';
+import { hexKey, hexDistance, mapDistance, mapNeighbors } from '@/systems/hex-utils';
+import { setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
-import { createUnit } from '@/systems/unit-lifecycle';
+import { createUnit, resetUnitTurn } from '@/systems/unit-lifecycle';
+import { removeUnits } from '@/systems/unit-removal-system';
+import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import type { ResourceType } from '@/core/types';
 import { makeVassalageFixture } from '../systems/helpers/vassalage-fixture';
 import { assertBilateralWar } from '../helpers/save-state-invariants';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
+describe('#1784 city-state conquest through the AI turn', () => {
+  const aiId = 'ai-1';
+
+  function processNextTurn(state: GameState, bus = new EventBus()) {
+    state.turn += 1;
+    for (const unitId of state.civilizations[aiId].units) {
+      state.units[unitId] = resetUnitTurn(state.units[unitId]);
+    }
+    return processAITurn(state, aiId, bus);
+  }
+
+  function setup(unreachable = false) {
+    let state = createNewGame(undefined, 'city-state-conquest-1784', 'small');
+    const minor = Object.values(state.minorCivs).find(entry => !entry.isDestroyed)!;
+    const target = state.cities[minor.cityId];
+    state = removeUnits(state, [...state.civilizations[aiId].units, ...minor.units], { reason: 'eliminated' }).state;
+    state.turn = 45;
+    const civ = state.civilizations[aiId];
+    civ.civType = 'zulu';
+    civ.techState.completed = [1, 2].flatMap(era => getEraAdvancementTechs(era).map(tech => tech.id));
+    civ.visibility.tiles = {};
+    civ.visibility.lastSeen = {};
+    const localTiles = Object.values(state.map.tiles)
+      .filter(tile => mapDistance(state.map, tile.coord, target.position) <= 6);
+    const ownSite = localTiles.find(tile => mapDistance(state.map, tile.coord, target.position) === 4
+      && !Object.values(state.cities).some(city => hexKey(city.position) === hexKey(tile.coord)))!;
+    const approach = localTiles.filter(tile => mapDistance(state.map, tile.coord, target.position) === 2
+      && !Object.values(state.units).some(unit => hexKey(unit.position) === hexKey(tile.coord)));
+    for (const tile of localTiles) {
+      tile.terrain = 'grassland';
+      tile.owner = null;
+      tile.resource = null;
+      civ.visibility.tiles[hexKey(tile.coord)] = 'visible';
+    }
+    state.map.tiles[hexKey(target.position)].owner = minor.id;
+    if (unreachable) {
+      for (const coord of mapNeighbors(state.map, target.position)) {
+        state.map.tiles[hexKey(coord)].terrain = 'ocean';
+      }
+    }
+    const city = foundCity(aiId, ownSite.coord, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    civ.cities.push(city.id);
+    for (const tile of approach.slice(0, 4)) {
+      const unit = createUnit('swordsman', aiId, tile.coord, state.idCounters);
+      state.units[unit.id] = unit;
+      civ.units.push(unit.id);
+    }
+    return { state, minorId: minor.id, target };
+  }
+
+  it('makes bilateral peace when the city-state is unreachable despite the same conquest preference', () => {
+    const { state, minorId } = setup(true);
+    const personality = resolveCivDefinition(state, 'zulu')!.personality;
+    const atPeace = processAITurn(state, aiId, new EventBus());
+    expect(atPeace.civilizations[aiId].diplomacy.atWarWith).not.toContain(minorId);
+    const war = setMinorCivWarState(state, aiId, minorId, true).state;
+    expect(war.civilizations[aiId].diplomacy.atWarWith).toContain(minorId);
+    expect(war.minorCivs[minorId].diplomacy.atWarWith).toContain(aiId);
+    expect(wantsCityStateConquest(war, aiId, minorId, personality, NATIONAL_INTENT_POSTURE.develop)).toBe(true);
+
+    const next = processAITurn(war, aiId, new EventBus());
+
+    expect(next.civilizations[aiId].diplomacy.atWarWith).not.toContain(minorId);
+    expect(next.minorCivs[minorId].diplomacy.atWarWith).not.toContain(aiId);
+    expect(next.civilizations[aiId].diplomacy.events.filter(event => event.otherCiv === minorId)
+      .map(event => event.type)).toEqual(['war_declared', 'peace_made']);
+  });
+
+  it('declares for a reachable capture plan and follows through with the shared conquest action', () => {
+    const { state, minorId, target } = setup();
+    const bus = new EventBus();
+    const destroyed = vi.fn();
+    bus.on('minor-civ:destroyed', destroyed);
+    const next = processAITurn(state, aiId, bus);
+
+    expect(next.opponentAI?.majorCivs[aiId]?.primaryPlan).toMatchObject({
+      objective: 'capture', target: { kind: 'city', id: target.id },
+    });
+    expect(next.civilizations[aiId].diplomacy.atWarWith).toContain(minorId);
+    expect(next.minorCivs[minorId].diplomacy.atWarWith).toContain(aiId);
+
+    const conquered = processNextTurn(next, bus);
+    expect(conquered.cities[target.id].owner).toBe(aiId);
+    expect(conquered.minorCivs[minorId].isDestroyed).toBe(true);
+    expect(destroyed).toHaveBeenCalledOnce();
+  });
+
+  it('makes peace when the active target is dropped and gives the settlement time to hold', () => {
+    const { state, minorId, target } = setup();
+    const atWar = processAITurn(state, aiId, new EventBus());
+    expect(atWar.opponentAI?.majorCivs[aiId]?.primaryPlan?.target).toMatchObject({ kind: 'city', id: target.id });
+    expect(atWar.civilizations[aiId].diplomacy.atWarWith).toContain(minorId);
+
+    // Close the land approach and return the force to the far side of it.
+    const approach = mapNeighbors(atWar.map, target.position);
+    for (const coord of approach) atWar.map.tiles[hexKey(coord)].terrain = 'ocean';
+    for (const unitId of atWar.civilizations[aiId].units) {
+      atWar.units[unitId].position = { ...state.units[unitId].position };
+    }
+    const peace = processNextTurn(atWar);
+    expect(peace.opponentAI?.majorCivs[aiId]?.primaryPlan?.target).not.toMatchObject({ kind: 'city', id: target.id });
+    expect(peace.civilizations[aiId].diplomacy.atWarWith).not.toContain(minorId);
+    expect(peace.minorCivs[minorId].diplomacy.atWarWith).not.toContain(aiId);
+
+    for (const coord of approach) peace.map.tiles[hexKey(coord)].terrain = 'grassland';
+    const next = processNextTurn(peace);
+    expect(next.civilizations[aiId].diplomacy.events.filter(event => event.otherCiv === minorId)
+      .map(event => event.type)).toEqual(['war_declared', 'peace_made']);
+  });
+
+  it('keeps an old war while the capture force is making progress', () => {
+    const { state, minorId, target } = setup();
+    const atWar = setMinorCivWarState(state, aiId, minorId, true).state;
+    atWar.turn += 20;
+
+    const next = processAITurn(atWar, aiId, new EventBus());
+
+    expect(next.opponentAI?.majorCivs[aiId]?.primaryPlan?.target).toMatchObject({ kind: 'city', id: target.id });
+    expect(next.civilizations[aiId].diplomacy.atWarWith).toContain(minorId);
+    expect(next.minorCivs[minorId].diplomacy.atWarWith).toContain(aiId);
+  });
+});
 
 describe('purposeful AI war gating', () => {
   it('allows war only for the known primary target after mobilization', () => {

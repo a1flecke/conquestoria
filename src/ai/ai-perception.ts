@@ -6,6 +6,7 @@ import type {
   Unit,
   UnitType,
 } from '@/core/types';
+import { classifyOwner } from '@/core/owner-kind';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
@@ -33,6 +34,7 @@ export interface MajorCivPerception {
   ownUnits: ReadonlyArray<Readonly<Unit>>;
   knownCities: PerceivedCity[];
   units: AIPerceivedUnit[];
+  cityStateIntel: { cities: PerceivedCity[]; units: AIPerceivedUnit[] };
   knownCivIds: string[];
   knownResources: Array<{
     resource: ResourceType;
@@ -85,6 +87,13 @@ export function buildMajorCivPerception(
 
   const contacted = getContactedCivIds(state, actorId);
   const contactedSet = new Set(contacted);
+  const observedCities = collectPerceivedCities(state, actorId, contacted, {
+    includeRumoredSeat: true,
+    includeObservedMinorCities: true,
+  });
+  const cityStateCities = observedCities.filter(city => classifyOwner(city.owner) === 'minor');
+  const knownCityStateIds = new Set(cityStateCities.map(city => city.owner));
+  const knownCities = observedCities.filter(city => classifyOwner(city.owner) !== 'minor');
   // The foe of a hunt aimed at this civ may be a beast the AI otherwise ignores; it must still be seen,
   // or a plan against it could never confirm its target.
   const huntFoeOwners = new Set([...getOwnHuntFoeUnitIds(state, actorId)].map(id => state.units[id]?.owner).filter(Boolean));
@@ -102,10 +111,11 @@ export function buildMajorCivPerception(
     .filter((unit): unit is Unit => unit?.owner === actorId)
     .map(unit => structuredClone(unit));
 
-  // #1334: units and cities come from the shared viewer-scoped collection, so the human diplomacy path and the AI
-  // see exactly the same intel. Only resources are AI-specific and are still read from the same trusted snapshots.
-  const units = collectPerceivedUnits(state, actorId, relevantOwner);
-  const knownCities = collectPerceivedCities(state, actorId, contacted, { includeRumoredSeat: true });
+  // #1334: units and cities come from the shared viewer-scoped collection.
+  // An observed city-state can contribute visible and remembered defenders to its capture forecast.
+  const observedUnits = collectPerceivedUnits(state, actorId, ownerId =>
+    relevantOwner(ownerId) || knownCityStateIds.has(ownerId));
+  const units = observedUnits.filter(unit => relevantOwner(unit.owner));
 
   const rememberedResources = new Map<string, MajorCivPerception['knownResources'][number]>();
   for (const { key, snapshot } of getTrustedLastSeenSnapshots(state, actorId)) {
@@ -166,6 +176,10 @@ export function buildMajorCivPerception(
     ownUnits,
     knownCities,
     units,
+    cityStateIntel: {
+      cities: cityStateCities,
+      units: observedUnits.filter(unit => knownCityStateIds.has(unit.owner)),
+    },
     knownCivIds: contacted,
     knownResources,
     knownOpponentCapabilities,

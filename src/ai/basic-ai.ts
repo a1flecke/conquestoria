@@ -8,7 +8,6 @@ import type {
   City,
   UnitType,
 } from '@/core/types';
-import type { AIStrategicPlan } from '@/core/types/ai';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, wrappedHexDistance, hexDistance, mapDistance } from '@/systems/hex-utils';
 import { cityFollowsOwnFaith } from '@/systems/city-system';
@@ -734,15 +733,6 @@ export function chooseAiGovernorMove(
   return from && to ? { fromCityId: from, toCityId: to } : null;
 }
 
-/** The city-state a plan is attacking (its city, or one of its units), if any: that war is kept. */
-function minorCivsTargetedByPlan(state: GameState, plan: AIStrategicPlan | null): ReadonlySet<string> {
-  if (!plan) return new Set();
-  const owner = plan.target.kind === 'city' ? state.cities[plan.target.id]?.owner
-    : plan.target.kind === 'unit' ? state.units[plan.target.id]?.owner
-      : undefined;
-  return owner && classifyOwner(owner) === 'minor' ? new Set([owner]) : new Set();
-}
-
 function processAITurnInternal(
   state: GameState,
   civId: string,
@@ -1090,12 +1080,13 @@ function processAITurnInternal(
   }
   civ = newState.civilizations[civId];
 
-  newState = processMajorCivStrategicTurnInPlace(
+  const strategicTurn = processMajorCivStrategicTurnInPlace(
     newState,
     preparedForTurn,
     bus,
     { excludedUnitIds: recoveryUnitIds },
-  ).state;
+  );
+  newState = strategicTurn.state;
   newState = processAIResourceMarketplace(newState, civId);
   newState = applyAIExportPolicies(newState, civId);
   civ = newState.civilizations[civId];
@@ -1682,7 +1673,7 @@ function processAITurnInternal(
 
   // --- Minor civ diplomacy ---
   if (newState.minorCivs) {
-    newState = applyAiMinorCivPeace(newState, civId, minorCivsTargetedByPlan(newState, preparedForTurn.portfolio.primaryPlan), bus, personality, posture);
+    newState = applyAiMinorCivPeace(newState, civId, bus, strategicTurn.primaryPlanMadeProgress);
     newState = applyAiCityStateWar(newState, civId, personality, posture, bus);
     newState = applyAiMinorCivReparations(newState, civId, personality, posture);
     newState = applyAiMinorCivGifts(newState, civId, personality, posture);

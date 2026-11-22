@@ -8,6 +8,7 @@
  * the confidence-decay window are all invisible here by construction.
  */
 import type { City, GameState, HexCoord, LastSeenHealthBand, LastSeenTilePresentation, Unit, UnitType } from '@/core/types';
+import { classifyOwner } from '@/core/owner-kind';
 import { getVisibility } from './fog-of-war';
 import { isTrustedObservedLastSeenTile } from './last-seen-presentation';
 import { decayRememberedConfidence } from './actor-perception';
@@ -170,7 +171,7 @@ export function collectPerceivedCities(
   state: GameState,
   actorId: string,
   contacted: readonly string[],
-  options: { includeRumoredSeat: boolean },
+  options: { includeRumoredSeat: boolean; includeObservedMinorCities?: boolean },
 ): PerceivedCity[] {
   const actor = state.civilizations[actorId];
   if (!actor) return [];
@@ -181,7 +182,8 @@ export function collectPerceivedCities(
       isRecord(snapshot.city)
       && typeof snapshot.city.id === 'string'
       && typeof snapshot.city.owner === 'string'
-      && contactedSet.has(snapshot.city.owner)
+      && (contactedSet.has(snapshot.city.owner)
+        || (options.includeObservedMinorCities && classifyOwner(snapshot.city.owner) === 'minor'))
     ) {
       rememberedCities.set(snapshot.city.id, {
         id: snapshot.city.id,
@@ -196,22 +198,24 @@ export function collectPerceivedCities(
   }
 
   const knownCities = [...rememberedCities.values()];
+  const recordVisibleCity = (city: City | undefined): void => {
+    if (!city || getVisibility(actor.visibility, city.position) !== 'visible') return;
+    const known: PerceivedCity = {
+      id: city.id,
+      owner: city.owner,
+      position: copyCoord(city.position),
+      confidence: 'visible',
+      observedTurn: state.turn,
+      defense: city.buildings.includes('walls') || city.buildings.includes('star_fort') ? 'fortified' : 'open',
+      hpBand: toHealthBand(city.hp ?? 100),
+    };
+    const index = knownCities.findIndex(candidate => candidate.id === city.id);
+    if (index >= 0) knownCities[index] = known;
+    else knownCities.push(known);
+  };
   for (const civId of contacted) {
     for (const cityId of state.civilizations[civId].cities) {
-      const city: City | undefined = state.cities[cityId];
-      if (!city || getVisibility(actor.visibility, city.position) !== 'visible') continue;
-      const known: PerceivedCity = {
-        id: city.id,
-        owner: city.owner,
-        position: copyCoord(city.position),
-        confidence: 'visible',
-        observedTurn: state.turn,
-        defense: city.buildings.includes('walls') || city.buildings.includes('star_fort') ? 'fortified' : 'open',
-        hpBand: toHealthBand(city.hp ?? 100),
-      };
-      const index = knownCities.findIndex(candidate => candidate.id === city.id);
-      if (index >= 0) knownCities[index] = known;
-      else knownCities.push(known);
+      recordVisibleCity(state.cities[cityId]);
     }
     if (options.includeRumoredSeat && !knownCities.some(city => city.owner === civId)) {
       knownCities.push({
@@ -221,6 +225,11 @@ export function collectPerceivedCities(
         confidence: 'rumored',
         observedTurn: null,
       });
+    }
+  }
+  if (options.includeObservedMinorCities) {
+    for (const minor of Object.values(state.minorCivs ?? {})) {
+      if (!minor.isDestroyed) recordVisibleCity(state.cities[minor.cityId]);
     }
   }
   knownCities.sort((left, right) => left.id.localeCompare(right.id));
