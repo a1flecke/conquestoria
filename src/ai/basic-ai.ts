@@ -83,6 +83,7 @@ import {
   executeSpy,
   startInterrogation,
   missionRequiresPlacedSpy,
+  startDebrief,
   isOperationEffectFullyActive,
   isSpyUnitType,
   getSpyCaptureRelationshipPenalty,
@@ -1794,6 +1795,14 @@ function processAITurnInternal(
         // Failed but not caught: the spy lies low where it stands, next to the city.
         newState.units[spyUnitId] = { ...spyUnit, hasActed: true, movementPointsLeft: 0 };
       }
+    }
+
+    // 2b) A spy the civ was told was captured, and that is back at work, may have been turned: debrief it before
+    // trusting it again. Uses only what the owner was told (`capturedOnTurn`), never whether it really was turned.
+    for (const spy of Object.values(newState.espionage![civId].spies).sort((a, b) => a.id.localeCompare(b.id))) {
+      if (spy.capturedOnTurn === undefined || spy.capturedOnTurn <= (spy.lastDebriefTurn ?? -1)) continue;
+      const debrief = startDebrief(newState.espionage![civId], spy.id, newState.turn);
+      if (debrief.ok) newState.espionage![civId] = debrief.state;
     }
 
     // 3) Stationed-inside (infiltrationCityId) spies issue missions

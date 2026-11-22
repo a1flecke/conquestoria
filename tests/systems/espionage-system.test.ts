@@ -23,7 +23,7 @@ import {
   handleSpyCaptured,
   setCounterIntelligence,
   turnCapturedSpy,
-  verifyAgent,
+  finishDebrief,
   missionRequiresPlacedSpy,
   MISSION_BASE_SUCCESS,
   } from '@/systems/espionage-system';
@@ -1919,11 +1919,11 @@ describe('espionage diplomatic consequences', () => {
       expect(turned.player.spies[spy.id].status).toBe('stationed');
     });
 
-    it('verifyAgent clears false-intel state from a turned spy', () => {
-      const spy = makeTestSpy('spy-1', 'player', { turnedBy: 'ai-egypt', feedsFalseIntel: true });
+    it('a debrief that exposes a turned spy clears its false-intel state', () => {
+      const spy = makeTestSpy('spy-1', 'player', { status: 'stationed', turnedBy: 'ai-egypt', feedsFalseIntel: true, debriefUntilTurn: 5 });
       const updated = addSpy(createEspionageCivState(), spy);
 
-      const verified = verifyAgent(updated, spy.id);
+      const verified = finishDebrief(updated, spy.id, 5, 0).state;
 
       expect(verified.spies[spy.id].turnedBy).toBeUndefined();
       expect(verified.spies[spy.id].feedsFalseIntel).toBe(false);

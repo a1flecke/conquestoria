@@ -3,6 +3,8 @@ import type {
   GameEvents,
   GameState,
   HexCoord,
+  FalseReportKind,
+  Spy,
   SpyMissionType,
   SpyPromotion,
 } from '@/core/types';
@@ -34,7 +36,16 @@ import {
 } from './espionage-counterintel';
 import { ARMS_SMUGGLING_SPAWN, EXPOSE_SCANDAL_PENALTY, buildOperationEffect, isOperationMission, resolveMissionResult } from './espionage-missions';
 import { isLegalSpawnTile } from './unit-spawn-placement';
-import { checkAndApplyPromotion } from './espionage-spy-lifecycle';
+import {
+  checkAndApplyPromotion,
+  falsifyFigure,
+  falsifyRelationships,
+  falsifyResources,
+  falsifyUnitSightings,
+  finishDebrief,
+  recordFalseReport,
+} from './espionage-spy-lifecycle';
+import { createSimulationRng } from './simulation-rng';
 
 /**
  * Espionage turn orchestration (#1009): the per-civ spy tick (`processSpyTurn`)
@@ -190,26 +201,60 @@ function pruneDetectedThreats(
  * structural so each turn responsibility is named and independently legible.
  */
 
-/** Turn captured spies whose captor has the tech to do so (pre-split first loop). */
+/**
+ * Turn captured spies whose captor has the tech to do so. This is the only place a spy is turned: a capture never
+ * turns the spy on the spot, so a human captor gets the expel / execute / interrogate choice first, and the captor
+ * is told once. A Security Bureau anywhere in the *spy owner's* empire makes each capture 50% likely to resist,
+ * decided once per capture so later turns cannot re-roll it.
+ */
 function turnEligibleCapturedSpiesForCiv(state: GameState, civId: string, bus: EventBus): GameState {
+  const ownerHasSecurityBureau = (state.civilizations[civId]?.cities ?? [])
+    .some(cityId => state.cities[cityId]?.owner === civId && state.cities[cityId]?.buildings.includes('security-bureau'));
   for (const spy of Object.values(state.espionage![civId].spies)) {
     const captorId = spy.targetCivId;
     const captorTechs = captorId ? state.civilizations[captorId]?.techState.completed ?? [] : [];
     const canTurnCapturedSpy = captorTechs.includes('counter-intelligence') || captorTechs.includes('digital-surveillance');
-    if (spy.status === 'captured' && !spy.turnedBy && captorId && canTurnCapturedSpy) {
-      const targetCity = spy.targetCityId ? state.cities[spy.targetCityId] : null;
-      const hasSecurityBureau = targetCity?.buildings.includes('security-bureau') ?? false;
-      if (hasSecurityBureau) {
-        const turnRng = createRng(`sec-bureau-${spy.id}-${state.turn}`);
-        if (turnRng() < 0.5) continue; // Security bureau blocks 50% of turning attempts
-      }
-      state.espionage = turnCapturedSpy(state.espionage!, { captorId, spyOwner: civId, spyId: spy.id, turn: state.turn });
-      bus.emit('espionage:spy-detected', {
-        detectingCivId: captorId,
-        spyOwner: civId,
-        spyId: spy.id,
-        cityId: spy.targetCityId ?? '',
+    if (spy.status !== 'captured' || spy.turnedBy || !captorId || !canTurnCapturedSpy) continue;
+    const capture = spy.capturedOnTurn ?? -1;
+    if (spy.resistedTurningOnCapture === capture) continue;
+    if (ownerHasSecurityBureau && createSimulationRng(state, { domain: 'spy-turn-resist', actorId: spy.id })() < 0.5) {
+      state = withSpy(state, civId, { ...spy, resistedTurningOnCapture: capture });
+      continue;
+    }
+    state.espionage = turnCapturedSpy(state.espionage!, { captorId, spyOwner: civId, spyId: spy.id, turn: state.turn });
+    bus.emit('espionage:spy-detected', {
+      detectingCivId: captorId,
+      spyOwner: civId,
+      spyId: spy.id,
+      cityId: spy.targetCityId ?? '',
+    });
+  }
+  return state;
+}
+
+function withSpy(state: GameState, civId: string, spy: Spy): GameState {
+  const civEsp = state.espionage![civId];
+  return { ...state, espionage: { ...state.espionage, [civId]: { ...civEsp, spies: { ...civEsp.spies, [spy.id]: spy } } } };
+}
+
+/**
+ * Finish every debrief due this turn (`startDebrief`). One draw per debrief decides it; the owner hears either that a
+ * double agent was exposed, or that the debrief found nothing (which is not proof the spy is clean). The captor
+ * learns its agent was burned.
+ */
+function resolveDueDebriefsForCiv(state: GameState, civId: string, bus: EventBus): GameState {
+  for (const spy of Object.values(state.espionage![civId].spies)) {
+    if (spy.debriefUntilTurn === undefined || spy.debriefUntilTurn > state.turn) continue;
+    const roll = createSimulationRng(state, { domain: 'spy-debrief', actorId: spy.id })();
+    const outcome = finishDebrief(state.espionage![civId], spy.id, state.turn, roll);
+    state = { ...state, espionage: { ...state.espionage, [civId]: outcome.state } };
+    if (outcome.exposed) {
+      bus.emit('espionage:double-agent-exposed', {
+        ownerCivId: civId, captorCivId: outcome.exposed.captorCivId, spyId: spy.id, spyName: spy.name,
+        falseReportCount: outcome.exposed.falseReportCount, turnsTurned: outcome.exposed.turnsTurned,
       });
+    } else {
+      bus.emit('espionage:debrief-clean', { civId, spyId: spy.id, spyName: spy.name });
     }
   }
   return state;
@@ -245,6 +290,15 @@ function applySpyTurnEvents(
         const result = spy?.targetCivId && spy?.targetCityId
           ? resolveMissionResult(evt.missionType!, spy.targetCivId, spy.targetCityId, state, civId, evt.spyId)
           : {};
+        // A double agent's reports home lie (its other missions still work). Only the persisted report is skewed;
+        // `noteFalseReport` remembers which one so a debrief that exposes the spy can strike it.
+        const lying = civEspBefore.spies[evt.spyId]?.feedsFalseIntel === true;
+        const lieRng = createSimulationRng(state, { domain: 'double-agent-report', actorId: evt.spyId, eventId: evt.missionType });
+        const noteFalseReport = (kind: FalseReportKind, key: string): void => {
+          if (!lying) return;
+          updatedEsp = recordFalseReport(updatedEsp, evt.spyId, { kind, key, turn: state.turn });
+          state.espionage![civId] = updatedEsp;
+        };
 
         bus.emit('espionage:mission-succeeded', {
           civId, spyId: evt.spyId, missionType: evt.missionType!,
@@ -576,10 +630,11 @@ function applySpyTurnEvents(
               ...updatedEsp,
               signalsIntelligence: {
                 ...(updatedEsp.signalsIntelligence ?? {}),
-                [targetCivId]: { turn: state.turn, units: result.nearbyUnits },
+                [targetCivId]: { turn: state.turn, units: lying ? falsifyUnitSightings(result.nearbyUnits, lieRng) : result.nearbyUnits },
               },
             };
             state.espionage![civId] = updatedEsp;
+            noteFalseReport('signals', targetCivId);
           }
         }
 
@@ -600,10 +655,11 @@ function applySpyTurnEvents(
               ...updatedEsp,
               troopObservations: {
                 ...(updatedEsp.troopObservations ?? {}),
-                [targetCityId]: { turn: state.turn, targetCivId, units: result.nearbyUnits },
+                [targetCityId]: { turn: state.turn, targetCivId, units: lying ? falsifyUnitSightings(result.nearbyUnits, lieRng) : result.nearbyUnits },
               },
             };
             state.espionage![civId] = updatedEsp;
+            noteFalseReport('troops', targetCityId);
             bus.emit('espionage:intel-report-acquired', {
               civId, spyId: evt.spyId, missionType: evt.missionType, targetCivId,
             });
@@ -618,23 +674,25 @@ function applySpyTurnEvents(
             // separate race-specific intel channel. Reads the target's CURRENT real
             // state (national projects, production queue), same as every other field
             // on this report; omitted entirely if the target has entered no race.
-            const worldRaceProgress = buildWorldRaceIntelSnapshot(state, targetCivId);
+            // A double agent does not report the world race at all rather than invent one.
+            const worldRaceProgress = lying ? null : buildWorldRaceIntelSnapshot(state, targetCivId);
             updatedEsp = {
               ...updatedEsp,
               intelReports: {
                 ...(updatedEsp.intelReports ?? {}),
                 [targetCivId]: {
                   turn: state.turn,
-                  completedTechCount: result.techProgress.completed.length,
+                  completedTechCount: lying ? falsifyFigure(result.techProgress.completed.length, lieRng) : result.techProgress.completed.length,
                   currentResearch: result.techProgress.currentResearch,
                   researchProgress: result.techProgress.researchProgress,
-                  treasury: result.treasury ?? 0,
+                  treasury: lying ? falsifyFigure(result.treasury ?? 0, lieRng) : result.treasury ?? 0,
                   treaties: result.treaties ?? [],
                   ...(worldRaceProgress ? { worldRaceProgress } : {}),
                 },
               },
             };
             state.espionage![civId] = updatedEsp;
+            noteFalseReport('intel', targetCivId);
             state = recordDominationPoliticalReport(state, civId, targetCivId);
             bus.emit('espionage:intel-report-acquired', {
               civId, spyId: evt.spyId, missionType: evt.missionType, targetCivId,
@@ -651,10 +709,11 @@ function applySpyTurnEvents(
               ...updatedEsp,
               resourceReports: {
                 ...(updatedEsp.resourceReports ?? {}),
-                [targetCityId]: { turn: state.turn, targetCivId, resources: result.resources },
+                [targetCityId]: { turn: state.turn, targetCivId, resources: lying ? falsifyResources(result.resources, lieRng) : result.resources },
               },
             };
             state.espionage![civId] = updatedEsp;
+            noteFalseReport('resources', targetCityId);
             bus.emit('espionage:intel-report-acquired', {
               civId, spyId: evt.spyId, missionType: evt.missionType, targetCivId,
             });
@@ -671,12 +730,13 @@ function applySpyTurnEvents(
                 ...(updatedEsp.diplomacyReports ?? {}),
                 [targetCivId]: {
                   turn: state.turn,
-                  relationships: result.relationships,
-                  tradePartners: result.tradePartners ?? [],
+                  relationships: lying ? falsifyRelationships(result.relationships) : result.relationships,
+                  tradePartners: lying ? [] : result.tradePartners ?? [],
                 },
               },
             };
             state.espionage![civId] = updatedEsp;
+            noteFalseReport('diplomacy', targetCivId);
             bus.emit('espionage:intel-report-acquired', {
               civId, spyId: evt.spyId, missionType: evt.missionType, targetCivId,
             });
@@ -758,16 +818,12 @@ function applySpyTurnEvents(
               state.civilizations[civId].diplomacy, targetCivId, -10,
             );
           }
-          const targetTechs = state.civilizations[targetCivId].techState.completed ?? [];
-          if (targetTechs.includes('counter-intelligence') || targetTechs.includes('digital-surveillance')) {
-            state.espionage = turnCapturedSpy(state.espionage!, { captorId: targetCivId, spyOwner: civId, spyId: evt.spyId, turn: state.turn });
-            bus.emit('espionage:spy-detected', {
-              detectingCivId: targetCivId,
-              spyOwner: civId,
-              spyId: evt.spyId,
-              cityId: originalSpy?.targetCityId ?? '',
-            });
-          }
+        }
+        // The owner is told of the capture, so it may know the spy could have been turned (the debrief cue).
+        // Turning itself happens at the start of the captor's next espionage turn (turnEligibleCapturedSpiesForCiv).
+        if (updatedEsp.spies[evt.spyId]) {
+          updatedEsp = { ...updatedEsp, spies: { ...updatedEsp.spies, [evt.spyId]: { ...updatedEsp.spies[evt.spyId], capturedOnTurn: state.turn } } };
+          state.espionage![civId] = updatedEsp;
         }
         bus.emit('espionage:spy-captured', {
           capturingCivId: targetCivId ?? '', spyOwner: civId, spyId: evt.spyId,
@@ -876,7 +932,8 @@ function applyPassiveCaptureDetection(state: GameState, civId: string, bus: Even
           ...state.espionage![civId],
           spies: {
             ...state.espionage![civId].spies,
-            [spyId]: { ...spy, status: 'captured', infiltrationCityId: null, targetCivId: null },
+            // The captor stays recorded (as for a capture on a mission), so it can turn the spy next turn.
+            [spyId]: { ...spy, status: 'captured', infiltrationCityId: null, capturedOnTurn: state.turn },
           },
         },
       },
@@ -889,14 +946,6 @@ function applyPassiveCaptureDetection(state: GameState, civId: string, bus: Even
         state.civilizations[civId].diplomacy = modifyRelationship(
           state.civilizations[civId].diplomacy, capturedById, -10,
         );
-      }
-      const targetTechs = state.civilizations[capturedById].techState.completed ?? [];
-      if (targetTechs.includes('counter-intelligence') || targetTechs.includes('digital-surveillance')) {
-        state.espionage = turnCapturedSpy(state.espionage!, { captorId: capturedById, spyOwner: civId, spyId, turn: state.turn });
-        bus.emit('espionage:spy-detected', {
-          detectingCivId: capturedById, spyOwner: civId, spyId,
-          cityId: spy.infiltrationCityId ?? '',
-        });
       }
     }
     bus.emit('espionage:spy-captured', { capturingCivId: capturedById ?? '', spyOwner: civId, spyId });
@@ -1038,6 +1087,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
 
   for (const civId of Object.keys(state.espionage!)) {
     state = turnEligibleCapturedSpiesForCiv(state, civId, bus);
+    state = resolveDueDebriefsForCiv(state, civId, bus);
 
     state.espionage![civId] = pruneDetectedThreats(state.espionage![civId], state.turn);
     const civEspBefore: EspionageCivState = state.espionage![civId];

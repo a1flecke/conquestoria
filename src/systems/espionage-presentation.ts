@@ -17,7 +17,9 @@
  * mutation, mission, counterintelligence or turn modules.
  */
 export {
+  DEBRIEF_TURNS,
   getAvailableMissions,
+  getDebriefDenial,
   getMissionDuration,
   missionRequiresPlacedSpy,
   PROMOTION_XP_THRESHOLD,

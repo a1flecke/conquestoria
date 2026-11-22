@@ -16,6 +16,8 @@ import {
   routeSpyExpelled,
   routeSpyPromoted,
   routeSpyTurned,
+  routeDoubleAgentExposed,
+  routeDebriefClean,
   routeWentPublic,
 } from '@/ui/notification-routes/espionage-routes';
 import type { PresentationRegistrar } from '@/presentation/register-all';
@@ -69,6 +71,12 @@ export const registerEspionagePresentation: PresentationRegistrar = (bus, ctx) =
     }),
     bus.on('espionage:spy-detected', event => {
       routeSpyTurned(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('espionage:double-agent-exposed', event => {
+      routeDoubleAgentExposed(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('espionage:debrief-clean', event => {
+      routeDebriefClean(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
     bus.on('espionage:spy-promoted', event => {
       routeSpyPromoted(ctx.session.getState(), event, ctx.notifier.deliver);

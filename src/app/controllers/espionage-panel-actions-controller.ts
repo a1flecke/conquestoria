@@ -14,7 +14,7 @@ import { createEspionageTargetPicker } from '@/ui/espionage-target-picker';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import {
   embedSpy, recallSpy, runCounterIntelSweep, SWEEP_DENIAL_MESSAGES, getAvailableMissions, getMissionStartDenial, missionRequiresPlacedSpy,
-  START_MISSION_FAILURE_MESSAGES, unembedSpy, verifyAgent,
+  START_MISSION_FAILURE_MESSAGES, unembedSpy, startDebrief, DEBRIEF_DENIAL_MESSAGES, DEBRIEF_TURNS,
 } from '@/systems/espionage-system';
 import {
   getRemoteMissionTargetMode, getRemoteMissionTargetsForViewer, startMissionForCiv,
@@ -164,14 +164,17 @@ export function createEspionagePanelActionsController(
         deps.router.open('espionage');
         deps.showNotification('Spy recalled.', 'info');
       },
-      onVerifyAgent: (spyId) => {
-        const currentPlayer = deps.session.getState().currentPlayer;
-        deps.session.commit({
-          ...deps.session.getState(),
-          espionage: { ...deps.session.getState().espionage, [currentPlayer]: verifyAgent(deps.session.getState().espionage![currentPlayer], spyId) },
-        });
+      onDebriefAgent: (spyId) => {
+        const state = deps.session.getState();
+        const currentPlayer = state.currentPlayer;
+        const result = startDebrief(state.espionage![currentPlayer], spyId, state.turn);
+        if (!result.ok) {
+          deps.showNotification(DEBRIEF_DENIAL_MESSAGES[result.reason], 'warning');
+          return;
+        }
+        deps.session.commit({ ...state, espionage: { ...state.espionage, [currentPlayer]: result.state } });
         deps.router.open('espionage');
-        deps.showNotification('Agent verified and cleared.', 'success');
+        deps.showNotification(`Debrief started. The spy will stand down for ${DEBRIEF_TURNS} turns while it is checked.`, 'info');
       },
       onExfiltrate: (spyId) => {
         const ownerEsp = deps.session.getState().espionage?.[deps.session.getState().currentPlayer];

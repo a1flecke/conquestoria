@@ -177,9 +177,41 @@ export function routeSpyTurned(
   const spy = state.espionage?.[event.spyOwner]?.spies[event.spyId];
   const city = event.cityId ? state.cities[event.cityId] : undefined;
   const where = city ? ` in ${city.name}` : '';
-  const message = `Your counterintelligence turned ${spy?.name ?? 'an enemy spy'} into a double agent${where}. They will feed false intelligence to their old masters.`;
+  const message = `Your counterintelligence turned ${spy?.name ?? 'an enemy spy'} into a double agent${where}. The intelligence reports it sends home will be false until its masters debrief it.`;
   for (const { civId } of getEspionageNotificationAudience(state, { type: 'espionage:spy-detected', ...event })) {
     sink(civId, message, 'success');
+  }
+}
+
+// A debrief exposed a double agent. The owner learns who turned it and that its false reports were struck; the
+// captor learns only that its agent was burned.
+export function routeDoubleAgentExposed(
+  state: GameState,
+  event: GameEvents['espionage:double-agent-exposed'],
+  sink: NotificationSink,
+): void {
+  const captorName = state.civilizations[event.captorCivId]?.name ?? 'a rival';
+  const ownerName = state.civilizations[event.ownerCivId]?.name ?? 'its masters';
+  const turns = event.turnsTurned === 1 ? '1 turn' : `${event.turnsTurned} turns`;
+  const reports = event.falseReportCount === 1 ? '1 false report has' : `${event.falseReportCount} false reports have`;
+  for (const { civId, role } of getEspionageNotificationAudience(state, { type: 'espionage:double-agent-exposed', ...event })) {
+    if (role === 'actor') {
+      const struck = event.falseReportCount > 0 ? ` ${reports} been struck from your files.` : '';
+      sink(civId, `Debrief: ${event.spyName} was a double agent for ${captorName} for ${turns}.${struck} The spy is loyal again.`, 'warning');
+    } else {
+      sink(civId, `Our double agent ${event.spyName} has been exposed by ${ownerName}. Its reports will be true again.`, 'info');
+    }
+  }
+}
+
+// A debrief that found nothing. Worded so it never promises the spy is clean: a debrief can miss a double agent.
+export function routeDebriefClean(
+  state: GameState,
+  event: GameEvents['espionage:debrief-clean'],
+  sink: NotificationSink,
+): void {
+  for (const { civId } of getEspionageNotificationAudience(state, { type: 'espionage:debrief-clean', ...event })) {
+    sink(civId, `Debrief of ${event.spyName} found nothing suspicious. The spy is back at work.`, 'info');
   }
 }
 
@@ -327,4 +359,6 @@ export const ESPIONAGE_NOTIFICATION_ROUTES: {
   'espionage:operation-landed': routeOperationLanded,
   'espionage:incident-traced': routeIncidentTraced,
   'espionage:went-public': routeWentPublic,
+  'espionage:double-agent-exposed': routeDoubleAgentExposed,
+  'espionage:debrief-clean': routeDebriefClean,
 };

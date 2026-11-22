@@ -98,7 +98,7 @@ const BUILDING_DEFINITIONS: Record<string, Building> = {
     id: 'security-bureau', name: 'Security Bureau', category: 'espionage',
     yields: { food: 0, production: 0, gold: 0, science: 0 },
     productionCost: 120,
-    description: 'Raises counter-intelligence (CI) by 30 each turn and makes captured spies 50% less likely to be turned. Bonus halves when Signals Intelligence is researched.',
+    description: 'Raises counter-intelligence (CI) by 30 each turn and makes your own spies, when captured, 50% less likely to be turned. Bonus halves when Signals Intelligence is researched.',
     techRequired: 'cold-war-networks',
     defensiveEspionageAiValue: 40,
     pacing: { band: 'infrastructure', role: 'advanced-counter-intelligence', impact: 1.2, scope: 'city', snowball: 1, urgency: 1, situationality: 1.1, unlockBreadth: 1 },
