@@ -17,6 +17,7 @@ import { getAiCrisisRemedyReserve } from './ai-crisis-response';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { createOperationalRouting, getOperationalRoute } from './ai-operational-routing';
 import { classifyOwner, majorCivWarOpponentIds } from '@/core/owner-kind';
+import { getVisibility } from '@/systems/fog-of-war';
 import { mapDistance } from '@/systems/hex-utils';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
@@ -262,14 +263,18 @@ function minorCivPlanTarget(state: GameState, plan: AIStrategicPlan): string | u
   return owner && classifyOwner(owner) === 'minor' ? owner : undefined;
 }
 
-function hasRoutedCaptureUnit(state: GameState, plan: AIStrategicPlan): boolean {
+function hasRoutedCaptureUnit(state: GameState, plan: AIStrategicPlan, requireStaging = false): boolean {
   if (plan.target.kind !== 'city') return false;
   const destination = plan.target.lastKnownPosition;
+  const visibility = state.civilizations[plan.actorId].visibility;
+  if (requireStaging && getVisibility(visibility, destination) !== 'visible') return false;
   const routing = createOperationalRouting();
   return plan.assignedUnitIds.some(unitId => {
     const unit = state.units[unitId];
-    return unit?.owner === plan.actorId && !unit.transportId && getAIStrategicRoles(unit.type).includes('capture')
-      && Boolean(getOperationalRoute(state, unit, destination, routing));
+    if (unit?.owner !== plan.actorId || unit.transportId || !getAIStrategicRoles(unit.type).includes('capture')
+      || (requireStaging && mapDistance(state.map, unit.position, destination) !== 1)) return false;
+    const route = getOperationalRoute(state, unit, destination, routing);
+    return route !== null && (!requireStaging || route.length === 2);
   });
 }
 
@@ -287,8 +292,12 @@ export function applyAiCityStateWar(
   if (!plan || plan.objective !== 'capture' || !['advancing', 'attacking'].includes(plan.phase)
     || (state.opponentAI?.migrationGraceRoundsRemaining ?? 0) > 0) return state;
   const targetId = minorCivPlanTarget(state, plan);
-  if (!targetId || !canStartAiCityStateConquest(state, civId, targetId, personality, posture)
-    || !hasRoutedCaptureUnit(state, plan)) return state;
+  if (!targetId || !canStartAiCityStateConquest(state, civId, targetId, personality, posture)) return state;
+  // After a settlement, another route from afar is the same bet. Wait until an
+  // assigned capture unit has reached the approach and can see the way into the city.
+  const settledBefore = state.civilizations[civId].diplomacy.events.some(event =>
+    event.type === 'peace_made' && event.otherCiv === targetId);
+  if (!hasRoutedCaptureUnit(state, plan, settledBefore)) return state;
   const result = setMinorCivWarState(state, civId, targetId, true, bus);
   return result.ok ? result.state : state;
 }
