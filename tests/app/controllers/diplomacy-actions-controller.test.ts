@@ -9,6 +9,7 @@ import { signTreaty } from '@/systems/diplomacy-treaties';
 import { ALLIANCE_TECHS } from '@/systems/diplomacy-actions';
 import { DIPLOMATIC_ACTION_DENIAL_MESSAGES, DIPLOMATIC_REQUEST_DENIAL_MESSAGES } from '@/systems/diplomacy-system';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { getMarketProcurementPolicy, refreshMarketOffers, setMarketProcurementPolicy } from '@/systems/resource-market-offers';
 import * as saveManager from '@/storage/save-manager';
 import type { City, GameState, HexCoord } from '@/core/types';
 import {
@@ -569,6 +570,34 @@ describe('DiplomacyActionsController', () => {
   });
 
   describe('handleEstablishRoute', () => {
+    it.each([
+      { name: 'editing the floor', edits: { treasuryFloor: 32 }, floor: 32, budget: 48 },
+      { name: 'keeping the policy', edits: {}, floor: 27, budget: 48 },
+      { name: 'removing the budget', edits: { roundBudget: null }, floor: 27, budget: undefined },
+    ])('preserves prior spend and the empire price cap when $name', ({ edits, floor, budget }) => {
+      const { state } = makeFixture('establish-route');
+      const destination = Object.keys(state.cities)[0];
+      const start = Object.values(state.units).find(unit => unit.owner === 'player')!.position;
+      const origin = placeCity(state, 'player-city', 'player', start);
+      const trader = createUnit('caravan', 'player', start, state.idCounters);
+      state.units[trader.id] = trader;
+      for (const key of Object.keys(state.map.tiles)) state.civilizations.player.visibility.tiles[key] = 'visible';
+      const policy = { maxUnitPrice: 15, treasuryFloor: 27, roundBudget: 48, spentThisTurn: 35 };
+      const { deps, controller } = build(setMarketProcurementPolicy(refreshMarketOffers(state), 'player', policy));
+
+      controller.handleEstablishRoute(trader.id);
+      const onEstablish = vi.mocked(openEstablishRoutePanel).mock.calls[0]![3];
+      deps.session.commit(setMarketProcurementPolicy(deps.session.getState(), 'player', { ...policy, spentThisTurn: 39 }));
+      const orders = [{ goodId: 'resource:iron' as const, targetQuantity: 6, maxUnitPrice: 9 }];
+      onEstablish(destination, origin.id, 'commerce', { procurement: { orders }, detourRounds: 2, ...edits });
+
+      const result = deps.session.getState();
+      expect(result.marketplace?.tradeRoutes.find(route => route.toCityId === destination)?.procurement?.orders).toEqual(orders);
+      expect(getMarketProcurementPolicy(result, 'player')).toEqual({
+        maxUnitPrice: 15, treasuryFloor: floor, roundBudget: budget, spentThisTurn: 39,
+      });
+    });
+
     it('refuses to open the chooser from a stale route setup action for a spent trader', () => {
       const { state } = makeFixture('spent-trader');
       const start = Object.values(state.units).find(unit => unit.owner === 'player')!.position;
