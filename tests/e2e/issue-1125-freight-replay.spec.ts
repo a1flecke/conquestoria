@@ -188,6 +188,8 @@ test('loaded freight stays paused or resumed after a same-turn reload', async ({
 });
 
 test('City cancellation delivers paid cargo and allows the trader to start a new coal route', async ({ page }) => {
+  // CI reached turn 20 of this 12-turn replay with two reloads in the 30-second default.
+  test.setTimeout(60_000);
   await page.goto('/?scenario=freight-strait-b');
   const open = page.getByRole('button', { name: 'Freight investment', exact: true });
   const investment = page.getByRole('dialog', { name: 'Freight investment' });
