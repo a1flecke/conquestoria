@@ -1,0 +1,28 @@
+{
+  "id": "swordsman",
+  "family": "biped",
+  "prompt": {
+    "name": "Swordsman",
+    "look": "A medieval swordsman: a friendly adult man with a square jaw, short brown beard, brown eyes and strong eyebrows, a riveted steel helmet with a nose guard, a short-sleeved chainmail shirt whose mail hem shows below the tabard at mid-thigh, leather bracers on bare forearms, a brown leather belt with a brass buckle, grey trousers and calf-high brown leather boots, a straight steel arming sword with a brass cross-guard in his right hand, a large round steel shield with a dark metal rim, rivets and a raised central boss on his left arm, and a bold red tabard worn over the mail on his chest and back.",
+    "team_area": "his tabard",
+    "identity": "the same face and beard, riveted steel helmet with its nose guard, chainmail, red tabard, belt, bracers, grey trousers, boots, arming sword and large round steel shield",
+    "weapon_pose": "The large round shield is on his left arm at the front of his body (towards the right of the image), facing right: it reaches from just under his chin down to his hip, and its lower edge stays above the hem of the tabard. His sword arm is held out in front of the shield at chest height, gripping the sword at the cross-guard, with the blade rising almost straight up to the right of the shield, clear of it with background visible between them. The sword is nowhere near the ground.",
+    "attack_frames": 6,
+    "attack": "(1) ready stance, sword raised, shield in front of the chest; (2) anticipation: weight shifting back, sword drawn back behind his shoulder; (3) wind-up: he steps forward and raises the sword high overhead; (4) the cut: the sword sweeps down and forward to the right over the top of the shield, his arm extended towards the right; (5) follow-through: the blade low and out to the right beyond the shield, body leaning forward, front knee bent; (6) recover to the ready stance. The shield stays on his left arm in front of his chest in every frame, and the blade stays visible, never hidden behind the shield. No motion arc or trail.",
+    "damage_gear": "a dented helmet and a scuffed, dented shield",
+    "damage_gear_critical": "a cracked helmet, a torn tabard, a nicked sword and a shield with a cracked rim, still on his arm",
+    "defeat_prop": "the sword still held loosely in his hand and the shield still on his arm"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 140 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",    "file": "a", "cells": 1, "fps": 4 },
+    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": { "sources": ["a", "b#0", "b#1", "b#2", "b#3"], "shafts": 0, "stride_deg": 24, "knee_bend": 14, "foot_level": 0.7 } },
+    { "state": "attack",  "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "restFrames": [0, 5] },
+    { "state": "hit",     "file": "d", "cells": 5, "grid": [3, 2], "fps": 8, "restFrames": [0, 4], "loop": false },
+    { "state": "defeat",  "file": "e", "cells": 5, "grid": [3, 2], "fps": 5, "restFrames": [0], "loop": false }
+  ]
+}
