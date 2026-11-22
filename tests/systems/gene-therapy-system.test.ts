@@ -2,8 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   chargeUnitsOnGeneTherapyResearch,
   applyGeneTherapyRecharge,
+  isGeneTherapyEligibleUnitType,
 } from '@/systems/gene-therapy-system';
 import { applyResearchCompletionConsequences } from '@/systems/tech-completion-system';
+import { TRAINABLE_UNITS } from '@/systems/city-unit-catalog';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { EventBus } from '@/core/event-bus';
 import type { GameState, Unit } from '@/core/types';
 
@@ -45,6 +48,33 @@ function makeState(units: Record<string, Unit>, civUnitIds: string[]): GameState
     },
   } as unknown as GameState;
 }
+
+describe('isGeneTherapyEligibleUnitType — the one definition of "gene therapy applies to this unit"', () => {
+  // Catalog-derived, never a hand-kept roster: every trainable strength-0 unit is excluded,
+  // every trainable combat unit is included. The research charger, production completion
+  // and any future writer must all consume this predicate, so a new unit type cannot be
+  // silently armed on one path and not the other.
+  const strengthZeroTrainable = TRAINABLE_UNITS
+    .map(entry => entry.type)
+    .filter(type => (UNIT_DEFINITIONS[type]?.strength ?? 0) <= 0);
+  const combatTrainable = TRAINABLE_UNITS
+    .map(entry => entry.type)
+    .filter(type => (UNIT_DEFINITIONS[type]?.strength ?? 0) > 0);
+
+  it('excludes every trainable strength-0 unit (the advertised "Gene Therapy does not apply" set)', () => {
+    expect(strengthZeroTrainable.length).toBeGreaterThan(3);
+    for (const type of strengthZeroTrainable) {
+      expect(isGeneTherapyEligibleUnitType(type), `${type} is not a gene therapy unit`).toBe(false);
+    }
+  });
+
+  it('includes every trainable combat unit', () => {
+    expect(combatTrainable.length).toBeGreaterThan(10);
+    for (const type of combatTrainable) {
+      expect(isGeneTherapyEligibleUnitType(type), `${type} is a gene therapy unit`).toBe(true);
+    }
+  });
+});
 
 describe('chargeUnitsOnGeneTherapyResearch', () => {
   it('sets geneTherapyReady:true on every combat unit (strength > 0) owned by the civ', () => {
@@ -146,6 +176,17 @@ describe('applyGeneTherapyRecharge', () => {
     const result = applyGeneTherapyRecharge(state, 'p1');
 
     expect(result.units.warrior1.geneTherapyReady).toBe(false);
+  });
+
+  it('does not re-arm a strength-0 civilian carrying a stale false flag (the pre-fix save shape)', () => {
+    const state = makeState(
+      { settler1: makeUnit({ id: 'settler1', type: 'settler', owner: 'p1', geneTherapyReady: false }) },
+      ['settler1'],
+    );
+
+    const result = applyGeneTherapyRecharge(state, 'p1');
+
+    expect(result.units.settler1.geneTherapyReady, 'a civilian never re-arms, whatever a buggy writer left behind').toBe(false);
   });
 
   it('does not affect a unit with geneTherapyReady:undefined', () => {

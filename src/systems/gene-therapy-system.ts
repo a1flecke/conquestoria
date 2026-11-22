@@ -1,5 +1,19 @@
-import type { GameState, Unit } from '@/core/types';
+import type { GameState, Unit, UnitType } from '@/core/types';
 import { UNIT_DEFINITIONS } from './unit-definitions';
+
+/**
+ * The ONE definition of "gene therapy applies to this unit type": combat units only
+ * (strength > 0). Both arming writers — `chargeUnitsOnGeneTherapyResearch` (research
+ * completion) and `completeUnitProduction` (units trained after the tech) — consume this
+ * predicate, so no path can arm a unit type the other excludes. Strength-0 civilians
+ * (settler, worker, caravan, expedition, cyber_unit, transports) are never flagged —
+ * `UNIT_DESCRIPTIONS.cyber_unit` explicitly says Gene Therapy does not apply, and the
+ * combat resolver's gene-therapy branch runs BEFORE the civilian-capture branch, so an
+ * armed civilian would be un-capturable rather than captured.
+ */
+export function isGeneTherapyEligibleUnitType(type: UnitType): boolean {
+  return (UNIT_DEFINITIONS[type]?.strength ?? 0) > 0;
+}
 
 /**
  * Gene Therapy's promise: a unit survives "a lethal hit once per cooldown". The one answer for any lethal damage
@@ -23,7 +37,7 @@ export function chargeUnitsOnGeneTherapyResearch(state: GameState, civId: string
   for (const unitId of civ.units) {
     const unit = units[unitId];
     if (!unit) continue;
-    if ((UNIT_DEFINITIONS[unit.type]?.strength ?? 0) <= 0) continue;
+    if (!isGeneTherapyEligibleUnitType(unit.type)) continue;
     if (units === state.units) units = { ...state.units };
     units[unitId] = { ...unit, geneTherapyReady: true };
   }
@@ -58,6 +72,9 @@ export function applyGeneTherapyRecharge(
   for (const unitId of unitIds ?? civ.units) {
     const unit = units[unitId];
     if (!unit || unit.geneTherapyReady !== false) continue;
+    // The eligibility predicate guards every writer of this flag: a strength-0 civilian
+    // must never re-arm, whatever a buggy writer (or a hand-edited save) left behind.
+    if (!isGeneTherapyEligibleUnitType(unit.type)) continue;
     const posKey = `${unit.position.q},${unit.position.r}`;
     const tile = state.map.tiles[posKey];
     if (!cityPositionsSet.has(posKey) || tile?.owner !== civId) continue;

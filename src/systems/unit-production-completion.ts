@@ -10,6 +10,7 @@ import { consumeRecoveredHarnesses } from '@/systems/rogue-elephant-host-system'
 import { consumeHerdingInsight } from '@/systems/stampede-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { isGeneTherapyEligibleUnitType } from '@/systems/gene-therapy-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { findCityUnitSpawnTile } from '@/systems/unit-spawn-placement';
@@ -74,7 +75,13 @@ export function completeUnitProduction(
   const movementBonus = getTrainedMovementBonus(next, civId, unitType);
   unit.movementPointsLeft += movementBonus - (unit.movementBonus ?? 0);
   unit.movementBonus = movementBonus || undefined;
-  if (civ.techState.completed.includes('gene-therapy')) {
+  // Gene Therapy applies to combat units only (`isGeneTherapyEligibleUnitType`, the same
+  // predicate the research-completion charger uses): a strength-0 civilian must stay
+  // `undefined`, never `true`/`false`. The resolver's gene-therapy branch runs BEFORE the
+  // civilian-capture branch, so a flagged settler/worker/caravan would survive lethal hits
+  // and could never be captured — and a `false` flag re-arms through the idle-city recharge
+  // loop one round after the civilian parks in a city.
+  if (civ.techState.completed.includes('gene-therapy') && isGeneTherapyEligibleUnitType(unitType)) {
     unit.geneTherapyReady = city.buildings.includes('gene_therapy_clinic');
   }
   const isLandCombatUnit = (unitDef?.domain ?? 'land') === 'land'

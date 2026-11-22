@@ -9,6 +9,7 @@ import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
 import { createEspionageCivState } from '@/systems/espionage-system';
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
+import { applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { isNavalTransportUnit } from '@/systems/transport-system';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -331,5 +332,79 @@ describe('the guard is not vacuous (#1202)', () => {
     const changed = (Object.keys(sabotaged) as Array<keyof GameState>).filter(key => sabotaged[key] !== state[key]);
     const allowed = new Set([...BASE_FOOTPRINT, ...FOOTPRINT.ordinary]);
     expect(changed.filter(key => !allowed.has(key))).toContain('embargoes');
+  });
+});
+
+describe('completeUnitProduction — gene therapy charges only the units it applies to', () => {
+  // Catalog-derived, never a hand-kept roster: the strength-0 trainable set is exactly the
+  // set `chargeUnitsOnGeneTherapyResearch` excludes ("Strength-0 civilians ... are left
+  // undefined — UNIT_DESCRIPTIONS.cyber_unit explicitly says Gene Therapy does not apply").
+  const strengthZeroTrainable = TRAINABLE_UNITS
+    .map(entry => entry.type)
+    .filter(type => (UNIT_DEFINITIONS[type]?.strength ?? 0) <= 0);
+  const combatTrainable = TRAINABLE_UNITS
+    .map(entry => entry.type)
+    .filter(type => (UNIT_DEFINITIONS[type]?.strength ?? 0) > 0);
+
+  function fixtureWithGeneTherapy(type: UnitType, seed: string): Fixture {
+    const fixture = fixtureFor(type, seed);
+    fixture.state.civilizations[fixture.civId].techState.completed.push('gene-therapy');
+    fixture.state.cities[fixture.cityId].buildings.push('gene_therapy_clinic');
+    return fixture;
+  }
+
+  it('has both sets populated — the derivation is not vacuous', () => {
+    expect(strengthZeroTrainable.length).toBeGreaterThan(3);
+    expect(combatTrainable.length).toBeGreaterThan(10);
+  });
+
+  it.each(combatTrainable.map(type => [type] as const))(
+    '%s: produced in a Gene Therapy Clinic city starts pre-charged (the clinic\'s advertised effect)',
+    type => {
+      const { state, civId, cityId } = fixtureWithGeneTherapy(type, `gene-therapy-clinic-${type}`);
+      const completion = completeUnitProduction(state, { civId, cityId, unitType: type });
+      if (!completion.ok) throw new Error(`${type} did not complete: ${completion.reason}`);
+      expect(completion.unit.geneTherapyReady, `${type} starts pre-charged from a clinic city`).toBe(true);
+    },
+  );
+
+  it('a combat unit produced post-tech WITHOUT the clinic starts uncharged but eligible — the idle-city recharge loop re-arms it', () => {
+    const type = combatTrainable[0]!;
+    const { state, civId, cityId } = fixtureFor(type, 'gene-therapy-no-clinic');
+    state.civilizations[civId].techState.completed.push('gene-therapy');
+
+    const completion = completeUnitProduction(state, { civId, cityId, unitType: type });
+    if (!completion.ok) throw new Error(completion.reason);
+    expect(completion.unit.geneTherapyReady, 'uncharged, but the modification is present').toBe(false);
+
+    // Prerequisite: the produced unit stands on its own city tile, so the recharge path is live.
+    expect(completion.unit.position).toEqual(state.cities[cityId].position);
+    expect(state.map.tiles[hexKey(state.cities[cityId].position)]?.owner).toBe(civId);
+    const recharged = applyGeneTherapyRecharge(completion.state, civId, [completion.unit.id]);
+    expect(recharged.units[completion.unit.id].geneTherapyReady, 'an eligible unit re-arms after an idle city round').toBe(true);
+  });
+
+  it.each(strengthZeroTrainable.map(type => [type] as const))(
+    '%s: a strength-0 civilian is never armed — not even from a Gene Therapy Clinic city',
+    type => {
+      const { state, civId, cityId } = fixtureWithGeneTherapy(type, `gene-therapy-civilian-${type}`);
+      const completion = completeUnitProduction(state, { civId, cityId, unitType: type });
+      if (!completion.ok) throw new Error(`${type} did not complete: ${completion.reason}`);
+      expect(completion.unit.geneTherapyReady, `${type} never carries the gene therapy flag`).toBeUndefined();
+    },
+  );
+
+  it('the round-end recharge loop never arms a produced civilian either (the second half of the defect)', () => {
+    const { state, civId, cityId } = fixtureWithGeneTherapy('settler', 'gene-therapy-civilian-recharge');
+    const completion = completeUnitProduction(state, { civId, cityId, unitType: 'settler' });
+    if (!completion.ok) throw new Error(completion.reason);
+
+    // Prerequisite: a parked settler idles on its own city tile — exactly where the recharge loop looks.
+    expect(completion.unit.position).toEqual(state.cities[cityId].position);
+    expect(completion.unit.hasMoved).toBe(false);
+    expect(completion.unit.hasActed).toBe(false);
+
+    const recharged = applyGeneTherapyRecharge(completion.state, civId, [completion.unit.id]);
+    expect(recharged.units[completion.unit.id].geneTherapyReady, 'a civilian never re-arms').toBeUndefined();
   });
 });
