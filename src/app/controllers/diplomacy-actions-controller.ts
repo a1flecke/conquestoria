@@ -46,7 +46,7 @@ import { proposeSettlement, acceptSettlementOffer } from '@/systems/settlement-s
 import { TREATY_LABELS } from '@/ui/notification-routes/diplomacy-routes';
 import { appeaseFaction, concedeToMovement } from '@/systems/faction-commands';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
-import { TRADE_ROUTE_DENIAL_MESSAGES } from '@/systems/trade-route-contract';
+import { getTradeRouteAssignmentReadiness, TRADE_ROUTE_DENIAL_MESSAGES } from '@/systems/trade-route-contract';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import {
   performMinorCivFestival,
@@ -347,7 +347,13 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   // section and selected-unit-info's Establish Route button trigger the exact same code
   // path (per ui-panels.md's Extracted UI Flows rule), not two copies that could drift.
   function handleEstablishRoute(caravanId: string): void {
-    openEstablishRoutePanel(deps.uiLayer, deps.session.getState(), caravanId, (toCityId, originCityId, mode, draft: RouteProcurementDraft | undefined) => {
+    const state = deps.session.getState();
+    const readiness = getTradeRouteAssignmentReadiness(state, caravanId, state.currentPlayer);
+    if (!readiness.ok) {
+      deps.showNotification(TRADE_ROUTE_DENIAL_MESSAGES[readiness.reason], 'warning');
+      return;
+    }
+    openEstablishRoutePanel(deps.uiLayer, state, caravanId, (toCityId, originCityId, mode, draft: RouteProcurementDraft | undefined) => {
       // #1500 MR03: the executor returns a typed refusal instead of throwing, so a stale chooser
       // callback (war declared, slot taken, off-turn) shows the entitled reason and mutates nothing.
       const before = deps.session.getState();

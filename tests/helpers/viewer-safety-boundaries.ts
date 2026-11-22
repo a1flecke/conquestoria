@@ -55,10 +55,7 @@ export const VIEWER_BOUNDARY_RULES: readonly RuleSpec[] = [
     // rendering surface, so this rule governs only the modules that draw or interpret input.
     scope: ['src/ui/', 'src/presentation/', 'src/renderer/', 'src/input/'],
     pattern: /from\s+['"]@\/ai\//,
-    allow: {
-      'src/ui/selected-unit-info.ts': "static unit-role catalog (hasAITradeRole) of the viewer's own unit",
-      'src/ui/city-panel.ts': "static unit-role catalog (hasAITradeRole) of the viewer's own unit",
-    },
+    allow: {},
   },
   {
     rule: 'raw-movement-resolver',

@@ -14,7 +14,7 @@
  * in `routeDirection: 'positioning'`, earns no commerce income until it reaches that origin, and
  * `advanceRouteRunners` walks it there.
  */
-import type { City, GameState, TradeRoute, TradeRouteModeId, UnitType } from '@/core/types';
+import type { City, GameState, TradeRoute, TradeRouteModeId, Unit, UnitType } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getRouteLegRounds, getRoutePathBetween, isAtRouteServicePoint } from '@/systems/trade-route-travel';
@@ -53,7 +53,7 @@ export const TRADE_ROUTE_DENIAL_MESSAGES: Record<TradeRouteDenialReason, string>
   'not-a-trader': 'That unit cannot run a trade route.',
   'not-your-unit': 'That trade unit is not yours.',
   'not-your-turn': 'You can only assign routes on your own turn.',
-  'unit-unavailable': 'That trade unit has already acted this turn.',
+  'unit-unavailable': 'That trade unit has already acted this turn. It can establish a route next turn.',
   'already-committed': 'That trade unit is already committed to a route.',
   'no-origin': 'No city of yours has a free route slot.',
   'origin-unusable': 'That origin city has no free route slot.',
@@ -140,16 +140,33 @@ export function getEligibleTradeOrigins(state: GameState, caravanUnitId: string)
   return candidateOrigins(state, unit);
 }
 
+type TradeRouteAssignmentReadiness =
+  | { ok: true; unit: Unit }
+  | { ok: false; reason: 'unit-missing' | 'not-a-trader' | 'not-your-unit' | 'not-your-turn' | 'already-committed' | 'unit-unavailable' };
+
+/** Check the trader before choosing an origin or destination. */
+export function getTradeRouteAssignmentReadiness(
+  state: GameState,
+  caravanUnitId: string,
+  actingCivId: string,
+  automated = false,
+): TradeRouteAssignmentReadiness {
+  const unit = state.units[caravanUnitId];
+  if (!unit) return { ok: false, reason: 'unit-missing' };
+  if (!isTradeTraderType(unit.type)) return { ok: false, reason: 'not-a-trader' };
+  if (unit.owner !== actingCivId) return { ok: false, reason: 'not-your-unit' };
+  if (!automated && state.currentPlayer !== unit.owner) return { ok: false, reason: 'not-your-turn' };
+  if (unit.committedToRouteId) return { ok: false, reason: 'already-committed' };
+  if (unit.hasActed) return { ok: false, reason: 'unit-unavailable' };
+  return { ok: true, unit };
+}
+
 export function getTradeRouteEligibility(state: GameState, request: TradeRouteRequest): TradeRouteEligibility {
   const refuse = (reason: TradeRouteDenialReason): TradeRouteEligibility => ({ ok: false, reason });
 
-  const unit = state.units[request.caravanUnitId];
-  if (!unit) return refuse('unit-missing');
-  if (!isTradeTraderType(unit.type)) return refuse('not-a-trader');
-  if (unit.owner !== request.actingCivId) return refuse('not-your-unit');
-  if (!request.automated && state.currentPlayer !== unit.owner) return refuse('not-your-turn');
-  if (unit.committedToRouteId) return refuse('already-committed');
-  if (unit.hasActed) return refuse('unit-unavailable');
+  const readiness = getTradeRouteAssignmentReadiness(state, request.caravanUnitId, request.actingCivId, request.automated);
+  if (!readiness.ok) return readiness;
+  const { unit } = readiness;
 
   const destination = state.cities[request.toCityId];
   if (!destination) return refuse('destination-unknown');

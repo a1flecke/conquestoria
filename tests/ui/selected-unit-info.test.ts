@@ -4,7 +4,8 @@ import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/syste
 import type { GameState, HexCoord, UnitType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createNewGame } from '@/core/game-state';
-import { createUnit } from '@/systems/unit-lifecycle';
+import { createUnit, resetUnitTurn } from '@/systems/unit-lifecycle';
+import { resolveTradeOrigin } from '@/systems/trade-route-contract';
 import { foundCity } from '@/systems/city-system';
 import { registerCrisisForce } from '@/systems/crisis-force-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
@@ -3371,6 +3372,41 @@ describe('renderSelectedUnitInfo — Air Assault button (#543 Phase 2)', () => {
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'inf-1', { onStartAirAssault: vi.fn() });
 
     expect(findButtons(container).find(b => b.textContent === 'Air Assault')).toBeUndefined();
+  });
+});
+
+describe('selected trader route setup', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('explains the wait after a trader spends its action and offers route setup next turn', () => {
+    const state = createNewGame(undefined, 'spent-trade-unit', 'small');
+    const founder = Object.values(state.units).find(unit => unit.owner === state.currentPlayer && unit.type === 'settler')!;
+    const city = foundCity(founder.owner, founder.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations[founder.owner].cities.push(city.id);
+    const trader = {
+      ...createUnit('caravan', founder.owner, city.position, state.idCounters),
+      hasActed: true,
+      movementPointsLeft: 0,
+    };
+    state.units[trader.id] = trader;
+    expect(resolveTradeOrigin(state, trader)?.id).toBe(city.id);
+
+    const container = new MockElement('div');
+    const onEstablishRoute = vi.fn();
+    const render = () => renderSelectedUnitInfo(container as unknown as HTMLElement, state, trader.id, { onEstablishRoute });
+    const getEstablishButton = () => findButtons(container).find(button => button.textContent === 'Establish Route');
+    render();
+    expect(getEstablishButton()).toBeUndefined();
+    expect(collectAllText(container)).toContain('That trade unit has already acted this turn. It can establish a route next turn.');
+
+    state.units[trader.id] = resetUnitTurn(trader);
+    render();
+    const button = getEstablishButton();
+    expect(button?.disabled).toBe(false);
+    button!.click();
+    expect(onEstablishRoute).toHaveBeenCalledExactlyOnceWith(trader.id);
   });
 });
 

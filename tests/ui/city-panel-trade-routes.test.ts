@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createCityPanel } from '@/ui/city-panel';
+import { createUnit, resetUnitTurn } from '@/systems/unit-lifecycle';
 import { makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
 import type { GameState, HexCoord } from '@/core/types';
 
@@ -168,6 +169,34 @@ describe('city-panel Trade Routes section', () => {
     expect(btn).toBeTruthy();
     btn!.click();
     expect(onEstablishRoute).toHaveBeenCalledWith('caravan1');
+  });
+
+  it('shows when a spent local trader will be ready without prompting the player to train another', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed.push('trade-routes');
+    const trader = {
+      ...createUnit('caravan', city.owner, city.position, state.idCounters),
+      hasActed: true,
+      movementPointsLeft: 0,
+    };
+    state.units[trader.id] = trader;
+    const onEstablishRoute = vi.fn();
+    const render = () => createCityPanel(container, city, state, { ...baseCallbacks(), onEstablishRoute })
+      .querySelector('[data-section="trade-routes"]')!;
+    const getEstablishButton = (section: Element) => Array.from(section.querySelectorAll('button'))
+      .find(button => button.textContent === 'Establish Route');
+
+    const spentSection = render();
+    expect(spentSection.textContent).toContain('Route capacity: 0/1');
+    expect(getEstablishButton(spentSection)).toBeUndefined();
+    expect(spentSection.textContent).toContain('Caravan can establish a route next turn');
+    expect(spentSection.textContent).not.toContain('Train Caravan to start a new route.');
+
+    state.units[trader.id] = resetUnitTurn(trader);
+    const readySection = render();
+    expect(readySection.textContent).toContain('Caravan ready to establish a route');
+    getEstablishButton(readySection)!.click();
+    expect(onEstablishRoute).toHaveBeenCalledExactlyOnceWith(trader.id);
   });
 
   it('lets the owner manage an existing route before the technology unlocks new routes', () => {

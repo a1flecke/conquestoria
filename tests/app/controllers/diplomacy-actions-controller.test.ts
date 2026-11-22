@@ -568,6 +568,22 @@ describe('DiplomacyActionsController', () => {
   });
 
   describe('handleEstablishRoute', () => {
+    it('refuses to open the chooser from a stale route setup action for a spent trader', () => {
+      const { state } = makeFixture('spent-trader');
+      const start = Object.values(state.units).find(unit => unit.owner === 'player')!.position;
+      const trader = { ...createUnit('caravan', 'player', start, state.idCounters), hasActed: true };
+      state.units[trader.id] = trader;
+      const { deps, controller } = build(state);
+
+      controller.handleEstablishRoute(trader.id);
+
+      expect(openEstablishRoutePanel).not.toHaveBeenCalled();
+      expect(deps.showNotification).toHaveBeenCalledExactlyOnceWith(
+        'That trade unit has already acted this turn. It can establish a route next turn.',
+        'warning',
+      );
+    });
+
     it('opens the establish-route panel and wires establishment through to a real trade route', () => {
       const { state } = makeFixture('establish-route');
       const caravanId = 'caravan-1';

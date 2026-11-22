@@ -233,6 +233,14 @@ test('City cancellation saves a loaded return with its ETA and removes future pu
   await expect(investment).toContainText('5 imported coal in reserve');
   await expect(investment).toContainText('Coal is available for the next Factory fuel allocation');
   await investment.getByRole('button', { name: 'Close', exact: true }).click();
+
+  await clickVisibleHex(page, { q: 1, r: 5 });
+  const returningUnit = page.getByLabel('Selected unit details and actions (scroll for more)');
+  await expect(returningUnit).toContainText('Naval Trader');
+  await expect(returningUnit).toContainText('Moves: 0/3');
+  await expect(returningUnit).toContainText('It can establish a route next turn.');
+  await expect(returningUnit.getByRole('button', { name: 'Establish Route', exact: true })).toHaveCount(0);
+
   await tradeButton.click();
   await expect(route).toHaveCount(0);
 });

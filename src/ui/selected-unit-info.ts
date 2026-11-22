@@ -46,8 +46,7 @@ import { getRoadBlockerReason, formatRoadBlockerReason } from '@/systems/road-sy
 import { hexKey, mapDistance } from '@/systems/hex-utils';
 import { isVisible } from '@/systems/fog-of-war';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
-import { resolveFromCity } from '@/systems/trade-caravan-system';
-import { hasAITradeRole } from '@/ai/ai-unit-roles';
+import { getTradeRouteAssignmentReadiness, isTradeTraderType, resolveTradeOrigin, TRADE_ROUTE_DENIAL_MESSAGES } from '@/systems/trade-route-contract';
 import { canEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { getTransportCargo, getTransportCapacity, getTransportCargoUsed } from '@/systems/transport-system';
 import { calculateCivUnitMaintenance } from '@/systems/economy-system';
@@ -967,7 +966,7 @@ export function renderSelectedUnitInfo(
   }
 
   // Trade-unit actions (caravan + Trade Routes Overhaul (#553 MR1/4) Naval Trader line)
-  if (hasAITradeRole(unit.type) && unit.owner === state.currentPlayer) {
+  if (isTradeTraderType(unit.type) && unit.owner === state.currentPlayer) {
     if (unit.committedToRouteId) {
       const route = state.marketplace?.tradeRoutes.find(candidate => candidate.id === unit.committedToRouteId);
       const navalLeg = getNavalTradeLegLabel(unit);
@@ -984,18 +983,24 @@ export function renderSelectedUnitInfo(
         : `Committed to route (${movement})`;
       actionsDiv.appendChild(statusEl);
     } else if (callbacks.onEstablishRoute) {
-      const fromCity = resolveFromCity(state, unit);
-      const hasCapacity = fromCity !== null;
-      const btn = makeButton('Establish Route', '#e8c170');
-      if (!hasCapacity) {
-        btn.disabled = true;
-        btn.style.opacity = '0.5';
-        btn.style.cursor = 'not-allowed';
-        btn.title = 'No cities with available route capacity — build a Caravanserai or Marketplace to add slots';
+      const readiness = getTradeRouteAssignmentReadiness(state, unitId, state.currentPlayer);
+      if (!readiness.ok) {
+        const status = document.createElement('div');
+        status.style.cssText = 'font-size:12px;padding:8px 0;';
+        status.textContent = TRADE_ROUTE_DENIAL_MESSAGES[readiness.reason];
+        actionsDiv.appendChild(status);
       } else {
-        btn.addEventListener('click', () => callbacks.onEstablishRoute!(unitId));
+        const btn = makeButton('Establish Route', '#e8c170');
+        if (!resolveTradeOrigin(state, unit)) {
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+          btn.style.cursor = 'not-allowed';
+          btn.title = 'No cities with available route capacity — build a Caravanserai or Marketplace to add slots';
+        } else {
+          btn.addEventListener('click', () => callbacks.onEstablishRoute!(unitId));
+        }
+        actionsDiv.appendChild(btn);
       }
-      actionsDiv.appendChild(btn);
     }
   }
 
