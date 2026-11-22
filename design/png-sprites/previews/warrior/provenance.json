@@ -1,0 +1,19 @@
+{
+  "id": "warrior",
+  "status": "shipped: registered in STRIP_UNITS and exported with strips.py export (#1627, #759)",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-11-22",
+  "prompts": "Based on scripts/sprite-puppet/strip-rigs/warrior.json. The master came from a create-from-scratch prompt (a tribal stone-age warrior: leather headband, short dark beard, sleeveless rough-woven red tunic ending above the knee, leather wrist and shin wraps, tan sandals, a stone-headed wooden club held up clear of a small round hide shield on the left arm, two separate legs, flat magenta background, red only on the tunic). The damage sheet, attack strip, hit strip and defeat strip were each drawn in a separate message from the master as one 'Draw ONE image: the ... sheet' prompt per image, all on flat magenta, with the master attached each time; the hit and defeat prompts opened by saying they were a different image from any earlier one. Red appears only on the tunic so the team tint lands only there; stains and scratches are dark grey, brown, dark maroon or black. The club stays in his hand and the shield on his arm in every frame, including the defeat strip. The prompts ChatGPT actually ran were not captured verbatim.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). This art ships in the game; it is counted in the ledger family 'ChatGPT image generation (unit strips)' and this record is its provenance.",
+  "originals_committed": false,
+  "originals_note": "The downloaded originals are not committed (kept under ~/conquestoria-art-originals/strips/warrior). Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all five passed (PNG magic bytes, nothing after the image stream, clean decode, one frame). ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "None: every sheet was accepted on its first draw (all five came back on flat magenta, no checkerboard). Known caveats: the probe warns that the prone figure on the defeat sheet is about 186 px tall (under 300), accepted because that is the pose, not a zoom; the dark-maroon stain marks on the tunic in damage tiers 2 and 3 take a little team colour, so on a blue civilization they show as small red-pink dots that read as wounds.",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1086, 1448], "sha256": "8e15e8f6b5c697e212da7fe2569a60c46b3802603e0cba3319a42817906b55eb" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1254, 1254], "sha256": "43fb82129fb52f0f36de1382a60931c356e20b9e62b47cf014c46f00c0f46b23" },
+    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1536, 1024], "sha256": "e8eec3886ad4b3ac98127024426613ee8b64ab6d1bd54f71916aa75756ad0915" },
+    { "role": "hit reaction, 5 frames (3 + 2)", "file": "d", "size": [1536, 1024], "sha256": "bbd1f5524f0b6d8beae4b95998ca34c612a7903df1eddba4b14864d8d4af61ec" },
+    { "role": "defeat, 5 frames (3 + 2)", "file": "e", "size": [1536, 1024], "sha256": "3ddd3ac52cad1e30c0e1f0dd86f0723fabe58c7019bab7e7a6abd86c9dafc2bc" }
+  ]
+}

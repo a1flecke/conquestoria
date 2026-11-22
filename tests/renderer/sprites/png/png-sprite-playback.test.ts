@@ -125,7 +125,7 @@ describe('hasPngDeathClip', () => {
     expect(getPngUnitManifest('observation_balloon')).not.toBeNull();
     expect(hasPngDeathClip('observation_balloon')).toBe(true);
     expect(fromPuppetManifest(balloonManifest).clips.death).toBeUndefined();
-    expect(hasPngDeathClip('warrior')).toBe(false);
+    expect(hasPngDeathClip('galley')).toBe(false);
     expect(hasPngDeathClip('__proto__')).toBe(false);
   });
 });

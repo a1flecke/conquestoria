@@ -355,7 +355,8 @@ describe('sync() wrapper sizing', () => {
 
   it('wrapper has overflow:hidden to prevent label bleed', () => {
     const { overlay, mount } = mountOverlay();
-    overlay.sync(cam({ zoom: 1 }), [entity()], MAP, OPTS);
+    // A strip unit (a painted PNG, e.g. the warrior) deliberately uses overflow:visible, so use an SVG-only unit here.
+    overlay.sync(cam({ zoom: 1 }), [entity({ subtype: 'knight' })], MAP, OPTS);
     const wrapper = mount.querySelector('.cq-sprite-wrap')?.parentElement as HTMLElement | null;
     expect(wrapper).not.toBeNull();
     expect(wrapper!.style.overflow).toBe('hidden');
