@@ -13,10 +13,22 @@ function runBeastRewards(state: GameState, context: RoundPhaseContext): GameStat
   let newState = state;
   const { grossGoldByCiv } = context;
   if (newState.beasts) {
+    // A pending choice is only valid while it names a slain lair. A choice can go stale (a temporary hunt lair is
+    // removed by crisis cleanup, a lair is claimed) so it is discarded, never previewed or paid.
+    const hasSlainLair = (lairId: string): boolean =>
+      newState.beasts?.lairs[lairId]?.status === 'slain';
     for (const pending of [...(newState.beasts.pendingHoardChoices ?? [])]) {
-      if (newState.civilizations[pending.civId]?.isHuman) continue;
+      if (!hasSlainLair(pending.lairId) || newState.civilizations[pending.civId]?.isHuman) continue;
       const choice = chooseAiHoardChoice(getHoardChoicePreview(newState, pending.lairId, pending.civId));
       newState = applyHoardChoice(newState, pending.lairId, pending.civId, choice);
+    }
+    const beasts = newState.beasts;
+    const pendingChoices = beasts?.pendingHoardChoices;
+    if (beasts && pendingChoices) {
+      const validChoices = pendingChoices.filter(pending => hasSlainLair(pending.lairId));
+      if (validChoices.length !== pendingChoices.length) {
+        newState = { ...newState, beasts: { ...beasts, pendingHoardChoices: validChoices } };
+      }
     }
     for (const civId of Object.keys(newState.civilizations)) {
       if (!getCivilizationLiveness(newState, civId).living) continue;

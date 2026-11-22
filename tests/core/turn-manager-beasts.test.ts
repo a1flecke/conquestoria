@@ -7,6 +7,7 @@ import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { foundCity } from '@/systems/city-system';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { simTimeout } from '../helpers/sim-timeout';
+import { assertBeastLairIntegrity } from '../helpers/save-state-invariants';
 
 function completedTechsForEra(era: number): string[] {
   return Array.from({ length: Math.max(0, era - 1) }, (_, index) => index + 2)
@@ -157,6 +158,91 @@ describe('turn-manager hoard handling', () => {
     const withoutTrophy = processTurn(baseline, new EventBus());
     const delta = withTrophy.civilizations[me].gold - withoutTrophy.civilizations[me].gold;
     expect(delta).toBe(getClaimedTrophyGoldPerTurn(state, me));
+  });
+
+  it.each([
+    ['missing', 'AI'],
+    ['claimed', 'AI'],
+    ['missing', 'human'],
+    ['claimed', 'human'],
+  ] as const)('discards a %s lair choice for a %s without paying it', (invalidLair, actor) => {
+    const state = createNewGame('rome', 'beast-turn-seed', 'small', 'Stale Hoard Test');
+    const humanId = state.currentPlayer;
+    const aiCivId = Object.keys(state.civilizations).find(id => !state.civilizations[id].isHuman)!;
+    const staleCivId = actor === 'human' ? humanId : aiCivId;
+    const validLairId = 'lair-emerald_basilisk';
+    const staleLairId = 'stale-basilisk-lair';
+    const validChoice = { lairId: validLairId, civId: humanId };
+    const staleChoice = { lairId: staleLairId, civId: staleCivId };
+    state.beasts = {
+      mode: 'wild',
+      lairs: {
+        [validLairId]: {
+          id: validLairId, beastId: 'emerald_basilisk', position: { q: 10, r: 10 },
+          status: 'slain', strength: 0, unitIds: [], slainBy: humanId, slainTurn: 1,
+        },
+      },
+      sightingsByCiv: {},
+      pendingHoardChoices: [validChoice],
+    };
+    if (invalidLair === 'claimed') {
+      state.beasts.lairs[staleLairId] = {
+        ...state.beasts.lairs[validLairId], id: staleLairId, position: { q: 11, r: 10 },
+        status: 'claimed', claimedBy: humanId,
+      };
+    }
+    expect(state.civilizations[staleCivId]?.isHuman).toBe(actor === 'human');
+    expect(state.beasts.lairs[staleLairId]?.status).toBe(invalidLair === 'claimed' ? 'claimed' : undefined);
+    const baseline = structuredClone(state);
+    state.beasts.pendingHoardChoices = [staleChoice, validChoice];
+    expect(() => assertBeastLairIntegrity(state)).toThrow(/beast-lair-integrity/);
+
+    const next = processTurn(state, new EventBus());
+    const expected = processTurn(baseline, new EventBus());
+
+    expect(next.turn).toBe(state.turn + 1);
+    expect(next.civilizations[staleCivId].gold).toBe(expected.civilizations[staleCivId].gold);
+    expect(next.beasts?.pendingHoardChoices).toEqual([validChoice]);
+    expect(next.beasts?.lairs[staleLairId]).toEqual(expected.beasts?.lairs[staleLairId]);
+    assertBeastLairIntegrity(next);
+  });
+
+  it('discards an AI hoard choice when hunt cleanup removes its lair in the same round', () => {
+    const state = createNewGame('rome', 'beast-turn-seed', 'small', 'Hunt Hoard Test');
+    const aiCivId = Object.keys(state.civilizations).find(id => !state.civilizations[id].isHuman)!;
+    const crisisId = 'crisis-1791';
+    const lairId = 'hunt-lair-crisis-1791';
+    const huntEntityId = 'hunt-beast-1791';
+    state.beasts = {
+      mode: 'wild',
+      lairs: {
+        [lairId]: {
+          id: lairId, beastId: 'emerald_basilisk', position: { q: 10, r: 10 },
+          status: 'slain', strength: 0, unitIds: [], slainBy: aiCivId, slainTurn: state.turn,
+        },
+      },
+      sightingsByCiv: {},
+      pendingHoardChoices: [{ lairId, civId: aiCivId }],
+    };
+    state.activeCrises = {
+      [crisisId]: {
+        id: crisisId, flavorId: 'beast-awakening', archetype: 'hunt',
+        targetCivId: state.currentPlayer, cityIds: [], tileKeys: [],
+        startedTurn: state.turn, stage: 'menacing', turnsInStage: 0,
+        huntEntityId, lastHuntKillerCivId: aiCivId,
+      },
+    };
+    expect(state.civilizations[aiCivId]?.isHuman).toBe(false);
+    expect(state.units[huntEntityId]).toBeUndefined();
+    assertBeastLairIntegrity(state);
+
+    const next = processTurn(state, new EventBus());
+
+    expect(next.turn).toBe(state.turn + 1);
+    expect(next.activeCrises?.[crisisId]).toBeUndefined();
+    expect(next.beasts?.lairs[lairId]).toBeUndefined();
+    expect(next.beasts?.pendingHoardChoices).toEqual([]);
+    assertBeastLairIntegrity(next);
   });
 });
 
