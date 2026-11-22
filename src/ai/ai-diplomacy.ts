@@ -1,5 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState, PersonalityTraits, MinorCivState } from '@/core/types';
+import type { AIStrategicPlan } from '@/core/types/ai';
 import type { DiplomacyState, DiplomaticAction, WarGoalStatus } from '@/core/types/diplomacy';
 import type { CivilizationEra } from '@/systems/era-types';
 import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
@@ -13,7 +14,8 @@ import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { performMinorCivFestival, performMinorCivGift, performMinorCivReparations, setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { getAiCrisisRemedyReserve } from './ai-crisis-response';
-import { hasAICombatRole } from './ai-unit-roles';
+import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
+import { createOperationalRouting, getOperationalRoute } from './ai-operational-routing';
 import { classifyOwner, majorCivWarOpponentIds } from '@/core/owner-kind';
 import { mapDistance } from '@/systems/hex-utils';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -197,13 +199,15 @@ export const CITY_STATE_CONQUEST_MIN_ARMY = 4;
 const CITY_STATE_CONQUEST_MIN_ERA = 2;
 /** A city-state that likes the civ this much is a friend, not a target. */
 const CITY_STATE_CONQUEST_MAX_RELATIONSHIP = 30;
+/** Give a recorded settlement time to hold before committing another attack. */
+const CITY_STATE_RECONSIDER_PEACE_ROUNDS = 6;
 
 /**
  * Whether a civ wants to conquer this city-state now. Personality and posture decide the appetite (only a
  * warlike civ, or one set on domination, has it); the rest is opportunity, judged only from what the civ
  * itself knows: a discovered city-state, near one of its cities, not an ally or friend, while the civ is at
- * peace with every major civilization and fields an army. The same test keeps a war going, so a war the AI
- * starts is not undone the next turn while the reasons for it still hold.
+ * peace with every major civilization and fields an army. The planner separately evaluates whether it can
+ * commit a force, and tactical progress decides whether the war is worth continuing.
  */
 export function wantsCityStateConquest(
   state: GameState,
@@ -235,9 +239,42 @@ export function wantsCityStateConquest(
   return army >= CITY_STATE_CONQUEST_MIN_ARMY;
 }
 
+export function canStartAiCityStateConquest(
+  state: GameState,
+  civId: string,
+  minorCivId: string,
+  personality: PersonalityTraits,
+  posture: NationalIntentPosture,
+): boolean {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.diplomacy.vassalage.overlord
+    || civ.diplomacy.atWarWith.some(id => classifyOwner(id) === 'minor')
+    || civ.diplomacy.events.some(event =>
+      event.type === 'peace_made' && event.otherCiv === minorCivId
+      && state.turn - event.turn < CITY_STATE_RECONSIDER_PEACE_ROUNDS)) return false;
+  return wantsCityStateConquest(state, civId, minorCivId, personality, posture);
+}
+
+function minorCivPlanTarget(state: GameState, plan: AIStrategicPlan): string | undefined {
+  const owner = plan.objective === 'capture' && plan.target.kind === 'city' ? state.cities[plan.target.id]?.owner
+    : (plan.objective === 'repel' || plan.objective === 'raid') && plan.target.kind === 'unit' ? state.units[plan.target.id]?.owner
+      : undefined;
+  return owner && classifyOwner(owner) === 'minor' ? owner : undefined;
+}
+
+function hasRoutedCaptureUnit(state: GameState, plan: AIStrategicPlan): boolean {
+  if (plan.target.kind !== 'city') return false;
+  const destination = plan.target.lastKnownPosition;
+  const routing = createOperationalRouting();
+  return plan.assignedUnitIds.some(unitId => {
+    const unit = state.units[unitId];
+    return unit?.owner === plan.actorId && !unit.transportId && getAIStrategicRoles(unit.type).includes('capture')
+      && Boolean(getOperationalRoute(state, unit, destination, routing));
+  });
+}
+
 /**
- * Declares war on the nearest city-state the civ wants to conquer, one city-state war at a time, through
- * `setMinorCivWarState` (the player's own command). Its capture plans then treat the city as a target.
+ * Open a city-state war only when the selected capture plan has mobilized a unit that can reach the city.
  */
 export function applyAiCityStateWar(
   state: GameState,
@@ -246,40 +283,48 @@ export function applyAiCityStateWar(
   posture: NationalIntentPosture,
   bus: EventBus,
 ): GameState {
-  const civ = state.civilizations[civId];
-  if (!civ || civ.diplomacy.atWarWith.some(id => classifyOwner(id) === 'minor')) return state;
-  const distanceTo = (minorCivId: string): number => {
-    const target = state.cities[state.minorCivs[minorCivId].cityId];
-    return Math.min(...civ.cities.map(cityId => state.cities[cityId])
-      .filter(city => city?.owner === civId)
-      .map(city => mapDistance(state.map, city!.position, target.position)));
-  };
-  const targetId = Object.keys(state.minorCivs ?? {})
-    .filter(minorCivId => wantsCityStateConquest(state, civId, minorCivId, personality, posture))
-    .sort((a, b) => distanceTo(a) - distanceTo(b) || a.localeCompare(b))[0];
-  if (!targetId) return state;
+  const plan = state.opponentAI?.majorCivs[civId]?.primaryPlan;
+  if (!plan || plan.objective !== 'capture' || !['advancing', 'attacking'].includes(plan.phase)
+    || (state.opponentAI?.migrationGraceRoundsRemaining ?? 0) > 0) return state;
+  const targetId = minorCivPlanTarget(state, plan);
+  if (!targetId || !canStartAiCityStateConquest(state, civId, targetId, personality, posture)
+    || !hasRoutedCaptureUnit(state, plan)) return state;
   const result = setMinorCivWarState(state, civId, targetId, true, bus);
   return result.ok ? result.state : state;
 }
 
+function activeCityStateWar(state: GameState, civId: string, madeProgress: boolean): string | undefined {
+  const plan = state.opponentAI?.majorCivs[civId]?.primaryPlan;
+  if (!plan || !['scouting', 'mobilizing', 'advancing', 'attacking'].includes(plan.phase)) return undefined;
+  const targetId = minorCivPlanTarget(state, plan);
+  if (!targetId || !isMinorCivAtWar(state, civId, targetId)) return undefined;
+
+  // Use the plan's existing reconsideration window. Recreating a plan seeds a
+  // new lastProgressTurn, but only tactical execution can report real progress.
+  const reconsideration = plan.reconsiderAfterTurn - plan.createdTurn;
+  if (madeProgress || (plan.lastProgressTurn > plan.createdTurn
+    && state.turn - plan.lastProgressTurn < reconsideration)) return targetId;
+  const recentlyDeclared = state.civilizations[civId].diplomacy.events.some(event =>
+    event.type === 'war_declared' && event.otherCiv === targetId
+    && state.turn - event.turn < reconsideration);
+  if (recentlyDeclared && hasRoutedCaptureUnit(state, plan)) return targetId;
+  return undefined;
+}
+
 /**
- * Ends the civ's wars with city-states it no longer wants: those its current plan is not fighting
- * (`keepWarWith`) and it would not start today (`wantsCityStateConquest`). A war declared on the AI by a
- * coalition, or one dragged in as a vassal, used to last the rest of the game: only the player could end
- * one. Peace goes through `setMinorCivWarState`, the player's own command, which refuses a vassal.
+ * Reconcile city-state wars with the operation the AI actually executed. The
+ * shared command also handles bilateral state, leagues and vassal authority.
  */
 export function applyAiMinorCivPeace(
   state: GameState,
   civId: string,
-  keepWarWith: ReadonlySet<string>,
   bus: EventBus,
-  personality?: PersonalityTraits,
-  posture?: NationalIntentPosture,
+  primaryPlanMadeProgress: boolean,
 ): GameState {
+  const keepWarWith = activeCityStateWar(state, civId, primaryPlanMadeProgress);
   let next = state;
   for (const minorCivId of Object.keys(next.minorCivs ?? {}).sort()) {
-    if (keepWarWith.has(minorCivId) || !isMinorCivAtWar(next, civId, minorCivId)) continue;
-    if (personality && posture && wantsCityStateConquest(next, civId, minorCivId, personality, posture)) continue;
+    if (keepWarWith === minorCivId || !isMinorCivAtWar(next, civId, minorCivId)) continue;
     const result = setMinorCivWarState(next, civId, minorCivId, false, bus);
     if (result.ok) next = result.state;
   }

@@ -134,6 +134,34 @@ describe('major-civilization perception', () => {
     expect(facts.knownCities.some(city => city.owner === RIVAL)).toBe(false);
   });
 
+  it('uses sight and trusted memory for city-state targets', () => {
+    const state = makePerceptionState();
+    const minor = Object.values(state.minorCivs).find(entry => !entry.isDestroyed)!;
+    const city = state.cities[minor.cityId];
+    const guard = createUnit('warrior', minor.id, city.position, state.idCounters);
+    state.units[guard.id] = guard;
+    minor.units.push(guard.id);
+    const key = hexKey(city.position);
+    const visibility = state.civilizations[ACTOR].visibility;
+    const target = () => buildMajorCivPerception(state, ACTOR).cityStateIntel.cities.find(entry => entry.id === city.id);
+
+    expect(target()).toBeUndefined();
+    visibility.tiles[key] = 'visible';
+    expect(target()).toMatchObject({ owner: minor.id, position: city.position, confidence: 'visible' });
+    const observed = buildMajorCivPerception(state, ACTOR);
+    expect(observed.cityStateIntel.units).toContainEqual(expect.objectContaining({ id: guard.id, confidence: 'visible' }));
+    expect(observed.knownCities.some(entry => entry.id === city.id)).toBe(false);
+
+    visibility.tiles[key] = 'fog';
+    expect(target()).toBeUndefined();
+    city.buildings.push('walls');
+    visibility.lastSeen![key] = makeSnapshot(state, {
+      coord: city.position,
+      city: { id: city.id, owner: minor.id, name: city.name, population: city.population, defense: 'open', hpBand: 'healthy' },
+    });
+    expect(target()).toMatchObject({ confidence: 'remembered', defense: 'open' });
+  });
+
   it('perceives visible always-hostile world units without diplomatic contact', () => {
     const state = makePerceptionState();
     const barbarian = createUnit('warrior', 'barbarian', OBSERVED, state.idCounters);

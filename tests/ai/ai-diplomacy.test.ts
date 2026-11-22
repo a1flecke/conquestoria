@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP, applyAiCityStateWar, applyAiMinorCivReparations, applyAiMinorCivPeace, evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from '@/ai/ai-diplomacy';
+import { OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP, applyAiCityStateWar, applyAiMinorCivReparations, applyAiMinorCivPeace, canStartAiCityStateConquest, evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from '@/ai/ai-diplomacy';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 import type { PersonalityTraits, MinorCivState, DiplomacyState } from '@/core/types';
@@ -556,33 +556,22 @@ describe('applyAiMinorCivPeace', () => {
   it('makes peace with a city-state it is not trying to conquer', () => {
     const { state, minorCivId } = atWarWithCityState('ai-minor-peace');
 
-    const next = applyAiMinorCivPeace(state, 'ai-1', new Set(), new EventBus());
+    const next = applyAiMinorCivPeace(state, 'ai-1', new EventBus(), false);
 
     expect(isMinorCivAtWar(next, 'ai-1', minorCivId)).toBe(false);
-  });
-
-  it('keeps a war its current plan is fighting', () => {
-    const { state, minorCivId } = atWarWithCityState('ai-minor-keep-war');
-
-    const next = applyAiMinorCivPeace(state, 'ai-1', new Set([minorCivId]), new EventBus());
-
-    expect(isMinorCivAtWar(next, 'ai-1', minorCivId)).toBe(true);
   });
 
   it('leaves a vassal at war: its overlord controls war and peace', () => {
     const { state, minorCivId } = atWarWithCityState('ai-minor-vassal');
     state.civilizations['ai-1'].diplomacy.vassalage.overlord = 'player';
 
-    const next = applyAiMinorCivPeace(state, 'ai-1', new Set(), new EventBus());
+    const next = applyAiMinorCivPeace(state, 'ai-1', new EventBus(), false);
 
     expect(isMinorCivAtWar(next, 'ai-1', minorCivId)).toBe(true);
   });
 });
 
-// The AI never declared war on a city-state, so it almost never conquered one. Whether it now does depends on
-// its personality and posture: only a warlike civ, or one bent on domination, goes after a weak, nearby
-// city-state it has discovered, and never while it is fighting another major civilization.
-describe('applyAiCityStateWar', () => {
+describe('city-state conquest eligibility', () => {
   const WARLIKE: PersonalityTraits = { traits: ['aggressive'], warLikelihood: 0.85, expansionDrive: 0.6, diplomacyFocus: 0.2 };
   const PEACEFUL: PersonalityTraits = { traits: ['diplomatic'], warLikelihood: 0.2, expansionDrive: 0.3, diplomacyFocus: 0.8 };
   const EXPAND = NATIONAL_INTENT_POSTURE.expand;
@@ -609,56 +598,49 @@ describe('applyAiCityStateWar', () => {
     return { state, minorCivId };
   }
 
-  it('a warlike civ declares war on a weak, nearby, discovered city-state', () => {
+  it('a warlike civ considers a nearby, discovered city-state', () => {
     const { state, minorCivId } = conquestFixture('cs-war-warlike');
-    const next = applyAiCityStateWar(state, 'ai-1', WARLIKE, EXPAND, new EventBus());
-    expect(isMinorCivAtWar(next, 'ai-1', minorCivId)).toBe(true);
+    expect(canStartAiCityStateConquest(state, 'ai-1', minorCivId, WARLIKE, EXPAND)).toBe(true);
   });
 
   it('a peaceful civ does not, in the same position', () => {
     const { state, minorCivId } = conquestFixture('cs-war-peaceful');
-    const next = applyAiCityStateWar(state, 'ai-1', PEACEFUL, EXPAND, new EventBus());
-    expect(isMinorCivAtWar(next, 'ai-1', minorCivId)).toBe(false);
+    expect(canStartAiCityStateConquest(state, 'ai-1', minorCivId, PEACEFUL, EXPAND)).toBe(false);
   });
 
-  it('a middling civ goes to war only when its posture is set on domination', () => {
+  it('a middling civ considers conquest when its posture is set on domination', () => {
     const middling: PersonalityTraits = { traits: [], warLikelihood: 0.55, expansionDrive: 0.5, diplomacyFocus: 0.5 };
     const developing = conquestFixture('cs-war-develop');
-    expect(isMinorCivAtWar(applyAiCityStateWar(developing.state, 'ai-1', middling, NATIONAL_INTENT_POSTURE.develop, new EventBus()), 'ai-1', developing.minorCivId)).toBe(false);
+    expect(canStartAiCityStateConquest(developing.state, 'ai-1', developing.minorCivId, middling, NATIONAL_INTENT_POSTURE.develop)).toBe(false);
     const dominating = conquestFixture('cs-war-dominate');
-    expect(isMinorCivAtWar(applyAiCityStateWar(dominating.state, 'ai-1', middling, NATIONAL_INTENT_POSTURE.dominate, new EventBus()), 'ai-1', dominating.minorCivId)).toBe(true);
+    expect(canStartAiCityStateConquest(dominating.state, 'ai-1', dominating.minorCivId, middling, NATIONAL_INTENT_POSTURE.dominate)).toBe(true);
   });
 
   it('never targets a city-state it has not discovered', () => {
     const { state, minorCivId } = conquestFixture('cs-war-undiscovered');
     state.civilizations['ai-1'].visibility.tiles = {};
-    expect(isMinorCivAtWar(applyAiCityStateWar(state, 'ai-1', WARLIKE, EXPAND, new EventBus()), 'ai-1', minorCivId)).toBe(false);
+    expect(canStartAiCityStateConquest(state, 'ai-1', minorCivId, WARLIKE, EXPAND)).toBe(false);
   });
 
   it('does not open a second front while at war with a major civilization', () => {
     const { state, minorCivId } = conquestFixture('cs-war-two-fronts');
     state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
-    expect(isMinorCivAtWar(applyAiCityStateWar(state, 'ai-1', WARLIKE, EXPAND, new EventBus()), 'ai-1', minorCivId)).toBe(false);
+    expect(canStartAiCityStateConquest(state, 'ai-1', minorCivId, WARLIKE, EXPAND)).toBe(false);
   });
 
   it('spares a city-state it is allied with, and waits for an army', () => {
     const allied = conquestFixture('cs-war-allied');
     allied.state.minorCivs[allied.minorCivId].chainStatusByCiv['ai-1'] = { chainId: 'chain', status: 'allied', statusTurn: 1, earnedTurn: 1 };
-    expect(isMinorCivAtWar(applyAiCityStateWar(allied.state, 'ai-1', WARLIKE, EXPAND, new EventBus()), 'ai-1', allied.minorCivId)).toBe(false);
+    expect(canStartAiCityStateConquest(allied.state, 'ai-1', allied.minorCivId, WARLIKE, EXPAND)).toBe(false);
     const unarmed = conquestFixture('cs-war-unarmed');
     unarmed.state.civilizations['ai-1'].units = unarmed.state.civilizations['ai-1'].units.slice(0, 2);
-    expect(isMinorCivAtWar(applyAiCityStateWar(unarmed.state, 'ai-1', WARLIKE, EXPAND, new EventBus()), 'ai-1', unarmed.minorCivId)).toBe(false);
+    expect(canStartAiCityStateConquest(unarmed.state, 'ai-1', unarmed.minorCivId, WARLIKE, EXPAND)).toBe(false);
   });
 
-  it('keeps a war it would declare, and makes peace once it would not', () => {
-    const { state, minorCivId } = conquestFixture('cs-war-keep');
-    const atWar = applyAiCityStateWar(state, 'ai-1', WARLIKE, EXPAND, new EventBus());
-
-    const kept = applyAiMinorCivPeace(atWar, 'ai-1', new Set(), new EventBus(), WARLIKE, EXPAND);
-    expect(isMinorCivAtWar(kept, 'ai-1', minorCivId)).toBe(true);
-
-    const ended = applyAiMinorCivPeace(atWar, 'ai-1', new Set(), new EventBus(), PEACEFUL, EXPAND);
-    expect(isMinorCivAtWar(ended, 'ai-1', minorCivId)).toBe(false);
+  it('requires a capture plan before declaring war even with a favorable opportunity', () => {
+    const { state, minorCivId } = conquestFixture('cs-war-needs-plan');
+    expect(canStartAiCityStateConquest(state, 'ai-1', minorCivId, WARLIKE, EXPAND)).toBe(true);
+    expect(applyAiCityStateWar(state, 'ai-1', WARLIKE, EXPAND, new EventBus())).toBe(state);
   });
 });
 

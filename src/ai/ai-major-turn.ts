@@ -74,6 +74,7 @@ export interface ProcessMajorCivStrategicTurnResult {
   state: GameState;
   actions: AITacticalAction[];
   traces: AIDecisionTrace[];
+  primaryPlanMadeProgress: boolean;
 }
 
 function distance(
@@ -672,8 +673,8 @@ function hasSufficientTargetConfidence(
   const target = plan.target;
   switch (target.kind) {
     case 'city':
-      return perception.knownCities.some(city =>
-        city.id === target.id && city.confidence !== 'rumored');
+      return perception.knownCities.some(city => city.id === target.id && city.confidence !== 'rumored')
+        || perception.cityStateIntel.cities.some(city => city.id === target.id);
     case 'unit':
       return perception.units.some(unit =>
         unit.id === target.id && unit.confidence !== 'rumored');
@@ -1001,7 +1002,7 @@ export function processMajorCivStrategicTurnInPlace(
     || !working.civilizations[prepared.civId]
     || preparedPlans.some(plan => plan.actorId !== prepared.civId)
   ) {
-    return { state: working, actions: [], traces: [] };
+    return { state: working, actions: [], traces: [], primaryPlanMadeProgress: false };
   }
 
   working = normalizeOpponentAIState(working);
@@ -1041,6 +1042,7 @@ export function processMajorCivStrategicTurnInPlace(
   const appliedActions: AITacticalAction[] = [];
   const traces: AIDecisionTrace[] = [];
   const routing = createOperationalRouting();
+  let primaryPlanMadeProgress = false;
 
   for (const originalPlan of plans) {
     const requestedUnitIds = prepared.assignments
@@ -1099,6 +1101,7 @@ export function processMajorCivStrategicTurnInPlace(
       appliedActions.push(action, ...executed.followUps);
     }
     const planActions = appliedActions.slice(planActionStart);
+    if (originalPlan.id === prepared.portfolio.primaryPlan?.id) primaryPlanMadeProgress = madeProgress;
     const phase = nextPlanPhase(
       working,
       originalPlan,
@@ -1116,5 +1119,5 @@ export function processMajorCivStrategicTurnInPlace(
     });
   }
 
-  return { state: working, actions: appliedActions, traces };
+  return { state: working, actions: appliedActions, traces, primaryPlanMadeProgress };
 }
