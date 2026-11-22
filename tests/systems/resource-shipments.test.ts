@@ -981,8 +981,9 @@ describe('#1125 engineering passage feasibility', () => {
     const replacement = establishTradeRoute(lost, { ...request, caravanUnitId: replacementId, procurement: route.procurement });
     if (!replacement.ok) throw new Error(replacement.reason);
     expect(replacement.route.id).not.toBe(route.id);
-    expect(replacement.state.units[replacementId]!.routeDirection).toBe('positioning');
-    const ready = sail(replacement.state);
+    // The replacement is already at the returned ship's dock and can leave on the next round.
+    const ready = replacement.state;
+    expect(ready.units[replacementId]!.position).toEqual({ q: 1, r: 5 });
     expect(ready.units[replacementId]!.routeDirection).toBe('outbound');
     expect(evaluate(ready)).toMatchObject({ usefulReach: true, currentFunction: true });
 
@@ -1111,15 +1112,21 @@ describe('#1125 engineering passage feasibility', () => {
 
   it.each([
     { name: 'authorized', open: true, authorized: true, longer: false, outbound: 2, inbound: 2 },
+    { name: 'authorized, ship already at its dock', open: true, authorized: true, longer: false, outbound: 2, inbound: 2, docked: true },
     { name: 'closed', open: false, authorized: true, longer: false, outbound: 4, inbound: 4 },
     { name: 'uninvited', open: true, authorized: false, longer: false, outbound: 4, inbound: 4 },
     { name: 'different leg times', open: true, authorized: true, longer: true, outbound: 3, inbound: 2 },
-  ])('matches movement and delivery with an $name passage', ({ open, authorized, longer, outbound, inbound }) => {
+  ])('matches movement and delivery through the passage ($name)', ({ open, authorized, longer, outbound, inbound, docked }) => {
     const fixture = passageWorld(open, authorized, longer);
     const shortcut = open && authorized;
     expect(fixture.map.tiles[hexKey(passage)]!.terrain).toBe('grassland');
     const procurement = routeOf(fixture).procurement;
     fixture.marketplace!.tradeRoutes = [];
+    if (docked) {
+      // A returning ship begins its next assignment at the water service point.
+      expect(fixture.map.tiles['1,1']!.terrain).toBe('coast');
+      fixture.units[traderId] = { ...fixture.units[traderId]!, position: { q: 1, r: 1 } };
+    }
     const trader = fixture.units[traderId]!;
     const besidePassage: GameState = {
       ...fixture,

@@ -212,5 +212,6 @@ export function getRouteLegRounds(
   targetCityId: string,
   avoid?: { blockedHexKeys?: ReadonlySet<string> },
 ): number | null {
+  if (isAtRouteServicePoint(state, unit, targetCityId)) return 0;
   return getRouteRoundsBetween(state, unit, unit.position, targetCityId, avoid);
 }

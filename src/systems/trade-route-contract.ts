@@ -17,8 +17,7 @@
 import type { City, GameState, TradeRoute, TradeRouteModeId, UnitType } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { getRoutePathBetween } from '@/systems/trade-route-travel';
-import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
+import { getRouteLegRounds, getRoutePathBetween, isAtRouteServicePoint } from '@/systems/trade-route-travel';
 import { hasDiscoveredCity, hasExploredCoord } from '@/systems/discovery-system';
 import { isTradeUnitType } from '@/systems/trade-role-targeting';
 import { getCommercialPassagePermission, type CommercePassageDenialReason } from '@/systems/commerce-permissions';
@@ -206,7 +205,7 @@ export function getTradeRouteEligibility(state: GameState, request: TradeRouteRe
   return { ok: true, originCityId: origin.id, destinationCityId: destination.id, domestic: destination.owner === unit.owner };
 }
 
-/** Hex distance from the unit to the chosen origin — the positioning leg's length in tiles. */
+/** Travel rounds from the unit to the origin's service point. */
 export function getPositioningTurnsToOrigin(state: GameState, caravanUnitId: string): number {
   const unit = state.units[caravanUnitId];
   if (!unit) return 0;
@@ -214,11 +213,7 @@ export function getPositioningTurnsToOrigin(state: GameState, caravanUnitId: str
     ? state.marketplace?.tradeRoutes.find(route => route.id === unit.committedToRouteId)?.fromCityId
     : undefined;
   const target = destinationCityId ? state.cities[destinationCityId] : resolveTradeOrigin(state, unit);
-  if (!target) return 0;
-  const distance = state.map.wrapsHorizontally
-    ? wrappedHexDistance(unit.position, target.position, state.map.width)
-    : hexDistance(unit.position, target.position);
-  return Math.max(0, distance);
+  return target ? getRouteLegRounds(state, unit, target.id) ?? 0 : 0;
 }
 
 /**
@@ -270,8 +265,7 @@ export function establishTradeRoute(
   };
   idCounters.nextRouteId++;
 
-  // #1500: the trader first walks to its origin; commerce starts when it arrives.
-  const atOrigin = unit.position.q === origin.position.q && unit.position.r === origin.position.r;
+  const atOrigin = isAtRouteServicePoint(state, unit, origin.id);
 
   const nextState: GameState = {
     ...state,
