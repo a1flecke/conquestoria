@@ -893,7 +893,9 @@
     "tests/renderer/sprites/png/png-sprite-playback.test.ts": 2.177001953125,
     "tests/renderer/sprites/png/png-sprite-strip-overlay.test.ts": 65.105712890625,
     "tests/renderer/sprites/v2/cannon-grenadier-native.test.ts": 1.4970703125,
-    "tests/renderer/sprites/v2/index.test.ts": 40.6484375
+    "tests/renderer/sprites/v2/index.test.ts": 40.6484375,
+    "tests/ai/ai-breakaway-reunification.test.ts": 100.0,
+    "tests/systems/espionage-double-agent.test.ts": 400.0
   },
   "shards": {
     "test-suite-shard-a": [
@@ -1496,6 +1498,7 @@
     ],
     "test-suite-shard-d": [
       "tests/ai/ai-amphibious-routing.test.ts",
+      "tests/ai/ai-breakaway-reunification.test.ts",
       "tests/ai/ai-crisis-response.test.ts",
       "tests/ai/ai-diplomacy.test.ts",
       "tests/ai/ai-espionage.test.ts",
@@ -1666,6 +1669,7 @@
       "tests/systems/earth-map-starting-positions.test.ts",
       "tests/systems/espionage-buildings.test.ts",
       "tests/systems/espionage-capture.test.ts",
+      "tests/systems/espionage-double-agent.test.ts",
       "tests/systems/espionage-infiltration.test.ts",
       "tests/systems/espionage-start-mission-contract.test.ts",
       "tests/systems/faction-system.test.ts",

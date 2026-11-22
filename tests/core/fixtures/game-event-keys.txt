@@ -85,7 +85,9 @@ era:advanced
 espionage:advisor-assassinated
 espionage:city-flipped
 espionage:courier-intercepted
+espionage:debrief-clean
 espionage:documents-forged
+espionage:double-agent-exposed
 espionage:incident-traced
 espionage:intel-extracted
 espionage:intel-report-acquired
@@ -120,6 +122,7 @@ faction:breakaway-started
 faction:concession-made
 faction:contagion-spread
 faction:critical-status
+faction:reunification-ready
 faction:revolt-started
 faction:unrest-resolved
 faction:unrest-started

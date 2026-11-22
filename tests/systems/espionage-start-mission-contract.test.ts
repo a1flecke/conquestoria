@@ -116,6 +116,7 @@ describe('startMission typed contract (#1222)', () => {
       [withSpy(makeSpy('spy-1')), 'spy-1', 'gather_intel'],
       [withSpy(makeSpy('spy-1', { status: 'captured' })), 'spy-1', 'signals_intercept', 'ai-egypt', 'city-egypt-1'],
       [withSpy(makeSpy('spy-1')), 'spy-1', 'signals_intercept'],
+      [withSpy(makeSpy('spy-1', { ...STATIONED, debriefUntilTurn: 9 })), 'spy-1', 'gather_intel'],
     ];
     for (const [state, spyId, mission, civ, city] of cases) {
       const reason = getMissionStartDenial(state, spyId, mission, civ, city);
