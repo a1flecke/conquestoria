@@ -431,10 +431,12 @@ export function issueSeizeTheMoment(
     units[unitId] = {
       ...unit,
       hasActed: false,
-      hasMoved: false,
-      // #887 MR1: recording-only marker so a battle this unit fights THIS turn
-      // can be credited to this General as "influenced (seize)". Read only when
-      // `.turn === state.turn`; cleared by resetUnitTurn.
+      // hasMoved stays as it was (contract §19: "not a full reset") — Seize grants one
+      // more attack, never a movement/turn reset, so the round-end recovery gates
+      // (passive heal, gene-therapy recharge) still see that this unit acted.
+      // #887 MR1: seizeGrantedBy is the recording-only marker so a battle this unit
+      // fights THIS turn can be credited to this General as "influenced (seize)".
+      // Read only when `.turn === state.turn`; cleared by resetUnitTurn.
       seizeGrantedBy: { generalDefinitionId: definition.id, turn: state.turn },
     };
   }
