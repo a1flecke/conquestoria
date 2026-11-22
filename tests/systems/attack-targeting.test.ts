@@ -370,6 +370,42 @@ describe('attack-targeting', () => {
     expect(getAttackTargets(state, state.units['attacker'], { viewerId: 'player' })).toEqual([]);
   });
 
+  it('honours a Seize the Moment action grant at zero movement, only for the turn it was granted, and only while the action is unspent', () => {
+    const attacker = unit('attacker', 'archer', 'player', { q: 0, r: 0 });
+    const defender = unit('defender', 'warrior', 'ai-1', { q: 2, r: 0 });
+    const base = stateWithUnits({ attacker, defender }, { '2,0': 'visible' });
+    const spentMover = { ...base.units.attacker!, movementPointsLeft: 0, hasActed: false };
+    const withUnit = (overrides: Partial<Unit>) => ({
+      ...base,
+      units: { ...base.units, attacker: { ...spentMover, ...overrides } },
+    });
+
+    // No grant: the long-standing zero-movement rule still denies the attack.
+    const noGrant = withUnit({});
+    expect(canUnitAttackTarget(noGrant, noGrant.units.attacker!, { q: 2, r: 0 }, { viewerId: 'player' }))
+      .toEqual({ ok: false, reason: 'no-action-points' });
+
+    // Seize's grant (same turn): exactly the one documented exception.
+    const granted = withUnit({ seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: base.turn } });
+    expect(canUnitAttackTarget(granted, granted.units.attacker!, { q: 2, r: 0 }, { viewerId: 'player' }))
+      .toMatchObject({ ok: true, targetType: 'unit', targetUnitId: 'defender' });
+    expect(getAttackTargets(granted, granted.units.attacker!, { viewerId: 'player' })).toHaveLength(1);
+
+    // A grant from an earlier turn never leaks into this one.
+    const stale = withUnit({ seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: base.turn - 1 } });
+    expect(canUnitAttackTarget(stale, stale.units.attacker!, { q: 2, r: 0 }, { viewerId: 'player' }))
+      .toEqual({ ok: false, reason: 'no-action-points' });
+
+    // The granted action is spent by attacking: the same grant cannot fund a second attack.
+    const spent = withUnit({
+      seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: base.turn },
+      hasActed: true,
+    });
+    expect(canUnitAttackTarget(spent, spent.units.attacker!, { q: 2, r: 0 }, { viewerId: 'player' }))
+      .toEqual({ ok: false, reason: 'no-action-points' });
+    expect(getAttackTargets(spent, spent.units.attacker!, { viewerId: 'player' })).toEqual([]);
+  });
+
   it('applies the zero-movement rule to the active second hot-seat player and AI callers', () => {
     const attacker = unit('attacker', 'archer', 'ai-1', { q: 0, r: 0 });
     const defender = unit('defender', 'warrior', 'player', { q: 2, r: 0 });
