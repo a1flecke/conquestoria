@@ -10,7 +10,7 @@ import { getProductionDisplayName } from '@/systems/city-production-presentation
 import { getQueueableProductionForCity } from '@/systems/city-production-eligibility';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { RESOURCE_DEFINITIONS, getResourceAccessBenefit } from '@/systems/resource-definitions';
-import { resolveFromCity } from '@/systems/trade-caravan-system';
+import { getTradeRouteAssignmentReadiness, isTradeTraderType, resolveTradeOrigin } from '@/systems/trade-route-contract';
 import { getRouteCapacity } from '@/systems/trade-route-economy';
 import { getResourceAccessLabel, getResourceEffectLabel } from '@/systems/resource-definitions';
 import { getCityWorkedResourceEffects } from '@/systems/resource-system';
@@ -22,7 +22,6 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { createGameButton } from './ui-kit';
 import { getAnimatedBuildingIconHtml, getProductionItemIconHtml } from './city-panel-building-icon';
 import { derivePalette, NEUTRAL_FACTION_PALETTE } from '@/renderer/sprites/sprite-system';
-import { hasAITradeRole } from '@/ai/ai-unit-roles';
 import { buildCityRouteRows, getOutgoingRoutesForCity, type RouteControlHandler } from './trade-route-presentation';
 import {
   getCircularManufacturingMaterial,
@@ -783,22 +782,20 @@ export function createCityPanelView(
   const showTradeRoutes = hasTradeRoutesTech || outgoingTradeRoutes.length > 0;
   const tradeRouteCapacity = showTradeRoutes ? getRouteCapacity(state, city.id) : 0;
   const tradeRouteRemainingCapacity = Math.max(0, tradeRouteCapacity - outgoingTradeRoutes.length);
-  // Idle trade unit check is scoped to units that would actually resolve to THIS city
-  // via resolveFromCity (nearest city with capacity) — not just any owned idle trade
-  // unit anywhere. Without this, an "Establish Route" button shown in city A's panel
-  // could silently consume city B's capacity slot instead (whichever city
-  // resolveFromCity picks as nearest to that unit), which is confusing: the panel's
-  // capacity/action affordances must stay locally coherent to the city actually open.
-  const idleTradeUnits = hasTradeRoutesTech
-    ? Object.values(state.units).filter(u =>
-        u.owner === city.owner && hasAITradeRole(u.type) && !u.committedToRouteId
-        && resolveFromCity(state, u)?.id === city.id)
+  // Show the trader at its default origin, so the chooser starts from the city in this panel.
+  const localTradeUnits = hasTradeRoutesTech && city.owner === state.currentPlayer && tradeRouteRemainingCapacity > 0
+    ? Object.values(state.units).flatMap(unit => {
+        const readiness = getTradeRouteAssignmentReadiness(state, unit.id, state.currentPlayer);
+        if (!readiness.ok && readiness.reason !== 'unit-unavailable') return [];
+        if (resolveTradeOrigin(state, unit)?.id !== city.id) return [];
+        return [{ unit, ready: readiness.ok }];
+      })
     : [];
   // Derived from getTrainableUnitsForCity (the same city-aware eligibility helper used
   // for the Build tab above) filtered to trade-role units — naturally offers Naval
   // Trader for coastal cities and stays generic as new trade lines are added.
   const eligibleTradeUnitTypes = hasTradeRoutesTech
-    ? availableUnits.filter(u => hasAITradeRole(u.type))
+    ? availableUnits.filter(u => isTradeTraderType(u.type))
     : [];
 
   // Locked items retain explanatory resource and partial-conjunction states.
@@ -1728,15 +1725,16 @@ export function createCityPanelView(
       tradeSection.appendChild(capacityLine);
 
       if (tradeRouteRemainingCapacity > 0) {
-        if (idleTradeUnits.length > 0) {
-          for (const unit of idleTradeUnits) {
+        if (localTradeUnits.length > 0) {
+          for (const { unit, ready } of localTradeUnits) {
             const row = document.createElement('div');
             row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px;';
             const label = document.createElement('span');
             label.style.cssText = 'font-size:12px;';
-            label.textContent = `${UNIT_DEFINITIONS[unit.type]?.name ?? unit.type} ready to establish a route`;
+            const name = UNIT_DEFINITIONS[unit.type]?.name ?? unit.type;
+            label.textContent = ready ? `${name} ready to establish a route` : `${name} can establish a route next turn`;
             row.appendChild(label);
-            if (callbacks.onEstablishRoute) {
+            if (ready && callbacks.onEstablishRoute) {
               const btn = createGameButton('Establish Route', 'primary');
               btn.style.fontSize = '11px';
               btn.style.padding = '4px 10px';

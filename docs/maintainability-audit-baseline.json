@@ -207,10 +207,6 @@
    "count": 2
   },
   {
-   "pair": "ui -> ai",
-   "count": 2
-  },
-  {
    "pair": "ui -> core",
    "count": 12
   },
