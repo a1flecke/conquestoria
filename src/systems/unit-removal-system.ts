@@ -133,18 +133,36 @@ function dropTradeRoutes(
 }
 
 /**
- * A caravan that CHANGES OWNER (captured) is not removed, but its route is just as over: the new owner's
- * prize must not stay committed to the old owner's route. Same closing logic as a removal.
+ * A unit that CHANGES OWNER in combat (captured) is not removed, but every commitment its old
+ * owner issued is just as over: the new owner's prize must not stay committed to the old
+ * owner's trade route, work task, or standing automation order — the captured worker is never
+ * pinned standing on (and never visibly "working" toward) its enemy's goals, and the captured
+ * civilian never marches the old owner's march. Same closing logic as a removal for the route.
+ *
+ * What is deliberately NOT released: the commissioned work SITE on the tile keeps ticking for
+ * its `improvementOwner` exactly as it already does when a worker spends its final charge and
+ * leaves (`worker-action-system`) — the improvement was paid for, the worker's continued
+ * presence is not required, and only the worker's own owner can demolish the site
+ * (`abandonWorkerTask`).
  */
-export function releaseCapturedUnitsFromRoutes<S extends UnitRemovalSlice>(
+export function releaseCapturedUnitCommitments<S extends UnitRemovalSlice>(
   slice: S,
   unitIds: Iterable<string>,
 ): UnitRemovalResult<S> {
-  const captured = [...new Set(unitIds)].map(id => slice.units[id]).filter((unit): unit is Unit => Boolean(unit?.committedToRouteId));
+  const captured = [...new Set(unitIds)].map(id => slice.units[id])
+    .filter((unit): unit is Unit => Boolean(unit && (unit.committedToRouteId || unit.workerTask || unit.automation)));
   if (captured.length === 0) return { slice, removed: [], endedRoutes: [] };
-  const released = dropTradeRoutes(slice.marketplace, captured.map(unit => unit.committedToRouteId!), 'unit-captured');
+  const routeIds = captured.flatMap(unit => unit.committedToRouteId ? [unit.committedToRouteId] : []);
+  const released = dropTradeRoutes(slice.marketplace, routeIds, 'unit-captured');
   const units = { ...slice.units };
-  for (const unit of captured) units[unit.id] = { ...unit, committedToRouteId: undefined, routeDirection: undefined };
+  for (const unit of captured) {
+    const {
+      committedToRouteId: _route, routeDirection: _direction,
+      workerTask: _task, automation: _order,
+      ...uncommitted
+    } = unit;
+    units[unit.id] = uncommitted as Unit;
+  }
   const next: S = { ...slice, units };
   if (released.marketplace !== slice.marketplace) next.marketplace = released.marketplace;
   return { slice: next, removed: [], endedRoutes: released.endedRoutes };
