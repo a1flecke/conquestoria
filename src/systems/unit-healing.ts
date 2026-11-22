@@ -18,7 +18,7 @@ export const HEAL_RESTING = 15;   // HP/turn when player explicitly rests
 export const HEAL_IN_CITY = 20;   // HP/turn when in a friendly city
 export const HEAL_IN_TERRITORY = 10; // HP/turn when in friendly territory
 
-export function canHeal(unit: Unit): boolean {
+export function canHeal(unit: Pick<Unit, 'health'>): boolean {
   return unit.health < 100;
 }
 

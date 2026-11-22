@@ -47,6 +47,7 @@ import {
 } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { restUnit } from '@/systems/unit-healing';
+import { getRestAvailability } from '@/systems/supply-combat';
 import { buildCombatPresentation, buildCombatSpyIdentifications } from '@/systems/viewer-event-presentation';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import {
@@ -551,7 +552,10 @@ function executeAction(
     }
     case 'rest': {
       const unit = state.units[action.unitId];
-      if (!unit || unit.owner !== civId || unit.hasActed) {
+      // #544 "Rest UX": the executor re-runs the candidate gate — an unsupported
+      // unit's rest is a wasted action (the round-end heal loop denies it), so a
+      // stale candidate list can never commit one.
+      if (!unit || unit.owner !== civId || unit.hasActed || !getRestAvailability(unit.landSupply).canRest) {
         return { state, succeeded: false, followUps: [] };
       }
       return {

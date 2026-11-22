@@ -384,6 +384,25 @@ describe('PlayerActionController', () => {
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('heal'), 'info');
       expect(listener).toHaveBeenCalledTimes(1);
     });
+
+    it('refuses to rest a wounded unit whose supply denies recovery: no rest flag, no action or movement spent, and the refusal is explained', () => {
+      const { state } = makeFixture('rest-unsupported-supply');
+      placeUnit(state, 'warrior', 'warrior-1', { q: 0, r: 0 }, {
+        health: 50,
+        landSupply: { state: 'stable-unsupported', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 },
+      });
+      const before = state.units['warrior-1'];
+      const { deps, controller } = build(state, { selection: { getSelectedUnitId: vi.fn(() => 'warrior-1'), setPendingIntent: vi.fn() } });
+
+      controller.restAction();
+
+      const after = deps.session.getState().units['warrior-1'];
+      expect(after.isResting).toBe(false);
+      expect(after.hasActed).toBe(before.hasActed);
+      expect(after.movementPointsLeft).toBe(before.movementPointsLeft);
+      expect(deps.selectionController.deselectUnit).not.toHaveBeenCalled();
+      expect(deps.showNotification).toHaveBeenCalledWith('Cannot recover while unsupported — restore supply first.', 'warning');
+    });
   });
 
   describe('showEspionageCaptureChoice', () => {

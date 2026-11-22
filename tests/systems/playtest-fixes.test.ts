@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { healUnit, restUnit, canHeal, HEAL_PASSIVE, HEAL_RESTING, HEAL_IN_CITY, HEAL_IN_TERRITORY } from '@/systems/unit-healing';
+import { getRestActionAvailability } from '@/systems/supply-combat';
 import { createUnit, resetUnitTurn } from '@/systems/unit-lifecycle';
 import { getUnmovedUnits } from '@/systems/unit-order-state';
 import { resolveCombat } from '@/systems/combat-system';
@@ -94,6 +95,41 @@ describe('unit healing (#15)', () => {
     const u = { ...createUnit('worker', 'player', { q: 0, r: 0 }, mkC()), health: 60 };
     const resting = restUnit(u);
     expect(resting.isResting).toBe(true);
+  });
+});
+
+// --- Rest action availability (#544 "Rest UX": unsupported units cannot rest) ---
+
+describe('rest action availability (#544 Rest UX)', () => {
+  const woundedFresh = () => ({ ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), health: 60 });
+
+  it('a wounded fresh unit with full supply can rest', () => {
+    expect(getRestActionAvailability({
+      ...woundedFresh(),
+      landSupply: { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 },
+    })).toEqual({ available: true });
+  });
+
+  it('a wounded fresh unit with no land-supply record can rest (civilians, naval and air never carry one)', () => {
+    expect(getRestActionAvailability(woundedFresh())).toEqual({ available: true });
+  });
+
+  it.each(['stable-unsupported', 'grace', 'degraded', 'severe'] as const)(
+    'a wounded fresh unit at %s cannot rest and is told why',
+    state => {
+      const availability = getRestActionAvailability({
+        ...woundedFresh(),
+        landSupply: { state, hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 },
+      });
+      expect(availability.available).toBe(false);
+      expect(availability.reason).toBe('Cannot recover while unsupported — restore supply first.');
+    },
+  );
+
+  it('full health, moved, acted and zero-movement units are unavailable with no reason (plain hide cases)', () => {
+    for (const overrides of [{ health: 100 }, { hasMoved: true }, { hasActed: true }, { movementPointsLeft: 0 }]) {
+      expect(getRestActionAvailability({ ...woundedFresh(), ...overrides })).toEqual({ available: false });
+    }
   });
 });
 

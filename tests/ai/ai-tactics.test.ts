@@ -725,6 +725,57 @@ describe('AI tactical action ranking', () => {
     expect(action.kind).not.toBe('withdraw');
   });
 
+  it('#544 Rest UX: a wounded unsupported unit holds instead of resting when no healing position exists', () => {
+    const state = makeState('standard');
+    addUnit(state, 'stranded', 'warrior', AI, { q: 2, r: 0 }, {
+      health: 35,
+      movementPointsLeft: 1,
+      landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+    });
+    const plan = makePlan(
+      { kind: 'region', id: 'frontier', anchor: { q: 7, r: 0 } },
+      ['stranded'],
+    );
+
+    const action = chooseUnitTacticalAction(context(state, plan), 'stranded');
+
+    expect(action).toMatchObject({ kind: 'hold', unitId: 'stranded' });
+  });
+
+  it('#544 Rest UX: a wounded unit with no healing position still rests while its supply is full', () => {
+    const state = makeState('standard');
+    addUnit(state, 'resting', 'warrior', AI, { q: 2, r: 0 }, {
+      health: 35,
+      movementPointsLeft: 1,
+      landSupply: { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 },
+    });
+    const plan = makePlan(
+      { kind: 'region', id: 'frontier', anchor: { q: 7, r: 0 } },
+      ['resting'],
+    );
+
+    const action = chooseUnitTacticalAction(context(state, plan), 'resting');
+
+    expect(action).toMatchObject({ kind: 'rest', unitId: 'resting' });
+  });
+
+  it('#544 Rest UX: never proposes rest for a wounded unsupported unit with no better candidate', () => {
+    const state = makeState('standard');
+    addUnit(state, 'battered', 'warrior', AI, { q: 2, r: 0 }, {
+      health: 90,
+      movementPointsLeft: 0,
+      landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+    });
+    const plan = makePlan(
+      { kind: 'region', id: 'frontier', anchor: { q: 7, r: 0 } },
+      ['battered'],
+    );
+
+    const action = chooseUnitTacticalAction(context(state, plan), 'battered');
+
+    expect(action).not.toMatchObject({ kind: 'rest' });
+  });
+
   it('does not withdraw into a peaceful foreign city', () => {
     const state = makeState('standard');
     addCity(state, 'home', AI, { q: 0, r: 0 });
