@@ -2,7 +2,7 @@ import { lehmerFoldByCodePoint } from './deterministic-hash';
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState, Unit, UnitType } from '@/core/types';
 import type { CaptureKind, CombatRewardNotification } from '@/core/types/combat';
-import { emitEndedTradeRoutes, releaseCapturedUnitsFromRoutes, removeUnitsFromSlice, type EndedTradeRoute } from '@/systems/unit-removal-system';
+import { emitEndedTradeRoutes, releaseCapturedUnitCommitments, removeUnitsFromSlice, type EndedTradeRoute } from '@/systems/unit-removal-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
@@ -482,7 +482,7 @@ export function applyCombatOutcomeToState(
     endedRoutes.push(...removal.endedRoutes);
   };
   const releaseCaptured = (unitId: string): void => {
-    const release = releaseCapturedUnitsFromRoutes({ units, civilizations, minorCivs, espionage, marketplace }, [unitId]);
+    const release = releaseCapturedUnitCommitments({ units, civilizations, minorCivs, espionage, marketplace }, [unitId]);
     ({ units, marketplace } = release.slice);
     endedRoutes.push(...release.endedRoutes);
   };

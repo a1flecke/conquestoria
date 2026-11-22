@@ -382,7 +382,8 @@ describe('applyCombatOutcomeToState', () => {
         tradeRoutes: [{ id: 'route-1', fromCityId: 'a', toCityId: 'b', goldPerTrip: 5, turnsPerTrip: 3 }],
       } as unknown as GameState['marketplace'];
       // A barbarian cannot take prisoners (`canCaptureDefeatedUnits`), so the caravan is destroyed, not captured.
-      // (A caravan *captured* by a major civ keeps its route commitment: that is #1200's scope.)
+      // (A caravan captured by a major civ is released from its route instead: `releaseCapturedUnitCommitments`
+      // ends the route with reason 'unit-captured' — pinned in the capture tests below.)
       state.units.attacker = { ...state.units.attacker, owner: 'barbarian' };
       state.units.defender = { ...state.units.defender, type: 'caravan', committedToRouteId: 'route-1' };
       const result: CombatResult = {
@@ -1327,6 +1328,88 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.attackerDefeated).toBe(false);
     expect(applied.attackerCaptured).toBe(true);
     expect(applied.state.units.attacker.owner).toBe('ai-1');
+  });
+
+  it('releases a captured worker from the old owner\'s work commitment — the captor\'s prize is never pinned working for the enemy', () => {
+    const state = makeRewardState();
+    // The exact post-applyWorkerAction shape: ai-1's worker mid-farm on the tile it stands on.
+    state.units.defender = {
+      ...state.units.defender,
+      type: 'worker', owner: 'ai-1',
+      workerTask: { action: 'farm', coord: { q: 1, r: 0 } },
+    };
+    state.civilizations['ai-1'].units = ['defender'];
+    state.map.tiles['1,0'] = {
+      coord: { q: 1, r: 0 }, terrain: 'plains', elevation: 'lowland',
+      resource: null, improvement: 'farm', improvementTurnsLeft: 3, improvementOwner: 'ai-1',
+      owner: 'ai-1', hasRiver: false, wonder: null,
+    };
+    // Prerequisite: the commissioned site is genuinely in progress.
+    expect(state.map.tiles['1,0']!.improvementTurnsLeft).toBeGreaterThan(0);
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.state.units.defender.workerTask, 'the commitment ends with the old owner').toBeUndefined();
+    // The commissioned site keeps ticking for its owner: the worker's continued presence is not
+    // required (a worker spending its final charge leaves the same way), and only the worker's
+    // own owner can demolish it.
+    expect(applied.state.map.tiles['1,0']).toMatchObject({ improvement: 'farm', improvementTurnsLeft: 3, improvementOwner: 'ai-1' });
+  });
+
+  it('releases a captured attacker\'s work commitment too (attacker-loses side)', () => {
+    const state = makeRewardState();
+    state.units.attacker = {
+      ...state.units.attacker,
+      type: 'worker', owner: 'player',
+      workerTask: { action: 'build_road', coord: { q: 0, r: 0 } },
+    };
+    state.civilizations.player.units = ['attacker'];
+    state.map.tiles['0,0'] = {
+      coord: { q: 0, r: 0 }, terrain: 'plains', elevation: 'lowland',
+      resource: null, improvement: 'none', improvementTurnsLeft: 0,
+      owner: 'player', hasRoad: true, roadTurnsLeft: 2, roadOwner: 'player', hasRiver: false, wonder: null,
+    } as GameState['map']['tiles'][string];
+    expect(state.map.tiles['0,0']!.roadTurnsLeft).toBeGreaterThan(0);
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 100, defenderDamage: 0,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.attackerCaptured).toBe(true);
+    expect(applied.state.units.attacker.workerTask).toBeUndefined();
+    expect(applied.state.map.tiles['0,0']).toMatchObject({ roadTurnsLeft: 2, roadOwner: 'player' });
+  });
+
+  it('releases a captured civilian\'s standing automation order — the new owner never inherits the old owner\'s march', () => {
+    const state = makeRewardState();
+    state.units.defender = {
+      ...state.units.defender,
+      type: 'worker', owner: 'ai-1',
+      automation: { mode: 'journey', destination: { q: 3, r: 3 } },
+    };
+    state.civilizations['ai-1'].units = ['defender'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.state.units.defender.automation).toBeUndefined();
   });
 
   it('captures an empty naval-civilian transport instead of sinking it', () => {

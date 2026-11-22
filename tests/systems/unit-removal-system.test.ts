@@ -3,7 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import type { GameState, Unit } from '@/core/types';
 import { createUnit } from '@/systems/unit-lifecycle';
-import { removeUnits, removeUnitsFromSlice } from '@/systems/unit-removal-system';
+import { removeUnits, removeUnitsFromSlice, releaseCapturedUnitCommitments } from '@/systems/unit-removal-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { SAVE_STATE_INVARIANTS } from '../helpers/save-state-invariants';
 
@@ -224,6 +224,45 @@ describe('removeUnits (#1198) — the one unit-removal transition', () => {
       expect(next.minorCivs).toBeUndefined();
       expect('espionage' in next).toBe(false);
       expect('marketplace' in next).toBe(false);
+    });
+  });
+
+  describe('releaseCapturedUnitCommitments — every owner-issued commitment ends with the old owner', () => {
+    it('releases a captured unit\'s route, work task and standing order without touching the input', () => {
+      const { state, civId } = fixture('release-commitments');
+      const worker = add(state, { ...createUnit('worker', civId, { q: 0, r: 0 }, counters(700)), id: 'u-captured' });
+      state.units[worker.id] = {
+        ...worker,
+        committedToRouteId: 'route-9',
+        routeDirection: 'outbound',
+        workerTask: { action: 'farm', coord: { q: 0, r: 0 } },
+        automation: { mode: 'journey', destination: { q: 5, r: 5 } },
+      };
+      const before = structuredClone(state);
+
+      const release = releaseCapturedUnitCommitments(state, [worker.id]);
+
+      const releasedUnit = release.slice.units[worker.id];
+      expect(releasedUnit.committedToRouteId).toBeUndefined();
+      expect(releasedUnit.routeDirection).toBeUndefined();
+      expect(releasedUnit.workerTask).toBeUndefined();
+      expect(releasedUnit.automation).toBeUndefined();
+      // The captured unit itself survives, on its (new) owner's terms — this release never removes.
+      expect(release.slice.units[worker.id]).toBeDefined();
+      expect(release.removed).toEqual([]);
+      expect(release.endedRoutes).toEqual([]);
+      expect(state).toEqual(before);
+    });
+
+    it('is an identity no-op for a unit with no commitments', () => {
+      const { state, civId } = fixture('release-no-commitments');
+      const unit = add(state, { ...createUnit('worker', civId, { q: 0, r: 0 }, counters(710)), id: 'u-free' });
+
+      const release = releaseCapturedUnitCommitments(state, [unit.id]);
+
+      expect(release.slice).toBe(state);
+      expect(release.removed).toEqual([]);
+      expect(release.endedRoutes).toEqual([]);
     });
   });
 });

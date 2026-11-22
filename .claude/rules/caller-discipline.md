@@ -110,7 +110,7 @@ meanings, name the roles — but only when misuse is plausible. The ranked audit
 | Contract | Mechanism | Pinned by |
 |---|---|---|
 | Settlement is logged before peace | `withSettlementSigned` owns the order; `recordSettlementSigned` no longer exists | `war-history-system.test.ts`, `architecture-boundaries.test.ts` "#1014" |
-| Camp, route-on-capture and combat record apply for every executor | folded into `applyCombatOutcomeToState` (`campDestroyed`, `releaseCapturedUnitsFromRoutes`, `recordCombatForCiv`) | `combat-reward-system.test.ts` "consequences of a kill belong to the shared outcome (#1200)", architecture pin "#1200" |
+| Camp, capture-commitments and combat record apply for every executor | folded into `applyCombatOutcomeToState` (`campDestroyed`, `releaseCapturedUnitCommitments`, `recordCombatForCiv`) | `combat-reward-system.test.ts` "consequences of a kill belong to the shared outcome (#1200)", architecture pin "#1200" |
 | Beast slay applies for every executor | folded into `applyCombatOutcomeToState`; event owned there | `combat-reward-system.test.ts` "beast slay is a consequence of the kill", architecture pin, source rule, `beast-lair-integrity` |
 | An upgrade takes its gold | `applyUpgrade` private | `unit-upgrade.test.ts`, architecture pin |
 | Strategic strike consequences | `resolveStrategicStrike` has one caller | source rule, architecture pin |
