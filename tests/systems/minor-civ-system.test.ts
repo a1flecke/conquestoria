@@ -812,6 +812,37 @@ describe('conquest mechanics', () => {
     expect(result.state.civilizations.player.cities).toContain(mc.cityId);
   });
 
+  it('ends the destroyed city-state’s wars for every opponent', () => {
+    const state = createNewGame(undefined, 'mc-conquest-wars', 'small');
+    const [mcId, otherMinorId] = Object.keys(state.minorCivs);
+    state.civilizations.player.diplomacy.atWarWith = [mcId, otherMinorId];
+    state.civilizations['ai-1'].diplomacy.atWarWith = [mcId];
+    state.minorCivs[mcId].diplomacy.atWarWith = ['player', 'ai-1'];
+    state.minorCivs[otherMinorId].diplomacy.atWarWith = ['player'];
+
+    const result = conquestMinorCiv(state, mcId, 'player');
+
+    expect(result.conquered).toBe(true);
+    expect(result.state.civilizations.player.diplomacy.atWarWith).toEqual([otherMinorId]);
+    expect(result.state.civilizations['ai-1'].diplomacy.atWarWith).toEqual([]);
+    expect(result.state.minorCivs[mcId].diplomacy.atWarWith).toEqual([]);
+    expect(result.state.minorCivs[otherMinorId].diplomacy.atWarWith).toEqual(['player']);
+    expect(state.civilizations['ai-1'].diplomacy.atWarWith).toEqual([mcId]);
+  });
+
+  it('clears stale wars with city-states destroyed in older saves', () => {
+    const state = createNewGame(undefined, 'mc-destroyed-war', 'small');
+    const mc = Object.values(state.minorCivs)[0];
+    mc.isDestroyed = true;
+    mc.diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.atWarWith = [mc.id];
+
+    const next = processMinorCivTurn(state, bus);
+
+    expect(next.civilizations.player.diplomacy.atWarWith).not.toContain(mc.id);
+    expect(next.minorCivs[mc.id].diplomacy.atWarWith).toEqual([]);
+  });
+
   it('records local regional grievance instead of penalizing every minor civ', () => {
     const state = createNewGame(undefined, 'mc-regional-grievance', 'medium');
     state.era = 2;
