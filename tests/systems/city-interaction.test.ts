@@ -6,6 +6,7 @@ import { createUnit } from '@/systems/unit-lifecycle';
 import { resolveCityInteraction } from '@/systems/city-interaction';
 import { beginMajorCityAssault } from '@/systems/city-capture-system';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
+import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -275,6 +276,28 @@ describe('#966 resolveCityInteraction', () => {
     it('does not offer bombard against a city you are not at war with', () => {
       const { state, unit } = scenario({ attackerType: 'catapult', attackerPos: { q: 1, r: 0 }, atWar: false });
       expect(kinds(state, unit).available).not.toContain('bombard');
+    });
+
+    it('offers a Seized unit its granted bombardment at zero movement, and the executor accepts it', () => {
+      const { state, unit } = scenario({ attackerType: 'catapult', attackerPos: { q: 1, r: 0 } });
+      const spent: GameState = {
+        ...state,
+        units: { ...state.units, atk: { ...unit, movementPointsLeft: 0, hasActed: false } },
+      };
+      // No grant: the zero-movement rule still denies it.
+      expect(kinds(spent, spent.units.atk).available).not.toContain('bombard');
+      expect(kinds(spent, spent.units.atk).denied.bombard).toBe('This unit has already acted this turn.');
+
+      // Seize the Moment's per-turn grant is the one documented exception.
+      const granted: GameState = {
+        ...spent,
+        units: {
+          ...spent.units,
+          atk: { ...spent.units.atk, seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: spent.turn } },
+        },
+      };
+      expect(kinds(granted, granted.units.atk).available).toContain('bombard');
+      expect(resolveUnitCityBombardment(granted, { attackerUnitId: 'atk', cityId: 'target', source: 'player' }).ok).toBe(true);
     });
   });
 });

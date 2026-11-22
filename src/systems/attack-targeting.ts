@@ -8,6 +8,7 @@ import { isUnitConcealedFrom } from '@/systems/concealment';
 import { isPirateOwner } from '@/core/owner-kind';
 import { isBasedAirUnit } from './air-base-state';
 import { isHostileOwnerTo } from './owner-hostility';
+import { canSpendUnitAction } from './unit-order-state';
 
 export type AttackTargetFailure =
   | 'missing-attacker'
@@ -133,7 +134,7 @@ export function canUnitAttackTarget(
   options: AttackTargetOptions = {},
 ): AttackTargetResult {
   if (!attacker) return { ok: false, reason: 'missing-attacker' };
-  if (attacker.movementPointsLeft <= 0 || attacker.hasActed) return { ok: false, reason: 'no-action-points' };
+  if (!canSpendUnitAction(attacker, state.turn)) return { ok: false, reason: 'no-action-points' };
   if (UNIT_DEFINITIONS[attacker.type].strength <= 0) return { ok: false, reason: 'no-combat-strength' };
 
   const profile = getUnitAttackProfile(attacker.type);

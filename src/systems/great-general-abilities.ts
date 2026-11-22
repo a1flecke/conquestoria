@@ -405,10 +405,13 @@ export function getSeizeTheMomentEligibleUnits(
  * contract §19: "bounded extra action budget, not a full reset... at most
  * one additional attack, no full movement refresh, no reset of
  * cooldowns/charges/ammo-like state." Only hasActed is cleared -- hasMoved
- * stays true and movementPointsLeft is untouched, so a unit can only
- * reposition with whatever movement it already had left over, and gets
- * exactly one more legal attack. selectedUnitIds beyond commandCapacity are
- * silently truncated (stable order: eligible-list order, i.e. id-sorted).
+ * stays true and movementPointsLeft is untouched, so a unit repositions only
+ * with whatever movement it already had left over. The one extra action is
+ * funded by `seizeGrantedBy` (see `canSpendUnitAction`): without it the attack
+ * that made the unit eligible would have spent the movement an attack also
+ * requires, leaving the granted action unreachable. selectedUnitIds beyond
+ * commandCapacity are silently truncated (stable order: eligible-list order,
+ * i.e. id-sorted).
  */
 export function issueSeizeTheMoment(
   state: GameState,
@@ -443,12 +446,19 @@ export function issueSeizeTheMoment(
     units[unitId] = {
       ...unit,
       hasActed: false,
+      // A rest was the action this unit spent to become eligible. Handing it another
+      // action ends that commitment: the round-end heal pays `isResting` (+15, and it
+      // outranks every gate except a friendly city), so a resting unit that is seized and
+      // then fights again must not also be paid for having rested.
+      isResting: false,
       // hasMoved stays as it was (contract §19: "not a full reset") — Seize grants one
       // more attack, never a movement/turn reset, so the round-end recovery gates
       // (passive heal, gene-therapy recharge) still see that this unit acted.
-      // #887 MR1: seizeGrantedBy is the recording-only marker so a battle this unit
-      // fights THIS turn can be credited to this General as "influenced (seize)".
-      // Read only when `.turn === state.turn`; cleared by resetUnitTurn.
+      // #887 MR1: seizeGrantedBy records which General influenced a battle this unit
+      // fights THIS turn. It is also the per-turn action grant `canSpendUnitAction` reads:
+      // the action that made this unit eligible spent its movement, and §19 forbids a
+      // movement refresh, so the marker is what makes the granted attack legal. Read only
+      // when `.turn === state.turn`; cleared by resetUnitTurn.
       seizeGrantedBy: { generalDefinitionId: definition.id, turn: state.turn },
     };
   }
