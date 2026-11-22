@@ -1,6 +1,40 @@
 import { expect, test } from '@playwright/test';
 import { auditWithAxe, findPointerOnlyControls, focusIsWithin } from './helpers/a11y-audit';
+import { clickVisibleHex } from './helpers/canvas-interaction';
 import { requestEndTurn } from './helpers/primary-action-bar';
+
+for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+  test(`both straits frame the home ports and Expedition at ${viewport.width}px on entry and reload`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    const ready = page.getByRole('button', { name: 'Freight investment', exact: true });
+    const expectOpeningView = async () => {
+      await expect(ready).toBeVisible();
+      for (const [name, coord] of [
+        ['Westport', { q: 0, r: 5 }],
+        ['Northport', { q: 0, r: 2 }],
+        ['Expedition', { q: 0, r: 7 }],
+      ] as const) {
+        const point = await page.evaluate(hex => window.__CONQUESTORIA_E2E_GET_VISIBLE_HEX_COPIES__?.(hex)[0], coord);
+        expect(point, `${name} should have a visible map copy`).toBeDefined();
+        expect(point?.x, `${name} x in viewport`).toBeGreaterThan(0);
+        expect(point?.x, `${name} x in viewport`).toBeLessThan(viewport.width);
+        expect(point?.y, `${name} y in viewport`).toBeGreaterThan(0);
+        expect(point?.y, `${name} y in viewport`).toBeLessThan(viewport.height);
+      }
+    };
+
+    for (const scenario of ['freight-strait-a', 'freight-strait-b']) {
+      await page.goto(`/?scenario=${scenario}`);
+      await expectOpeningView();
+      await page.reload();
+      await expectOpeningView();
+      if (viewport.width === 1280) {
+        await clickVisibleHex(page, { q: 0, r: 7 });
+        await expect(page.getByLabel('Selected unit details and actions (scroll for more)')).toContainText('Expedition');
+      }
+    }
+  });
+}
 
 test('the strait compare-and-confirm flow works with a keyboard and survives a reload', async ({ page }) => {
   await page.goto('/?scenario=freight-strait-a');
@@ -64,6 +98,7 @@ test('pausing loaded freight holds the cargo and updates its arrival forecast', 
   await investment.getByRole('button', { name: 'Review passage' }).click();
   await investment.getByRole('button', { name: 'Confirm passage' }).click();
   await expect(investment).toContainText('Passage opened');
+  await expect(investment).toContainText('Estimated coal round trip: 4 rounds');
   await investment.getByRole('button', { name: 'Close', exact: true }).click();
 
   const warning = page.getByRole('button', { name: 'End Turn Anyway', exact: true });
@@ -74,15 +109,21 @@ test('pausing loaded freight holds the cargo and updates its arrival forecast', 
     if (await warning.isVisible()) await warning.click();
     await expect(next).toBeVisible();
   };
-  for (const turn of [11, 12, 13]) await advance(turn);
-
   const tradeButton = page.getByRole('button', { name: 'Trade', exact: true });
   const trade = page.getByRole('dialog', { name: 'Trade & Supply' });
-  const route = trade.getByRole('button', { name: 'Select the trade unit on Westport → Eastport' }).locator('../..');
+  const selectTrader = trade.getByRole('button', { name: 'Select the trade unit on Westport → Eastport' });
+  const route = selectTrader.locator('../..');
   const cargo = route.getByText(/Confirmed cargo: 3 Coal/);
   const closeTrade = trade.getByRole('button', { name: 'Close Trade & Supply' });
 
   await tradeButton.click();
+  await expect(route).toContainText('outbound to supplier');
+  await expect(route).not.toContainText('round trip 8 rounds');
+  await closeTrade.click();
+  for (const turn of [11, 12, 13]) await advance(turn);
+
+  await tradeButton.click();
+  await expect(route).toContainText('homebound');
   await expect(cargo).toContainText('returning home in 1 round');
   await route.getByRole('button', { name: 'Pause the trade route Westport → Eastport' }).click();
   await expect(route).toContainText('earning 0 · paused');
@@ -103,6 +144,14 @@ test('pausing loaded freight holds the cargo and updates its arrival forecast', 
 
   await page.getByRole('button', { name: 'Freight investment', exact: true }).click();
   await expect(investment).toContainText('3 imported coal in reserve');
+  await investment.getByRole('button', { name: 'Close', exact: true }).click();
+  await tradeButton.click();
+  await expect(route).toContainText('outbound to supplier');
+  await expect(cargo).toHaveCount(0);
+  await selectTrader.click();
+  const unit = page.getByLabel('Selected unit details and actions (scroll for more)');
+  await expect(unit).toContainText('Committed to route (outbound to supplier)');
+  await expect(unit).not.toContainText('round trip');
 });
 
 test('the two strait maps resume their own progress in the same browser', async ({ page }) => {

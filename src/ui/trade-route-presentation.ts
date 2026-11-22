@@ -1,10 +1,10 @@
-import type { GameState, TradeRoute, City } from '@/core/types';
+import type { GameState, TradeRoute, City, Unit } from '@/core/types';
 import { getRouteCapacity, getRouteOperatingStatus, type TradeRouteNonOperatingReason } from '@/systems/trade-route-economy';
 import { getRouteControlOptions, type RouteControlAction } from '@/systems/trade-route-lifecycle';
 import { getEntitledRouteDanger, getTradeDangerFacts, type TradeDangerFacts } from '@/systems/trade-danger-adapters';
 import { getRouteManifestQuantity } from '@/systems/resource-shipment-system';
 import { getProcurementRemaining, getRouteManifestPaid } from '@/systems/resource-procurement';
-import { getRouteLegRounds } from '@/systems/trade-route-travel';
+import { getRouteLegRounds, isNavalRouteRunner } from '@/systems/trade-route-travel';
 import { findTradeGood } from '@/systems/trade-good-definitions';
 import { createGameButton } from '@/ui/ui-kit';
 
@@ -28,6 +28,13 @@ export { NOT_OPERATING_LABEL };
 
 /** The owner controls a route row exposes (#1502 MR05). */
 export type RouteControlHandler = (routeId: string, action: RouteControlAction) => void;
+
+export function getNavalTradeLegLabel(unit: Unit): string | undefined {
+  if (!isNavalRouteRunner(unit)) return undefined;
+  if (unit.routeDirection === 'positioning') return 'bound for home port';
+  if (unit.routeDirection === 'inbound') return 'homebound';
+  return 'outbound to supplier';
+}
 
 function renderRouteRow(
   state: GameState,
@@ -92,7 +99,10 @@ function renderRouteRow(
   const actual = status.paying
     ? (servedLastRound ? 'served last round' : 'earning now')
     : `earning 0 · ${reasonLabel}`;
-  routeDetail.appendChild(document.createTextNode(`${promised} · ${actual} · round trip ${route.turnsPerTrip * 2} rounds`));
+  const navalLeg = committedUnit && getNavalTradeLegLabel(committedUnit);
+  // The stored outbound duration can outlive a reroute and is not the length of both sea legs.
+  const travel = navalLeg ?? `round trip ${route.turnsPerTrip * 2} rounds`;
+  routeDetail.appendChild(document.createTextNode(`${promised} · ${actual} · ${travel}`));
   summary.appendChild(routeDetail);
 
   // #1509 MR12: the manifest is owned cargo, not route income. Show what is aboard, what it cost,
