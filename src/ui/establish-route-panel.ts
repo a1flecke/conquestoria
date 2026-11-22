@@ -24,7 +24,7 @@ import {
 import { getEntitledRouteDanger } from '@/systems/trade-danger-adapters';
 import { ROUTE_CONTROL_NOTIFICATIONS } from '@/systems/trade-route-lifecycle';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { createGameButton } from '@/ui/ui-kit';
+import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 import { markModal } from '@/ui/modal-contract';
 
 /**
@@ -86,6 +86,7 @@ export function openEstablishRoutePanel(
   const unitDisplayName = UNIT_DEFINITIONS[unit.type]?.name ?? unit.type;
   title.textContent = `Trade Routes (${unitDisplayName})`;
   const closeBtn = createGameButton('✕', 'ghost');
+  closeBtn.setAttribute('aria-label', 'Close trade route chooser');
   closeBtn.addEventListener('click', () => panel.remove());
   header.appendChild(title);
   header.appendChild(closeBtn);
@@ -151,14 +152,16 @@ export function openEstablishRoutePanel(
   function selectDestination(cityId: string): void {
     selectedCityId = cityId;
     panel.querySelectorAll('.route-row-selected').forEach(el => {
-      (el as HTMLElement).style.background = '';
+      (el as HTMLElement).style.background = 'transparent';
       el.classList.remove('route-row-selected');
+      el.setAttribute('aria-pressed', 'false');
     });
     panel.querySelectorAll<HTMLElement>(`[data-destination-city="${cityId}"]`).forEach(row => {
       row.style.background = 'rgba(107, 155, 75, 0.2)';
       row.classList.add('route-row-selected');
+      row.setAttribute('aria-pressed', 'true');
     });
-    confirmBtn.disabled = false;
+    setButtonDisabled(confirmBtn, false);
     renderDetail();
   }
 
@@ -363,13 +366,16 @@ export function openEstablishRoutePanel(
     /** Replaces the default yield line, e.g. with a recommendation's own reason. */
     rightText?: string,
   ): HTMLElement {
-    const row = document.createElement('div');
+    const denial = modeDenialFor(destination);
+    const canSelect = selectable && !denial;
+    const row = document.createElement(canSelect ? 'button' : 'div');
     row.dataset.destinationCity = destination.cityId;
     row.style.cssText = [
       'display:flex', 'justify-content:space-between', 'align-items:center',
-      'padding:10px 8px', 'border-bottom:1px solid rgba(255,255,255,0.08)',
-      `cursor:${selectable ? 'pointer' : 'default'}`,
-      `opacity:${selectable ? '1' : '0.5'}`, 'min-height:44px', 'gap:8px',
+      'width:100%', 'box-sizing:border-box', 'min-height:44px', 'gap:8px',
+      'font:inherit', 'color:inherit', 'background:transparent', 'text-align:left',
+      'padding:10px 8px', 'border:0', 'border-bottom:1px solid rgba(255,255,255,0.08)',
+      `cursor:${canSelect ? 'pointer' : 'default'}`, `opacity:${canSelect ? '1' : '0.5'}`,
     ].join(';');
 
     const left = document.createElement('span');
@@ -378,8 +384,9 @@ export function openEstablishRoutePanel(
 
     const right = document.createElement('span');
     right.style.cssText = 'font-size:12px;text-align:right;';
-    const denial = modeDenialFor(destination);
-    if (selectable && !denial) {
+    if (canSelect) {
+      row.setAttribute('type', 'button');
+      row.setAttribute('aria-pressed', 'false');
       right.style.color = '#6b9b4b';
       const positioning = destination.positioningTurns > 0 ? ` · ${destination.positioningTurns} turns to origin` : '';
       right.textContent = rightText
@@ -402,7 +409,7 @@ export function openEstablishRoutePanel(
     destinationSection.textContent = '';
     recommendationSection.textContent = '';
     selectedCityId = null;
-    confirmBtn.disabled = true;
+    setButtonDisabled(confirmBtn, true);
     renderDetail();
 
     const destinations = entitledDestinations();

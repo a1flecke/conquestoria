@@ -29,8 +29,8 @@ import type { City, CivDefinition, Civilization, UnitType } from '@/core/types';
 import type { NotificationEntry } from '@/core/notification-log';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { PirateActionResult } from '@/systems/pirate-actions';
-import { autoSave } from '@/storage/save-manager';
 import { applyRouteControl, ROUTE_CONTROL_DENIAL_MESSAGES, ROUTE_CONTROL_NOTIFICATIONS, type RouteControlAction } from '@/systems/trade-route-lifecycle';
+import { saveTradeRouteChange } from './trade-route-save';
 
 export function controlTradeRoute(
   deps: Pick<PanelActionsCommonDeps, 'session' | 'bus' | 'showNotification'>,
@@ -44,18 +44,7 @@ export function controlTradeRoute(
     return;
   }
   deps.session.commit(result.state);
-
-  const showSaveResult = (message: string, type: 'info' | 'warning') => {
-    const current = deps.session.getState();
-    if (current.playthroughId === state.playthroughId && current.currentPlayer === state.currentPlayer) {
-      deps.showNotification(message, type);
-    }
-  };
-  // The save manager serializes snapshots, including subsequent route changes and turn-end saves.
-  void autoSave(result.state).then(
-    () => showSaveResult(`${ROUTE_CONTROL_NOTIFICATIONS[action]} Progress saved.`, 'info'),
-    () => showSaveResult('Route changed, but saving failed. Save your game before leaving.', 'warning'),
-  );
+  saveTradeRouteChange(deps, result.state, ROUTE_CONTROL_NOTIFICATIONS[action], 'info');
 }
 
 /** The narrow slice of `RenderLoop` these controllers need. */
