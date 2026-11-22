@@ -9,7 +9,8 @@ import { applyWorkerAction } from '@/systems/worker-action-system';
 import { preach } from '@/systems/religion-system';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { canHeal, restUnit } from '@/systems/unit-healing';
+import { restUnit } from '@/systems/unit-healing';
+import { getRestActionAvailability } from '@/systems/supply-combat';
 import { classifyOwner, isMajorCivOwner } from '@/core/owner-kind';
 import { setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -163,7 +164,18 @@ export function createPlayerUnitActions(deps: PlayerActionControllerDeps): Playe
     const selectedUnitId = deps.selection.getSelectedUnitId();
     if (!selectedUnitId) return;
     const unit = deps.session.getState().units[selectedUnitId];
-    if (!unit || !canHeal(unit)) return;
+    if (!unit) return;
+
+    // One legality source with the panel's Rest button (#544 "Rest UX"): an
+    // unsupported unit cannot recover, so resting it would silently consume
+    // its action and movement while promising +15 HP the round-end heal loop
+    // never delivers. The supply denial is explained; the plain hide cases
+    // (full health, already moved/acted, no movement) stay silent.
+    const rest = getRestActionAvailability(unit);
+    if (!rest.available) {
+      if (rest.reason) deps.showNotification(rest.reason, 'warning');
+      return;
+    }
 
     deps.session.commit({
       ...deps.session.getState(),

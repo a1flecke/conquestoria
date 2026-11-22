@@ -6,6 +6,7 @@ import {
 } from '@/core/opponent-challenge';
 import { buildMajorCivPerception } from './ai-perception';
 import { isUnitConcealedFrom } from '@/systems/concealment';
+import { getRestAvailability } from '@/systems/supply-combat';
 import { getObservedUnitForViewer } from '@/systems/viewer-intel';
 import {
   canAttackByProfileOnMap,
@@ -359,7 +360,7 @@ function rankWithdrawals(
     ];
   if (isNavalUnit && healingPositions.length === 0) return [];
   if (healingPositions.length === 0) {
-    return [ranked({ kind: 'rest', unitId: unit.id }, 1_100, true)];
+    return [ranked(withdrawalFallbackAction(unit), 1_100, true)];
   }
 
   const healingDistance = (position: HexCoord) =>
@@ -376,7 +377,20 @@ function rankWithdrawals(
       || hexKey(left).localeCompare(hexKey(right)))[0];
   return destination
     ? [ranked({ kind: 'withdraw', unitId: unit.id, destination }, 1_100, true)]
-    : [ranked({ kind: 'rest', unitId: unit.id }, 1_100, true)];
+    : [ranked(withdrawalFallbackAction(unit), 1_100, true)];
+}
+
+/**
+ * #544 "Rest UX": a wounded unit with nowhere to retreat rests only when its supply
+ * allows recovery. An unsupported rest is a wasted action — the round-end heal loop
+ * denies it — so the unit holds instead (same consumed action and movement, no false
+ * rest promise). Supply is the only gate changed: the AI's long-standing ability to
+ * rest a unit that has already moved is preserved, matching the executor's own check.
+ */
+function withdrawalFallbackAction(unit: Unit): { kind: 'rest' | 'hold'; unitId: string } {
+  return getRestAvailability(unit.landSupply).canRest
+    ? { kind: 'rest', unitId: unit.id }
+    : { kind: 'hold', unitId: unit.id };
 }
 
 function isOnlyCaptureUnit(context: AITacticalContext, unit: Unit): boolean {
@@ -1320,7 +1334,10 @@ export function rankUnitTacticalActions(
     ...rankBlockadeReliefMoves(context, unit),
     ...rankMoves(context, unit),
   ];
-  if (unit.health < 100 && !unit.hasActed) {
+  // #544 "Rest UX": resting is worth an action only when the unit can actually recover —
+  // the round-end heal loop denies unsupported units. Supply is the only gate added; the
+  // AI may still rest a unit that has moved, as it always could.
+  if (unit.health < 100 && !unit.hasActed && getRestAvailability(unit.landSupply).canRest) {
     candidates.push(ranked({ kind: 'rest', unitId }, 100));
   }
   candidates.push(ranked({ kind: 'hold', unitId }, 0));

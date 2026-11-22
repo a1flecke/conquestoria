@@ -1,7 +1,7 @@
 import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_DESCRIPTIONS } from '@/systems/unit-descriptions';
-import { canHeal } from '@/systems/unit-healing';
+import { getRestActionAvailability } from '@/systems/supply-combat';
 import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
@@ -1116,8 +1116,26 @@ export function renderSelectedUnitInfo(
     }
   }
 
-  if (canHeal(unit) && !unit.hasMoved && !unit.hasActed && unit.movementPointsLeft > 0 && callbacks.onRest) {
-    actionsDiv.appendChild(makeButton('Rest (+15 HP)', '#4a90d9', callbacks.onRest));
+  if (callbacks.onRest) {
+    // #544 "Rest UX": a wounded fresh unit that cannot recover while unsupported gets a
+    // disabled button plus the reason — never a "+15 HP" promise the round-end heal loop
+    // denies. The plain hide cases (moved/acted/no movement/full health) stay hidden.
+    const rest = getRestActionAvailability(unit);
+    if (rest.available) {
+      actionsDiv.appendChild(makeButton('Rest (+15 HP)', '#4a90d9', callbacks.onRest));
+    } else if (rest.reason) {
+      const blocked = makeButton('Rest (+15 HP)', '#4a90d9');
+      blocked.disabled = true;
+      blocked.style.opacity = '0.5';
+      blocked.style.cursor = 'not-allowed';
+      blocked.title = rest.reason;
+      blocked.setAttribute('aria-label', `Rest unavailable: ${rest.reason}`);
+      actionsDiv.appendChild(blocked);
+      const why = document.createElement('div');
+      why.style.cssText = 'font-size:11px;margin-top:2px;color:#f8d28a;';
+      why.textContent = rest.reason;
+      actionsDiv.appendChild(why);
+    }
   }
 
   if (def.airOperation?.missions.includes('intercept') && unit.airBase && !unit.hasActed && callbacks.onStartIntercept) {

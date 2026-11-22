@@ -2566,6 +2566,40 @@ describe('renderSelectedUnitInfo - fortify button', () => {
     expect(btns).not.toContain('Rest (+15 HP)');
   });
 
+  it('disables Rest and explains why for an injured unit whose supply denies recovery (#544 Rest UX)', () => {
+    const state = makeWarriorState({
+      health: 60,
+      landSupply: { state: 'stable-unsupported', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 },
+    });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onRest: () => {},
+    });
+
+    const restButton = findButtons(container).find(b => b.textContent === 'Rest (+15 HP)');
+    expect(restButton).toBeDefined();
+    expect(restButton!.disabled).toBe(true);
+    expect(restButton!.title).toBe('Cannot recover while unsupported — restore supply first.');
+    expect(collectAllText(container).join(' ')).toContain('Cannot recover while unsupported — restore supply first.');
+  });
+
+  it('keeps Rest enabled for an injured fresh unit whose supply is full', () => {
+    const state = makeWarriorState({
+      health: 60,
+      landSupply: { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 },
+    });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onRest: () => {},
+    });
+
+    const restButton = findButtons(container).find(b => b.textContent === 'Rest (+15 HP)');
+    expect(restButton).toBeDefined();
+    expect(restButton!.disabled).toBeFalsy();
+  });
+
   it('fires onFortify with the unit id when Fortify is clicked', () => {
     const state = makeWarriorState();
     const container = new MockElement('div');
