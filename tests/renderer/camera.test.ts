@@ -28,6 +28,18 @@ describe('Camera.setMinZoomForMap', () => {
     expect(cam.zoom).toBeCloseTo(1.0);
   });
 
+  it('restores the normal zoom floor for a non-wrapping map', () => {
+    const cam = new Camera();
+    cam.setViewport(1280, 720);
+    const defaultFloor = cam.minZoom;
+    cam.setMinZoomForMap(450);
+    expect(cam.minZoom).toBeGreaterThan(2);
+    cam.setMinZoomForMap();
+    expect(cam.minZoom).toBe(defaultFloor);
+    cam.setZoom(1, 640, 360);
+    expect(cam.zoom).toBe(1);
+  });
+
   it('is a no-op when mapWidthPx is 0', () => {
     const cam = new Camera();
     cam.setViewport(800, 600);

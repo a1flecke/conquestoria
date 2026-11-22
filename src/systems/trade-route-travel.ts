@@ -13,6 +13,11 @@ import { getBlockingMapEntityAt } from './unit-movement-legality';
 import { resetUnitTurn } from './unit-lifecycle';
 import { hexKey, mapDistance } from './hex-utils';
 
+/** Whether this route runner uses naval service points and travel. */
+export function isNavalRouteRunner(unit: Unit): boolean {
+  return UNIT_DEFINITIONS[unit.type]?.domain === 'naval';
+}
+
 /**
  * The one movement allowance a trader gets per round: exactly what the canonical per-owner-turn
  * reset grants (definition movement + bonuses − supply/endurance penalties). Assignment,

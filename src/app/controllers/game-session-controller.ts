@@ -274,7 +274,11 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     preloadNaturalWonderTiles().catch(() => {});
     preloadLegendaryWonderArt().catch(() => {});
 
-    // Center camera on current player's starting position
+    // Set the wrapping zoom floor before centering. A bounded map has no repeated copies.
+    const { map } = deps.session.getState();
+    const camera = deps.renderLoop.camera;
+    const wrapSpan = map.wrapsHorizontally ? hexToPixel({ q: map.width, r: 0 }, camera.hexSize).x : undefined;
+    camera.setMinZoomForMap(wrapSpan);
     deps.turnFlow.centerOnCurrentPlayer();
 
     // #1199: publish the brand-new/loaded state through the session, never a
@@ -391,13 +395,6 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     routeSfxThrough(deps.audio.getSfxRoutingNode());
     deps.turnFlow.emitCurrentPlayerAudioSnapshot(deps.session.getState().currentPlayer);
 
-    // Prevent zoom-out duplication: ensure the camera cannot zoom past one full
-    // map-width. hexToPixel({q: width, r:0}).x equals the wrapSpan used in
-    // wrap-rendering.ts, so minZoom = camera.width / wrapSpan guarantees the
-    // visible world is never wider than one map copy.
-    const mapWidthPx = hexToPixel({ q: deps.session.getState().map.width, r: 0 }, deps.renderLoop.camera.hexSize).x;
-    deps.renderLoop.camera.setMinZoomForMap(mapWidthPx);
-
     // Initial advisor check
     deps.advisorSystem.check(deps.session.getState());
     deps.turnFlow.showRequiredChoicesIfNeeded();
@@ -436,6 +433,16 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     installGlobalShortcuts({ target: window, selection: deps.selection, router: deps.router, notifier });
     await deps.userSettingsStore.refresh();
 
+    if (import.meta.env.MODE === 'e2e') {
+      // Browser tests use the live camera transform without accessing game state or the camera.
+      window.__CONQUESTORIA_E2E_GET_VISIBLE_HEX_COPIES__ = coord => getVisibleHexViewportCopies(
+        deps.session.getState(),
+        deps.renderLoop.camera,
+        deps.session.getState().currentPlayer,
+        coord,
+      );
+    }
+
     // #846: developer scenario loader. import.meta.env.DEV is a Vite
     // compile-time constant (true for `vite`/`vite dev`, false for
     // `vite build`) -- this whole branch, and the dynamic imports inside it,
@@ -469,14 +476,6 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     }
 
     if (import.meta.env.MODE === 'e2e') {
-      // Browser tests must target the same live camera transform as player input;
-      // exposing only viewport copies keeps game state and camera internals private.
-      window.__CONQUESTORIA_E2E_GET_VISIBLE_HEX_COPIES__ = coord => getVisibleHexViewportCopies(
-        deps.session.getState(),
-        deps.renderLoop.camera,
-        deps.session.getState().currentPlayer,
-        coord,
-      );
       const { isExactAutosaveE2ERequest } = await import('@/testing/e2e-mode');
       if (isExactAutosaveE2ERequest(import.meta.env.MODE, window.location.search)) {
         const { installE2ERuntime } = await import('@/testing/e2e-runtime');

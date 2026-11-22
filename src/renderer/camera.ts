@@ -2,6 +2,7 @@ import { hexToPixel, pixelToHex } from '@/systems/hex-utils';
 import type { HexCoord } from '@/core/types/hex';
 
 type CameraListener = () => void;
+const DEFAULT_MIN_ZOOM = 0.3;
 
 /**
  * Every camera field that affects pixels is an accessor: a write from anywhere (input handlers,
@@ -13,7 +14,7 @@ export class Camera {
   private _y = 0;
   private _zoom = 1;
   private _targetZoom = 1;
-  private _minZoom = 0.3;
+  private _minZoom = DEFAULT_MIN_ZOOM;
   private _maxZoom = 3;
   private _width = 0;
   private _height = 0;
@@ -154,14 +155,15 @@ export class Camera {
    * Compute minZoom so that the visible world width never exceeds the map's
    * pixel span. This prevents getHorizontalWrapRenderCoords from rendering the
    * map more than once side-by-side when the player zooms all the way out.
+   * Omit the span to restore the normal zoom floor for a non-wrapping map.
    *
    * `mapWidthPx` should equal hexToPixel({q: map.width, r:0}, hexSize).x,
    * which is the same value used as `wrapSpan` in wrap-rendering.ts.
    */
-  setMinZoomForMap(mapWidthPx: number): void {
-    if (mapWidthPx <= 0 || this._width <= 0) return;
+  setMinZoomForMap(mapWidthPx?: number): void {
+    if (mapWidthPx !== undefined && (mapWidthPx <= 0 || this._width <= 0)) return;
     this.commit(() => {
-      this._minZoom = this._width / mapWidthPx;
+      this._minZoom = mapWidthPx === undefined ? DEFAULT_MIN_ZOOM : this._width / mapWidthPx;
       if (this._zoom < this._minZoom) {
         this._zoom = this._minZoom;
         this._targetZoom = this._minZoom;
