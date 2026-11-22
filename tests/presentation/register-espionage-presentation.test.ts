@@ -130,7 +130,7 @@ describe('espionage presentation', () => {
 
     expect(ctx.deliver).toHaveBeenCalledWith(
       'rome',
-      'Your counterintelligence turned Agent X into a double agent in Thebes. They will feed false intelligence to their old masters.',
+      'Your counterintelligence turned Agent X into a double agent in Thebes. The intelligence reports it sends home will be false until its masters debrief it.',
       'success',
     );
     expect(ctx.deliver).not.toHaveBeenCalledWith('carthage', expect.anything(), expect.anything());
