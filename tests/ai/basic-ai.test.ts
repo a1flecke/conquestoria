@@ -125,6 +125,8 @@ describe('#1784 city-state conquest through the AI turn', () => {
     const conquered = processNextTurn(next, bus);
     expect(conquered.cities[target.id].owner).toBe(aiId);
     expect(conquered.minorCivs[minorId].isDestroyed).toBe(true);
+    expect(conquered.civilizations[aiId].diplomacy.atWarWith).not.toContain(minorId);
+    expect(conquered.minorCivs[minorId].diplomacy.atWarWith).toEqual([]);
     expect(destroyed).toHaveBeenCalledOnce();
   });
 

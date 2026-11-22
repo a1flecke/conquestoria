@@ -209,6 +209,16 @@ function findValidPosition(
 
 // === Turn Processing ===
 
+/** Elimination ends hostilities without a negotiated peace or relationship change. */
+function clearDestroyedMinorCivWars(state: GameState, minorCiv: MinorCivState): void {
+  minorCiv.diplomacy.atWarWith = [];
+  for (const opponent of [...Object.values(state.civilizations), ...Object.values(state.minorCivs)]) {
+    if (opponent.diplomacy.atWarWith.includes(minorCiv.id)) {
+      opponent.diplomacy.atWarWith = opponent.diplomacy.atWarWith.filter(id => id !== minorCiv.id);
+    }
+  }
+}
+
 export function processMinorCivTurn(
   state: GameState,
   bus: EventBus,
@@ -218,7 +228,12 @@ export function processMinorCivTurn(
   // individual member economy observes the shared state for this world turn.
   for (const mcId of Object.keys(nextState.minorCivs).sort()) {
     const minorCiv = nextState.minorCivs[mcId];
-    if (minorCiv.isDestroyed || !MINOR_CIV_DEFINITIONS.some(definition => definition.id === minorCiv.definitionId)) continue;
+    if (minorCiv.isDestroyed) {
+      // Older saves can still carry a war with this city-state.
+      clearDestroyedMinorCivWars(nextState, minorCiv);
+      continue;
+    }
+    if (!MINOR_CIV_DEFINITIONS.some(definition => definition.id === minorCiv.definitionId)) continue;
     nextState = processMinorCivRegionalGrievanceTurn(nextState, mcId);
   }
   nextState = processMinorCivLeagueTurn(nextState);
@@ -709,6 +724,7 @@ export function conquestMinorCiv(
   }
 
   mc.isDestroyed = true;
+  clearDestroyedMinorCivWars(nextState, mc);
   mc.activeQuests = {};
   mc.chainStatusByCiv = {};
   mc.questCooldownUntilByCiv = {};
@@ -762,6 +778,7 @@ export function peacefullyAbsorbMinorCiv(
   }
 
   mc.isDestroyed = true;
+  clearDestroyedMinorCivWars(nextState, mc);
   mc.activeQuests = {};
   mc.chainStatusByCiv = {};
   mc.questCooldownUntilByCiv = {};
