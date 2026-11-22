@@ -58,6 +58,7 @@ import { applyOpportunisticWarPenaltyIfCrisisStruck, applySendAid, canSendAid } 
 import { openEstablishRoutePanel, type RouteProcurementDraft } from '@/ui/establish-route-panel';
 import { setMarketProcurementPolicy } from '@/systems/resource-market-offers';
 import { emitMinorCivLeagueNotices } from '@/systems/minor-civ-league-presentation';
+import { saveTradeRouteChange } from './trade-route-save';
 
 export interface DiplomacyActionsController {
   handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void;
@@ -386,7 +387,7 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
       emitMinorCivQuestTransitions(deps.bus, routeResult.questTransitions, deps.session.getState());
       deps.bus.emit('trade:route-created', { route: routeResult.route });
       deps.selectionController.selectUnit(caravanId);
-      deps.showNotification('Trade route established!', 'success');
+      saveTradeRouteChange(deps, deps.session.getState(), 'Trade route established.', 'success');
     });
   }
 

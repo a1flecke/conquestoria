@@ -9,6 +9,7 @@ import { signTreaty } from '@/systems/diplomacy-treaties';
 import { ALLIANCE_TECHS } from '@/systems/diplomacy-actions';
 import { DIPLOMATIC_ACTION_DENIAL_MESSAGES, DIPLOMATIC_REQUEST_DENIAL_MESSAGES } from '@/systems/diplomacy-system';
 import { createUnit } from '@/systems/unit-lifecycle';
+import * as saveManager from '@/storage/save-manager';
 import type { City, GameState, HexCoord } from '@/core/types';
 import {
   createDiplomacyActionsController,
@@ -584,7 +585,7 @@ describe('DiplomacyActionsController', () => {
       );
     });
 
-    it('opens the establish-route panel and wires establishment through to a real trade route', () => {
+    it('opens the chooser, establishes a real route and confirms success after the save', async () => {
       const { state } = makeFixture('establish-route');
       const caravanId = 'caravan-1';
       const toCityId = Object.keys(state.cities)[0]; // an existing, already-reachable minor-civ city
@@ -606,13 +607,25 @@ describe('DiplomacyActionsController', () => {
       expect(openEstablishRoutePanel).toHaveBeenCalledTimes(1);
       const onEstablish = (openEstablishRoutePanel as ReturnType<typeof vi.fn>).mock.calls[0][3] as (toCityId: string) => void;
 
-      onEstablish(toCityId);
+      let finishSave!: () => void;
+      const saved = new Promise<void>(resolve => { finishSave = resolve; });
+      const autoSave = vi.spyOn(saveManager, 'autoSave').mockReturnValue(saved);
+      try {
+        onEstablish(toCityId);
 
-      expect(deps.session.getState().marketplace?.tradeRoutes.some(route => route.toCityId === toCityId)).toBe(true);
-      expect(deps.renderLoop.setGameState).toHaveBeenCalled();
-      expect(deps.hud.update).toHaveBeenCalled();
-      expect(deps.selectionController.selectUnit).toHaveBeenCalledWith(caravanId);
-      expect(deps.showNotification).toHaveBeenCalledWith('Trade route established!', 'success');
+        expect(deps.session.getState().marketplace?.tradeRoutes.some(route => route.toCityId === toCityId)).toBe(true);
+        expect(deps.renderLoop.setGameState).toHaveBeenCalled();
+        expect(deps.hud.update).toHaveBeenCalled();
+        expect(deps.selectionController.selectUnit).toHaveBeenCalledWith(caravanId);
+        expect(autoSave).toHaveBeenCalledExactlyOnceWith(deps.session.getState());
+        expect(deps.showNotification).not.toHaveBeenCalled();
+
+        finishSave();
+        await saved;
+        expect(deps.showNotification).toHaveBeenCalledWith('Trade route established. Progress saved.', 'success');
+      } finally {
+        autoSave.mockRestore();
+      }
     });
   });
 });
