@@ -11,9 +11,11 @@ import {
   getEligibleMarketBuyers,
   getExportableSurplus,
   getMarketOffersForBuyer,
+  getMarketProcurementPolicy,
   quoteMarketLoad,
   refreshMarketOffers,
   setCommerceResourcePolicy,
+  setMarketProcurementPolicy,
 } from '@/systems/resource-market-offers';
 import { resourceGoodId, type TradeGoodDefinition } from '@/systems/trade-good-definitions';
 import { getReserveBalance, getStoredQuantity } from '@/systems/resource-reserve-system';
@@ -371,6 +373,29 @@ describe('#1508 MR11 — atomic loading', () => {
     expect(stale.state).toBe(capped);
     expect(getReserveBalance(capped.materialReservesByCiv![SELLER]!, COAL).native).toBe(30);
     expect(getReserveBalance(capped.materialReservesByCiv![ALPHA]!, COAL).imported).toBe(0);
+  });
+
+  it('counts a load made before a budget is set toward that round’s new budget', () => {
+    const state = refreshMarketOffers(world());
+    expect(state.commerceMarket?.procurementByCiv?.[ALPHA]).toBeUndefined();
+    const quoted = quoteMarketLoad(state, ALPHA, SELLER, COAL, 1);
+    expect(quoted.ok).toBe(true);
+    if (!quoted.ok) throw new Error(quoted.reason);
+    const loaded = commitMarketLoad(state, quoted.quote);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error(loaded.reason);
+    const budgeted = setMarketProcurementPolicy(loaded.state, ALPHA, {
+      ...getMarketProcurementPolicy(loaded.state, ALPHA),
+      roundBudget: quoted.quote.totalPrice,
+    });
+
+    expect(quoteMarketLoad(budgeted, ALPHA, SELLER, COAL, 1)).toMatchObject({ ok: false, reason: 'round-budget' });
+    const nextRound = { ...budgeted, turn: budgeted.turn + 1 };
+    expect(getMarketProcurementPolicy(nextRound, ALPHA)).toMatchObject({
+      roundBudget: quoted.quote.totalPrice,
+      spentThisTurn: 0,
+    });
+    expect(quoteMarketLoad(refreshMarketOffers(nextRound), ALPHA, SELLER, COAL, 1).ok).toBe(true);
   });
 
   it('honours insufficient gold, the treasury floor and storage headroom', () => {
