@@ -15,6 +15,10 @@ import {
   projectCivGrossGold,
   settleGoldTransfers,
 } from '@/systems/economy-system';
+import { addGoldBonuses } from '@/core/round-phases/per-civ/gold-bonuses';
+import type { CivTurn } from '@/core/round-phases/per-civ/types';
+import { resolveCivDefinition } from '@/systems/civ-registry';
+import { getEmpireFlatTechYields } from '@/systems/tech-yield-system';
 import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import * as cityWorkSystem from '@/systems/city-work-system';
@@ -578,6 +582,138 @@ describe('#591 MR4 — Tithes gold', () => {
     };
     const withoutTithes = { ...withTithes, religions: {} };
     expect(projectCivGrossGold(withTithes, 'player') - projectCivGrossGold(withoutTithes, 'player')).toBe(10);
+  });
+});
+
+describe('the round credits the civ-wide gold the economy projection promises', () => {
+  /**
+   * The economy phase settles `grossGoldByCiv` (what the per-civ steps credited), not the
+   * projection: any income the projection displays but no step credits is a phantom that
+   * never reaches the treasury, while every economy surface (city panel, HUD projection,
+   * rush-buy strain gate) claims it is being paid. These four were phantom — national-project
+   * civ-wide gold, the Tithes boon, postal-service road gold, and connected-city rail gold —
+   * each already counted by `projectCivGrossGold` and each never credited by `addGoldBonuses`.
+   */
+  function makeTurn(state: GameState, completedTechs: string[] = []): CivTurn {
+    state.civilizations.player.techState.completed = completedTechs;
+    const civ = state.civilizations.player;
+    return {
+      civId: 'player',
+      civ,
+      currentCivState: civ,
+      civDef: resolveCivDefinition(state, civ.civType ?? ''),
+      unitIdsAtTurnStart: [],
+    };
+  }
+
+  function makeIncome(state: GameState) {
+    return {
+      totalGold: 0,
+      authoritativeCityScience: {},
+      baseGoldByCityId: {},
+      empireFlatTechYields: getEmpireFlatTechYields(state.civilizations.player.techState.completed),
+    };
+  }
+
+  it('credits national-project civ-wide gold into the round income (road_corps: +1 gold)', () => {
+    const state = makeState();
+    state.builtNationalProjects = { 'player:road_corps': { civId: 'player', cityId: 'capital', eraBuilt: 1 } };
+    const turn = makeTurn(state);
+
+    // Prerequisite: the projection displays the promised income.
+    const withoutNp = { ...state, builtNationalProjects: {} };
+    const promised = projectCivGrossGold(state, 'player') - projectCivGrossGold(withoutNp, 'player');
+    expect(promised).toBe(1);
+
+    const income = makeIncome(state);
+    addGoldBonuses(state, turn, income);
+    expect(income.totalGold).toBe(promised);
+  });
+
+  it('credits the Tithes boon gold into the round income', () => {
+    const state = makeState();
+    const withTithes: GameState = {
+      ...state,
+      religions: { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', boon: 'tithes', foundedTurn: 1 } },
+      cities: {
+        ...state.cities,
+        'foreign-1': { ...state.cities.capital, id: 'foreign-1', owner: 'rival' },
+        'foreign-2': { ...state.cities.capital, id: 'foreign-2', owner: 'rival' },
+      },
+      cityFaith: {
+        'foreign-1': { religionId: 'religion-player' },
+        'foreign-2': { religionId: 'religion-player' },
+      },
+    };
+    const turn = makeTurn(withTithes);
+
+    // Prerequisite: the projection displays the promised income.
+    const withoutTithes = { ...withTithes, religions: {} };
+    const promised = projectCivGrossGold(withTithes, 'player') - projectCivGrossGold(withoutTithes, 'player');
+    expect(promised).toBe(2);
+
+    const income = makeIncome(withTithes);
+    addGoldBonuses(withTithes, turn, income);
+    expect(income.totalGold).toBe(promised);
+  });
+
+  it('credits postal-service road-tile gold into the round income', () => {
+    const state = makeState();
+    let roaded = 0;
+    for (const tile of Object.values(state.map.tiles)) {
+      if (roaded >= 3) break;
+      tile.hasRoad = true;
+      tile.owner = 'player';
+      roaded++;
+    }
+    const turn = makeTurn(state, ['postal-service']);
+
+    // Prerequisite: the projection displays the promised income.
+    const withoutTech = { ...state, civilizations: { ...state.civilizations, player: { ...state.civilizations.player, techState: { ...state.civilizations.player.techState, completed: [] } } } };
+    const promised = projectCivGrossGold(state, 'player') - projectCivGrossGold(withoutTech, 'player');
+    expect(promised).toBe(3);
+
+    const income = makeIncome(state);
+    addGoldBonuses(state, turn, income);
+    expect(income.totalGold).toBe(promised);
+  });
+
+  it('credits connected-city rail gold into the round income', () => {
+    const state = makeState();
+    const second = foundCity('player', { q: 5, r: 2 }, state.map, state.idCounters);
+    second.id = 'second';
+    state.cities.second = second;
+    state.civilizations.player.cities.push('second');
+    state.map.tiles['3,2']!.hasRoad = true;
+    state.map.tiles['4,2']!.hasRoad = true;
+    const turn = makeTurn(state, ['courier-network']);
+
+    // Prerequisite: the projection displays the promised income (+1 per connected city).
+    const withoutTech = { ...state, civilizations: { ...state.civilizations, player: { ...state.civilizations.player, techState: { ...state.civilizations.player.techState, completed: [] } } } };
+    const promised = projectCivGrossGold(state, 'player') - projectCivGrossGold(withoutTech, 'player');
+    expect(promised).toBe(1);
+
+    const income = makeIncome(state);
+    addGoldBonuses(state, turn, income);
+    expect(income.totalGold).toBe(promised);
+  });
+
+  it('credits the Imperial Levy gold into the round income (its unrest cost is already real)', () => {
+    const state = makeState();
+    city(state).buildings = ['marketplace'];
+    state.cities.capital = { ...state.cities.capital, levy: 'light' };
+    const turn = makeTurn(state);
+
+    // Prerequisite: the projection displays the promised income, and the levy's
+    // unrest row is real (faction-pressure.ts), so the flat gold must settle too —
+    // otherwise placing the levy pays unrest for nothing.
+    const withoutLevy = { ...state, cities: { ...state.cities, capital: { ...state.cities.capital, levy: undefined } } };
+    const promised = projectCivGrossGold(state, 'player') - projectCivGrossGold(withoutLevy, 'player');
+    expect(promised).toBe(CITY_LEVY_GOLD_BONUS);
+
+    const income = makeIncome(state);
+    addGoldBonuses(state, turn, income);
+    expect(income.totalGold).toBe(promised);
   });
 });
 

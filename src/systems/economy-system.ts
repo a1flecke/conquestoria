@@ -614,6 +614,31 @@ export function projectCivGrossGold(
   return grossGold;
 }
 
+/**
+ * The five civ-wide gold credits the round must settle but no city's yields contain:
+ * national-project civ gold, the Tithes boon, postal-service road gold,
+ * connected-city rail gold and the Imperial Levy. Lives here - next to
+ * `projectCivGrossGold`, reading the exact same helpers - so the per-civ
+ * crediting step needs ONE import instead of five, and display and settlement
+ * cannot drift.
+ */
+export function getCivWideGoldCredits(state: GameState, civId: string): number {
+  const civ = state.civilizations[civId];
+  if (!civ) return 0;
+  let credits = 0;
+  // #1338: the levy is a flat per-city extraction outside the city-yield
+  // multipliers, exactly as the projection adds it.
+  for (const cityId of civ.cities) {
+    const city = state.cities[cityId];
+    if (city) credits += getCityLevyGoldBonus(city);
+  }
+  credits += getNationalProjectCivYieldBonus(state, civId).gold ?? 0;
+  credits += getRoadTileTechGold(civ.techState.completed, getOwnedRoadTileCount(state, civId));
+  credits += getConnectedCityTechGold(civ.techState.completed, getCitiesConnectedToCapital(state, civId).size);
+  credits += getReligionTithesGold(state, civId);
+  return credits;
+}
+
 export function calculateCivEconomy(
   state: GameState,
   civId: string,
