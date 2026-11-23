@@ -84,6 +84,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     uiLayer.querySelector('#diplomacy-panel')?.remove();
     uiLayer.querySelector('#beast-hoard-panel')?.remove();
     uiLayer.querySelector('#general-candidate-panel')?.remove();
+    uiLayer.querySelector('#beast-sighting-banner')?.remove();
     deps.getElementById('capture-verdict-modal')?.remove();
     deps.getElementById('intel-modal')?.remove();
     deps.getNetworkIntentPanel()?.remove();
