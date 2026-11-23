@@ -354,8 +354,10 @@ export function getMarketProcurementPolicy(
   state: GameState,
   civId: string,
 ): MarketProcurementPolicy {
-  return marketOf(state)?.procurementByCiv?.[civId]
-    ?? { maxUnitPrice: Number.MAX_SAFE_INTEGER, treasuryFloor: 0 };
+  const market = marketOf(state);
+  const policy = market?.procurementByCiv?.[civId];
+  if (!policy) return { maxUnitPrice: Number.MAX_SAFE_INTEGER, treasuryFloor: 0 };
+  return market?.turn === state.turn ? policy : { ...policy, spentThisTurn: 0 };
 }
 
 /** MR12 owns the policy UI; this writer is the one place the persisted cap/floor changes. */
@@ -556,7 +558,8 @@ export function commitMarketLoad(
     ? (servedIndex + 1) % eligible.length
     : (market.serviceCursorByOffer[offer.offerId] ?? 0);
   const served = [...(market.servedByOffer?.[offer.offerId] ?? []), quote.buyerCivId];
-  const procurement = market.procurementByCiv?.[quote.buyerCivId];
+  // Count loads even before the buyer sets a budget, so a mid-round limit includes prior purchases.
+  const procurement = getMarketProcurementPolicy(state, quote.buyerCivId);
   const nextState: GameState = {
     ...paid,
     ...(options.settlement === 'service'
@@ -581,17 +584,13 @@ export function commitMarketLoad(
         ...(market.servedByOffer ?? {}),
         [offer.offerId]: served,
       },
-      ...(procurement
-        ? {
-          procurementByCiv: {
-            ...(market.procurementByCiv ?? {}),
-            [quote.buyerCivId]: {
-              ...procurement,
-              spentThisTurn: (procurement.spentThisTurn ?? 0) + current.quote.totalPrice,
-            },
-          },
-        }
-        : {}),
+      procurementByCiv: {
+        ...(market.procurementByCiv ?? {}),
+        [quote.buyerCivId]: {
+          ...procurement,
+          spentThisTurn: (procurement.spentThisTurn ?? 0) + current.quote.totalPrice,
+        },
+      },
     },
   };
   return {

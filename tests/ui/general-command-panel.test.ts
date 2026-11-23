@@ -65,16 +65,19 @@ describe('createRallyPanel', () => {
 });
 
 describe('createSeizeThePanelMoment', () => {
+  const checkboxesIn = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
+
   it('renders a checkbox per eligible unit', () => {
     const container = document.createElement('div');
-    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior' }, { unitId: 'unit-2', label: 'archer' }], () => {}, () => {});
+    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior' }, { unitId: 'unit-2', label: 'archer' }], 3, () => {}, () => {});
     expect(container.querySelectorAll('input[type="checkbox"]').length).toBe(2);
   });
 
   it('confirm passes only the checked unit ids', () => {
     const container = document.createElement('div');
     const onConfirm = vi.fn();
-    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior' }, { unitId: 'unit-2', label: 'archer' }], onConfirm, () => {});
+    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior' }, { unitId: 'unit-2', label: 'archer' }], 3, onConfirm, () => {});
     const checkboxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
     checkboxes[0].checked = true;
     checkboxes[0].dispatchEvent(new Event('change'));
@@ -85,14 +88,14 @@ describe('createSeizeThePanelMoment', () => {
 
   it('review fix: shows an empty-state message when zero units are eligible', () => {
     const container = document.createElement('div');
-    createSeizeThePanelMoment(container, 'gen-1', [], () => {}, () => {});
+    createSeizeThePanelMoment(container, 'gen-1', [], 3, () => {}, () => {});
     expect(container.textContent).toMatch(/no units|nothing eligible/i);
   });
 
   it('review fix: Confirm starts disabled and stays disabled until at least one checkbox is checked', () => {
     const container = document.createElement('div');
     const onConfirm = vi.fn();
-    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior' }], onConfirm, () => {});
+    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior' }], 3, onConfirm, () => {});
     const confirmButton = Array.from(container.querySelectorAll('button')).find(b => /confirm/i.test(b.textContent ?? '')) as HTMLButtonElement;
     expect(confirmButton.disabled).toBe(true);
     confirmButton.click();
@@ -102,6 +105,52 @@ describe('createSeizeThePanelMoment', () => {
     checkbox.checked = true;
     checkbox.dispatchEvent(new Event('change'));
     expect(confirmButton.disabled).toBe(false);
+  });
+
+  it('never lets the player select more units than the executor will activate', () => {
+    const container = document.createElement('div');
+    const onConfirm = vi.fn();
+    const eligible = ['u1', 'u2', 'u3', 'u4', 'u5'].map(unitId => ({ unitId, label: 'Warrior (100 HP)' }));
+    createSeizeThePanelMoment(container, 'gen-1', eligible, 3, onConfirm, () => {});
+    const checkboxes = checkboxesIn(container);
+
+    for (const id of ['u1', 'u2', 'u3']) {
+      const checkbox = checkboxes.find(cb => cb.dataset.unitId === id)!;
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change'));
+    }
+
+    // The allowance is spent: the remaining two are no longer selectable, and the
+    // count says so (the executor would otherwise trim the list silently).
+    expect(checkboxes.filter(cb => cb.dataset.unitId === 'u4' || cb.dataset.unitId === 'u5').every(cb => cb.disabled)).toBe(true);
+    expect(container.textContent).toContain('3 of 3 selected');
+
+    const confirmButton = Array.from(container.querySelectorAll('button')).find(b => /confirm/i.test(b.textContent ?? ''))!;
+    confirmButton.click();
+    expect(onConfirm).toHaveBeenCalledWith(['u1', 'u2', 'u3']);
+  });
+
+  it('re-enables the remaining units when an allowance is given back', () => {
+    const container = document.createElement('div');
+    const eligible = ['u1', 'u2', 'u3', 'u4'].map(unitId => ({ unitId, label: 'Warrior (100 HP)' }));
+    createSeizeThePanelMoment(container, 'gen-1', eligible, 2, () => {}, () => {});
+    const checkboxes = checkboxesIn(container);
+    const tick = (id: string) => {
+      const checkbox = checkboxes.find(cb => cb.dataset.unitId === id)!;
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change'));
+    };
+
+    tick('u1');
+    tick('u2');
+    expect(checkboxes.find(cb => cb.dataset.unitId === 'u3')!.disabled).toBe(true);
+    expect(container.textContent).toContain('2 of 2 selected');
+
+    const first = checkboxes.find(cb => cb.dataset.unitId === 'u1')!;
+    first.checked = false;
+    first.dispatchEvent(new Event('change'));
+    expect(checkboxes.find(cb => cb.dataset.unitId === 'u3')!.disabled).toBe(false);
+    expect(container.textContent).toContain('1 of 2 selected');
   });
 });
 
@@ -231,7 +280,7 @@ describe('#889 General identity in command previews', () => {
     expect(container.querySelector('#rally-panel [data-general-portrait="gen_caesar"]')).not.toBeNull();
 
     const seize = document.createElement('div');
-    createSeizeThePanelMoment(seize, 'g1', [], () => {}, () => {}, identity);
+    createSeizeThePanelMoment(seize, 'g1', [], 3, () => {}, () => {}, identity);
     expect(seize.querySelector('#seize-the-moment-panel h2')!.textContent).toBe('Seize the Moment — Julius Caesar');
 
     const stand = document.createElement('div');

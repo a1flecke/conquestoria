@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { GameState } from '@/core/types';
 import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
+import { refreshMarketOffers, setMarketProcurementPolicy } from '@/systems/resource-market-offers';
 
 /**
  * Same shape as the projection fixture: alpha's own cities at (0,0)/(2,0), a discovered beta city at
@@ -180,6 +181,52 @@ describe('openEstablishRoutePanel (#1500 MR03)', () => {
       roundBudget: 120,
       treasuryFloor: 30,
     });
+  });
+
+  it.each([48, undefined])('shows the current empire limits and leaves them alone on confirmation (budget %s)', roundBudget => {
+    const state = makeState();
+    state.civilizations.alpha!.techState.completed.push('bronze-working');
+    const configured = setMarketProcurementPolicy(refreshMarketOffers(state), 'alpha', {
+      maxUnitPrice: 15, treasuryFloor: 27, roundBudget, spentThisTurn: 35,
+    });
+    const onEstablish = vi.fn();
+    openEstablishRoutePanel(container, configured, 'trader-1', onEstablish);
+
+    const panel = document.getElementById('establish-route-panel')!;
+    panel.querySelector<HTMLElement>('[data-destination-city="beta-city"]')!.click();
+    const budget = panel.querySelector<HTMLInputElement>('input[data-procurement-budget]')!;
+    const floor = panel.querySelector<HTMLInputElement>('input[data-procurement-floor]')!;
+    expect(budget.value).toBe(roundBudget === undefined ? '' : String(roundBudget));
+    expect(budget.placeholder).toBe('No limit');
+    expect(floor.value).toBe('27');
+    expect(panel.textContent).toContain('35 gold spent this round');
+    expect(panel.textContent).toContain('15 gold per unit cap');
+
+    const confirm = Array.from(panel.querySelectorAll('button')).find(button => button.textContent === 'Confirm')!;
+    confirm.click();
+    const draft = onEstablish.mock.calls[0][3];
+    expect(draft.procurement.orders).toHaveLength(1);
+    expect(draft.roundBudget).toBeUndefined();
+    expect(draft.treasuryFloor).toBeUndefined();
+  });
+
+  it('treats clearing a finite budget as an explicit change to no limit', () => {
+    const state = makeState();
+    state.civilizations.alpha!.techState.completed.push('bronze-working');
+    const configured = setMarketProcurementPolicy(refreshMarketOffers(state), 'alpha', {
+      maxUnitPrice: 15, treasuryFloor: 27, roundBudget: 48, spentThisTurn: 35,
+    });
+    const onEstablish = vi.fn();
+    openEstablishRoutePanel(container, configured, 'trader-1', onEstablish);
+    const panel = document.getElementById('establish-route-panel')!;
+    panel.querySelector<HTMLElement>('[data-destination-city="beta-city"]')!.click();
+    const budget = panel.querySelector<HTMLInputElement>('input[data-procurement-budget]')!;
+    expect(budget.value).toBe('48');
+    budget.value = '';
+    budget.dispatchEvent(new Event('input'));
+    const confirm = Array.from(panel.querySelectorAll('button')).find(button => button.textContent === 'Confirm')!;
+    confirm.click();
+    expect(onEstablish.mock.calls[0][3]).toMatchObject({ roundBudget: null });
   });
 
   it('supports multiple prioritized import orders, presets, removal and a detour limit', () => {

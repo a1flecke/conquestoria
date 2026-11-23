@@ -180,6 +180,26 @@ describe('#544 MR5 — evaluateSeizeOpportunity', () => {
     expect(workerOpportunity?.score ?? 0).toBeLessThan(combatOpportunity!.score);
   });
 
+  it('scores only the units one charge can activate, not the whole in-range pool', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'seize-cap' });
+    state.units['gen-1'] = makeGeneral(); // commandCapacity 3
+    const positions = [{ q: 1, r: 0 }, { q: 0, r: 1 }, { q: -1, r: 0 }, { q: 0, r: -1 }, { q: 1, r: -1 }];
+    const ids = ['gen-1'];
+    positions.forEach((position, index) => {
+      const id = `warrior-${index}`;
+      state.units[id] = {
+        id, type: 'warrior', owner: 'player', position,
+        movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+      } as Unit;
+      ids.push(id);
+    });
+    state.civilizations.player!.units = ids;
+
+    // Only three of the five are activated, so the extra two must not inflate the value the
+    // shared spend layer compares against Rally/Last Stand.
+    expect(evaluateSeizeOpportunity(state, 'gen-1')!.score).toBe(3 * 40);
+  });
+
   it('execute matches issueSeizeTheMoment directly', () => {
     const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'seize-3' });
     state.units['gen-1'] = makeGeneral();

@@ -56,7 +56,7 @@ import {
 } from '@/systems/minor-civ-actions';
 import { applyOpportunisticWarPenaltyIfCrisisStruck, applySendAid, canSendAid } from '@/systems/crisis-interaction-system';
 import { openEstablishRoutePanel, type RouteProcurementDraft } from '@/ui/establish-route-panel';
-import { setMarketProcurementPolicy } from '@/systems/resource-market-offers';
+import { getMarketProcurementPolicy, setMarketProcurementPolicy } from '@/systems/resource-market-offers';
 import { emitMinorCivLeagueNotices } from '@/systems/minor-civ-league-presentation';
 import { saveTradeRouteChange } from './trade-route-save';
 
@@ -358,16 +358,8 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
       // #1500 MR03: the executor returns a typed refusal instead of throwing, so a stale chooser
       // callback (war declared, slot taken, off-turn) shows the entitled reason and mutates nothing.
       const before = deps.session.getState();
-      const withPolicy = draft
-        ? setMarketProcurementPolicy(before, before.currentPlayer, {
-          maxUnitPrice: draft.procurement.orders[0]?.maxUnitPrice ?? 0,
-          treasuryFloor: draft.treasuryFloor,
-          roundBudget: draft.roundBudget,
-          spentThisTurn: 0,
-        })
-        : before;
       const routeResult = establishQuestAwareRoute(
-        withPolicy,
+        before,
         caravanId,
         toCityId,
         {
@@ -383,7 +375,17 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
         deps.showNotification(TRADE_ROUTE_DENIAL_MESSAGES[routeResult.reason], 'warning');
         return;
       }
-      deps.session.commit(routeResult.state);
+      let next = routeResult.state;
+      if (draft && (draft.roundBudget !== undefined || draft.treasuryFloor !== undefined)) {
+        const { roundBudget: currentBudget, ...policy } = getMarketProcurementPolicy(next, before.currentPlayer);
+        const roundBudget = draft.roundBudget === null ? undefined : draft.roundBudget ?? currentBudget;
+        next = setMarketProcurementPolicy(next, before.currentPlayer, {
+          ...policy,
+          ...(roundBudget !== undefined ? { roundBudget } : {}),
+          treasuryFloor: draft.treasuryFloor ?? policy.treasuryFloor,
+        });
+      }
+      deps.session.commit(next);
       emitMinorCivQuestTransitions(deps.bus, routeResult.questTransitions, deps.session.getState());
       deps.bus.emit('trade:route-created', { route: routeResult.route });
       deps.selectionController.selectUnit(caravanId);
