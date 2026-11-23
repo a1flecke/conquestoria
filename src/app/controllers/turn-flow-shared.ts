@@ -1,8 +1,4 @@
-/**
- * Shared vocabulary for the use-case split of `turn-flow-controller.ts` (#1243): the deps, the narrowed
- * renderer/audio slices, the AI-move record and the public `TurnFlowController` interface. Slices import
- * from here, never from the composite.
- */
+/** The deps, narrowed renderer/audio slices, AI-move record and public `TurnFlowController` interface. Slices import from here, never from the composite. */
 import type { EventBus } from '@/core/event-bus';
 import type { RenderLoop } from '@/renderer/render-loop';
 import type { AudioSystem } from '@/audio/audio-system';
@@ -31,30 +27,20 @@ export type AIMoveRecord = {
 
 export interface TurnFlowControllerDeps {
   readonly session: GameSession;
-  /** #1015: hot-seat handoff (`viewer-not-yet-revealed`) and solo round adoption (`presentation-deferred`) are the only silent writes here. */
   readonly unpublished: UnpublishedStateWriter;
   readonly selection: SelectionStore;
   readonly renderLoop: TurnFlowRenderer;
-  /**
-   * The concrete class, not a narrowed `Pick<EventBus, 'emit'>` -- matches
-   * the lesson documented on `SelectionControllerDeps.bus`: several
-   * downstream pure functions this file calls (`runCompletedRound`,
-   * `beginNetworkPlansForVictimTurn`'s callers elsewhere) are typed to the
-   * concrete class in their own signatures, and `EventBus` has a private
-   * field so no object literal can structurally satisfy a narrowed type.
-   */
+  /** The concrete class: `EventBus` has a private field, so no narrowed type can be satisfied by a literal. */
   readonly bus: EventBus;
   readonly uiLayer: HTMLElement;
   readonly audio: TurnFlowAudio;
   readonly router: Pick<PanelRouter, 'close' | 'open' | 'closeGroup'>;
-  /** The concrete class -- `RoundPresentationGate` has a private field, same reasoning as `bus` above. */
+  /** The concrete class, for the same private-field reason as `bus`. */
   readonly roundPresentationGate: RoundPresentationGate;
   readonly ceremonies: Pick<CeremonyCoordinator, 'clearForHandoff' | 'enqueueVictory'>;
   readonly notifier: Pick<Notifier, 'withHappenedTurn'>;
   readonly userSettingsStore: Pick<UserSettingsStore, 'getMasterVolume'>;
-  /** Substitutes for `document.getElementById` -- see file docblock and `.claude/rules`'s port-purity note. */
   readonly getElementById: (id: string) => HTMLElement | null;
-  /** Substitutes for `document.querySelector('[aria-label="Network intent"]')`. */
   readonly getNetworkIntentPanel: () => Element | null;
   /** Clears a viewer-private panel before the next hot-seat player can see it. */
   readonly closeVictoryProgressPanel: () => void;
@@ -80,9 +66,7 @@ export interface TurnFlowControllerDeps {
 export interface TurnFlowController {
   endTurn(options?: { allowUnmovedUnits?: boolean }): Promise<void>;
   beginHotSeatHandoff(hotSeat: NonNullable<GameState['hotSeat']>, completesRound: boolean): Promise<void>;
-  /** Renamed from `releaseHandoffToViewer` -- see file docblock. */
   enterViewerTurn(nextSlotId: string): void;
-  /** Renamed from `closeNetworkPanelsForHandoff` when the teardown grew from a hand-picked list to every registry panel. */
   closePanelsForHandoff(): void;
   beginNetworkPlansForCurrentViewer(): void;
   runCurrentCompletedRound(state: GameState): CompletedRoundResult;

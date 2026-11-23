@@ -1,7 +1,4 @@
-/**
- * Turn-boundary presentation (#1243), split out of `turn-flow-controller.ts`: council interrupt, victory
- * ceremony routing (#993, via `ceremonies.enqueueVictory`), audio snapshot and camera centering. Bodies verbatim.
- */
+/** Turn-boundary presentation: council interrupt, victory ceremony routing, audio snapshot, camera centering. */
 import { worldAgeFromNumber } from '@/systems/era-types';
 import { isCivUnitInBeastTerritory } from '@/systems/beast-system';
 import { getCouncilInterrupt } from '@/systems/council-system';
@@ -46,12 +43,7 @@ export function createTurnPresentation(deps: TurnFlowControllerDeps): TurnPresen
     // The one announcement that a game has ended (game-end music, stingers, ambience), carrying the
     // verdict the outcome screen shows, so audio and the panel cannot disagree about who won.
     bus.emit('game:over', { outcome: outcome.outcome });
-    // #993: routed through the ceremony coordinator's shared big-moment engine
-    // instead of an unconditional direct call -- this waits for a
-    // currently-presenting wonder/legendary ceremony's own overlay to clear
-    // first (see ceremony-coordinator.ts's docblock for the overlay-stacking
-    // race this closes) and drops any backlog those ceremonies still had
-    // queued, since none of it matters once the game is over.
+    // Queued behind any ceremony that is presenting; the coordinator drops the backlog.
     ceremonies.enqueueVictory({
       winnerName: outcome.winnerName,
       victoryType: outcome.sharedResult
@@ -80,13 +72,7 @@ export function createTurnPresentation(deps: TurnFlowControllerDeps): TurnPresen
       civId,
       civType: civ?.civType ?? civId,
       era: worldAgeFromNumber(session.getState().era),
-      // Deliberately the raw count (incl. city-state wars), unlike the #1041
-      // "major wars only" surfaces. This only drives war ambience on/off in
-      // AudioSystem; a city-state coalition war is a real military threat, so
-      // martial ambience for it is intentional. AudioSystem also mutates this
-      // as `remainingWars` off diplomacy bus events, so the seed and that
-      // counter must stay the same shape — opponent-kind-aware war ambience is
-      // a separate audio follow-up, not part of #1041.
+      // The raw count on purpose, city-state wars included: it seeds `AudioSystem`'s own `remainingWars`.
       atWarCount: civ?.diplomacy?.atWarWith?.length ?? 0,
       unrestCityCount: cities.filter(city => city.unrestLevel > 0).length,
       nearDefeat: civ?.nearDefeat ?? false,

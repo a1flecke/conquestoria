@@ -1,7 +1,4 @@
-/**
- * Required-choice surfaces (#1243), split out of `turn-flow-controller.ts`: the idle-city / research
- * chooser and the religion-boon gate that block ending a turn. Bodies verbatim.
- */
+/** The idle-city / research chooser and the religion-boon gate that block ending a turn. */
 import { closePlanningPanels, createRequiredChoicePanel } from '@/ui/required-choice-panel';
 import { createReligionBoonModal } from '@/ui/religion-boon-modal';
 import { chooseBoon } from '@/systems/religion-system';
@@ -37,10 +34,7 @@ export function createTurnRequiredChoices(deps: TurnFlowControllerDeps): TurnReq
     deps.setBlockingOverlay(null);
   }
 
-  // #591 MR4: a founded-but-boonless religion has NO effects until the owner chooses --
-  // re-prompted every time the owner attempts to end their turn, same blocking pattern as
-  // showRequiredChoicesIfNeeded (the only other "must decide before proceeding" surface
-  // in this file), so a human owner can never leave their own religion pending forever.
+  // A founded religion has no effects until its owner picks a boon, so ending the turn re-prompts.
   function showReligionBoonIfNeeded(): boolean {
     const civId = session.getState().currentPlayer;
     const civ = session.getState().civilizations[civId];
@@ -69,19 +63,7 @@ export function createTurnRequiredChoices(deps: TurnFlowControllerDeps): TurnReq
   function refreshRequiredChoicesAfterAction(): void {
     deps.getElementById('required-choice-panel')?.remove();
     closePlanningPanels(document);
-    // #1199: the action's mutation was already committed, so the session
-    // subscription published it; re-pushing renderer/HUD here was redundant.
-    // #787 phase 12 (#794): release 'required-choice' before
-    // showRequiredChoicesIfNeeded() may push it again for the next
-    // outstanding choice. With 2+ idle cities (or an idle city plus missing
-    // research), a player resolving them one at a time re-enters this
-    // function once per choice -- under the old single-slot overlay each
-    // re-push was a harmless overwrite of the same id, but the
-    // reference-counted overlay nests them, and only the *last* choice's
-    // resolution ever pops (via closeRequiredChoicePanel below). Without
-    // this explicit release, resolving N required choices in one sitting
-    // leaves N-1 phantom pushes on the stack, permanently blocking
-    // interaction for the rest of the game.
+    // The overlay stack is reference-counted: release before the next choice pushes, or each one leaks an entry.
     deps.setBlockingOverlay(null);
     showRequiredChoicesIfNeeded();
   }
