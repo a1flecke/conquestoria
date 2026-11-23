@@ -114,10 +114,15 @@ describe('#544 MR4 — movement bonus stacking policy (game-balance.md)', () => 
     expect(result.units['unit-1'].movementPointsLeft).toBe(0);
   });
 
-  it('no ability in great-general-abilities.ts writes to Unit.movementBonus or Unit.movementPointsLeft except the explicit no-op assertion above (source grep)', async () => {
+  it('no ability in great-general-abilities.ts writes to Unit.movementBonus or grants/refreshes movement (source grep)', async () => {
     const fs = await import('node:fs');
     const source = fs.readFileSync('src/systems/great-general-abilities.ts', 'utf8');
     expect(source).not.toMatch(/movementBonus/);
-    expect(source).not.toMatch(/movementPointsLeft\s*:/); // never assigns it, only reads
+    // The one deliberate movement write is contract §17's "ends General's remaining
+    // action/movement": spendHeroicCommandCharge zeroes the ISSUING General's
+    // leftover movement. The stacking policy forbids any write that could ever
+    // *grant* or refresh movement, so every movementPointsLeft assignment must be
+    // the literal 0 consumption — anything else fails this guard.
+    expect(source).not.toMatch(/movementPointsLeft\s*:\s*(?!\s*0\b)\S/);
   });
 });

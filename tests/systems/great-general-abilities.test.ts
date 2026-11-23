@@ -8,7 +8,11 @@ import {
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
-import type { GameState, GeneralCareerEvent, Unit } from '@/core/types';
+import type { GameState, GeneralCareerEvent, HexCoord, Unit } from '@/core/types';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
+import { resolveUnitMoveIntent } from '@/systems/unit-movement-validation';
+import { hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { isUnitAwaitingOrders } from '@/systems/unit-order-state';
 import { CITY_BREACH_ASSAULT_MULTIPLIER, createCityBreach, isCityBreachedBy } from '@/systems/city-breach';
 import { calculateCityAssaultStrengths, expireCityBreaches } from '@/systems/city-siege-system';
 import { previewUnitCityBombardment, resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
@@ -84,6 +88,16 @@ describe('spendHeroicCommandCharge', () => {
     const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'abil-7' });
     const result = spendHeroicCommandCharge(state, 'nonexistent');
     expect(result).toBe(state);
+  });
+
+  it('ends the General\'s remaining action/movement (contract §17: "ends General\'s remaining action/movement")', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'abil-8' });
+    // A General that has already moved partway and then takes command: the command
+    // consumes whatever action/movement it had left, exactly like every other action.
+    state.units['gen-1'] = makeGeneral({ hasMoved: true, movementPointsLeft: 1 });
+    const result = spendHeroicCommandCharge(state, 'gen-1');
+    expect(result.units['gen-1'].hasActed).toBe(true);
+    expect(result.units['gen-1'].movementPointsLeft).toBe(0);
   });
 });
 
@@ -191,6 +205,70 @@ describe('getRallyPreview / issueRally', () => {
   });
 });
 
+describe('issuing a heroic command ends the General\'s own remaining action/movement (contract §17)', () => {
+  // Movement legality never re-reads hasActed (the resolver, the range preview and the
+  // selected-unit highlights all gate on movementPointsLeft alone), so §17's "ends
+  // General's remaining action/movement" must be written by the issuance itself —
+  // through spendHeroicCommandCharge, the one layer every issue* executor already
+  // flows through. These regressions pin the live consequence: a General that has
+  // moved partway and then commanded cannot spend its leftover movement afterward.
+  const ENTERABLE_TERRAINS = new Set(['grassland', 'plains', 'desert', 'tundra', 'forest', 'jungle', 'hills']);
+
+  function findEnterableAdjacentPair(state: GameState): { from: HexCoord; to: HexCoord } {
+    for (const tile of Object.values(state.map.tiles)) {
+      if (!ENTERABLE_TERRAINS.has(tile.terrain)) continue;
+      for (const neighbor of hexNeighbors(tile.coord)) {
+        const neighborTile = state.map.tiles[hexKey(neighbor)];
+        if (neighborTile && ENTERABLE_TERRAINS.has(neighborTile.terrain)) {
+          return { from: tile.coord, to: neighbor };
+        }
+      }
+    }
+    throw new Error('fixture map has no adjacent enterable land pair');
+  }
+
+  it('a General that moved partway and then issued Rally cannot spend its leftover movement', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'rally-17' });
+    const pair = findEnterableAdjacentPair(state);
+    state.units['gen-1'] = makeGeneral({ position: pair.from, hasMoved: true, movementPointsLeft: 1 });
+    state.units['unit-1'] = makeUnit({
+      id: 'unit-1', position: pair.to,
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+    });
+    state.civilizations.player.units = ['gen-1', 'unit-1'];
+
+    // Fixture precondition: the leftover move is otherwise legal before the command —
+    // the exploit is exactly that it stays legal after issuing one.
+    const before = resolveUnitMoveIntent(state, 'gen-1', pair.to, { actor: 'player', civId: 'player' });
+    expect(before.ok).toBe(true);
+
+    const after = issueRally(state, 'gen-1');
+    expect(after.units['unit-1'].landSupply!.state).toBe('degraded'); // the ability itself resolved
+
+    expect(after.units['gen-1'].hasActed).toBe(true);
+    expect(after.units['gen-1'].movementPointsLeft).toBe(0);
+    expect(getMovementRangeDetails(after, 'gen-1').reachable).toHaveLength(0);
+    const moved = resolveUnitMoveIntent(after, 'gen-1', pair.to, { actor: 'player', civId: 'player' });
+    expect(moved.ok).toBe(false);
+  });
+
+  it('a General that issued Rally is no longer awaiting orders at end of turn', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'rally-18' });
+    state.units['gen-1'] = makeGeneral();
+    state.units['unit-1'] = makeUnit({
+      id: 'unit-1', position: { q: 1, r: 0 },
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+    });
+    state.civilizations.player.units = ['gen-1', 'unit-1'];
+
+    expect(isUnitAwaitingOrders(state.units['gen-1'])).toBe(true); // fixture precondition
+    const after = issueRally(state, 'gen-1');
+    // The command ended the General's turn, so the end-of-turn "unmoved units" prompt
+    // must not list a General that has already commanded.
+    expect(isUnitAwaitingOrders(after.units['gen-1'])).toBe(false);
+  });
+});
+
 describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
   function setup() {
     const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'seize-1' });
@@ -250,6 +328,15 @@ describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
     const state = { ...setup(), turn: 2 };
     const result = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
     expect(result.units['gen-1'].generalCommandChargesUsed).toBe(1);
+  });
+
+  it('ends the issuing General\'s own remaining action/movement (contract §17)', () => {
+    const state = setup();
+    const result = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
+    // Seize refreshes its targets, never its General: the command consumes whatever
+    // action/movement the issuing General still had, like every heroic command.
+    expect(result.units['gen-1'].hasActed).toBe(true);
+    expect(result.units['gen-1'].movementPointsLeft).toBe(0);
   });
 
   it('does NOT spend a charge when confirmed with an empty selection', () => {
