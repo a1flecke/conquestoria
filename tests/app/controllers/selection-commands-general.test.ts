@@ -103,6 +103,35 @@ describe('general command controller (#889)', () => {
     expect(moments[0]!.summary).toBe('Seize the Moment: 1 unit can act again.');
   });
 
+  it('Seize the Moment: the live picker cannot select more units than the charge will activate', () => {
+    const world = makeWorld(false);
+    const positions = [{ q: 1, r: 0 }, { q: 0, r: 1 }, { q: -1, r: 0 }, { q: 0, r: -1 }, { q: 1, r: -1 }];
+    const ids = positions.map((position, index) => {
+      const id = `u${index + 1}`;
+      world.units[id] = unit(id, { position, hasActed: true, hasMoved: true, movementPointsLeft: 0, landSupply: undefined });
+      world.civilizations.player.units.push(id);
+      return id;
+    });
+    const { session, commands, moments } = setup(world);
+    commands.onOpenSeize!('gen-1');
+
+    const boxes = Array.from(document.querySelectorAll<HTMLInputElement>('#seize-the-moment-panel input[type="checkbox"]'));
+    expect(boxes).toHaveLength(5);
+    for (const box of boxes.slice(0, 3)) {
+      box.checked = true;
+      box.dispatchEvent(new Event('change'));
+    }
+    // Hannibal's command capacity is 3: the other two must stop being selectable, so the
+    // confirmed list is exactly what the executor activates (no silent trim).
+    expect(boxes.slice(3).every(box => box.disabled)).toBe(true);
+    expect(document.querySelector('#seize-the-moment-panel')!.textContent).toContain('3 of 3 selected');
+
+    confirm('seize-the-moment-panel');
+    expect(moments).toHaveLength(1);
+    expect(moments[0]).toMatchObject({ kind: 'seize', affectedCount: 3 });
+    expect(ids.filter(id => session.getState().units[id]!.hasActed === false)).toHaveLength(3);
+  });
+
   describe('Breach the Walls (#939)', () => {
     /** A Siegemaster two hexes from a visible, hostile city of the rival, at war. */
     function makeSiegeWorld(): GameState {

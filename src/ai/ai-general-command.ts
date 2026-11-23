@@ -122,10 +122,15 @@ const SEIZE_COMBAT_UNIT_VALUE = 40;
 const SEIZE_NONCOMBAT_UNIT_VALUE = 8;
 
 export function evaluateSeizeOpportunity(state: GameState, generalUnitId: string): GeneralCommandOpportunity | null {
-  const { eligibility, eligible } = getSeizeTheMomentEligibleUnits(state, generalUnitId);
+  const { eligibility, eligible, capacity } = getSeizeTheMomentEligibleUnits(state, generalUnitId);
   if (!eligibility.eligible || eligible.length === 0) return null;
 
-  const score = eligible.reduce((sum, entry) => {
+  // Only `capacity` units are ever activated, so only those contribute value: scoring the
+  // whole in-range pool would let four extra nearby units talk the AI into spending a
+  // charge it will not get four extra actions from. The AI hands the executor every
+  // eligible id, which trims to this same eligible-order prefix.
+  const activated = eligible.slice(0, capacity);
+  const score = activated.reduce((sum, entry) => {
     const unit = state.units[entry.unitId];
     return sum + (unit && hasAICombatRole(unit.type) ? SEIZE_COMBAT_UNIT_VALUE : SEIZE_NONCOMBAT_UNIT_VALUE);
   }, 0);

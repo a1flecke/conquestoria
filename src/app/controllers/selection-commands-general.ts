@@ -66,11 +66,12 @@ export function createGeneralCommands(
       });
     },
     onOpenSeize: (generalUnitId: string) => {
-      const { eligible } = getSeizeTheMomentEligibleUnits(session.getState(), generalUnitId);
+      const { eligible, capacity } = getSeizeTheMomentEligibleUnits(session.getState(), generalUnitId);
       createSeizeThePanelMoment(
         deps.uiLayer,
         generalUnitId,
         eligible,
+        capacity,
         (selectedUnitIds) => {
           const before = session.getState();
           const after = issueSeizeTheMoment(before, generalUnitId, selectedUnitIds);

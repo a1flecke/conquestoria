@@ -363,24 +363,41 @@ export interface SeizeEligibleUnit {
   label: string;
 }
 
+export interface SeizeTheMomentEligibility {
+  eligibility: HeroicCommandEligibility;
+  eligible: SeizeEligibleUnit[];
+  /**
+   * How many of `eligible` one charge actually activates (commandCapacity plus a
+   * Bold Commander's extra target). Returned with the candidate pool so the picker
+   * can stop the player selecting more units than the executor will activate, and
+   * so `issueSeizeTheMoment` never re-derives the number it truncates to.
+   */
+  capacity: number;
+}
+
 /** contract §19: player-selected, so this returns the full in-range/acted
- * candidate pool for the UI to render as checkboxes -- capacity is enforced
- * at issuance time (below), not here, so the picker can show "N of
- * commandCapacity selected" feedback rather than silently truncating the list. */
+ * candidate pool for the UI to render as checkboxes, together with the capacity
+ * that pool is trimmed to at issuance. The picker must enforce that capacity as
+ * the player selects ("N of capacity selected"); the executor's
+ * `.slice(0, capacity)` is the backstop for a direct or AI call, never a silent
+ * trim of a hand-picked list. */
 export function getSeizeTheMomentEligibleUnits(
   state: GameState,
   generalUnitId: string,
-): { eligibility: HeroicCommandEligibility; eligible: SeizeEligibleUnit[] } {
+): SeizeTheMomentEligibility {
   const general = state.units[generalUnitId];
   const eligibility = general
     ? getHeroicCommandEligibility(state, general)
     : { eligible: false, reason: 'General not found.', chargesRemaining: 0, isFinalCharge: false, cooldownTurnsRemaining: 0 };
-  if (!general || !eligibility.eligible) return { eligibility, eligible: [] };
+  if (!general || !eligibility.eligible) return { eligibility, eligible: [], capacity: 0 };
 
   const definition = resolveGeneralDefinition(state, general.generalDefinitionId);
   const civ = state.civilizations[general.owner];
-  if (!definition || !civ) return { eligibility, eligible: [] };
-  const { commandRange } = getEffectiveCommandStats(general, definition);
+  if (!definition || !civ) return { eligibility, eligible: [], capacity: 0 };
+  const { commandRange, commandCapacity } = getEffectiveCommandStats(general, definition);
+  // #885: a Bold Commander's Seize reaches commandCapacity + 1 units (still one
+  // extra attack each, still no movement refund — no full turn reset).
+  const capacity = commandCapacity + resolveGeneralMechanics(definition).seize.extraTargets;
 
   const eligible = civ.units
     .map(id => state.units[id])
@@ -398,7 +415,7 @@ export function getSeizeTheMomentEligibleUnits(
     // cross-referencing map position.
     .map(u => ({ unitId: u.id, label: `${UNIT_DEFINITIONS[u.type]?.name ?? u.type} (${u.health} HP)` }));
 
-  return { eligibility, eligible };
+  return { eligibility, eligible, capacity };
 }
 
 /**
@@ -409,25 +426,21 @@ export function getSeizeTheMomentEligibleUnits(
  * with whatever movement it already had left over. The one extra action is
  * funded by `seizeGrantedBy` (see `canSpendUnitAction`): without it the attack
  * that made the unit eligible would have spent the movement an attack also
- * requires, leaving the granted action unreachable. selectedUnitIds beyond
- * commandCapacity are silently truncated (stable order: eligible-list order,
- * i.e. id-sorted).
+ * requires, leaving the granted action unreachable. The caller-selected list is
+ * trimmed to `capacity` (eligible-list order, i.e. id-sorted); a picker that
+ * offers the pool must enforce that same number (see `SeizeTheMomentEligibility`).
  */
 export function issueSeizeTheMoment(
   state: GameState,
   generalUnitId: string,
   selectedUnitIds: string[],
 ): GameState {
-  const { eligibility, eligible } = getSeizeTheMomentEligibleUnits(state, generalUnitId);
+  const { eligibility, eligible, capacity: cap } = getSeizeTheMomentEligibleUnits(state, generalUnitId);
   if (!eligibility.eligible) return state;
 
   const general = state.units[generalUnitId];
   const definition = resolveGeneralDefinition(state, general?.generalDefinitionId);
   if (!general || !definition) return state;
-  // #885: a Bold Commander's Seize reaches commandCapacity + 1 units (still one
-  // extra attack each, still no movement refund — no full turn reset).
-  const cap = getEffectiveCommandStats(general, definition).commandCapacity
-    + resolveGeneralMechanics(definition).seize.extraTargets;
 
   const eligibleIds = new Set(eligible.map(e => e.unitId));
   const toActivate = selectedUnitIds.filter(id => eligibleIds.has(id)).slice(0, cap);
