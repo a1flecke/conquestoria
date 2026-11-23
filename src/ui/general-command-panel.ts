@@ -101,6 +101,7 @@ export function createSeizeThePanelMoment(
   container: HTMLElement,
   _generalUnitId: string,
   eligible: SeizeEligibleUnit[],
+  capacity: number,
   onConfirm: (selectedUnitIds: string[]) => void,
   onCancel: () => void,
   identity?: GeneralIdentity,
@@ -110,7 +111,7 @@ export function createSeizeThePanelMoment(
   identityHeader(panel, 'Seize the Moment', identity);
 
   const intro = document.createElement('p');
-  intro.textContent = 'Choose which units get one more action:';
+  intro.textContent = `Choose up to ${capacity} unit${capacity === 1 ? '' : 's'} to get one more action:`;
   intro.style.cssText = 'font-size:13px;opacity:0.8;margin:0 0 12px;';
   panel.appendChild(intro);
 
@@ -121,7 +122,25 @@ export function createSeizeThePanelMoment(
     panel.appendChild(empty);
   }
 
+  // The executor trims the confirmed list to `capacity` (great-general-abilities.ts).
+  // Enforcing the same number here -- and saying how many of the allowance are in use --
+  // is what keeps the picker's promise ("these units get one more action") true; without
+  // it a player could tick five units and silently get only the first three.
+  const counter = document.createElement('p');
+  counter.dataset.seizeSelectedCount = 'true';
+  counter.style.cssText = 'font-size:12px;opacity:0.7;margin:0 0 8px;';
+  panel.appendChild(counter);
+
   const checkboxes: HTMLInputElement[] = [];
+  const syncSelection = () => {
+    const selected = checkboxes.filter(cb => cb.checked).length;
+    counter.textContent = `${selected} of ${capacity} selected`;
+    for (const checkbox of checkboxes) {
+      checkbox.disabled = !checkbox.checked && selected >= capacity;
+    }
+    setButtonDisabled(confirmButton, selected === 0);
+  };
+
   for (const entry of eligible) {
     const label = document.createElement('label');
     label.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;';
@@ -138,9 +157,9 @@ export function createSeizeThePanelMoment(
   const row = document.createElement('div');
   row.style.cssText = 'display:flex;gap:8px;margin-top:12px;';
 
-  const confirmButton = createGameButton('Confirm', 'primary', { disabled: checkboxes.every(cb => !cb.checked) });
-  const syncConfirmDisabled = () => setButtonDisabled(confirmButton, checkboxes.every(cb => !cb.checked));
-  for (const checkbox of checkboxes) checkbox.addEventListener('change', syncConfirmDisabled);
+  const confirmButton = createGameButton('Confirm', 'primary', { disabled: true });
+  for (const checkbox of checkboxes) checkbox.addEventListener('change', syncSelection);
+  syncSelection();
   confirmButton.addEventListener('click', () => {
     if (fired || checkboxes.every(cb => !cb.checked)) return;
     fired = true;

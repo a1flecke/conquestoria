@@ -716,6 +716,13 @@ describe('#885 Seize the Moment extra-target for Bold Commander', () => {
     expect(after.units[ids[0]!]!.movementPointsLeft).toBe(0);
     expect(canSpendUnitAction(after.units[ids[0]!]!, after.turn)).toBe(true);
   });
+
+  it('reports the same activation capacity the picker must enforce and the executor trims to', () => {
+    const baseline = stateWithActedUnits('sz-cap', 'gen_hannibal', 5);
+    expect(getSeizeTheMomentEligibleUnits(baseline.state, 'gen-1').capacity).toBe(3);
+    const bold = stateWithActedUnits('sz-cap-bold', 'gen_caesar', 5);
+    expect(getSeizeTheMomentEligibleUnits(bold.state, 'gen-1').capacity).toBe(4);
+  });
 });
 
 // ===========================================================================
