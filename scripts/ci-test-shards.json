@@ -896,7 +896,8 @@
     "tests/renderer/sprites/v2/index.test.ts": 40.6484375,
     "tests/ai/ai-breakaway-reunification.test.ts": 100.0,
     "tests/systems/espionage-double-agent.test.ts": 400.0,
-    "tests/app/unit-owner-handover.test.ts": 1.0
+    "tests/app/unit-owner-handover.test.ts": 1.0,
+    "tests/app/controllers/turn-flow-solo-model.test.ts": 5.0
   },
   "shards": {
     "test-suite-shard-a": [
@@ -1520,6 +1521,7 @@
       "tests/app/controllers/campaign-entry-controller.test.ts",
       "tests/app/controllers/ceremony-coordinator.test.ts",
       "tests/app/controllers/game-session-controller.test.ts",
+      "tests/app/controllers/turn-flow-solo-model.test.ts",
       "tests/app/cross-cutting-helpers.test.ts",
       "tests/app/determinism-contract-meta.test.ts",
       "tests/app/game-session-controller-scenario-loader.test.ts",
