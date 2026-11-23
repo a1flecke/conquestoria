@@ -12,7 +12,7 @@ import {
   movementStepCostParamsForType,
   type UnitMovementContext,
 } from './unit-movement-cost';
-import { getBlockingMapEntitiesByHex } from './unit-movement-legality';
+import { getBlockingMapEntitiesByHex, getUnitMovementBudget } from './unit-movement-legality';
 import { getDeniedTerritoryOwners, isTileDeniedBy } from './territorial-access';
 
 /**
@@ -45,6 +45,7 @@ export interface MovementBlockerReason {
     | 'air-based'
     | 'unreachable'
     | 'insufficient-movement'
+    | 'already-acted'
     | 'zone-of-control'
     // #1002: canonical legality refused (or would stop) the move for a reason the viewer
     // cannot see. Produced only by the viewer-scoped explainer, never by the resolver.
@@ -80,8 +81,8 @@ export function getMovementRange(
 
   const startKey = hexKey(unit.position);
   const costParams = movementStepCostParamsForType(unit.type, 'land', { ...options, owner: unit.owner });
-  visited.set(startKey, unit.movementPointsLeft);
-  queue.push({ coord: unit.position, remaining: unit.movementPointsLeft });
+  visited.set(startKey, getUnitMovementBudget(unit));
+  queue.push({ coord: unit.position, remaining: getUnitMovementBudget(unit) });
 
   while (queue.length > 0) {
     const current = queue.shift()!;
@@ -199,8 +200,8 @@ export function getMovementRangeDetails(
   const visited = new Map<string, number>();
   const queue: Array<{ coord: HexCoord; remaining: number }> = [];
   const startKey = hexKey(unit.position);
-  visited.set(startKey, unit.movementPointsLeft);
-  queue.push({ coord: unit.position, remaining: unit.movementPointsLeft });
+  visited.set(startKey, getUnitMovementBudget(unit));
+  queue.push({ coord: unit.position, remaining: getUnitMovementBudget(unit) });
 
   while (queue.length > 0) {
     const current = queue.shift()!;
