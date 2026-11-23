@@ -140,7 +140,12 @@ export function createPlayerCombatActions(deps: PlayerActionControllerDeps, cros
 
     cross.ensurePlayerWarState(city.owner);
     let attackerMultiplier: number | undefined;
-    if (embarkedAssault) {
+    if (embarkedAssault && !precedingCombat) {
+      // A direct assault from the ship: re-check the embarked-attack legality and detach the
+      // cargo. A follow-up to an embarked attack (precedingCombat) has already done both in
+      // executeAttack, so re-asking getEmbarkedAssaultTarget here would look for a transportId
+      // the detach deliberately removed and abort the capture of a city whose last defender
+      // the attack just killed.
       const legality = getEmbarkedAssaultTarget(deps.session.getState(), attackerId, city.position, { viewerId: deps.session.getState().currentPlayer });
       if (!legality.ok || legality.targetType !== 'city') {
         deps.showNotification('That coastal assault is no longer possible.', 'warning');

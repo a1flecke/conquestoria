@@ -10,6 +10,7 @@ import { foundReligion } from '@/systems/religion-system';
 import { hexKey } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
 import { applyPillageToState } from '@/systems/pillage-system';
+import { getEmbarkedAssaultTarget } from '@/systems/transport-system';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { makeReligionFixture } from '../../systems/helpers/religion-fixture';
 import type { GameEvents, GameState, HexCoord, Spy } from '@/core/types';
@@ -526,6 +527,58 @@ describe('PlayerActionController', () => {
         outcomes.add(combatOutcome(runCombat(base, turn)));
       }
       expect(outcomes.size).toBeGreaterThan(1);
+    });
+
+    it('takes a coastal city after an embarked attack clears its last defender (parity with the AI capture path)', () => {
+      const { state, aiCivId } = makeFixture('amphibious-garrison-capture');
+      const counters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+      state.units = {};
+      state.cities = {};
+      state.map.tiles['0,0'] = { ...state.map.tiles['0,0']!, terrain: 'coast' };
+      state.map.tiles['1,0'] = { ...state.map.tiles['1,0']!, terrain: 'grassland' };
+      state.units['transport-1'] = {
+        ...createUnit('transport', 'player', { q: 0, r: 0 }, counters),
+        id: 'transport-1',
+        cargoUnitIds: ['cargo-1'],
+      };
+      state.units['cargo-1'] = {
+        ...createUnit('swordsman', 'player', { q: 0, r: 0 }, counters),
+        id: 'cargo-1',
+        transportId: 'transport-1',
+      };
+      // One hit kills the garrison, leaving the city undefended for this same action.
+      state.units['garrison-1'] = {
+        ...createUnit('warrior', aiCivId, { q: 1, r: 0 }, counters),
+        id: 'garrison-1',
+        health: 1,
+      };
+      state.cities['coastal-city'] = makeCity('coastal-city', {
+        owner: aiCivId, position: { q: 1, r: 0 }, population: 0,
+      });
+      // The player needs a city of its own, or the combat's liveness pass eliminates it and
+      // removes the surviving cargo before the follow-on assault can run.
+      state.cities['home-city'] = makeCity('home-city', { owner: 'player', position: { q: 0, r: 2 }, population: 1 });
+      state.civilizations.player.units = ['transport-1', 'cargo-1'];
+      state.civilizations.player.cities = ['home-city'];
+      state.civilizations[aiCivId].units = ['garrison-1'];
+      state.civilizations[aiCivId].cities = ['coastal-city'];
+      state.civilizations.player.diplomacy.atWarWith = [aiCivId];
+      state.civilizations[aiCivId].diplomacy.atWarWith = ['player'];
+      state.civilizations.player.visibility.tiles['1,0'] = 'visible';
+      const { deps, controller } = build(state);
+
+      expect(getEmbarkedAssaultTarget(state, 'cargo-1', { q: 1, r: 0 }, { viewerId: 'player' }))
+        .toMatchObject({ ok: true, targetType: 'unit', targetUnitId: 'garrison-1' });
+      controller.executeAttack('cargo-1', '1,0');
+      const after = deps.session.getState();
+
+      // The garrison died to the embarked attack; the undefended city must now be taken by
+      // the follow-on assault, exactly as the AI's executeEmbarkedAttack does.
+      expect(after.units['garrison-1']).toBeUndefined();
+      expect(after.units['cargo-1']).toBeDefined();
+      expect(deps.showNotification).not.toHaveBeenCalledWith('That coastal assault is no longer possible.', 'warning');
+      expect(deps.selection.setPendingIntent).toHaveBeenCalled();
+      expect(deps.turnFlow.finalizePendingCityCaptureChoice).toHaveBeenCalledWith('raze', undefined);
     });
 
     it('refreshes the open selected-unit panel from post-combat state before delayed selection', () => {
