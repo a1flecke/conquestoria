@@ -22,6 +22,7 @@ import {
   type TradeRouteRecommendationKind,
 } from '@/systems/trade-route-recommendations';
 import { getEntitledRouteDanger } from '@/systems/trade-danger-adapters';
+import { getMarketProcurementPolicy } from '@/systems/resource-market-offers';
 import { ROUTE_CONTROL_NOTIFICATIONS } from '@/systems/trade-route-lifecycle';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
@@ -41,8 +42,9 @@ import { markModal } from '@/ui/modal-contract';
  */
 export interface RouteProcurementDraft {
   procurement: ResourceProcurementTerms;
-  roundBudget: number;
-  treasuryFloor: number;
+  /** Omitted when unchanged; null explicitly removes the limit. */
+  roundBudget?: number | null;
+  treasuryFloor?: number;
   detourRounds: number;
 }
 
@@ -112,8 +114,10 @@ export function openEstablishRoutePanel(
   const procurementOrders: DraftOrder[] = storedGoods[0]
     ? [{ goodId: storedGoods[0].id, targetQuantity: 10, maxUnitPrice: 20 }]
     : [];
-  let procurementBudget = 100;
-  let procurementFloor = 50;
+  const procurementPolicy = getMarketProcurementPolicy(state, viewerCivId);
+  const currentBudget = procurementPolicy.roundBudget ?? null;
+  let procurementBudget = currentBudget;
+  let procurementFloor = procurementPolicy.treasuryFloor;
   let procurementDetour = 2;
 
   const modeSection = document.createElement('div');
@@ -214,22 +218,28 @@ export function openEstablishRoutePanel(
 
       const numberRow = (
         labelText: string,
-        value: number,
+        value: number | null,
         dataAttr: string,
-        min: number,
-        onChange: (value: number) => void,
+        onChange: (value: number | null) => void,
+        placeholder = '',
       ): HTMLLabelElement => {
         const label = document.createElement('label');
         label.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
         label.appendChild(document.createTextNode(labelText));
         const input = document.createElement('input');
         input.type = 'number';
-        input.min = String(min);
+        input.min = '0';
+        input.max = String(Number.MAX_SAFE_INTEGER);
         input.step = '1';
-        input.value = String(value);
+        input.value = value === null ? '' : String(value);
+        input.placeholder = placeholder;
         input.setAttribute(`data-${dataAttr}`, 'true');
         input.style.cssText = 'width:84px;min-height:44px;background:#222;color:inherit;border:1px solid #555;border-radius:4px;padding:4px;';
-        input.addEventListener('input', () => onChange(Math.max(min, Number.parseInt(input.value, 10) || min)));
+        input.addEventListener('input', () => {
+          if (input.validity.badInput) return;
+          const value = input.valueAsNumber;
+          onChange(Number.isNaN(value) ? null : Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.trunc(value))));
+        });
         label.appendChild(input);
         return label;
       };
@@ -337,9 +347,17 @@ export function openEstablishRoutePanel(
       box.appendChild(ordersContainer);
       renderOrders();
 
-      box.appendChild(numberRow('Shared round budget', procurementBudget, 'procurement-budget', 0, value => { procurementBudget = value; }));
-      box.appendChild(numberRow('Treasury floor', procurementFloor, 'procurement-floor', 0, value => { procurementFloor = value; }));
-      box.appendChild(numberRow('Conservative detour limit', procurementDetour, 'procurement-detour', 0, value => { procurementDetour = value; }));
+      box.appendChild(numberRow('Conservative detour limit', procurementDetour, 'procurement-detour', value => { procurementDetour = value ?? 0; }));
+
+      const limitsNote = document.createElement('div');
+      limitsNote.style.cssText = 'margin-top:4px;font-size:11px;opacity:0.8;';
+      const priceCap = procurementPolicy.maxUnitPrice < Number.MAX_SAFE_INTEGER
+        ? ` · ${procurementPolicy.maxUnitPrice} gold per unit cap`
+        : '';
+      limitsNote.textContent = `Empire-wide import limits · ${procurementPolicy.spentThisTurn ?? 0} gold spent this round${priceCap}`;
+      box.appendChild(limitsNote);
+      box.appendChild(numberRow('Shared round budget', procurementBudget, 'procurement-budget', value => { procurementBudget = value; }, 'No limit'));
+      box.appendChild(numberRow('Treasury floor', procurementFloor, 'procurement-floor', value => { procurementFloor = value ?? 0; }));
       const note = document.createElement('div');
       note.style.cssText = 'font-size:11px;opacity:0.6;';
       note.textContent = 'Priority order controls the next manifest. Confirmed cargo is owned; the remaining target is only a potential purchase. Prices lock at loading within each maximum.';
@@ -542,8 +560,8 @@ export function openEstablishRoutePanel(
       && orders.length > 0
       ? {
         procurement: { orders },
-        roundBudget: procurementBudget,
-        treasuryFloor: procurementFloor,
+        ...(procurementBudget !== currentBudget ? { roundBudget: procurementBudget } : {}),
+        ...(procurementFloor !== procurementPolicy.treasuryFloor ? { treasuryFloor: procurementFloor } : {}),
         detourRounds: procurementDetour,
       }
       : undefined;
