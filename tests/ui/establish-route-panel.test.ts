@@ -127,6 +127,7 @@ describe('openEstablishRoutePanel (#1500 MR03)', () => {
 
     const confirm = Array.from(panel.querySelectorAll('button')).find(button => button.textContent === 'Confirm')!;
     expect(confirm.disabled).toBe(true);
+    expect(confirm.style.pointerEvents).toBe('none');
 
     const destinationLabel = Array.from(panel.querySelectorAll('span'))
       .find(el => (el.textContent ?? '').startsWith('Betatown'))!;
@@ -134,6 +135,7 @@ describe('openEstablishRoutePanel (#1500 MR03)', () => {
     // The click listener lives on the row; a real tap on the label bubbles to it.
     destinationLabel.parentElement!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(confirm.disabled).toBe(false);
+    expect(confirm.style.pointerEvents).toBe('');
 
     confirm.click();
     expect(onEstablish).toHaveBeenCalledTimes(1);

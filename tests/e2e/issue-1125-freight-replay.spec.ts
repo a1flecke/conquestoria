@@ -16,7 +16,7 @@ async function advanceFreightTurn(page: Page, turn: number): Promise<void> {
   await expect(next).toBeVisible();
 }
 
-async function expectSavedRouteChange(page: Page, action: 'paused' | 'resumed' | 'cancelled'): Promise<void> {
+async function expectSavedRouteChange(page: Page, action: 'paused' | 'resumed' | 'cancelled' | 'established'): Promise<void> {
   const open = page.getByRole('button', { name: 'View message log' });
   const log = page.getByRole('dialog', { name: 'Message log' });
   const close = log.getByRole('button', { name: 'Close message log' });
@@ -187,7 +187,9 @@ test('loaded freight stays paused or resumed after a same-turn reload', async ({
   await expect(unit).not.toContainText('round trip');
 });
 
-test('City cancellation saves a loaded return with its ETA and removes future purchases', async ({ page }) => {
+test('City cancellation delivers paid cargo and allows the trader to start a new coal route', async ({ page }) => {
+  // CI reached turn 20 of this 12-turn replay with two reloads in the 30-second default.
+  test.setTimeout(60_000);
   await page.goto('/?scenario=freight-strait-b');
   const open = page.getByRole('button', { name: 'Freight investment', exact: true });
   const investment = page.getByRole('dialog', { name: 'Freight investment' });
@@ -243,6 +245,49 @@ test('City cancellation saves a loaded return with its ETA and removes future pu
 
   await tradeButton.click();
   await expect(route).toHaveCount(0);
+  await trade.getByRole('button', { name: 'Close Trade & Supply' }).click();
+
+  // The return has spent the trader's action. A new assignment is legal on the next turn.
+  await advanceFreightTurn(page, 16);
+  await clickVisibleHex(page, { q: 1, r: 5 });
+  // Both traders can share this water tile. Choose the one released from its route.
+  await page.getByRole('button', { name: /Naval Trader.*Ready/ }).click();
+  const unit = page.getByLabel('Selected unit details and actions (scroll for more)');
+  const establish = unit.getByRole('button', { name: 'Establish Route', exact: true });
+  await expect(establish).toBeEnabled();
+  await establish.press('Enter');
+  const chooser = page.getByRole('dialog', { name: 'Trade Routes (Naval Trader)', exact: true });
+  const destination = chooser.locator('[data-destination-city="strait-supplier"]').last();
+  const confirm = chooser.getByRole('button', { name: 'Confirm', exact: true });
+  await expect(destination).toContainText('Eastport');
+  await expect(destination).not.toContainText('already acted');
+  await expect(confirm).toBeDisabled();
+  await expect(destination).toHaveJSProperty('tagName', 'BUTTON');
+  await destination.press('Enter');
+  await expect(confirm).toBeEnabled();
+  await expect(destination).toHaveAttribute('aria-pressed', 'true');
+  await expect(chooser.locator('[data-route-summary]')).toContainText('Round trip: 4 rounds');
+  await chooser.locator('[data-procurement-good]').selectOption('resource:coal');
+  await chooser.getByLabel('Maximum unit price').fill('100');
+  await chooser.getByLabel('Treasury floor').fill('30');
+  await confirm.click();
+  await expect(chooser).toBeHidden();
+  await expect(unit).toContainText('Committed to route');
+  await expectSavedRouteChange(page, 'established');
+  await page.reload();
+  await expect(turnLabel(page, 16)).toBeVisible();
+  await tradeButton.click();
+  await expect(route).toContainText('Coal target 10');
+  await trade.getByRole('button', { name: 'Close Trade & Supply' }).click();
+
+  for (const turn of [17, 18, 19, 20, 21]) await advanceFreightTurn(page, turn);
+  await open.click();
+  await expect(investment).toContainText(/[1-9]\d* imported coal in reserve/);
+  await expect(investment).toContainText('Coal is available for the next Factory fuel allocation');
+  await investment.getByRole('button', { name: 'Close', exact: true }).click();
+  await advanceFreightTurn(page, 22);
+  await open.click();
+  await expect(investment).toContainText('Factory was fueled last round');
 });
 
 test('the two strait maps resume their own progress in the same browser', async ({ page }) => {
