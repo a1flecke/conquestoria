@@ -1,7 +1,4 @@
-/**
- * City-capture choice resolution (#1243), split out of `turn-flow-controller.ts`: occupy / raze after a
- * player assault. Body verbatim.
- */
+/** Occupy / raze resolution after a player assault. */
 import type { CivBonusEffect } from '@/core/types';
 import { finalizePlayerCityAssaultChoice } from '@/input/city-assault-flow';
 import { emitMajorCityCaptureEvents } from '@/systems/city-capture-system';
@@ -45,8 +42,6 @@ export function createTurnCityCapture(deps: TurnFlowControllerDeps): TurnCityCap
       if (result.outcome === 'occupied') {
         const capturingCiv = deps.currentCiv();
         if (capturingCiv && attackerBonus?.type === 'naval_raiding') {
-          // #1199: the spoils are a committed transition, not a mutation of the live
-          // civ object the assault already committed.
           session.update(state => ({
             ...state,
             civilizations: {

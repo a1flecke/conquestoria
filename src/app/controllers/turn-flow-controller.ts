@@ -1,44 +1,4 @@
-/**
- * Owns turn advancement: `endTurn`, the hot-seat handoff lifecycle, AI-move
- * replay, difficulty-challenge application at handoff, and the
- * "entering a viewer's turn" ritual (#787 phase 9).
- *
- * Every moved function below is exposed as a method on the returned
- * controller, matching the precedent set by `SelectionController` (#787
- * phase 8c) rather than the plan doc's minimal two-method sketch — that
- * sketch undersold Phase 8's real interface too (see this phase's plan
- * entry and Phase 8's split note), and several of these functions have real
- * external callers in `main.ts` (`handleVictoryIfNeeded` from `enterCampaign`,
- * `finalizePendingCityCaptureChoice` from `MapInteractionController`'s deps,
- * `centerOnCurrentPlayer`/`maybeShowCouncilInterrupt`/
- * `emitCurrentPlayerAudioSnapshot`/`showRequiredChoicesIfNeeded` from
- * `startGame`) that still need a way to call them post-move.
- *
- * `releaseHandoffToViewer(nextSlotId)` is renamed `enterViewerTurn(nextSlotId)`
- * -- same signature, same body, name only. (An earlier draft of this file
- * dropped the parameter in favor of reading `session.getState().currentPlayer`,
- * reasoning that the two are always equal at every call site; a second review
- * pass judged that too fragile a behavioral-equivalence claim to lean on for a
- * hot-seat-handoff-critical function -- the parameter costs nothing to keep
- * and removes the risk category entirely, so it stays.)
- *
- * Everything this file calls that is a pure `@/systems/*`, `@/core/*`, or
- * `@/ui/*` helper is imported directly, matching the precedent set by
- * `SelectionController`/`MapInteractionController`. Only concrete platform
- * services (`renderLoop`, `bus`, `audio`, `router`, `roundPresentationGate`,
- * `ceremonies`, `notifier`, `userSettingsStore`) and the main.ts-local
- * functions this phase does NOT move (`showNotification`, `updateHUD`,
- * `currentCiv`, `scanBeastSightings`, etc.) are threaded through as deps.
- *
- * #1243 split this by use case (the #1242 pattern). The hot-seat handoff, `endTurn` and the adoption of
- * unpublished state (`presentation-deferred` / `viewer-not-yet-revealed`, pinned by content in
- * `architecture-boundaries.test.ts`) deliberately stay here untouched. The rest moved out:
- *   - `turn-required-choices.ts` -- idle-city / research chooser, religion-boon gate
- *   - `turn-city-capture.ts`     -- occupy / raze resolution
- *   - `turn-presentation.ts`     -- council interrupt, victory routing, audio snapshot, camera
- *   - `turn-round-replay.ts`     -- completed-round run, AI-move capture and replay
- *   - `turn-flow-shared.ts`      -- deps, public interface, shared types
- */
+/** Turn advancement: `endTurn`, the hot-seat handoff, and entering a viewer's turn. The other slices are in `turn-*.ts`. */
 import type { GameState } from '@/core/types';
 import { SFX } from '@/audio/sfx';
 import { autoSave } from '@/storage/save-manager';
@@ -70,8 +30,6 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
   const presentation = createTurnPresentation(deps);
   const roundReplay = createTurnRoundReplay(deps);
   const slices = { ...requiredChoices, ...cityCapture, ...presentation, ...roundReplay };
-  // Bare names keep the pinned `presentation-deferred` pair (renderer push, `await replayAIMoves(...)`, HUD
-  // push) textually identical to its pre-split form -- `architecture-boundaries.test.ts` pins it by content.
   const {
     showRequiredChoicesIfNeeded, showReligionBoonIfNeeded, handleVictoryIfNeeded, centerOnCurrentPlayer,
     emitCurrentPlayerAudioSnapshot, runCurrentCompletedRound, captureAIMoves, replayAIMoves,
@@ -96,21 +54,12 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     }
   }
 
-  /**
-   * True from the moment a hot-seat handoff starts until a seat is revealed (or the game concludes).
-   * Under the veil `currentPlayer` may already be the next seat, whose turn nobody is playing yet, so
-   * no End Turn may run then: it would end that seat's turn (and run its round) before its player saw
-   * it. Every UI entry point is already blocked under the veil (inert shell, `isInteractionBlocked`);
-   * this is the mutation owner's own guard, since `endTurn`'s single-flight ends when the handoff starts.
-   */
+  /** From a handoff starting until a seat is revealed or the game concludes. */
   let handoffVeiled = false;
 
-  /** Renamed from `releaseHandoffToViewer` -- see file docblock. */
   function enterViewerTurn(nextSlotId: string): void {
     handoffVeiled = false;
     centerOnCurrentPlayer();
-    // The viewer is revealed: publish the state adopted under the handoff veil
-    // ('viewer-not-yet-revealed') to the renderer, HUD and panels in one step (#1015).
     session.commit(session.getState());
     deps.scanBeastSightings();
     deps.scanSubmarineSightings();
@@ -125,42 +74,18 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
   }
 
   /**
-   * A hot-seat boundary hands the screen to a different viewer, and every open panel is a viewer-owned
-   * surface: the outgoing seat's espionage roster, notification log, city production queues, council
-   * advice, governance choices and earned-intel atlases are the incoming seat's leaks. The earlier
-   * hand-picked list ("network panels") leaked exactly this way one panel at a time -- the strike-target
-   * picker was #545's "missing from this list", and the espionage panel and notification log were still
-   * missing when this became structural. Closing BOTH registry groups at the boundary removes the
-   * "remember to add the next leaky panel" contract: a new panel joins the teardown by being registered,
-   * and `closeGroup` is DOM-derived, so panels opened through the parameterized helpers close too.
-   *
-   * Decision modals are the same class but live outside the registry, so they are removed by DOM id:
-   * the beast-hoard and Great General choices and the captured-spy verdict. Their pending RECORDS are
-   * savable state and deliberately survive the veil -- the decision's owner sees the modal again at
-   * their next turn open (`maybeShowPendingHoardChoice` and friends filter by `currentPlayer`) -- but
-   * the modal DOM must not: the incoming seat could read the outgoing seat's prize, candidates or
-   * spy identity, and clicking the espionage verdict would execute a mixed-identity action (its
-   * handlers read `currentPlayer` at click time, so the captor on record would be the wrong seat).
+   * Closes everything the outgoing seat can see: both panel-registry groups, then the decision modals and
+   * overlays that live outside the registry. Pending decision records survive; only their DOM goes.
    */
   function closePanelsForHandoff(): void {
     router.closeGroup('main');
     router.closeGroup('transient');
-    // The victory-progress panel pins controller state beyond its DOM node.
     deps.closeVictoryProgressPanel();
-    // Defense-in-depth, pinned by the #910 regression: the private diplomacy inbox
-    // is removed at the DOM level even when the router slice cannot (a no-op router
-    // mock keeps that test honest about exactly this layer's own teardown).
     uiLayer.querySelector('#diplomacy-panel')?.remove();
-    // The outgoing seat's deferrable decision modals (see docblock): the records
-    // stay savable for their owner; only this seat's open modal DOM dies here.
     uiLayer.querySelector('#beast-hoard-panel')?.remove();
     uiLayer.querySelector('#general-candidate-panel')?.remove();
     deps.getElementById('capture-verdict-modal')?.remove();
-    // The espionage panel's extracted-intel modal mounts on document.body, so
-    // the registry teardown cannot see it; it names the outgoing seat's
-    // interrogation intel and must not reach the incoming viewer either.
     deps.getElementById('intel-modal')?.remove();
-    // The network intent panel is created outside the panel registry.
     deps.getNetworkIntentPanel()?.remove();
   }
 
@@ -177,15 +102,8 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     const nextPlayer = hotSeat.players.find(player => player.slotId === resolvedNextSlotId);
     closePirateWatersPanels(uiLayer);
     closePanelsForHandoff();
-    // A discovery ceremony queued (or deferred by an in-flight move animation) at the
-    // instant a player ends their turn must not survive to play on the next player's
-    // screen once enterViewerTurn's setBlockingOverlay(null) pumps the queues.
     ceremonies.clearForHandoff();
     renderLoop.setSelectedPirateFactionId(null);
-    // #545 MR8: the strike-target picker (panel + blast-radius map overlay)
-    // is exactly the same class of "player-owned surface that may contain
-    // strategic targets" the comment above already warns about -- it was
-    // missing from this list.
     closeStrategicLaunchFlow(uiLayer);
     renderLoop.setStrategicLaunchPreview(null);
     audio.stopPirateAmbience('player-changed');
@@ -229,19 +147,11 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       },
     );
 
-    /**
-     * The handoff ends in the game's conclusion rather than a next seat. The conclusion screen is
-     * shared by every seat, so the handoff's mute and presentation suppression end here, before it is
-     * presented; otherwise its music and stinger would play into a muted, suppressed mixer.
-     */
+    /** A handoff that ends in the game's conclusion: unmute and unsuppress before the shared conclusion screen. */
     const concludeHandoff = (): void => {
       handoffVeiled = false;
       roundPresentationGate.resume();
       audio.setMasterVolume(userSettingsStore.getMasterVolume());
-      // #787 phase 12 (#794): release 'turn-handoff' explicitly before
-      // handleVictoryIfNeeded() may push 'victory' -- an implicit overwrite
-      // leaves a phantom entry on the reference-counted stack that never gets
-      // popped, permanently blocking interaction after the victory panel.
       deps.setBlockingOverlay(null);
       handleVictoryIfNeeded();
     };
@@ -321,12 +231,6 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     };
 
     const simulate = async (): Promise<void> => {
-      // withHappenedTurn only needs to cover the synchronous commitTo() inside
-      // runCompletedRoundSimulation (completed-round-handoff.ts) -- it runs
-      // before that function's first await, so wrapping the whole (async) call
-      // still stamps every event committed this round with the pre-round turn
-      // (#551). If that commit ever moves after an await, thread the turn
-      // through the transaction options instead.
       const outcome = await notifier.withHappenedTurn(
         preSimulationState.turn,
         () => transaction.runCompletedRoundSimulation(),
@@ -363,14 +267,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     void simulate();
   }
 
-  /**
-   * Solo end turn has three outcomes that must not share recovery: the simulation failed (nothing was
-   * adopted; End Turn simulates again), presentation failed (the round is adopted; publish it and keep
-   * going), or persistence failed (the round is adopted and shown but not durable). Only the last leaves
-   * work behind, and it is recorded here so the next End Turn retries the save instead of running
-   * another round on top of an unsaved one. Keyed by playthrough so a pending retry never follows the
-   * player into a different campaign.
-   */
+  /** A solo round that was adopted but not saved; the next End Turn retries the save before any new round. Keyed by playthrough. */
   let unsavedSoloRound: { playthroughId: string | undefined } | null = null;
 
   async function persistSoloRound(): Promise<boolean> {
@@ -391,7 +288,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     return true;
   }
 
-  /** True when an earlier completed round is still not durable; retries its save and reports whether it is now. */
+  /** Retries the pending save; true when nothing is left unsaved. */
   async function retryUnsavedSoloRound(): Promise<boolean> {
     if (!unsavedSoloRound) return true;
     if (unsavedSoloRound.playthroughId !== session.getState().playthroughId) {
@@ -401,7 +298,6 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     return persistSoloRound();
   }
 
-  /** Publication and presentation of a solo round that has already been adopted. Never decides persistence. */
   async function presentSoloRound(result: Extract<ReturnType<typeof runCurrentCompletedRound>, { ok: true }>, roundTurn: number): Promise<void> {
     beginNetworkPlansForCurrentViewer();
     const soloMoves = captureAIMoves(() => {
@@ -412,20 +308,13 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     });
 
     if (handleVictoryIfNeeded()) {
-      // The round was adopted unpublished so AI moves could be captured for replay;
-      // a finished game replays nothing, but it must still publish (#1015).
       session.commit(session.getState());
       return;
     }
 
-    // #1199: this is the one intentional presentation-deferred publication --
-    // the renderer must show the new round before the captured AI moves replay,
-    // and the HUD updates after the replay completes.
     renderLoop.setGameState(session.getState());
     await replayAIMoves(soloMoves);
     deps.updateHUD();
-    // The round can leave the player a choice of their own: a Great General queued at round end, or a hoard
-    // from a beast their unit slew while defending. Hot seat opens these when the seat's turn begins.
     deps.maybeShowPendingHoardChoice();
     deps.maybeShowPendingGeneralChoice();
     showRequiredChoicesIfNeeded();
@@ -457,9 +346,6 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
         return;
       }
 
-      // #1238: the one place the Council's "Since your last turn" baseline advances -- as this
-      // civ leaves its turn, before the round changes anything. Never on Council open (see
-      // assessment-history.ts). In hot seat each human reaches here for their own seat only.
       session.update(state => recordAssessmentDigest(state, state.currentPlayer));
 
       SFX.endTurn();
@@ -482,8 +368,6 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
           return;
         }
         unpublished.adopt(result.state, 'presentation-deferred');
-        // From here the round is the campaign: a later failure is presentation or persistence, never a
-        // reason to simulate it again.
         try {
           await presentSoloRound(result, roundTurn);
         } catch (err) {

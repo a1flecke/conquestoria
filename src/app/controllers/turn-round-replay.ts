@@ -1,7 +1,4 @@
-/**
- * Completed-round run and AI-move replay (#1243), split out of `turn-flow-controller.ts`. None of these
- * writes unpublished state; the `presentation-deferred` adoption stays in `endTurn`. Bodies verbatim.
- */
+/** Completed-round run and AI-move capture and replay. */
 import type { GameState } from '@/core/types';
 import { emitMinorCivLeagueNotices } from '@/systems/minor-civ-league-presentation';
 import { reconcileMinorCivLeagues } from '@/systems/minor-civ-league-system';
