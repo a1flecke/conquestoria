@@ -31,7 +31,23 @@ export type UnitMovementBlockerCode =
   // A based aircraft changes position only by rebasing or flying a mission (air-operations-system), never by walking.
   | 'air-based'
   | 'unreachable'
-  | 'insufficient-movement';
+  | 'insufficient-movement'
+  // A unit that has spent its action this turn cannot also walk (see `getUnitMovementBudget`).
+  | 'already-acted';
+
+/**
+ * The movement points a unit may spend walking right now. A unit that has acted this turn has none, whatever its
+ * `movementPointsLeft` says: an executor that marks the action spent and forgets to zero the points (propagandist
+ * Rally/Undermine, every heroic command: aadd00d61) cannot then leave live movement behind. Every movement range,
+ * the resolver and the explainer start from this one number.
+ *
+ * The one named exception is a trader committed to a route: establishing the route marks it `hasActed` (the
+ * player has issued its command) and the route runner then walks it every round with fresh movement, so for it
+ * `hasActed` means "commissioned", not "spent".
+ */
+export function getUnitMovementBudget(unit: Pick<Unit, 'hasActed' | 'movementPointsLeft' | 'committedToRouteId'>): number {
+  return unit.hasActed && !unit.committedToRouteId ? 0 : unit.movementPointsLeft;
+}
 
 export interface BlockingMapEntity {
   reason: 'foreign-city' | 'barbarian-camp' | 'pirate-enclave';

@@ -15,6 +15,7 @@ import {
   executeUnitMove,
   executeValidatedUnitMove,
 } from '@/systems/unit-movement-system';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 
 function grasslandMap(w: number, h: number): GameMap {
   const tiles: GameMap['tiles'] = {};
@@ -156,5 +157,40 @@ describe('#1025 MR4 — impassable-terrain copy', () => {
     if (res.ok) return;
     expect(res.reason).toBe('impassable-terrain');
     expect(res.message).toBe('Naval units cannot move on land.');
+  });
+});
+
+describe('a unit that has acted cannot also walk (aadd00d61)', () => {
+  // An executor that marks the action spent but leaves movement points (propagandist Rally/Undermine, every heroic
+  // command) used to leave live movement behind, because legality read movementPointsLeft alone.
+  function actedUnitState(patch: Partial<Unit> = {}) {
+    const { state, unitId } = makeState({ movementPointsLeft: 3 });
+    state.units[unitId] = { ...state.units[unitId]!, hasActed: true, ...patch };
+    return { state, unitId };
+  }
+
+  it('the resolver refuses with a typed reason and copy, however many points remain', () => {
+    const { state, unitId } = actedUnitState();
+    const resolution = resolveUnitMoveIntent(state, unitId, { q: 1, r: 0 }, asPlayer);
+    expect(resolution.ok).toBe(false);
+    if (resolution.ok) return;
+    expect(resolution.reason).toBe('already-acted');
+    expect(resolution.message).toMatch(/already acted/i);
+  });
+
+  it('the range preview offers nothing, so a highlight is never an illegal move', () => {
+    const { state, unitId } = actedUnitState();
+    expect(getMovementRangeDetails(state, unitId)).toEqual({ reachable: [], zocLimited: [] });
+  });
+
+  it('an unacted unit with the same points still walks (the rule is not a blanket refusal)', () => {
+    const { state, unitId } = makeState({ movementPointsLeft: 3 });
+    expect(resolveUnitMoveIntent(state, unitId, { q: 1, r: 0 }, asPlayer).ok).toBe(true);
+    expect(getMovementRangeDetails(state, unitId).reachable.length).toBeGreaterThan(0);
+  });
+
+  it('a trader committed to a route is the named exception: its route runner walks it', () => {
+    const { state, unitId } = actedUnitState({ committedToRouteId: 'route-1' });
+    expect(resolveUnitMoveIntent(state, unitId, { q: 1, r: 0 }, asPlayer).ok).toBe(true);
   });
 });

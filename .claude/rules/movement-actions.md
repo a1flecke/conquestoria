@@ -100,6 +100,16 @@ facade, so re-exporting the explainer there closes an import cycle that leaves
 `TRAINABLE_UNITS` / `BUILDINGS` undefined at load time. `src/input` and its tests import
 `getMovementBlockerReason` from `@/systems/unit-movement-explainer` directly.
 
+## A unit that has acted does not walk
+
+`getUnitMovementBudget` (`unit-movement-legality.ts`) is the one answer to "how many points may this unit spend
+walking right now?": 0 once `hasActed` is set, else `movementPointsLeft`. The resolver, `getMovementRangeDetails` and
+the decomposed `getMovementRange` all start from it, and a refusal is the typed `'already-acted'` ("This unit has
+already acted this turn."). So an executor that marks an action spent and forgets to zero movement cannot leave live
+movement behind (propagandist Rally/Undermine and every heroic command did, `aadd00d61`). The one named exception is a
+trader with `committedToRouteId`: establishing the route sets `hasActed`, and the route runner then walks it each round.
+Pinned by `movement-resolver.test.ts` "a unit that has acted cannot also walk".
+
 ## The sibling movement actions
 
 Paradrop, air assault and transport unload are *different actions* with the same shape —
