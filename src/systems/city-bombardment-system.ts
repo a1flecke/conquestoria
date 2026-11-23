@@ -22,6 +22,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { isCityBreachedBy } from '@/systems/city-breach';
 import { surviveLethalHitWithGeneTherapy } from '@/systems/gene-therapy-system';
+import { canSpendUnitAction } from '@/systems/unit-order-state';
 
 export type CityBombardmentSource = 'player' | 'ai';
 
@@ -94,7 +95,7 @@ export function canUnitBombardCity(
   if (!profile.targets.includes('city')) return { ok: false, reason: 'not-bombard-capable' };
   // Pirates raid shipping and coastlines; they never attack cities (pirate-factions design).
   if (isPirateOwner(attacker.owner)) return { ok: false, reason: 'not-bombard-capable' };
-  if (attacker.hasActed || attacker.movementPointsLeft <= 0) return { ok: false, reason: 'no-action-points' };
+  if (!canSpendUnitAction(attacker, state.turn)) return { ok: false, reason: 'no-action-points' };
   if (!isHostileOwnerTo(state, attacker.owner, city.owner)) return { ok: false, reason: 'not-hostile' };
 
   const distance = state.map.wrapsHorizontally

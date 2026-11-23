@@ -5,6 +5,10 @@ import {
   getLastStandPreview, issueLastStand, resolveLastStandDefenseBonus,
   getBreachPreview, getBreachTargetCityIds, issueBreach,
 } from '@/systems/great-general-abilities';
+import { canUnitAttackTarget, getAttackTargets } from '@/systems/attack-targeting';
+import { canSpendUnitAction } from '@/systems/unit-order-state';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { healUnit } from '@/systems/unit-healing';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
@@ -303,11 +307,74 @@ describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
     expect(result.units['unit-1'].hasMoved).toBe(true);
   });
 
-  it('does NOT restore movementPointsLeft (contract §19: "no full movement refresh")', () => {
+  it('grants one action at zero movement without a movement refresh (contract §19: "or make another legal attack" / "no full movement refresh")', () => {
     const state = setup();
-    state.units['unit-1'] = { ...state.units['unit-1'], movementPointsLeft: 0 };
+    state.units['enemy-1'] = makeUnit({ id: 'enemy-1', owner: 'ai-1', position: { q: 2, r: 0 } });
+    state.civilizations['ai-1'] = {
+      ...state.civilizations['ai-1']!,
+      units: ['enemy-1'],
+      diplomacy: { ...state.civilizations['ai-1']!.diplomacy, atWarWith: ['player'] },
+    };
+    state.civilizations.player.diplomacy = { ...state.civilizations.player.diplomacy, atWarWith: ['ai-1'] };
+
     const result = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
-    expect(result.units['unit-1'].movementPointsLeft).toBe(0);
+    const attacker = result.units['unit-1']!;
+
+    expect(attacker.hasActed).toBe(false);
+    // The attack that made this unit eligible spent every movement point. Attack legality
+    // needs an action, not a movement refresh: before the grant was honoured it refused
+    // with no-action-points, so a lifetime charge bought nothing and the picker's
+    // "N units can act again" was a lie.
+    expect(canSpendUnitAction(attacker, result.turn)).toBe(true);
+    expect(canUnitAttackTarget(result, attacker, { q: 2, r: 0 })).toMatchObject({ ok: true });
+    // The highlight layer and the executor must agree: the target must be offered too.
+    expect(getAttackTargets(result, attacker).map(target => target.coord)).toContainEqual({ q: 2, r: 0 });
+    // And the grant is never a movement refresh.
+    expect(attacker.movementPointsLeft).toBe(0);
+    expect(attacker.movementPointsLeft).toBeLessThan(UNIT_DEFINITIONS.warrior.movementPoints);
+  });
+
+  it('supersedes a rest commitment, so a unit that rests and then uses the granted action does not also collect the rest heal', () => {
+    const state = setup();
+    // Rest spends the action and the movement but leaves hasMoved false; this unit was
+    // eligible for Seize precisely because it had rested.
+    state.units['unit-1'] = makeUnit({
+      id: 'unit-1', position: { q: 1, r: 0 }, health: 40,
+      hasActed: true, hasMoved: false, movementPointsLeft: 0, isResting: true,
+    });
+
+    const seized = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
+    const restored = seized.units['unit-1']!;
+
+    expect(restored.isResting).toBe(false);
+    // The round-end heal loop prefers `isResting` (+15) over everything else outside a
+    // city. A seized unit has been told to act again, so that commitment is over: after
+    // it uses the granted action it must not be paid the rest heal as well.
+    const acted: GameState = {
+      ...seized,
+      units: { ...seized.units, 'unit-1': { ...restored, hasActed: true, movementPointsLeft: 0 } },
+    };
+    const healed = healUnit(acted.units['unit-1']!, false, false);
+    expect(healed.health).toBe(40);
+  });
+
+  it('a seized unit whose extra action is spent cannot attack a third time without another Seize', () => {
+    const state = setup();
+    state.units['enemy-1'] = makeUnit({ id: 'enemy-1', owner: 'ai-1', position: { q: 2, r: 0 } });
+    state.civilizations['ai-1'] = {
+      ...state.civilizations['ai-1']!,
+      units: ['enemy-1'],
+      diplomacy: { ...state.civilizations['ai-1']!.diplomacy, atWarWith: ['player'] },
+    };
+    state.civilizations.player.diplomacy = { ...state.civilizations.player.diplomacy, atWarWith: ['ai-1'] };
+
+    const seized = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
+    // Exactly what applyCombatOutcomeToState writes after the granted attack resolves.
+    const spent: GameState = {
+      ...seized,
+      units: { ...seized.units, 'unit-1': { ...seized.units['unit-1']!, hasActed: true, hasMoved: true, movementPointsLeft: 0 } },
+    };
+    expect(canUnitAttackTarget(spent, spent.units['unit-1'], { q: 2, r: 0 })).toMatchObject({ ok: false, reason: 'no-action-points' });
   });
 
   it('leaves an unselected eligible unit untouched', () => {
@@ -641,10 +708,13 @@ describe('#885 Seize the Moment extra-target for Bold Commander', () => {
     const after = issueSeizeTheMoment(state, 'gen-1', ids);
     expect(ids.filter(id => after.units[id]!.hasActed === false)).toHaveLength(4);
   });
-  it('Bold Commander still does NOT refund movement points', () => {
+  it('Bold Commander adds an extra target but still does NOT refund movement points', () => {
     const { state, ids } = stateWithActedUnits('sz-mov', 'gen_caesar', 2);
     const after = issueSeizeTheMoment(state, 'gen-1', ids);
+    // The specialty widens Seize to one more unit; movement is still never refreshed, and
+    // the extra action comes from the per-turn grant instead.
     expect(after.units[ids[0]!]!.movementPointsLeft).toBe(0);
+    expect(canSpendUnitAction(after.units[ids[0]!]!, after.turn)).toBe(true);
   });
 });
 
