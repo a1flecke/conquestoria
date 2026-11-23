@@ -315,6 +315,12 @@ describe('strip-units-showcase scenario (#1627)', () => {
     expect(state.units['showcase-swordsman-hurt']).toMatchObject({ type: 'swordsman', owner: 'player', health: 30 });
   });
 
+  it('places a player warrior at full health and a wounded one so the strip e2e can find their roots', () => {
+    const state = buildScenario(SCENARIOS['strip-units-showcase']);
+    expect(state.units['showcase-warrior']).toMatchObject({ type: 'warrior', owner: 'player', health: 100 });
+    expect(state.units['showcase-warrior-hurt']).toMatchObject({ type: 'warrior', owner: 'player', health: 30 });
+  });
+
   it('places a player observation balloon so the strip e2e can find its root', () => {
     const state = buildScenario(SCENARIOS['strip-units-showcase']);
     expect(state.units['showcase-observation-balloon']).toMatchObject({ type: 'observation_balloon', owner: 'player', health: 100 });

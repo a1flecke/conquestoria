@@ -62,12 +62,22 @@ export function getHeroicCommandEligibility(
 }
 
 /**
- * Spends one Command Charge and starts the shared cooldown (contract §17:
- * "any ability costs 1 charge and starts the same shared cooldown"). Callers
- * (Rally/Seize/Last Stand issuance in this same file) call this exactly
- * once per successful ability issuance, after applying the ability's own
- * effects -- charge/cooldown state and effect state are independent writes
- * to the same unit, composed by the caller.
+ * Spends one Command Charge, starts the shared cooldown (contract §17:
+ * "any ability costs 1 charge and starts the same shared cooldown") and ends the
+ * General's remaining action/movement (contract §17: "ends General's remaining
+ * action/movement"). Callers (Rally/Seize/Last Stand/Breach issuance in this
+ * same file) call this exactly once per successful ability issuance, after
+ * applying the ability's own effects -- charge/cooldown state and effect state
+ * are independent writes to the same unit, composed by the caller.
+ *
+ * The §17 action/movement write lives here, not in each issue* executor, because
+ * movement legality never re-reads hasActed (the resolver, the range preview and
+ * the selected-unit highlights all gate on movementPointsLeft alone): without
+ * this write, a General that has moved partway could issue a command and then
+ * still spend its leftover movement, and a General that has only commanded would
+ * keep appearing in the end-of-turn "unmoved units" prompt. hasMoved is
+ * deliberately left as it was -- like fortify/rest, a command issued in place is
+ * not itself a move.
  */
 export function spendHeroicCommandCharge(state: GameState, generalUnitId: string): GameState {
   const general = state.units[generalUnitId];
@@ -83,6 +93,8 @@ export function spendHeroicCommandCharge(state: GameState, generalUnitId: string
         ...general,
         generalCommandChargesUsed: used,
         generalCommandCooldownUntilTurn: state.turn + resolveGeneralMechanics(definition).cooldownTurns,
+        hasActed: true,
+        movementPointsLeft: 0,
       },
     },
   };
