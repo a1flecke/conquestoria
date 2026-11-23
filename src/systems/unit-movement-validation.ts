@@ -11,7 +11,7 @@ import {
   isEnterableMovementTile,
   movementStepCostParamsForType,
 } from '@/systems/unit-movement-cost';
-import { getBlockingMapEntityAt, getBlockingMapEntityKeys, getBlockingMapEntityMessage, type UnitMovementBlockerCode, type BlockingMapEntity } from '@/systems/unit-movement-legality';
+import { getBlockingMapEntityAt, getBlockingMapEntityKeys, getBlockingMapEntityMessage, getUnitMovementBudget, type UnitMovementBlockerCode, type BlockingMapEntity } from '@/systems/unit-movement-legality';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { findPath } from '@/systems/unit-pathfinding';
 import { getDeniedTerritoryOwners, isTileDeniedBy, TERRITORIAL_ACCESS_MESSAGE } from '@/systems/territorial-access';
@@ -285,6 +285,7 @@ export function validateUnitMove(
     return movementFailure(from, target, path, 'unexplored', 'Move one step at a time into unexplored territory.');
   }
 
+  const budget = getUnitMovementBudget(unit);
   let cost = 0;
   for (let i = 1; i < path.length; i++) {
     cost += getMovementStepCostFor(costParams, state.map, path[i - 1]!, path[i]!);
@@ -295,9 +296,11 @@ export function validateUnitMove(
     : hexDistance(from, target);
   // Geometric neighbors can still require a detour around to a passage approach.
   const forcedMarch = distance === 1 && path.length === 2
-    && unit.movementPointsLeft >= 1 && cost > unit.movementPointsLeft;
-  if (!forcedMarch && cost > unit.movementPointsLeft) {
-    return movementFailure(from, target, path, 'insufficient-movement', 'Not enough movement left this turn.');
+    && budget >= 1 && cost > budget;
+  if (!forcedMarch && cost > budget) {
+    return unit.hasActed && budget === 0
+      ? movementFailure(from, target, path, 'already-acted', 'This unit has already acted this turn.')
+      : movementFailure(from, target, path, 'insufficient-movement', 'Not enough movement left this turn.');
   }
 
   return { ok: true, from, to: target, path, cost };
