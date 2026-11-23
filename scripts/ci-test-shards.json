@@ -895,7 +895,8 @@
     "tests/renderer/sprites/v2/cannon-grenadier-native.test.ts": 1.4970703125,
     "tests/renderer/sprites/v2/index.test.ts": 40.6484375,
     "tests/ai/ai-breakaway-reunification.test.ts": 100.0,
-    "tests/systems/espionage-double-agent.test.ts": 400.0
+    "tests/systems/espionage-double-agent.test.ts": 400.0,
+    "tests/app/unit-owner-handover.test.ts": 1.0
   },
   "shards": {
     "test-suite-shard-a": [
@@ -1525,6 +1526,7 @@
       "tests/app/panel-focus-manager.test.ts",
       "tests/app/selection-store.test.ts",
       "tests/app/simulation-determinism.test.ts",
+      "tests/app/unit-owner-handover.test.ts",
       "tests/audio/audio-loader.test.ts",
       "tests/audio/civ-audio-family.test.ts",
       "tests/audio/combat-outcome-sfx-generator.test.ts",

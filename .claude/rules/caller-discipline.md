@@ -118,6 +118,7 @@ meanings, name the roles — but only when misuse is plausible. The ranked audit
 | Any unit removal takes cargo/air wing/manifest entry/spy record/trade route with it | `removeUnits` is the only transition; raw `units` deletes are a source-rule violation | `unit-removal-system.test.ts`, source rule + hook mirror, architecture pin "#1198", `SAVE_STATE_INVARIANTS` |
 | Disband confirmation names the extra units | `removePlayerUnitFromState` = `removeUnits` + liveness; the dialog previews it | `unit-lifecycle-system.test.ts`, `unit-turn-flow.test.ts` |
 | A finished unit gets every completion side effect, on both entry points | `completeUnitProduction` is the only completion (turn path + rush-buy) | `unit-production-completion.test.ts` matrix + footprint guard, architecture pin "#1202" |
+| A unit that changes hands takes its new owner's movement bonus | `withNewOwner` (`unit-trained-movement-bonus.ts`) is the only writer of `unit.owner`; a raw assignment or `{ ...unit, owner }` fails the scan and names the helper | `tests/app/unit-owner-handover.test.ts`, `minor-civ-system.test.ts` "gives a transferred mounted garrison unit…" |
 | Publication after a state write | `commit`/`batch`; no silent write | `session-publication.md` |
 | A unit conjured onto the map passes the placement rules | `unit-spawn-placement.ts` (terrain, blocker set, other owners' units); every `createUnit` caller listed with its reason | "unit placement" pin in `architecture-boundaries.test.ts`, `SAVE_STATE_INVARIANTS` `units-on-enterable-terrain` + `no-illegal-blocking-occupancy` |
 

@@ -11,6 +11,7 @@ import {
 } from '@/systems/minor-civ-graduation-rules';
 import { reconcileMinorCivLeagues } from '@/systems/minor-civ-league-system';
 import { createTechState } from '@/systems/tech-system';
+import { withNewOwner } from '@/systems/unit-trained-movement-bonus';
 
 /**
  * City-state graduation (#497), the conversion. One city-state becomes a major civilization in a single
@@ -105,8 +106,6 @@ export function graduateMinorCiv(state: GameState, minorCivId: string): MinorCiv
   }
 
   const transferredUnitIds = mc.units.filter(unitId => next.units[unitId] !== undefined);
-  for (const unitId of transferredUnitIds) next.units[unitId]!.owner = civId;
-
   city.owner = civId;
   for (const coord of city.ownedTiles) {
     const tile = next.map.tiles[`${coord.q},${coord.r}`];
@@ -166,6 +165,8 @@ export function graduateMinorCiv(state: GameState, minorCivId: string): MinorCiv
     graduatedFrom: { minorCivId, definitionId: definition.id, turn: state.turn, knownBy: [...discovererCivIds] },
   };
   next.civilizations[civId] = civilization;
+  // After the civilization exists, so each garrison unit gets the movement bonus its new owner would train it with.
+  for (const unitId of transferredUnitIds) next.units[unitId] = withNewOwner(next, next.units[unitId]!, civId);
 
   // First contact (#497 PR 4): a living major that had already discovered the city-state keeps knowing it under
   // its new identity, in both directions, and nobody else gains contact from the change. Judged on the state
