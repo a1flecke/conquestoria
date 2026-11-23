@@ -60,7 +60,7 @@ import {
 } from './minor-civ-league-system';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { isFertileStart } from '@/systems/start-fertility';
-import { createUnitForCiv } from './unit-trained-movement-bonus';
+import { createUnitForCiv, withNewOwner } from './unit-trained-movement-bonus';
 import { applyResearchGain } from './tech-completion-system';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
@@ -795,7 +795,7 @@ export function peacefullyAbsorbMinorCiv(
 
   const transferredUnitIds = mc.units.filter(uid => nextState.units[uid] !== undefined);
   for (const unitId of transferredUnitIds) {
-    nextState.units[unitId].owner = newOwnerId;
+    nextState.units[unitId] = withNewOwner(nextState, nextState.units[unitId], newOwnerId);
   }
   const civ = nextState.civilizations[newOwnerId];
   if (civ) {
@@ -895,6 +895,16 @@ interface EvolutionResult {
   newGarrison: Unit;
   removeCampId: string;
   transferUnitIds: string[];
+}
+
+/** Hand the raiders that joined an evolved camp's city-state to it, through the one owner-change helper. */
+export function transferEvolvedCampUnits(state: GameState, unitIds: readonly string[], minorCivId: string): GameState {
+  const units = { ...state.units };
+  for (const unitId of unitIds) {
+    const unit = units[unitId];
+    if (unit) units[unitId] = withNewOwner(state, unit, minorCivId);
+  }
+  return { ...state, units };
 }
 
 export function checkCampEvolution(

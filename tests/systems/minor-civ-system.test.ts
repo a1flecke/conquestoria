@@ -922,6 +922,19 @@ describe('#593 MR6 — peacefullyAbsorbMinorCiv', () => {
     expect(state.minorCivs[mcId].isDestroyed).toBe(false);
   });
 
+  it('gives a transferred mounted garrison unit the new owner\'s movement bonus', () => {
+    const state = createNewGame(undefined, 'mc-peaceful-absorb-bonus', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    state.civilizations.player.civType = 'mongolia';
+    const horseman = createUnit('horseman', mcId, state.cities[state.minorCivs[mcId].cityId].position, state.idCounters);
+    state.units[horseman.id] = horseman;
+    state.minorCivs[mcId].units.push(horseman.id);
+
+    const result = peacefullyAbsorbMinorCiv(state, mcId, 'player');
+
+    expect(result.state.units[horseman.id]).toMatchObject({ owner: 'player', movementBonus: 1 });
+  });
+
   it('reports an alliance-broken transition for any allied major civ', () => {
     const state = createNewGame(undefined, 'mc-peaceful-absorb-alliance', 'small');
     const mcId = Object.keys(state.minorCivs)[0];

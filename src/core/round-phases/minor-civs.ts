@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import { processMinorCivTurn, checkCampEvolution } from '@/systems/minor-civ-system';
+import { processMinorCivTurn, checkCampEvolution, transferEvolvedCampUnits } from '@/systems/minor-civ-system';
 import { recalculateTerritory } from '@/systems/city-territory-system';
 import type { RoundPhase, RoundPhaseContext } from './types';
 
@@ -19,11 +19,7 @@ function runMinorCivs(state: GameState, context: RoundPhaseContext): GameState {
     delete newState.barbarianCamps[evolution.removeCampId];
     newState.cities[evolution.newCity.id] = evolution.newCity;
     newState.units[evolution.newGarrison.id] = evolution.newGarrison;
-    for (const uid of evolution.transferUnitIds) {
-      if (newState.units[uid]) {
-        newState.units[uid].owner = evolution.newMinorCiv.id;
-      }
-    }
+    newState = transferEvolvedCampUnits(newState, evolution.transferUnitIds, evolution.newMinorCiv.id);
     newState.minorCivs[evolution.newMinorCiv.id] = evolution.newMinorCiv;
     // The raiders that joined it are no longer barbarians, so the barbarian AI no longer tracks their home camp.
     if (newState.opponentAI) {
