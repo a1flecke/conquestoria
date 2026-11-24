@@ -60,6 +60,10 @@ export function resetUnitTurn(unit: Unit): Unit {
     // #887 MR1: Seize's recording-only battle-influence marker is per-owner-turn,
     // like rallyProtectedThisRound above.
     seizeGrantedBy: _seizeGrantedBy,
+    // #544 contract §19 item 67: the independent once-per-turn witness for special
+    // abilities that have no charge/cooldown of their own (Rally/Undermine). Seize may
+    // clear hasActed, never this.
+    specialActionUsedTurn: _specialActionUsedTurn,
     ...rest
   } = unit;
   // #544: severe overextension reduces movement by 1, never below 1 (contract §3.3/§29).

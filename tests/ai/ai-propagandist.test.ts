@@ -42,4 +42,25 @@ describe('AI Propagandist use', () => {
     expect(result.cities.neutral.spyUnrestBonus).toBe(0);
     expect(result.units['ai-prop'].hasActed).toBe(true);
   });
+
+  it('skips a propagandist whose civic action was already used this turn, even if Seize re-opened its generic action', () => {
+    const state = createNewGame('rome', 'ai-propagandist-seized', 'small');
+    const enemy = city('enemy', 'player', 1);
+    state.cities = { enemy };
+    // The seized state: hasActed cleared by the grant, ability already spent.
+    const unit: Unit = {
+      id: 'ai-prop', type: 'propagandist', owner: 'ai-1', position: { q: 0, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      specialActionUsedTurn: state.turn,
+    };
+    state.units = { [unit.id]: unit };
+    state.civilizations['ai-1'] = { ...state.civilizations['ai-1'], units: [unit.id], cities: [], diplomacy: { ...state.civilizations['ai-1'].diplomacy, atWarWith: ['player'] } };
+    state.civilizations.player = { ...state.civilizations.player, cities: ['enemy'], diplomacy: { ...state.civilizations.player.diplomacy, atWarWith: ['ai-1'] } };
+
+    const result = usePropagandistActionsForAI(state, 'ai-1');
+
+    // Exactly one use this turn: the marker, not hasActed, is the gate.
+    expect(result).toBe(state);
+    expect(result.cities.enemy.spyUnrestBonus).toBe(0);
+  });
 });

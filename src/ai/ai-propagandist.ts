@@ -12,7 +12,11 @@ export function usePropagandistActionsForAI(state: GameState, civId: string): Ga
   let next = state;
   const units = civ.units
     .map(unitId => next.units[unitId])
-    .filter(unit => unit?.type === 'propagandist' && !unit.hasActed)
+    // `specialActionUsedTurn` is the ability's own once-per-turn gate: Seize re-opens
+    // `hasActed`, and the executor refuses a second use anyway, so skip it here too.
+    .filter(unit => unit?.type === 'propagandist'
+      && !unit.hasActed
+      && unit.specialActionUsedTurn !== next.turn)
     .sort((left, right) => left!.id.localeCompare(right!.id));
   for (const unit of units) {
     if (!unit) continue;

@@ -869,6 +869,15 @@ export interface Unit {
    * same turn." Set by beginMajorCityAssault on the capturing unit;
    * cleared by resetUnitTurn. */
   hasCapturedCityThisTurn?: boolean;
+  /** #544 contract §19 item 67: "no refresh of once-per-turn special
+   * abilities." Seize grants its extra action by clearing `hasActed`, so any
+   * ability whose once-per-turn gate is ONLY that bit would come back with it.
+   * This marker is that gate's independent witness: the ability's executor sets
+   * it (together with the action it spends) and refuses a repeat while
+   * `.turn === state.turn`, so the ability's own once-per-turn limit survives
+   * any refund of the generic action bit. Cleared by resetUnitTurn.
+   * Currently written by usePropagandistAction (Rally/Undermine). */
+  specialActionUsedTurn?: number;
 }
 
 export interface CrisisForce {

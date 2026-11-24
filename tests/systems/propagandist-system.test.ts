@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { City, HexCoord, Unit } from '@/core/types';
 import { usePropagandistAction } from '@/systems/propagandist-system';
+import { issueSeizeTheMoment } from '@/systems/great-general-abilities';
+import { resetUnitTurn } from '@/systems/unit-lifecycle';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { resolveUnitMoveIntent } from '@/systems/unit-movement-validation';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
@@ -163,5 +165,71 @@ describe('Propagandist action economy', () => {
     expect(getMovementRangeDetails(result.state, 'propagandist').reachable).toHaveLength(0);
     const after = resolveUnitMoveIntent(result.state, 'propagandist', pair.to, { actor: 'player', civId: 'player' });
     expect(after.ok).toBe(false);
+  });
+});
+
+describe("a Seize the Moment grant does not refresh the once-per-turn civic action (#544 contract §19 item 67)", () => {
+  function generalAt(owner: string, position: HexCoord): Unit {
+    return {
+      id: 'gen-1', type: 'great_general', owner, position,
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_hannibal',
+    } as Unit;
+  }
+
+  /** One Undermine spent, then Seize the Moment re-opened the propagandist's generic action. */
+  function seizedAfterUndermine() {
+    const state = stateWithCities();
+    state.units['gen-1'] = generalAt('player', { q: 0, r: 0 });
+    state.civilizations.player.units = ['gen-1', 'propagandist'];
+
+    const first = usePropagandistAction(state, 'propagandist', 'undermine', 'enemy');
+    expect(first.ok).toBe(true);
+    const seized = issueSeizeTheMoment(first.state, 'gen-1', ['propagandist']);
+    // Fixture precondition: the grant really re-opened the generic action bit. Without
+    // this the civic refusal below would be vacuous.
+    expect(seized.units.propagandist.hasActed).toBe(false);
+    return seized;
+  }
+
+  it('refuses the second civic action even though Seize cleared hasActed', () => {
+    const seized = seizedAfterUndermine();
+
+    const second = usePropagandistAction(seized, 'propagandist', 'undermine', 'enemy');
+
+    expect(second).toMatchObject({ ok: false, reason: 'used-this-turn', state: seized });
+    // Exactly one use happened this turn, not two.
+    expect(seized.cities.enemy.spyUnrestBonus).toBe(10);
+  });
+
+  it('records the marker on the successful action', () => {
+    const state = stateWithCities();
+
+    const result = usePropagandistAction(state, 'propagandist', 'undermine', 'enemy');
+
+    expect(result.ok).toBe(true);
+    expect(result.state.units.propagandist.specialActionUsedTurn).toBe(state.turn);
+  });
+
+  it('still refuses the generic-action repeat with the generic reason (the two gates are separate)', () => {
+    const state = stateWithCities();
+    state.units.propagandist.hasActed = true;
+
+    expect(usePropagandistAction(state, 'propagandist', 'undermine', 'enemy'))
+      .toMatchObject({ ok: false, reason: 'already-acted' });
+  });
+
+  it('clears the marker with the rest of the per-turn state, so the action returns next round', () => {
+    const seized = seizedAfterUndermine();
+
+    const reset = resetUnitTurn(seized.units.propagandist);
+    expect(reset.specialActionUsedTurn).toBeUndefined();
+
+    const nextRound: ReturnType<typeof createNewGame> = {
+      ...seized,
+      turn: seized.turn + 1,
+      units: { ...seized.units, propagandist: reset },
+    };
+    expect(usePropagandistAction(nextRound, 'propagandist', 'undermine', 'enemy')).toMatchObject({ ok: true });
   });
 });
