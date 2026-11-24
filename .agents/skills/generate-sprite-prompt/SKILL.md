@@ -1,0 +1,1 @@
+../../../.claude/skills/generate-sprite-prompt.md

@@ -42,7 +42,7 @@ paths:
 
 ## Agent policy parity (#1231)
 
-`scripts/check-agent-policy-parity.mjs` (run by `tests/hooks/agent-policy-parity.test.sh` in `yarn test:hooks`) is a small, literal contradiction detector across the agent-facing surfaces: `CLAUDE.md`, `AGENTS.md`, `.claude/rules/*.md`, `.opencode/opencode.jsonc`, and `.opencode/commands/*.md`. It is **not** a prose linter and does not require the files to be identical — `CLAUDE.md` + `.claude/rules/*.md` are canonical policy, `AGENTS.md` is tool-neutral workflow guidance, and `.opencode/*` is OpenCode config. It fails only when their shared command/invariant semantics disagree.
+`scripts/check-agent-policy-parity.mjs` (run by `tests/hooks/agent-policy-parity.test.sh` in `yarn test:hooks`) is a small, literal contradiction detector across the agent-facing surfaces: `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.claude/rules/*.md`, `.agents/rules/*.md`, `.agents/skills/**/*.md`, `.opencode/opencode.jsonc`, and `.opencode/commands/*.md`. It is **not** a prose linter and does not require the files to be identical — `CLAUDE.md` + `.claude/rules/*.md` are canonical policy, `AGENTS.md` is tool-neutral workflow guidance, `GEMINI.md` + `.agents/**` is Antigravity/Gemini onboarding, and `.opencode/*` is OpenCode config. It fails only when their shared command/invariant semantics disagree.
 
 Declared rules, each with a failing fixture in `tests/hooks/agent-policy-parity.test.sh`:
 

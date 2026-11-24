@@ -53,7 +53,7 @@
     {
       "id": "hooks",
       "commands": ["./scripts/run-with-mise.sh yarn test:hooks"],
-      "why": "AGENTS.md → after editing .claude/hooks/**, .claude/settings.json, or tests/hooks/**, run the hook suite."
+      "why": "AGENTS.md → after editing .claude/hooks/**, .claude/settings.json, .agents/hooks/**, .agents/hooks.json, or tests/hooks/**, run the hook suite."
     },
     {
       "id": "unit-sfx-validate",
@@ -167,7 +167,7 @@
     },
     {
       "id": "hooks",
-      "match": [".claude/hooks/**", ".claude/settings.json", "tests/hooks/**"],
+      "match": [".claude/hooks/**", ".claude/settings.json", ".agents/hooks/**", ".agents/hooks.json", "tests/hooks/**"],
       "require": ["hooks"],
       "why": "AGENTS.md → after editing hook scripts/settings/tests."
     },

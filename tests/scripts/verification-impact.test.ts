@@ -112,6 +112,8 @@ describe('#1232 verification impact map', () => {
       const list = ids(impact('--changed', fixtures[rule.id]));
       for (const id of rule.require) expect(list, `${rule.id} should require ${id}`).toContain(id);
     }
+    expect(ids(impact('--changed', 'M:.agents/hooks/pre-run-command.sh'))).toContain('hooks');
+    expect(ids(impact('--changed', 'M:.agents/hooks.json'))).toContain('hooks');
   });
 
   it('rejects an impact map whose commands do not exist', () => {
