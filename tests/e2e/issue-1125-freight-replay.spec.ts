@@ -358,8 +358,13 @@ test('the funded Expedition can establish its ivory outpost through the map', as
   await expect(cursor).toContainText('your Expedition');
   // The move spends the Expedition's movement and the game clears selection.
   await expect(unit).toBeHidden();
-  await page.keyboard.press('Enter');
-  await expect(establish).toBeVisible();
+  // Selection is cleared on a 400 ms settle timer, but the two-hex slide lasts 440 ms and is retired
+  // on the next frame, so an Enter in between is refused ("Unit is moving."). Retry only while the
+  // panel is still closed, so a retry can never toggle an open selection.
+  await expect(async () => {
+    if (!(await unit.isVisible())) await page.keyboard.press('Enter');
+    await expect(establish).toBeVisible({ timeout: 1_000 });
+  }).toPass();
   await establish.click();
   await expect(unit).toBeHidden();
 
