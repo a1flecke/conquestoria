@@ -1356,7 +1356,16 @@ export function renderSelectedUnitInfo(
     ));
   }
 
-  if (unit.type === 'propagandist' && unit.owner === state.currentPlayer && !unit.hasActed && callbacks.onUsePropagandistAction) {
+  if (
+    unit.type === 'propagandist'
+    && unit.owner === state.currentPlayer
+    && !unit.hasActed
+    // The ability's own once-per-turn gate: Seize the Moment clears `hasActed` to grant an
+    // extra action, and the executor refuses a second Rally/Undermine anyway, so the panel
+    // must not offer one the click will only refuse (#544 §19 item 67).
+    && unit.specialActionUsedTurn !== state.turn
+    && callbacks.onUsePropagandistAction
+  ) {
     const nearbyCities = Object.values(state.cities)
       .filter(city => mapDistance(state.map, unit.position, city.position) <= 1)
       .sort((left, right) => left.id.localeCompare(right.id));

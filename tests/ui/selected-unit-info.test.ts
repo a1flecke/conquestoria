@@ -3179,6 +3179,34 @@ describe('renderSelectedUnitInfo — Cyber Unit intent launcher', () => {
 
     expect(findButtons(container).find(button => button.textContent === 'Rally Own')).toBeDefined();
   });
+
+  it('offers no Rally/Undermine to a propagandist whose action Seize re-opened (#544 §19 item 67)', () => {
+    const state = createNewGame(undefined, 'propagandist-seized-offer', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      propagandist: { ...createUnit('propagandist', 'player', { q: 1, r: 1 }, state.idCounters), id: 'propagandist' },
+    };
+    state.cities = {
+      own: {
+        id: 'own', name: 'Own', owner: 'player', position: { q: 1, r: 1 }, population: 2, food: 0, foodNeeded: 10,
+        buildings: [], productionQueue: [], productionProgress: 0, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village', unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 10, idleProduction: null,
+      },
+    };
+    state.civilizations.player.units = ['propagandist'];
+    state.civilizations.player.cities = ['own'];
+    // The seized state: the generic action bit is open again, but the civic action was
+    // already used this turn. Offering it would be a button the executor must refuse.
+    state.units.propagandist = {
+      ...state.units.propagandist,
+      hasActed: false,
+      specialActionUsedTurn: state.turn,
+    };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'propagandist', { onUsePropagandistAction: vi.fn() });
+
+    expect(findButtons(container).some(button => /Rally |Undermine /.test(button.textContent ?? ''))).toBe(false);
+  });
 });
 
 function makeParatrooperState(overrides: { hasActed?: boolean } = {}): GameState {
