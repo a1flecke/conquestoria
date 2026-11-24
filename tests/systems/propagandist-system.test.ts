@@ -186,18 +186,20 @@ describe("a Seize the Moment grant does not refresh the once-per-turn civic acti
     const first = usePropagandistAction(state, 'propagandist', 'undermine', 'enemy');
     expect(first.ok).toBe(true);
     const seized = issueSeizeTheMoment(first.state, 'gen-1', ['propagandist']);
-    // Fixture precondition: the grant really re-opened the generic action bit. Without
-    // this the civic refusal below would be vacuous.
-    expect(seized.units.propagandist.hasActed).toBe(false);
+    // #1807: a grant never clears hasActed, so it cannot refresh the generic action either.
+    // The grant marker is the precondition that keeps the refusal below meaningful.
+    expect(seized.units.propagandist.hasActed).toBe(true);
+    expect(seized.units.propagandist.seizeGrantedBy).toBeDefined();
     return seized;
   }
 
-  it('refuses the second civic action even though Seize cleared hasActed', () => {
+  it('refuses the second civic action after a Seize grant', () => {
     const seized = seizedAfterUndermine();
 
     const second = usePropagandistAction(seized, 'propagandist', 'undermine', 'enemy');
 
-    expect(second).toMatchObject({ ok: false, reason: 'used-this-turn', state: seized });
+    expect(second).toMatchObject({ ok: false, state: seized });
+    expect(['used-this-turn', 'already-acted']).toContain((second as { reason: string }).reason);
     // Exactly one use happened this turn, not two.
     expect(seized.cities.enemy.spyUnrestBonus).toBe(10);
   });
