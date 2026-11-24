@@ -2,12 +2,13 @@
   "turns": [
     {
       "state": {
-        "__whole": "28540676884a",
+        "__whole": "27b049f63176",
         "activeEventChains": "51fe40cdcded",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "acc477d5c114",
         "beasts": "80250a8bcf09",
+        "borderConfrontations": "4f53cda18c2b",
         "cities": "3d9ee5ff9bad",
         "cityFaith": "44136fa355b3",
         "civilizations": "43b91d06b4fc",
@@ -68,17 +69,18 @@
         "wonderDiscoverers": "312e94da7b5e",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "42f19eb8882b",
+      "events": "63eac7f8ca41",
       "trace": "9147ef655012"
     },
     {
       "state": {
-        "__whole": "b3415913ddab",
+        "__whole": "1a210ae3550c",
         "activeEventChains": "208001498e9d",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "5340b991bd17",
         "beasts": "80250a8bcf09",
+        "borderConfrontations": "4f53cda18c2b",
         "cities": "52e684f1a614",
         "cityFaith": "44136fa355b3",
         "civilizations": "5bd85a16cb34",
@@ -139,17 +141,18 @@
         "wonderDiscoverers": "312e94da7b5e",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "4e3311c04879",
+      "events": "a4c289eaadd3",
       "trace": "912151540caa"
     },
     {
       "state": {
-        "__whole": "700f7770e273",
+        "__whole": "a0ae3ec5dc1f",
         "activeEventChains": "e7ebd5002d6f",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "752fdb48f903",
         "beasts": "b4ffbd45c331",
+        "borderConfrontations": "4f53cda18c2b",
         "cities": "a5d1032e1ba4",
         "cityFaith": "44136fa355b3",
         "civilizations": "0061752b5852",
@@ -210,7 +213,7 @@
         "wonderDiscoverers": "312e94da7b5e",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "5d87f0805887",
+      "events": "f4c1fc2ea2fe",
       "trace": "912151540caa"
     }
   ]

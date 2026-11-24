@@ -40,6 +40,7 @@
    "src/systems/minor-civ-league-system.ts"
   ],
   [
+   "src/ui/border-confrontation-controls.ts",
    "src/ui/diplomacy-panel.ts",
    "src/ui/tribute-controls.ts",
    "src/ui/vassalage-controls.ts"
@@ -88,7 +89,7 @@
   },
   {
    "pair": "app -> systems",
-   "count": 214
+   "count": 217
   },
   {
    "pair": "app -> testing",
@@ -116,7 +117,7 @@
   },
   {
    "pair": "core -> systems",
-   "count": 198
+   "count": 199
   },
   {
    "pair": "input -> renderer",
@@ -184,7 +185,7 @@
   },
   {
    "pair": "systems -> ai",
-   "count": 4
+   "count": 5
   },
   {
    "pair": "systems -> core",
@@ -224,7 +225,7 @@
   },
   {
    "pair": "ui -> systems",
-   "count": 314
+   "count": 319
   }
  ]
 }

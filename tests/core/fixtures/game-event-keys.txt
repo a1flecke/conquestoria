@@ -80,6 +80,12 @@ diplomacy:vassalage-ended
 diplomacy:vassalage-offered
 diplomacy:war-declared
 diplomacy:war-goal-exceeded
+diplomacy:withdrawal-broken
+diplomacy:withdrawal-demanded
+diplomacy:withdrawal-fulfilled
+diplomacy:withdrawal-invalidated
+diplomacy:withdrawal-promised
+diplomacy:withdrawal-refused
 economy:treasury-strain
 era:advanced
 espionage:advisor-assassinated

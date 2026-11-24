@@ -13,6 +13,8 @@ const TREACHERY_AMOUNTS: Record<string, number> = {
   vassalage_independence: 20,
   leave_embargo: 5,
   leave_league: 10,
+  // #1766: an accepted border-withdrawal promise the intruder did not honour.
+  border_withdrawal_promise: 15,
   // #988: conquering far past a declared war goal. Bounded and applied at most
   // once per war -- see war-goal-system.ts's overreachPenaltyApplied guard.
   war_goal_overreach: 10,

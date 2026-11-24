@@ -66,6 +66,13 @@ import {
 } from '@/systems/diplomacy-vassal-rules';
 import { declareMajorWar, makeMajorPeace, resolveOpponentKind } from '@/systems/diplomacy-war';
 import { acceptTributeDemand, demandTribute, getTributeDemandEligibility, refuseTributeDemand } from '@/systems/diplomacy-tribute';
+import {
+  acceptWithdrawalDemand,
+  decideBorderWithdrawalAsAI,
+  demandWithdrawal,
+  getBorderConfrontationEligibility,
+  refuseWithdrawalDemand,
+} from '@/systems/border-confrontation';
 import { buildViewerMilitaryIntel, estimatePerceivedCivStrength } from '@/systems/diplomatic-strength';
 import {
   commitVassalageAgreement,
@@ -180,6 +187,7 @@ export type DiplomaticActionEligibility =
 /** Actions that write a treaty or war record: never against a civ the actor has not met (#435). */
 const ACTIONS_REQUIRING_CONTACT: ReadonlySet<DiplomaticAction> = new Set<DiplomaticAction>([
   'declare_war', 'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance', 'arms_control_pact', 'demand_tribute',
+  'demand_withdrawal',
 ]);
 
 /**
@@ -234,6 +242,11 @@ export function resolveDiplomaticAction(
       // #1334: the tribute rule owns its own legality (it needs the demander's viewer-safe intel, not just a diplomacy ledger).
       const tribute = getTributeDemandEligibility(state, actorId, targetCivId);
       return tribute.ok ? { ok: true } : deny(tribute.reason);
+    }
+    case 'demand_withdrawal': {
+      // #1766: the border-confrontation rule owns its own legality, including what the approached civ can actually see.
+      const confrontation = getBorderConfrontationEligibility(state, actorId, targetCivId);
+      return confrontation.ok ? { ok: true } : deny(confrontation.reason);
     }
     default:
       // Embargo / league actions: removed from the offer surface in #998 / #1030 and never had an execution path.
@@ -311,6 +324,16 @@ export function applyDiplomaticAction(
         : refuseTributeDemand(demand.state, targetCivId, demand.request.id, bus);
       return done(answered.ok ? answered.state : demand.state);
     }
+    case 'demand_withdrawal': {
+      const demand = demandWithdrawal(state, actorId, targetCivId, bus);
+      if (!demand.ok) return { ok: false, state, reason: demand.reason };
+      // A human target answers later through the request flow; an AI answers now from its own perception.
+      if (target.isHuman) return done(demand.state);
+      const answered = decideBorderWithdrawalAsAI(demand.state, targetCivId, actorId).accepted
+        ? acceptWithdrawalDemand(demand.state, targetCivId, demand.request.id, bus)
+        : refuseWithdrawalDemand(demand.state, targetCivId, demand.request.id, bus);
+      return done(answered.ok ? answered.state : demand.state);
+    }
     case 'reabsorb_breakaway': {
       const cityId = target.breakaway?.originCityId;
       const nextState = tryReabsorbBreakaway(state, actorId, targetCivId, bus);
@@ -376,6 +399,11 @@ export function acceptDiplomaticRequest(
     return result.ok ? accepted(result.state) : refuse('request-no-longer-valid');
   }
 
+  if (request.type === 'withdrawal') {
+    const result = acceptWithdrawalDemand(state, actingCivId, requestId, bus);
+    return result.ok ? accepted(result.state) : refuse('request-no-longer-valid');
+  }
+
   if (request.type === 'treaty') {
     if (!request.treatyType || request.treatyType === 'tribute') return refuse('request-no-longer-valid');
     const committed = request.treatyType === 'vassalage'
@@ -426,6 +454,14 @@ export function rejectDiplomaticRequest(
   if (request.type === 'tribute') {
     if (!bus) return removeDiplomaticRequest(state, requestId);
     const refused = refuseTributeDemand(state, actingCivId, requestId, bus);
+    return refused.ok ? refused.state : state;
+  }
+
+  // #1766: an explicit refusal of a withdrawal demand costs relations once and is recorded; an internal drop with no
+  // bus (an expired or structurally invalid demand) carries no diplomatic consequence.
+  if (request.type === 'withdrawal') {
+    if (!bus) return removeDiplomaticRequest(state, requestId);
+    const refused = refuseWithdrawalDemand(state, actingCivId, requestId, bus);
     return refused.ok ? refused.state : state;
   }
 

@@ -124,6 +124,15 @@ describe('#1001 every teardown area is actually asserted', () => {
     embargoes: s => { s.embargoes = [{ targetCivId: 'ai-1', participants: ['player'], startedTurn: 1 } as never]; },
     defensiveLeagues: s => { s.defensiveLeagues = [{ id: 'l1', members: ['player', 'ai-1'], formedTurn: 1 } as never]; },
     pendingDiplomacyRequests: s => { s.pendingDiplomacyRequests = [{ fromCivId: 'player', toCivId: 'ai-1' } as never]; },
+    borderConfrontations: s => {
+      s.borderConfrontations = [{
+        id: 'withdrawal:player:ai-1:1',
+        hostCivId: 'player',
+        intruderCivId: 'ai-1',
+        issuedTurn: 1,
+        status: 'refused',
+      }];
+    },
     pendingEvents: s => { s.pendingEvents = { 'ai-1': [] }; },
     espionage: s => { s.espionage = { 'ai-1': { spies: {}, detectedThreats: {}, activeInterrogations: {} } as never }; },
     opponentAI: s => {

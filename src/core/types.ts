@@ -10,6 +10,7 @@ import type { HexCoord } from './types/hex';
 import type { ResourceType, ImprovementType, WorkerActionType } from './types/resources';
 import type { AiGameState, AIStrategicRole, OpponentChallenge } from './types/ai';
 import type {
+  BorderConfrontation,
   DefensiveLeague,
   DiplomacyState,
   Embargo,
@@ -44,7 +45,7 @@ export type { AiGameState } from './types/ai';
 export type { CouncilGameState } from './types/council';
 export type { NotificationLogState } from './notification-log';
 export type {
-  DiplomaticAction, TreatyType, TributeTerms, TreatyDeclineReason, Treaty, DiplomaticEvent, VassalageState, DiplomacyState, WarGoalKind, WarGoal, WarGoalStatus, SettlementTermKind, SettlementTerm, WarParticipantSide, WarLeaveReason, WarOutcome, WarParticipant, WarHistoryEvent, WarRecord, Embargo, DefensiveLeague, PendingDiplomaticRequest,
+  DiplomaticAction, TreatyType, TributeTerms, TreatyDeclineReason, Treaty, DiplomaticEvent, VassalageState, DiplomacyState, WarGoalKind, WarGoal, WarGoalStatus, SettlementTermKind, SettlementTerm, WarParticipantSide, WarLeaveReason, WarOutcome, WarParticipant, WarHistoryEvent, WarRecord, Embargo, DefensiveLeague, PendingDiplomaticRequest, BorderConfrontation,
 } from './types/diplomacy';
 export { PENDING_DIPLOMATIC_REQUEST_TYPES } from './types/diplomacy';
 export type {
@@ -2118,6 +2119,12 @@ export interface GameState extends AiGameState, CouncilGameState, NotificationLo
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];
   pendingDiplomacyRequests?: PendingDiplomaticRequest[];
+  /**
+   * #1766: accepted/answered border confrontations. A pending demand lives in `pendingDiplomacyRequests`; this
+   * records the promise and its resolution. Additive and optional: an absent value means no confrontation has ever
+   * been answered, and every reader uses `?? []`.
+   */
+  borderConfrontations?: BorderConfrontation[];
   /** #991: a persistent, named historical record per major-vs-major war,
    * keyed by `WarRecord.id`. Absent means no war has ever produced a record
    * yet (old saves, or a fresh game) -- additive, no migration needed; see

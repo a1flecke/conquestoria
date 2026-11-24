@@ -184,6 +184,9 @@ export function eliminateCivilization(
     .filter(league => league.members.length >= 2);
   next.pendingDiplomacyRequests = (next.pendingDiplomacyRequests ?? [])
     .filter(request => request.fromCivId !== civId && request.toCivId !== civId);
+  // #1766: a dead civ is neither a host nor an intruder in a border confrontation.
+  next.borderConfrontations = (next.borderConfrontations ?? [])
+    .filter(record => record.hostCivId !== civId && record.intruderCivId !== civId);
   if (next.pendingEvents) {
     delete next.pendingEvents[civId];
   }

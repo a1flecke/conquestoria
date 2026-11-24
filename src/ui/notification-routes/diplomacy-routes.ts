@@ -280,3 +280,73 @@ export function routeTributeEnded(state: GameState, event: GameEvents['diplomacy
   sink(event.demanderId, `Tribute from ${payer} has ended. ${why}`, 'info');
   sink(event.payerId, `Tribute to ${demander} has ended. ${why}`, 'info');
 }
+
+// #1766: border confrontations. `hostCivId` is the civ whose cities are threatened (the demander); `intruderCivId` is
+// the civ asked to pull back. Each party is told its own side only; no copy names a hidden unit or an unexplored city.
+export function routeWithdrawalDemanded(
+  state: GameState,
+  event: GameEvents['diplomacy:withdrawal-demanded'],
+  sink: NotificationSink,
+): void {
+  const host = state.civilizations[event.hostCivId]?.name ?? 'A rival';
+  sink(
+    event.intruderCivId,
+    `${host} demands that your armed forces pull back from their cities. Promise to withdraw, or refuse and accept the relationship cost. Answer in the Diplomacy panel.`,
+    'warning',
+  );
+}
+
+export function routeWithdrawalPromised(
+  state: GameState,
+  event: GameEvents['diplomacy:withdrawal-promised'],
+  sink: NotificationSink,
+): void {
+  const host = state.civilizations[event.hostCivId]?.name ?? 'A rival';
+  const intruder = state.civilizations[event.intruderCivId]?.name ?? 'A rival';
+  sink(event.hostCivId, `${intruder} promised to withdraw its troops by turn ${event.deadlineTurn}.`, 'success');
+  sink(event.intruderCivId, `You promised ${host} to pull your troops back by turn ${event.deadlineTurn}. Keeping that promise will improve relations; breaking it will hurt your reputation.`, 'info');
+}
+
+export function routeWithdrawalRefused(
+  state: GameState,
+  event: GameEvents['diplomacy:withdrawal-refused'],
+  sink: NotificationSink,
+): void {
+  const host = state.civilizations[event.hostCivId]?.name ?? 'A rival';
+  const intruder = state.civilizations[event.intruderCivId]?.name ?? 'A rival';
+  sink(event.hostCivId, `${intruder} refused to withdraw. Relations worsened; no war was declared.`, 'warning');
+  sink(event.intruderCivId, `You refused ${host}'s demand. Relations worsened; no war was declared.`, 'info');
+}
+
+export function routeWithdrawalFulfilled(
+  state: GameState,
+  event: GameEvents['diplomacy:withdrawal-fulfilled'],
+  sink: NotificationSink,
+): void {
+  const host = state.civilizations[event.hostCivId]?.name ?? 'A rival';
+  const intruder = state.civilizations[event.intruderCivId]?.name ?? 'A rival';
+  sink(event.hostCivId, `${intruder} kept its promise and pulled its troops back. Relations improved.`, 'success');
+  sink(event.intruderCivId, `You kept your promise to ${host}. Relations improved, and your reliability is noted.`, 'success');
+}
+
+export function routeWithdrawalBroken(
+  state: GameState,
+  event: GameEvents['diplomacy:withdrawal-broken'],
+  sink: NotificationSink,
+): void {
+  const host = state.civilizations[event.hostCivId]?.name ?? 'A rival';
+  const intruder = state.civilizations[event.intruderCivId]?.name ?? 'A rival';
+  sink(event.hostCivId, `${intruder} broke its promise to withdraw. Relations worsened, and other civilizations will remember the betrayal.`, 'warning');
+  sink(event.intruderCivId, `You broke your promise to ${host}. Relations worsened and your reputation for betrayal has grown.`, 'warning');
+}
+
+export function routeWithdrawalInvalidated(
+  state: GameState,
+  event: GameEvents['diplomacy:withdrawal-invalidated'],
+  sink: NotificationSink,
+): void {
+  const host = state.civilizations[event.hostCivId]?.name ?? 'A rival';
+  const intruder = state.civilizations[event.intruderCivId]?.name ?? 'A rival';
+  sink(event.hostCivId, `The withdrawal promise from ${intruder} no longer applies.`, 'info');
+  sink(event.intruderCivId, `Your withdrawal promise to ${host} no longer applies.`, 'info');
+}

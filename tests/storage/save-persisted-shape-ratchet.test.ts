@@ -168,6 +168,12 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // gold/unrest deltas apply, and that capture/expiry clear the state.
   'cities.*.levy': '#1338 — new optional per-city light levy; absent means none; every reader treats absence as no levy; only setCityLevy writes it.',
   'cities.*.levyChangedTurn': '#1338 — new optional per-city levy lock turn; absent means never changed; every reader tolerates absence.',
+  // #1766 — answered border confrontations (promises and their outcomes). The field is optional and stamped at []
+  // by both creation functions; every reader goes through `getBorderConfrontations(state)` which uses `?? []`, so a
+  // pre-#1766 save simply has no confrontation history. A pending demand already lived in the existing
+  // `pendingDiplomacyRequests` queue (new kind `withdrawal`, validated by the load-time table), and no old data needs
+  // reinterpretation. `tests/systems/border-confrontation.test.ts` proves an absent field loads and processes turns.
+  'borderConfrontations': '#1766 — additive optional confrontation history; absent means none; every reader uses ?? [].',
 };
 
 describe('#1023 persisted-save-shape ratchet', () => {

@@ -89,6 +89,8 @@ export const PENDING_REQUEST_VALIDATORS: Record<PendingDiplomaticRequest['type']
       && Number.isInteger(terms.goldPerRound) && terms.goldPerRound >= 1 && terms.goldPerRound <= TRIBUTE_MAX_GOLD_PER_ROUND
       && Number.isInteger(terms.rounds) && terms.rounds >= 1 && terms.rounds <= TRIBUTE_DURATION_ROUNDS;
   },
+  // #1766: the demand carries no per-instance terms -- the pair, the turn and the common TTL are the whole payload.
+  withdrawal: () => true,
 };
 
 /** The kinds this normalizer knows, for tests that prove the table covers the canonical inventory. */

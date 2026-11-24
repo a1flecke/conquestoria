@@ -1,10 +1,11 @@
 {
   "unversioned legacy save (schema 0)": {
-    "__whole": "33ac10569a3a",
+    "__whole": "1ef798370c8b",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "23b9aef5bdce",
     "beasts": "7f8002f129d0",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "e77151956ae0",
     "cityFaith": "44136fa355b3",
     "civilizations": "3578d182393e",
@@ -58,11 +59,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 1": {
-    "__whole": "3eda2f17ff34",
+    "__whole": "dee1214c7a6e",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "feb029c17a93",
     "beasts": "266fb8a907a3",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "a70679d9d5a1",
     "cityFaith": "44136fa355b3",
     "civilizations": "b015cb4f3477",
@@ -116,11 +118,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 2": {
-    "__whole": "dd51c144173b",
+    "__whole": "612529cd3e64",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "8ce25ac81589",
     "beasts": "b286b6af1437",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "d6ccf9059904",
     "cityFaith": "44136fa355b3",
     "civilizations": "6babdeb962d6",
@@ -174,11 +177,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 3": {
-    "__whole": "35267807a934",
+    "__whole": "72451fa689eb",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "83e5370cf4f9",
     "beasts": "537fa6b0c80e",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "d873ad895f48",
     "cityFaith": "44136fa355b3",
     "civilizations": "3bf86e288919",
@@ -232,11 +236,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 4": {
-    "__whole": "794164e77441",
+    "__whole": "2b7318a6e65d",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "6e2e85d8f8a2",
     "beasts": "cdc8a7cf69b1",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "5d535ee0d474",
     "cityFaith": "44136fa355b3",
     "civilizations": "364ca598e6ed",
@@ -290,11 +295,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 5": {
-    "__whole": "1591c03e3e5c",
+    "__whole": "f4f0f467a0ff",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "780bf22cdc4a",
     "beasts": "3d54a059edb6",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "396df48b715a",
     "cityFaith": "44136fa355b3",
     "civilizations": "6288ff35c730",
@@ -347,11 +353,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 6": {
-    "__whole": "b4228319557e",
+    "__whole": "91b39e9a9a1b",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "467b9f077fe1",
     "beasts": "4ee76fc7ea54",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "0ab4d047bb81",
     "cityFaith": "44136fa355b3",
     "civilizations": "099fb57d0838",
@@ -404,11 +411,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 7": {
-    "__whole": "3c84b5171f98",
+    "__whole": "b4725128626b",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "6c4eda1b870c",
     "beasts": "7d167ec51a0e",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "b27c7584ebad",
     "cityFaith": "44136fa355b3",
     "civilizations": "4fb24b6c0711",
@@ -461,11 +469,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 8": {
-    "__whole": "b99b364e5c5c",
+    "__whole": "831b74ef7729",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "37f6f9d73987",
     "beasts": "6448a4c99906",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "18bd3905c4df",
     "cityFaith": "44136fa355b3",
     "civilizations": "ad9e45701835",
@@ -518,11 +527,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 9": {
-    "__whole": "9dbd2eeebbb8",
+    "__whole": "eae5534e6590",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "50506a05a0f2",
     "beasts": "ff432f7d8aae",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "1ac1008923fc",
     "cityFaith": "44136fa355b3",
     "civilizations": "eddbdbf43ac1",
@@ -575,11 +585,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 10": {
-    "__whole": "b56ae576520c",
+    "__whole": "e3db86116eec",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "54b8a4b3b732",
     "beasts": "5edc6bdb5540",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "3dc2493cf182",
     "cityFaith": "44136fa355b3",
     "civilizations": "096351476c7b",
@@ -632,11 +643,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 11": {
-    "__whole": "c4b6ecd29f5b",
+    "__whole": "717c5f21d925",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "10f4a9cd1e20",
     "beasts": "88e6a50bc7e3",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "c884447e4402",
     "cityFaith": "44136fa355b3",
     "civilizations": "321af76ace72",
@@ -689,11 +701,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 12": {
-    "__whole": "c1155868087a",
+    "__whole": "dcc4a711335b",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "573bc2cb20ca",
     "beasts": "e0d0ff8d8582",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "9ba9b9461377",
     "cityFaith": "44136fa355b3",
     "civilizations": "db10f2a75426",
@@ -744,11 +757,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 13": {
-    "__whole": "2ad81c20dcb2",
+    "__whole": "a2faeaee0e1e",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "d87a9d4e0784",
     "beasts": "e0efcd0423a0",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "7ab0111646c7",
     "cityFaith": "44136fa355b3",
     "civilizations": "d054b8930712",
@@ -799,11 +813,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 14": {
-    "__whole": "f87099bdd44b",
+    "__whole": "a46c483be81e",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "0d119071801a",
     "beasts": "a61313c55a05",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "61780905c24e",
     "cityFaith": "44136fa355b3",
     "civilizations": "c914071f946e",
@@ -854,11 +869,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 15": {
-    "__whole": "e71d7933914e",
+    "__whole": "49e361485a7c",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "a3aeeb865bd1",
     "beasts": "5a50f86ace4d",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "262a675dd6a1",
     "cityFaith": "44136fa355b3",
     "civilizations": "68d65adbcbf4",
@@ -909,11 +925,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 16": {
-    "__whole": "513f5b0ab17c",
+    "__whole": "a3f357c324ae",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "ed4659296c23",
     "beasts": "01aea55a9914",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "c3b8faf334f7",
     "cityFaith": "44136fa355b3",
     "civilizations": "902a1e6bcae5",
@@ -964,11 +981,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 17": {
-    "__whole": "a043467deb5b",
+    "__whole": "6f6ad5eec87c",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "82462ee88c02",
     "beasts": "1c01852aabb3",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "401b912d2a0a",
     "cityFaith": "44136fa355b3",
     "civilizations": "1a5e8f7ed849",
@@ -1019,11 +1037,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 18": {
-    "__whole": "2f2dcf5c3510",
+    "__whole": "df0fe2d329ab",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "3c9df8b69fde",
     "beasts": "09e16134ad93",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "6dcc9a5bdb14",
     "cityFaith": "44136fa355b3",
     "civilizations": "46bbf6a69dbd",
@@ -1074,11 +1093,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 19": {
-    "__whole": "c1380bea7358",
+    "__whole": "477c2528b01b",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "38238f764750",
     "beasts": "c1d401bcaef7",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "bc0632efdcfe",
     "cityFaith": "44136fa355b3",
     "civilizations": "2da2c0c09cdc",
@@ -1129,11 +1149,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 20": {
-    "__whole": "5dfc370f5036",
+    "__whole": "61ec67b3575f",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "cf0ce65b3039",
     "beasts": "695a9193af27",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "3ee52cd7605e",
     "cityFaith": "44136fa355b3",
     "civilizations": "62b595694b3c",
@@ -1184,11 +1205,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 21": {
-    "__whole": "2ab875fd4731",
+    "__whole": "61b33d4bd1dd",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "bfe8b05c6951",
     "beasts": "fa87948b3821",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "cecb7cba99ca",
     "cityFaith": "44136fa355b3",
     "civilizations": "0f6133b0f3bf",
@@ -1239,11 +1261,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 22": {
-    "__whole": "7e62d1085684",
+    "__whole": "f221a0e28050",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "c5e5a87244a1",
     "beasts": "6a35c0e97232",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "3148b146a27f",
     "cityFaith": "44136fa355b3",
     "civilizations": "5393cd5350db",
@@ -1294,11 +1317,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 23": {
-    "__whole": "608601e4ef55",
+    "__whole": "18aba6d3e1ad",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "1721791365e0",
     "beasts": "626e78e08e71",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "e04886bd8f9b",
     "cityFaith": "44136fa355b3",
     "civilizations": "d15fe4a4e35f",
@@ -1349,11 +1373,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 24": {
-    "__whole": "0665306f3a5c",
+    "__whole": "fe09ff52165b",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "a6d09771bb87",
     "beasts": "1458dac6da3b",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "bd93edb3ecec",
     "cityFaith": "44136fa355b3",
     "civilizations": "1a3d2a19cab9",
@@ -1404,11 +1429,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 25": {
-    "__whole": "c7ad8f534e9b",
+    "__whole": "f30e62c27def",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "802b3f6c21fe",
     "beasts": "3ef4491b4d8b",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "aad18cea24e9",
     "cityFaith": "44136fa355b3",
     "civilizations": "0438bdc4ad8a",
@@ -1459,11 +1485,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 26": {
-    "__whole": "57c36e12988b",
+    "__whole": "ae803b393555",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "9267fb40d5be",
     "beasts": "937fce4735fe",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "5f152d34d2c8",
     "cityFaith": "44136fa355b3",
     "civilizations": "a5ac517bcef6",
@@ -1514,11 +1541,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 27": {
-    "__whole": "b92c72ab39c7",
+    "__whole": "57d1c26f0b58",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "6ae88b598270",
     "beasts": "cf3f4ca75edd",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "02bb8a37c2af",
     "cityFaith": "44136fa355b3",
     "civilizations": "8e297c373f9a",
@@ -1569,11 +1597,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 28": {
-    "__whole": "57364fca6c66",
+    "__whole": "616f9800b7d0",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "cedd759cc5fa",
     "beasts": "ee04cdc72944",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "18667a6ef52f",
     "cityFaith": "44136fa355b3",
     "civilizations": "f5ab940e21cf",
@@ -1624,11 +1653,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 29": {
-    "__whole": "4acf7e71b325",
+    "__whole": "8b5797c80639",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "0c70420e5ddf",
     "beasts": "1c03361d999c",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "2c9c090f0d07",
     "cityFaith": "44136fa355b3",
     "civilizations": "bd670434e0c7",
@@ -1679,11 +1709,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 30": {
-    "__whole": "628bc366de8c",
+    "__whole": "8b0dd12f6b6c",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "db25d992a27a",
     "beasts": "944766e50492",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "8f39162d0c1d",
     "cityFaith": "44136fa355b3",
     "civilizations": "d3d1191dc20a",
@@ -1734,11 +1765,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 31": {
-    "__whole": "53924811463b",
+    "__whole": "100c8a613282",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "00e28abc28c9",
     "beasts": "a9b869c61104",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "407430f8ccf5",
     "cityFaith": "44136fa355b3",
     "civilizations": "fb0ab56f01fa",
@@ -1789,11 +1821,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 32": {
-    "__whole": "0b2feab49fd2",
+    "__whole": "398328f8c73c",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "4fc812b9ef60",
     "beasts": "db32e7961b45",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "c3ae63093419",
     "cityFaith": "44136fa355b3",
     "civilizations": "fdadc52e0adb",
@@ -1844,11 +1877,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 33": {
-    "__whole": "de9415abddea",
+    "__whole": "45fa0a5cbc74",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "accbc9629001",
     "beasts": "07f7c6fec1da",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "480aa687ae28",
     "cityFaith": "44136fa355b3",
     "civilizations": "f9063616ca53",
@@ -1899,11 +1933,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 34": {
-    "__whole": "2f58f4aceb9a",
+    "__whole": "a5663eaad990",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "d59fc919d809",
     "beasts": "30ad528eab7c",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "fc4f004a5738",
     "cityFaith": "44136fa355b3",
     "civilizations": "8d156acdbc34",
@@ -1954,11 +1989,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 35": {
-    "__whole": "38413ff9c96b",
+    "__whole": "292695fc51bd",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "94801769649e",
     "beasts": "d1e978db2894",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "c85487e10e0b",
     "cityFaith": "44136fa355b3",
     "civilizations": "897960f26886",
@@ -2012,11 +2048,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 36": {
-    "__whole": "cdcece92aadf",
+    "__whole": "e3d2cd832603",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "27ec3f2bcf8f",
     "beasts": "359de2ea3d5d",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "a5e86f5755ff",
     "cityFaith": "44136fa355b3",
     "civilizations": "fa2e3a3b012a",
@@ -2070,11 +2107,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 37": {
-    "__whole": "8334d1c0a4fe",
+    "__whole": "8445ab1f3df0",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "814ce7d8379e",
     "beasts": "d00854850de0",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "1fc0eccedb00",
     "cityFaith": "44136fa355b3",
     "civilizations": "6b174c14316f",
@@ -2128,11 +2166,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 38": {
-    "__whole": "55dce3d0bad8",
+    "__whole": "bd62c3ba4243",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "e26829b100ac",
     "beasts": "98b6b791969d",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "5fc17d060e6d",
     "cityFaith": "44136fa355b3",
     "civilizations": "b4390c068205",
@@ -2186,11 +2225,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 39": {
-    "__whole": "ff925a55705c",
+    "__whole": "df6a66cb85a6",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "87af2f9a8caf",
     "beasts": "14d35febe541",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "212887edfcec",
     "cityFaith": "44136fa355b3",
     "civilizations": "d1036482b66c",
@@ -2244,11 +2284,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 40": {
-    "__whole": "8c044447f134",
+    "__whole": "b53360eb7ce1",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "756d33d06364",
     "beasts": "3e9e5df8ba5d",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "0972714c078d",
     "cityFaith": "44136fa355b3",
     "civilizations": "855e51864fce",
@@ -2302,11 +2343,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 41": {
-    "__whole": "38716598e68a",
+    "__whole": "4090950bb6a6",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "4b33bb795b73",
     "beasts": "69a233fb97f4",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "a920a6d58778",
     "cityFaith": "44136fa355b3",
     "civilizations": "736082129c35",
@@ -2360,11 +2402,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "schema 35 — active hard work before reserves existed (native, purchased access, invested after loss)": {
-    "__whole": "45e40e7ed28b",
+    "__whole": "6bac9f284e8a",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "94801769649e",
     "beasts": "d1e978db2894",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "d1e604e195e4",
     "cityFaith": "44136fa355b3",
     "civilizations": "e8cb94fc30c1",
@@ -2418,11 +2461,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "schema 38 — a spy parked on a foreign city tile": {
-    "__whole": "99173a6899a9",
+    "__whole": "34f15b606e84",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "3bcb641c47d5",
     "beasts": "70ae4fe963cd",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "4cce2cf27bb8",
     "cityFaith": "44136fa355b3",
     "civilizations": "e4a17926eb8c",
@@ -2476,11 +2520,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "schema 39 — a coast-only pirate hull crewing a deep-sea flotilla on open ocean": {
-    "__whole": "10f293a2729c",
+    "__whole": "58c1c46f5597",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "aeb1bb4faa06",
     "beasts": "90992763ae99",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "9a556b889fc6",
     "cityFaith": "44136fa355b3",
     "civilizations": "9153c758e8bf",
@@ -2534,11 +2579,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "schema 40 — a seam-crossing landmass tagged as two": {
-    "__whole": "c8186975234a",
+    "__whole": "bdad9b7b68a4",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "d1987281f396",
     "beasts": "7e2ccc59392d",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "7a76c6363c04",
     "cityFaith": "44136fa355b3",
     "civilizations": "605fc19f7225",
@@ -2643,11 +2689,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "hot-seat save (2 human viewers, queued pendingEvents), unversioned": {
-    "__whole": "ed77259daa7c",
+    "__whole": "e019acf5bf5a",
     "autonomyByCiv": "c93a1bc559b4",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "38551d23b483",
     "beasts": "6e521816cf62",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "c6162ff1ed76",
     "cityFaith": "44136fa355b3",
     "civilizations": "872ea491a920",
@@ -2701,11 +2748,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 23 — scrubs a malformed generated-officer registry entry": {
-    "__whole": "0d9bd4c0292a",
+    "__whole": "3603805fb135",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "8d8058a3a255",
     "beasts": "71af730b1720",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "ede37fb9aeb1",
     "cityFaith": "44136fa355b3",
     "civilizations": "2a6342d037b1",
@@ -2756,11 +2804,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 25 — scrubs a malformed federalismChangedTurn": {
-    "__whole": "7c35f6e431b2",
+    "__whole": "650cf145bab4",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "fdafab3c4533",
     "beasts": "ad1d596d8e35",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "f8d5130e6d0a",
     "cityFaith": "44136fa355b3",
     "civilizations": "a2bf68333153",
@@ -2811,11 +2860,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 26 — scrubs a malformed city.bombardment tally": {
-    "__whole": "0e88c0d183f4",
+    "__whole": "a435af657d56",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "95b6fc73b731",
     "beasts": "ec178de7c65e",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "fdb461936d53",
     "cityFaith": "44136fa355b3",
     "civilizations": "e40fe4126fb7",
@@ -2866,11 +2916,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 27 — normalizes malformed vassalage state": {
-    "__whole": "0444e87cc038",
+    "__whole": "dfb420637d29",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "a0b4892cc6d6",
     "beasts": "14debc065e18",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "1bdfa85c753a",
     "cityFaith": "44136fa355b3",
     "civilizations": "af1dec9bb4b1",
@@ -2921,11 +2972,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — drops malformed earned-Domination observations without backfilling history": {
-    "__whole": "5e4b880dbed5",
+    "__whole": "1cc1bac09abb",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "4edeba16adb2",
     "beasts": "eceeef234610",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "63bac082cf39",
     "cityFaith": "44136fa355b3",
     "civilizations": "1a8fe1c324ad",
@@ -2979,11 +3031,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — normalizes one-sided / duplicated / self major-civ war state (#995)": {
-    "__whole": "646d0e928ae4",
+    "__whole": "c3ebd4193aec",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "c8add7ab55e1",
     "beasts": "236af9d6b16b",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "019c5c2be8a4",
     "cityFaith": "44136fa355b3",
     "civilizations": "a8c5e81c4e17",
@@ -3037,11 +3090,12 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — normalizes transport/cargo and carrier-aircraft links (#1000)": {
-    "__whole": "2868becb0def",
+    "__whole": "e3c8b6101cdd",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "792f327ad249",
     "beasts": "bf6d8f8240b2",
+    "borderConfrontations": "4f53cda18c2b",
     "cities": "38015cb78492",
     "cityFaith": "44136fa355b3",
     "civilizations": "2866e499cfc9",

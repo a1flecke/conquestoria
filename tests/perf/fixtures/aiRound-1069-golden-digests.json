@@ -1,11 +1,12 @@
 {
   "e1": {
     "state": {
-      "__whole": "f84a6075d556",
+      "__whole": "6a8f7cb10536",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "ffd07905fec0",
       "beasts": "efef0319be28",
+      "borderConfrontations": "4f53cda18c2b",
       "cities": "071e5706be12",
       "cityFaith": "44136fa355b3",
       "civilizations": "8890d141f87e",
@@ -67,11 +68,12 @@
   },
   "e2": {
     "state": {
-      "__whole": "fd82775bd3d3",
+      "__whole": "fdfa43e4e577",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "3844da1b263b",
       "beasts": "efef0319be28",
+      "borderConfrontations": "4f53cda18c2b",
       "cities": "c1001a77803a",
       "cityFaith": "44136fa355b3",
       "civilizations": "1c5a31682350",

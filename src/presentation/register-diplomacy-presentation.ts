@@ -31,6 +31,12 @@ import {
   routeTributeAccepted,
   routeTributeRefused,
   routeTributeEnded,
+  routeWithdrawalDemanded,
+  routeWithdrawalPromised,
+  routeWithdrawalRefused,
+  routeWithdrawalFulfilled,
+  routeWithdrawalBroken,
+  routeWithdrawalInvalidated,
 } from '@/ui/notification-routes/diplomacy-routes';
 
 export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) => {
@@ -100,6 +106,24 @@ export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) =
     }),
     bus.on('diplomacy:tribute-ended', event => {
       routeTributeEnded(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:withdrawal-demanded', event => {
+      routeWithdrawalDemanded(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:withdrawal-promised', event => {
+      routeWithdrawalPromised(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:withdrawal-refused', event => {
+      routeWithdrawalRefused(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:withdrawal-fulfilled', event => {
+      routeWithdrawalFulfilled(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:withdrawal-broken', event => {
+      routeWithdrawalBroken(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:withdrawal-invalidated', event => {
+      routeWithdrawalInvalidated(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
     bus.on('minor-civ:graduated', event => {
       routeMinorCivGraduated(ctx.session.getState(), event, ctx.notifier.deliver);

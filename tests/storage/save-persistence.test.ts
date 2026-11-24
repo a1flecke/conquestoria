@@ -236,6 +236,33 @@ describe('save persistence (#38)', () => {
     expect(loaded?.pendingDiplomacyRequests).toEqual([]);
   });
 
+  it('round-trips an accepted border-withdrawal promise through save and load (#1766)', async () => {
+    const state = createNewGame(undefined, 'border-promise-save', 'small');
+    state.borderConfrontations = [{
+      id: 'withdrawal:player:ai-1:5',
+      hostCivId: 'player',
+      intruderCivId: 'ai-1',
+      issuedTurn: 5,
+      deadlineTurn: 10,
+      status: 'promised',
+    }];
+
+    await saveGame('slot-border-promise', 'Border Promise', state);
+    const loaded = await loadGame('slot-border-promise');
+
+    expect(loaded?.borderConfrontations).toEqual(state.borderConfrontations);
+  });
+
+  it('loads a pre-#1766 save with no confrontation history', async () => {
+    const state = createNewGame(undefined, 'legacy-border-save', 'small');
+    delete (state as Partial<GameState>).borderConfrontations;
+
+    await saveGame('slot-legacy-border', 'Legacy Border', state);
+    const loaded = await loadGame('slot-legacy-border');
+
+    expect(loaded?.borderConfrontations).toBeUndefined();
+  });
+
   it('keeps an absent legacy minor-civ notification history empty', () => {
     const state = createNewGame(undefined, 'legacy-minor-chain-maps', 'small');
     const minorCiv = Object.values(state.minorCivs)[0];
