@@ -451,4 +451,34 @@ delete units[id];
 EOF
 expect_allow "$tmp/src/storage/migrations/steps/some-step.ts" "delete units[id] from a save migration"
 
+# --- #1807: block a raw hasActed read in an attack-family executor ---
+cat > "$tmp/src/systems/attack-targeting.ts" <<'EOF'
+if (attacker.hasActed || attacker.movementPointsLeft <= 0) return { ok: false, reason: 'no-action-points' };
+EOF
+expect_block "$tmp/src/systems/attack-targeting.ts" "raw hasActed read in attack-targeting"
+
+# --- #1807: allow object-literal hasActed writes (the attack consumes the action) ---
+cat > "$tmp/src/systems/city-bombardment-system.ts" <<'EOF'
+units: { ...state.units, [attackerId]: { ...current, hasActed: true, movementPointsLeft: 0 } },
+EOF
+expect_allow "$tmp/src/systems/city-bombardment-system.ts" "hasActed write in city-bombardment-system"
+
+# --- #1807: allow a positive fact check marked with the exempt marker ---
+cat > "$tmp/src/systems/city-capture-system.ts" <<'EOF'
+      && attacker.hasActed; // seize-grant-gate-exempt: a positive advance-validity fact, not an action gate
+EOF
+expect_allow "$tmp/src/systems/city-capture-system.ts" "exempt-marked positive hasActed fact"
+
+# --- #1807: transport-system keeps its plain load/unload gates (deliberately unlisted) ---
+cat > "$tmp/src/systems/transport-system.ts" <<'EOF'
+if (unit.hasActed || unit.movementPointsLeft <= 0) return failure('no-action', 'Unit needs movement left to load');
+EOF
+expect_allow "$tmp/src/systems/transport-system.ts" "plain load gate in transport-system"
+
+# --- #1807: allow canSpendUnitAction in a listed executor (the gate itself) ---
+cat > "$tmp/src/app/controllers/player-combat-actions.ts" <<'EOF'
+if (!initialAttacker || !canSpendUnitAction(initialAttacker, state.turn) || !legality.ok) {
+EOF
+expect_allow "$tmp/src/app/controllers/player-combat-actions.ts" "canSpendUnitAction gate in player-combat-actions"
+
 exit "$fail"

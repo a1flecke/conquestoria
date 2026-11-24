@@ -48,7 +48,7 @@ function setup(state: GameState) {
   } as unknown as SelectionCommonDeps;
   const core = { selectUnit, deselectUnit: vi.fn() } as unknown as SelectionCore;
   const commands = createGeneralCommands(deps, core, {} as never);
-  return { session, commands, moments, publishedBeforeEvent, selectUnit };
+  return { session, commands, moments, publishedBeforeEvent, selectUnit, showNotification: deps.showNotification };
 }
 
 const confirm = (panelId: string) => {
@@ -129,7 +129,48 @@ describe('general command controller (#889)', () => {
     confirm('seize-the-moment-panel');
     expect(moments).toHaveLength(1);
     expect(moments[0]).toMatchObject({ kind: 'seize', affectedCount: 3 });
-    expect(ids.filter(id => session.getState().units[id]!.hasActed === false)).toHaveLength(3);
+    // #1807: a grant is a typed marker write — count the granted units by the marker,
+    // not by hasActed (which the grant no longer clears).
+    expect(ids.filter(id => session.getState().units[id]!.seizeGrantedBy?.turn === session.getState().turn)).toHaveLength(3);
+  });
+
+  it('#1807 — a selection whose state went stale before Confirm is refused with a warning, not a silent no-op', () => {
+    const world = makeWorld(false);
+    const aiId = Object.keys(world.civilizations).find(id => id !== 'player')!;
+    // u1 is spendable when the picker opens: an acted warrior with an enemy in range.
+    world.units['u1'] = unit('u1', { hasActed: true, hasMoved: true, movementPointsLeft: 0, landSupply: undefined });
+    world.units['enemy-1'] = unit('enemy-1', { owner: aiId, position: { q: 2, r: 0 } });
+    world.civilizations.player.diplomacy.atWarWith = [aiId];
+    world.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
+    world.civilizations[aiId]!.units = ['enemy-1'];
+    world.civilizations.player.units.push('u1');
+    const { session, commands, moments, showNotification } = setup(world);
+    commands.onOpenSeize!('gen-1');
+
+    const box = document.querySelector<HTMLInputElement>('#seize-the-moment-panel input[type="checkbox"]')!;
+    expect(box.disabled).toBe(false);
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+
+    // The state moves under the open panel: some other flow loads u1 onto a transport,
+    // where the grant can buy it nothing (cargo never walks, and nothing is in reach).
+    const loaded = session.getState();
+    session.commit({
+      ...loaded,
+      units: {
+        ...loaded.units,
+        'ship-1': unit('ship-1', { type: 'transport', position: { q: 1, r: 0 }, movementPointsLeft: 0, hasMoved: true, hasActed: true, cargoUnitIds: ['u1'] }),
+        'u1': { ...loaded.units['u1']!, transportId: 'ship-1' },
+      },
+    });
+
+    confirm('seize-the-moment-panel');
+
+    // The issuance re-derived spendability at execution time and refused: no charge
+    // spent, nothing announced, and the player is told why.
+    expect(session.getState().units['gen-1']!.generalCommandChargesUsed).toBeUndefined();
+    expect(moments).toHaveLength(0);
+    expect(showNotification).toHaveBeenCalledWith('None of the selected units can act on the Moment.', 'warning');
   });
 
   describe('Breach the Walls (#939)', () => {

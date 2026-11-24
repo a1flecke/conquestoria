@@ -9,6 +9,7 @@ import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDi
 import { applyRegionalSuppression } from './pirate-ecology';
 import { PIRATE_ACTION_RULES, getPirateBounty, getPirateTributeCost } from './pirate-definitions';
 import { UNIT_DEFINITIONS } from './unit-definitions';
+import { canSpendUnitAction } from './unit-order-state';
 import { getOwnedCityCount } from './city-ownership';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { getVisibility, isVisible } from './fog-of-war';
@@ -413,7 +414,9 @@ export function getEnclaveAssaultPreview(state: GameState, factionId: string, un
   if (unit.transportId || !isWater(state, unit.position) || distance(state, unit.position, faction.headquarters.position) !== 1) {
     return assaultUnavailable('The naval unit must be on adjacent water.');
   }
-  if (unit.hasActed) return assaultUnavailable('The naval unit has already spent its action.');
+  // #1807: the one action-points gate — an unspent same-turn Seize grant funds this
+  // assault like any other attack form.
+  if (!canSpendUnitAction(unit, state.turn)) return assaultUnavailable('The naval unit has already spent its action.');
   const profile = PIRATE_ACTION_RULES.enclaveAssault;
   const rawDamage = Math.min(profile.maximumDamage, profile.baseDamage + Math.floor(definition.strength / profile.strengthDivisor));
   const damageToHeadquarters = Math.min(faction.headquarters.integrity, rawDamage);

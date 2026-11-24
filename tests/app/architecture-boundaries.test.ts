@@ -1486,8 +1486,10 @@ describe('#1200 — the consequences of a kill belong to the shared combat outco
   // Every code path that applies a real fight. A new executor must be added here deliberately: it then
   // inherits camp destruction, the combat record, route cleanup and the rest by construction.
   const EXECUTORS = [
-    'src/ai/ai-major-turn.ts',
+    // #1807: ai-major-turn's local executeAttack moved verbatim into the shared
+    // ai-unit-attack-execution module, so the fight applier follows it there.
     'src/ai/ai-tactics.ts',
+    'src/ai/ai-unit-attack-execution.ts',
     'src/ai/basic-ai.ts',
     'src/app/controllers/player-combat-actions.ts',
     'src/core/round-phases/barbarians.ts',

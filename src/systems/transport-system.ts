@@ -8,6 +8,7 @@ import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrapHexCoord
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getMovementCostForUnit } from '@/systems/unit-movement-cost';
 import { getBlockingMapEntityAt, getBlockingMapEntityMessage } from '@/systems/unit-movement-legality';
+import { canSpendUnitAction } from '@/systems/unit-order-state';
 import { getTerritorialAccessDenial, TERRITORIAL_ACCESS_MESSAGE } from '@/systems/territorial-access';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 
@@ -177,7 +178,10 @@ export function getEmbarkedAssaultTarget(
   options: AttackTargetOptions = {},
 ): EmbarkedAssaultTarget | AttackTargetResult {
   const cargo = state.units[cargoUnitId];
-  if (!cargo || !cargo.transportId || !canCargoSpendUnloadAction(cargo)) return { ok: false, reason: 'no-target' };
+  // #1807: the one action-points gate — an unspent same-turn Seize grant funds the
+  // attack from aboard like every other attack form. (Plain load/unload keeps its own
+  // stricter !hasActed gate: cargo logistics never consume a grant.)
+  if (!cargo || !cargo.transportId || !canSpendUnitAction(cargo, state.turn)) return { ok: false, reason: 'no-target' };
   const transport = state.units[cargo.transportId];
   if (!transport || !isTransport(transport) || transport.owner !== cargo.owner || !(transport.cargoUnitIds ?? []).includes(cargo.id)) {
     return { ok: false, reason: 'no-target' };

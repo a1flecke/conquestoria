@@ -278,26 +278,53 @@ describe('#966 resolveCityInteraction', () => {
       expect(kinds(state, unit).available).not.toContain('bombard');
     });
 
-    it('offers a Seized unit its granted bombardment at zero movement, and the executor accepts it', () => {
+    it('offers a Seized unit its granted bombardment with hasActed still set, and the executor accepts it (#1807)', () => {
       const { state, unit } = scenario({ attackerType: 'catapult', attackerPos: { q: 1, r: 0 } });
-      const spent: GameState = {
+      const acted: GameState = {
         ...state,
-        units: { ...state.units, atk: { ...unit, movementPointsLeft: 0, hasActed: false } },
+        units: { ...state.units, atk: { ...unit, movementPointsLeft: 0, hasActed: true } },
       };
-      // No grant: the zero-movement rule still denies it.
-      expect(kinds(spent, spent.units.atk).available).not.toContain('bombard');
-      expect(kinds(spent, spent.units.atk).denied.bombard).toBe('This unit has already acted this turn.');
+      // No grant: an acted unit is still denied.
+      expect(kinds(acted, acted.units.atk).available).not.toContain('bombard');
+      expect(kinds(acted, acted.units.atk).denied.bombard).toBe('This unit has already acted this turn.');
 
-      // Seize the Moment's per-turn grant is the one documented exception.
+      // Seize the Moment's per-turn budget is the one documented exception: one granted
+      // movement point with the marker, hasActed never cleared.
       const granted: GameState = {
-        ...spent,
+        ...acted,
         units: {
-          ...spent.units,
-          atk: { ...spent.units.atk, seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: spent.turn } },
+          ...acted.units,
+          atk: {
+            ...acted.units.atk,
+            movementPointsLeft: 1,
+            seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: acted.turn },
+          },
         },
       };
       expect(kinds(granted, granted.units.atk).available).toContain('bombard');
       expect(resolveUnitCityBombardment(granted, { attackerUnitId: 'atk', cityId: 'target', source: 'player' }).ok).toBe(true);
+    });
+
+    it('offers a Seized unit the granted capture, and the assault executor accepts it (#1807)', () => {
+      const { state, unit } = scenario({ attackerType: 'warrior', attackerPos: { q: 2, r: 0 } });
+      // The parity matrix's own note: turn 1 rolls a resolveCityAssault loss for this
+      // fixture; turn 20 rolls the win. The grant must not change the roll.
+      state.turn = 20;
+      const granted: GameState = {
+        ...state,
+        units: {
+          ...state.units,
+          atk: {
+            ...unit,
+            hasActed: true,
+            movementPointsLeft: 1,
+            seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: state.turn },
+          },
+        },
+      };
+      expect(kinds(granted, granted.units.atk).available).toContain('capture');
+      const result = beginMajorCityAssault(structuredClone(granted), 'atk', 'target', { actor: 'player', civId: 'player' });
+      expect(result.ok, `executor said ${result.ok ? '' : result.reason}`).toBe(true);
     });
   });
 });

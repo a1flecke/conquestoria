@@ -17,9 +17,13 @@ export interface UnitStackPanelOptions {
   selectedUnitId?: string | null;
 }
 
-function unitStatus(unit: Unit): string {
+function unitStatus(unit: Unit, turn: number): string {
   if (unit.automation?.mode === 'auto-explore') return 'Auto-explore';
   if (unit.automation?.mode === 'hold-siege') return 'Holding siege';
+  // #1807: an unspent Seize grant is a live budget the player can still spend — the
+  // stack must not bury that under "Spent" (the unit has acted, but the marker gates
+  // one more action).
+  if (unit.seizeGrantedBy?.turn === turn && unit.seizeGrantedBy.spent !== true) return '⚡ Moment granted';
   if (unit.hasActed || unit.movementPointsLeft <= 0) return 'Spent';
 
   const def = UNIT_DEFINITIONS[unit.type];
@@ -113,7 +117,7 @@ export function renderUnitStackPanel(
     const tier = getVeterancyTier(unit);
     // Veterancy is a combat modifier; a unit that cannot fight shows none (#1692, as in the unit panel).
     const veterancy = def.strength > 0 ? ` · ${tier.label} · XP ${unit.experience ?? 0}` : '';
-    statusLine.textContent = `${unitStatus(unit)}${veterancy} · ${resolveSuperweaponContentDescription(unit.type, UNIT_DESCRIPTIONS[unit.type] ?? '', state)}`;
+    statusLine.textContent = `${unitStatus(unit, state.turn)}${veterancy} · ${resolveSuperweaponContentDescription(unit.type, UNIT_DESCRIPTIONS[unit.type] ?? '', state)}`;
 
     row.appendChild(nameLine);
     row.appendChild(statusLine);

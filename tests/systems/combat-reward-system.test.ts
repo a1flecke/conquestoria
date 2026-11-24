@@ -2256,6 +2256,24 @@ describe('#887 MR1 — combat career events (unit-saved, battle-influenced, city
     expect(influenced[0]).toMatchObject({ reasons: ['seize'] });
   });
 
+  it('#1807 — a spent Seize grant still attributes the battle: the reposition consumed the permission, not the marker', () => {
+    const state = makeRewardState();
+    // The defender repositioned on its granted budget earlier this turn, then was
+    // attacked. The `.spent` write ends the attack permission; the marker itself
+    // survives so the General keeps the "influenced (seize)" credit for this fight.
+    state.units.defender = {
+      ...state.units.defender,
+      seizeGrantedBy: { generalDefinitionId: 'gen_ramesses', turn: 3, spent: true },
+    };
+    state.civilizations['ai-1'].generalHistory = [historyEntry('general-1', 'gen_ramesses')];
+
+    const applied = applyCombatOutcomeToState(state, GLANCING, 64);
+
+    const influenced = eventsFor(applied.state, 'ai-1', 'gen_ramesses').filter(e => e.type === 'battle-influenced');
+    expect(influenced).toHaveLength(1);
+    expect(influenced[0]).toMatchObject({ reasons: ['seize'] });
+  });
+
   it('merges both reasons into one sorted battle-influenced when a participant carries an active hold and a Seize grant from the same General', () => {
     const state = makeRewardState();
     state.units.attacker = {

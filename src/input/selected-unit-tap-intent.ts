@@ -82,6 +82,7 @@ export function resolveSelectedUnitTapIntent(
       { completedTechs: civ?.techState.completed ?? [], freightPassageVisibility: civ?.visibility },
       getBlockingMapEntityKeys(state, unit),
       getDeniedTerritoryOwners(state, unit),
+      state.turn,
     );
   })();
 

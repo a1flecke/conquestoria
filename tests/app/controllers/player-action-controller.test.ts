@@ -509,6 +509,52 @@ describe('PlayerActionController', () => {
       });
     }
 
+    it('executes the granted Seize attack — the execution-layer gate honours the per-turn grant (#1807)', () => {
+      const base = buildCombatBaseState('seize-granted-execute');
+      const state = structuredClone(base);
+      state.turn = 5;
+      // The #1807 grant model: the unit stays acted, with one granted movement point
+      // gated by the marker. The highlight layer offers the target; the executor's
+      // defense-in-depth gate must accept what the highlight offered.
+      state.units['attacker-1'] = {
+        ...state.units['attacker-1']!,
+        hasActed: true,
+        movementPointsLeft: 1,
+        seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: state.turn },
+      };
+      const before = JSON.stringify({
+        attacker: state.units['attacker-1']!.health,
+        defender: state.units['defender-1']!.health,
+      });
+      const { deps, controller } = build(state);
+      controller.executeAttack('attacker-1', hexKey(state.units['defender-1']!.position));
+
+      const finalState = deps.session.getState();
+      const after = JSON.stringify({
+        attacker: finalState.units['attacker-1']?.health ?? 'dead',
+        defender: finalState.units['defender-1']?.health ?? 'dead',
+      });
+      expect(after).not.toEqual(before);
+    });
+
+    it('refuses the attack when the grant was spent repositioning — one budget, one spend (#1807)', () => {
+      const base = buildCombatBaseState('seize-grant-spent-refusal');
+      const state = structuredClone(base);
+      state.turn = 5;
+      state.units['attacker-1'] = {
+        ...state.units['attacker-1']!,
+        hasActed: true,
+        movementPointsLeft: 1,
+        seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: state.turn, spent: true },
+      };
+      const { deps, controller } = build(state);
+      controller.executeAttack('attacker-1', hexKey(state.units['defender-1']!.position));
+
+      expect(deps.session.getState().units['defender-1']!.health).toBe(state.units['defender-1']!.health);
+      expect(deps.session.getState().units['attacker-1']!.health).toBe(state.units['attacker-1']!.health);
+      expect(deps.showNotification).toHaveBeenCalledWith('That target is no longer attackable.', 'warning');
+    });
+
     it('derives the combat seed from game id, turn, and unit pair', () => {
       const base = buildCombatBaseState('combat-seed-determinism');
       const runA = runCombat(base, 5);
@@ -911,6 +957,27 @@ describe('PlayerActionController', () => {
 
       expect(deps.session.getState().barbarianCamps['camp-1']).toBeDefined();
       expect(deps.showNotification).toHaveBeenCalledWith('That camp is no longer within reach.', 'warning');
+    });
+
+    it('destroys the camp through the granted Seize budget — the direct path honours the grant (#1807)', () => {
+      const { state } = makeFixture('camp-assault-seized');
+      placeUnit(state, 'warrior', 'attacker-1', { q: 0, r: 0 }, { movementPointsLeft: 1 });
+      state.units['attacker-1'] = {
+        ...state.units['attacker-1']!,
+        hasActed: true,
+        movementPointsLeft: 1,
+        seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: state.turn },
+      };
+      state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3 };
+      const goldBefore = state.civilizations.player.gold;
+      const { deps, controller } = build(state);
+
+      controller.beginPlayerCampAssault('attacker-1', 'camp-1');
+
+      const after = deps.session.getState();
+      expect(after.barbarianCamps['camp-1']).toBeUndefined();
+      expect(after.civilizations.player.gold).toBe(goldBefore + (15 + 10 * 2));
+      expect(deps.showNotification).toHaveBeenCalledWith('Barbarian camp destroyed! +35 gold', 'success');
     });
   });
 });

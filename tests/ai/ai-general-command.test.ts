@@ -230,10 +230,20 @@ describe('#544 MR5 — evaluateSeizeOpportunity', () => {
       id: 'warrior-1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
       movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
     } as Unit;
-    state.civilizations.player!.units = ['gen-1', 'warrior-1'];
+    // #1807: a spendable target keeps the fixture deterministic.
+    state.units['enemy-1'] = {
+      id: 'enemy-1', type: 'warrior', owner: 'ai-1', position: { q: 2, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player'];
+    state.civilizations.player!.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations.player!.units = ['gen-1', 'warrior-1', 'enemy-1'];
+    state.civilizations['ai-1']!.units = ['enemy-1'];
     const opportunity = evaluateSeizeOpportunity(state, 'gen-1');
-    const executed = opportunity!.execute(state);
-    expect(executed.units['warrior-1']!.hasActed).toBe(false);
+    const executed = opportunity!.execute(structuredClone(state));
+    // #1807: the executor is issueSeizeTheMoment itself — the grant is the typed marker.
+    expect(executed.units['warrior-1']!.seizeGrantedBy).toMatchObject({ turn: executed.turn });
+    expect(executed.units['warrior-1']!.hasActed).toBe(true);
   });
 });
 
@@ -385,10 +395,113 @@ describe('#544 MR5 — shared spend layer', () => {
       id: 'unit-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
       movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
     } as Unit;
+    // #1807: a target in spendable range keeps the fixture deterministic (the grant
+    // model's probe must find something this unit can spend on any generated map).
+    state.units['enemy-1'] = {
+      id: 'enemy-1', type: 'warrior', owner: 'player', position: { q: 2, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations.player!.diplomacy.atWarWith = [aiId];
+    state.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
     state.civilizations[aiId]!.units = ['gen-1', 'unit-1'];
+    state.civilizations.player!.units = [...state.civilizations.player!.units, 'enemy-1'];
 
     const result = processAIGeneralCommand(state, aiId, 'post-tactical');
-    expect(result.units['unit-1']!.hasActed).toBe(false);
+    // #1807: the grant is a typed marker plus a bounded budget; hasActed stays set.
+    expect(result.units['unit-1']!.hasActed).toBe(true);
+    expect(result.units['unit-1']!.seizeGrantedBy).toMatchObject({ turn: result.turn });
+    expect(result.units['unit-1']!.movementPointsLeft).toBe(1);
+  });
+
+  it('#1807 — a granted AI unit attacks in the same round through the canonical executor', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'spend-grant-1' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units['gen-1'] = makeGeneral({ owner: aiId });
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.units['enemy-1'] = {
+      id: 'enemy-1', type: 'warrior', owner: 'player', position: { q: 2, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations.player!.diplomacy.atWarWith = [aiId];
+    state.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
+    state.civilizations[aiId]!.units = ['gen-1', 'unit-1'];
+    state.civilizations.player!.units = [...state.civilizations.player!.units, 'enemy-1'];
+    // The enemy tile must be visible to the AI for the target to be offered.
+    state.civilizations[aiId]!.visibility.tiles['2,0'] = 'visible';
+
+    const result = processAIGeneralCommand(state, aiId, 'post-tactical');
+
+    // The granted attack resolved: the pair's untouched pre-combat snapshot is gone
+    // (who won is the seed's business, not this test's).
+    const snapshot = JSON.stringify({
+      attacker: result.units['unit-1']?.health ?? 'dead',
+      defender: result.units['enemy-1']?.health ?? 'dead',
+    });
+    expect(snapshot).not.toEqual(JSON.stringify({ attacker: 100, defender: 100 }));
+    // And the granted budget was consumed by the attack itself.
+    expect(result.units['unit-1']?.movementPointsLeft ?? 0).toBe(0);
+  });
+
+  it('#1807 — the Seize valuation is null when no candidate can spend the grant', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'spend-grant-2' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units['gen-1'] = makeGeneral({ owner: aiId });
+    // Acted cargo with no target in reach: the grant would buy nothing.
+    state.units['ship-1'] = {
+      id: 'ship-1', type: 'transport', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+      cargoUnitIds: ['cargo-1'],
+    } as Unit;
+    state.units['cargo-1'] = {
+      id: 'cargo-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 }, transportId: 'ship-1',
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'ship-1', 'cargo-1'];
+
+    expect(evaluateSeizeOpportunity(state, 'gen-1')).toBeNull();
+    expect(chooseGeneralCommandAction(state, 'gen-1')).toBeNull();
+  });
+
+  it('#1807 — the Seize valuation counts only candidates that can spend the grant', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'spend-grant-3' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units['gen-1'] = makeGeneral({ owner: aiId });
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.units['enemy-1'] = {
+      id: 'enemy-1', type: 'warrior', owner: 'player', position: { q: 2, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.units['ship-1'] = {
+      id: 'ship-1', type: 'transport', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+      cargoUnitIds: ['cargo-1'],
+    } as Unit;
+    // #1807: a strength-0 cargo unit cannot spend a grant even through the granted
+    // embarked assault — a warrior aboard could attack the adjacent enemy, which is
+    // correct behavior, so the boxed-in candidate must be a non-combatant.
+    state.units['cargo-1'] = {
+      id: 'cargo-1', type: 'settler', owner: aiId, position: { q: 1, r: 0 }, transportId: 'ship-1',
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.civilizations.player!.diplomacy.atWarWith = [aiId];
+    state.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
+    state.civilizations[aiId]!.units = ['gen-1', 'unit-1', 'ship-1', 'cargo-1'];
+    state.civilizations.player!.units = [...state.civilizations.player!.units, 'enemy-1'];
+    state.civilizations[aiId]!.visibility.tiles['2,0'] = 'visible';
+
+    const opportunity = evaluateSeizeOpportunity(state, 'gen-1');
+    expect(opportunity).not.toBeNull();
+    // Only the spendable warrior scores (SEIZE_COMBAT_UNIT_VALUE), not the boxed-in settler.
+    expect(opportunity!.score).toBe(40);
+    const executed = opportunity!.execute(structuredClone(state));
+    expect(executed.units['unit-1']!.seizeGrantedBy).toMatchObject({ turn: executed.turn });
+    expect(executed.units['cargo-1']!.seizeGrantedBy).toBeUndefined();
   });
 });
 
@@ -444,13 +557,26 @@ describe('#1522 — observed AI General activations', () => {
       id: 'unit-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
       movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
     } as Unit;
+    // #1807: a spendable target keeps the grant deterministic on any generated map.
+    state.units['enemy-1'] = {
+      id: 'enemy-1', type: 'warrior', owner: 'player', position: { q: 2, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations.player!.diplomacy.atWarWith = [aiId];
+    state.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
+    state.civilizations.player!.units = [...state.civilizations.player!.units, 'enemy-1'];
+    state.civilizations[aiId]!.visibility.tiles['2,0'] = 'visible';
     state.civilizations[aiId]!.units = ['gen-1', 'unit-1'];
     const bus = new EventBus();
     const moments = collectObservedActivations(bus);
 
     const result = processAIGeneralCommand(state, aiId, 'post-tactical', bus);
 
-    expect(result.units['unit-1']!.hasActed).toBe(false);
+    // #1807: the grant is the typed marker; hasActed stays set. The same round also
+    // spends the grant on the visible enemy (see the #1807 spending-pass tests), so the
+    // moment's affected coordinate is what the ISSUANCE touched.
+    expect(result.units['unit-1']!.hasActed).toBe(true);
+    expect(result.units['unit-1']!.seizeGrantedBy).toMatchObject({ turn: result.turn });
     expect(moments).toHaveLength(1);
     expect(moments[0]).toMatchObject({
       kind: 'seize',
@@ -562,6 +688,38 @@ describe('#885 chooseBestGeneralCandidate — bounded, non-omniscient, difficult
     const s = gameAtWar('cbc-det');
     const cands = [def('gen_hannibal'), def('gen_wellington'), def('gen_genghis')];
     expect(chooseBestGeneralCandidate(s, 'player', cands).id).toBe(chooseBestGeneralCandidate(s, 'player', cands).id);
+  });
+
+  it('#1807 — the initiative (Seize) need counts only units a grant could serve, never air units or commissioned traders', () => {
+    const candidates = [def('gen_caesar'), def('gen_alexander')];
+    // Both specialists share the V1 base term and neither has another situational term
+    // in these fixtures (no bombard-capable units), so the pick isolates the initiative
+    // need exactly: with a spendable acted combat unit near a visible enemy, Caesar's
+    // initiative term wins; with only air/trader acted units, the need is 0 and the
+    // id tiebreak decides.
+    const hot = gameAtWar('cbc-init-hot');
+    hot.units['enemy-1'] = { id: 'enemy-1', type: 'warrior', owner: 'ai-1', position: { q: 3, r: 3 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false } as Unit;
+    hot.units['acted-1'] = { id: 'acted-1', type: 'warrior', owner: 'player', position: { q: 3, r: 4 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false } as Unit;
+    hot.civilizations.player!.units = [...hot.civilizations.player!.units, 'enemy-1', 'acted-1'];
+    hot.civilizations.player!.visibility.tiles['3,3'] = 'visible';
+    expect(chooseBestGeneralCandidate(hot, 'player', candidates).id).toBe('gen_caesar');
+
+    const cold = gameAtWar('cbc-init-cold');
+    cold.units['enemy-1'] = { id: 'enemy-1', type: 'warrior', owner: 'ai-1', position: { q: 3, r: 3 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false } as Unit;
+    // Air units never spend a grant (no walking, missions keep their own gates) and a
+    // commissioned trader's allowance belongs to its route runner — neither may inflate
+    // the Seize need (#1807, matching getSeizeTheMomentEligibleUnits' own filters).
+    cold.units['acted-air'] = { id: 'acted-air', type: 'biplane', owner: 'player', position: { q: 3, r: 4 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false } as Unit;
+    cold.units['acted-trader'] = { id: 'acted-trader', type: 'warrior', owner: 'player', position: { q: 4, r: 3 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+      committedToRouteId: 'route-1' } as Unit;
+    cold.civilizations.player!.units = [...cold.civilizations.player!.units, 'enemy-1', 'acted-air', 'acted-trader'];
+    cold.civilizations.player!.visibility.tiles['3,3'] = 'visible';
+    expect(chooseBestGeneralCandidate(cold, 'player', candidates).id).toBe('gen_alexander');
   });
 
   it('picks the Defensive specialist when own field units are badly hurt', () => {

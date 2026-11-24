@@ -106,9 +106,17 @@ facade, so re-exporting the explainer there closes an import cycle that leaves
 walking right now?": 0 once `hasActed` is set, else `movementPointsLeft`. The resolver, `getMovementRangeDetails` and
 the decomposed `getMovementRange` all start from it, and a refusal is the typed `'already-acted'` ("This unit has
 already acted this turn."). So an executor that marks an action spent and forgets to zero movement cannot leave live
-movement behind (propagandist Rally/Undermine and every heroic command did, `aadd00d61`). The one named exception is a
-trader with `committedToRouteId`: establishing the route sets `hasActed`, and the route runner then walks it each round.
-Pinned by `movement-resolver.test.ts` "a unit that has acted cannot also walk".
+movement behind (propagandist Rally/Undermine and every heroic command did, `aadd00d61`).
+
+Two named exceptions, both meaning "`hasActed` does not mean spent here":
+- a trader with `committedToRouteId`: establishing the route sets `hasActed`, and the route runner then walks it each
+  round with fresh movement;
+- a Seize the Moment grant (#1807): the marker's presence this turn is the granted walking budget
+  (`issueSeizeTheMoment` wrote `SEIZE_GRANT_MOVEMENT_POINTS`), spent as movement however the map allows — one step, or
+  two half-cost road steps — exactly like a fresh unit's points. `spent` does not end the walking (the points are
+  movement money); it ends the *attack* permission, which is `canSpendUnitAction`'s to judge.
+
+Pinned by `movement-resolver.test.ts` "a unit that has acted cannot also walk" and its #1807 sibling describe.
 
 ## The sibling movement actions
 

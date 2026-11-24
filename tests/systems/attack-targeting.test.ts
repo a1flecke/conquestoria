@@ -370,22 +370,24 @@ describe('attack-targeting', () => {
     expect(getAttackTargets(state, state.units['attacker'], { viewerId: 'player' })).toEqual([]);
   });
 
-  it('honours a Seize the Moment action grant at zero movement, only for the turn it was granted, and only while the action is unspent', () => {
+  it('honours a Seize the Moment action grant with hasActed still set, only for the turn it was granted, and only while the budget is unspent (#1807)', () => {
     const attacker = unit('attacker', 'archer', 'player', { q: 0, r: 0 });
     const defender = unit('defender', 'warrior', 'ai-1', { q: 2, r: 0 });
     const base = stateWithUnits({ attacker, defender }, { '2,0': 'visible' });
-    const spentMover = { ...base.units.attacker!, movementPointsLeft: 0, hasActed: false };
+    // The #1807 grant model: the unit stays acted, and the granted budget is one movement
+    // point gated by the per-turn marker.
+    const grantedMover = { ...base.units.attacker!, movementPointsLeft: 1, hasActed: true };
     const withUnit = (overrides: Partial<Unit>) => ({
       ...base,
-      units: { ...base.units, attacker: { ...spentMover, ...overrides } },
+      units: { ...base.units, attacker: { ...grantedMover, ...overrides } },
     });
 
-    // No grant: the long-standing zero-movement rule still denies the attack.
-    const noGrant = withUnit({});
+    // No grant: an acted unit is still denied, whatever its points.
+    const noGrant = withUnit({ seizeGrantedBy: undefined });
     expect(canUnitAttackTarget(noGrant, noGrant.units.attacker!, { q: 2, r: 0 }, { viewerId: 'player' }))
       .toEqual({ ok: false, reason: 'no-action-points' });
 
-    // Seize's grant (same turn): exactly the one documented exception.
+    // Seize's grant (same turn, unspent): exactly the one documented exception.
     const granted = withUnit({ seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: base.turn } });
     expect(canUnitAttackTarget(granted, granted.units.attacker!, { q: 2, r: 0 }, { viewerId: 'player' }))
       .toMatchObject({ ok: true, targetType: 'unit', targetUnitId: 'defender' });
@@ -396,14 +398,17 @@ describe('attack-targeting', () => {
     expect(canUnitAttackTarget(stale, stale.units.attacker!, { q: 2, r: 0 }, { viewerId: 'player' }))
       .toEqual({ ok: false, reason: 'no-action-points' });
 
-    // The granted action is spent by attacking: the same grant cannot fund a second attack.
-    const spent = withUnit({
-      seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: base.turn },
-      hasActed: true,
-    });
-    expect(canUnitAttackTarget(spent, spent.units.attacker!, { q: 2, r: 0 }, { viewerId: 'player' }))
+    // The granted attack spends the granted budget: no second attack from the same grant.
+    const spentByAttack = withUnit({ movementPointsLeft: 0 });
+    expect(canUnitAttackTarget(spentByAttack, spentByAttack.units.attacker!, { q: 2, r: 0 }, { viewerId: 'player' }))
       .toEqual({ ok: false, reason: 'no-action-points' });
-    expect(getAttackTargets(spent, spent.units.attacker!, { viewerId: 'player' })).toEqual([]);
+
+    // A reposition spends the grant's permission (the one .spent write): with the budget
+    // still unspent in points, the attack stays refused — reposition OR attack, never both.
+    const spentByReposition = withUnit({ seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: base.turn, spent: true } });
+    expect(canUnitAttackTarget(spentByReposition, spentByReposition.units.attacker!, { q: 2, r: 0 }, { viewerId: 'player' }))
+      .toEqual({ ok: false, reason: 'no-action-points' });
+    expect(getAttackTargets(spentByReposition, spentByReposition.units.attacker!, { viewerId: 'player' })).toEqual([]);
   });
 
   it('applies the zero-movement rule to the active second hot-seat player and AI callers', () => {

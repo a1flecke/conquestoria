@@ -237,6 +237,26 @@ for file_path in "$@"; do
       ;;
   esac
 
+  # --- Seize grant gate vocabulary (#1807): an attack/capture/bombard/assault
+  # executor must not read hasActed directly. canSpendUnitAction (unit-order-state.ts)
+  # is the one action-points gate and the only one that honours an unspent same-turn
+  # Seize grant; a raw hasActed read in an attack-family executor silently drops the
+  # granted attack again (the #1807 review's finding 2). Object-literal writes
+  # (`hasActed: true`) are fine; a POSITIVE fact check ("this unit really fought",
+  # like the capture-advance validity) marks the line 'seize-grant-gate-exempt: <reason>'.
+  # transport-system.ts is deliberately not listed: its plain load/unload gates
+  # legitimately read hasActed (only its embarked-assault gate honours the grant),
+  # and unit-order-state.ts is the gate owner itself.
+  case "$file_path" in
+    src/systems/attack-targeting.ts|src/systems/city-bombardment-system.ts|src/systems/city-interaction.ts|src/systems/city-capture-system.ts|src/app/controllers/player-combat-actions.ts|src/systems/pirate-actions.ts)
+      gate_lines="$(grep -nE '\.hasActed' "$file_path" \
+        | grep -vE 'seize-grant-gate-exempt|^[0-9]+:[[:space:]]*(//|\*)|hasActed: ' | head -5 || true)"
+      if [ -n "$gate_lines" ]; then
+        append_match_block "Attack-family executor reads hasActed directly — route the action-points check through canSpendUnitAction (it honours an unspent Seize grant, #1807); a positive fact check marks the line 'seize-grant-gate-exempt: <reason>' (see .claude/rules/action-contracts.md)" "$gate_lines"
+      fi
+      ;;
+  esac
+
   # --- silent session writes (#1015): GameSession has no silent write. The removed
   # setStateWithoutRefresh must not return, and the restricted unpublished.adopt()
   # (a closed set of named reasons, see UnpublishedReason in src/app/ports.ts) may

@@ -6,7 +6,9 @@ import { appendGeneralCareerEvent } from '@/systems/great-general-career';
 import { mapDistance, mapHexesInRange } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
-import { getUnitAttackProfile } from '@/systems/attack-targeting';
+import { getUnitAttackProfile, getAttackTargets } from '@/systems/attack-targeting';
+import { canUnitBombardCity } from '@/systems/city-bombardment-system';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
 import { createCityBreach, isCityBreachedBy } from '@/systems/city-breach';
@@ -361,6 +363,16 @@ export function consumeLastStandHoldFormationWide(units: Record<string, Unit>, f
 export interface SeizeEligibleUnit {
   unitId: string;
   label: string;
+  /**
+   * #1807: can this unit actually spend the grant if it receives one? A candidate with
+   * neither a legal attack target (viewer-scoped) nor any reachable tile would be
+   * granted nothing but still consume one of the charge's capacity slots — the picker
+   * disables such rows with `reason` and the issuance drops them rather than burning a
+   * lifetime charge on units that cannot act.
+   */
+  spendable: boolean;
+  /** Player-facing copy for the disabled row; present when `spendable` is false. */
+  reason?: string;
 }
 
 export interface SeizeTheMomentEligibility {
@@ -373,6 +385,61 @@ export interface SeizeTheMomentEligibility {
    * so `issueSeizeTheMoment` never re-derives the number it truncates to.
    */
   capacity: number;
+}
+
+/**
+ * #1807 (contract §19: "bounded extra action budget... data-driven and not locked"):
+ * the movement budget one Seize grant writes. One point funds exactly one reposition
+ * (a land step costs at least one, or two half-cost road steps) or one attack — never
+ * a full movement refresh, and never in addition to movement the unit already had
+ * (`issueSeizeTheMoment` grants `Math.max(current, this)`).
+ */
+export const SEIZE_GRANT_MOVEMENT_POINTS = 1;
+
+const SEIZE_UNSPENDABLE_GENERIC_REASON = 'No target or open tile in reach.';
+
+/**
+ * #1807: would the grant buy this unit anything, right now, on the real map? Pure
+ * read-only probe over the unit exactly as the grant would leave it (acted, one
+ * granted point, live marker): the canonical attack enumeration with the acting
+ * owner's own fog, then the canonical movement-range BFS for the reposition.
+ */
+function canSeizeCandidateSpendGrant(
+  state: GameState,
+  unit: Unit,
+  definition: GeneralDefinition,
+): { spendable: boolean; reason?: string } {
+  const probe: Unit = {
+    ...unit,
+    movementPointsLeft: SEIZE_GRANT_MOVEMENT_POINTS,
+    seizeGrantedBy: { generalDefinitionId: definition.id, turn: state.turn },
+  };
+  // Attack half. viewerId is the acting owner: the spendability decision must never
+  // depend on enemies that owner cannot see (the #1807 review's privacy requirement —
+  // same rule as every other player-facing offer surface). Unit targets first...
+  if (getAttackTargets(state, probe, { viewerId: unit.owner }).length > 0) {
+    return { spendable: true };
+  }
+  // ...then the city bombardment form, so a siege unit whose only granted spend is
+  // shelling a visible hostile city is still honestly offered.
+  if (isCityBombardUnit(unit.type)) {
+    const hasBombardableCity = Object.values(state.cities).some(city =>
+      city.owner !== unit.owner
+      && canUnitBombardCity(state, probe, city, { requireVisibility: true }).ok);
+    if (hasBombardableCity) return { spendable: true };
+  }
+  // Reposition half. Cargo and based aircraft never walk, so the grant buys them
+  // nothing here; otherwise the range preview the map highlights already draw from
+  // decides. Every tile it reports is either a genuine move or a hostile occupant the
+  // attack half already considered.
+  if (unit.transportId || unit.airBase) {
+    return { spendable: false, reason: SEIZE_UNSPENDABLE_GENERIC_REASON };
+  }
+  const probeState: GameState = { ...state, units: { ...state.units, [unit.id]: probe } };
+  if (getMovementRangeDetails(probeState, unit.id).reachable.length > 0) {
+    return { spendable: true };
+  }
+  return { spendable: false, reason: SEIZE_UNSPENDABLE_GENERIC_REASON };
 }
 
 /** contract §19: player-selected, so this returns the full in-range/acted
@@ -404,16 +471,31 @@ export function getSeizeTheMomentEligibleUnits(
     .filter((u): u is Unit => Boolean(u))
     .filter(u => u.id !== general.id)
     .filter(u => u.hasActed === true)
+    // #1807: a grant is movement money plus an attack permission. Air units neither
+    // walk nor attack through it (their combat runs on air missions with their own
+    // gates), and a trader committed to a route is "commissioned", not free to act —
+    // its allowance belongs to the route runner (#1502). Neither can spend a grant,
+    // so neither is offered one.
+    .filter(u => (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') !== 'air')
+    .filter(u => !u.committedToRouteId)
     .filter(u => mapDistance(state.map, general.position, u.position) <= commandRange)
     .sort((a, b) => a.id.localeCompare(b.id))
-    // #544 MR4 review fix: raw UnitType strings (e.g. 'great_general',
-    // multi-word types) are internal identifiers, not player-facing names --
-    // this codebase's convention for the real display name is
-    // UNIT_DEFINITIONS[type].name. HP is appended so two units of the same
-    // type in the same picker (a common case -- Seize is most useful with
-    // several units acting together) are visually distinguishable without
-    // cross-referencing map position.
-    .map(u => ({ unitId: u.id, label: `${UNIT_DEFINITIONS[u.type]?.name ?? u.type} (${u.health} HP)` }));
+    .map(u => {
+      const { spendable, reason } = canSeizeCandidateSpendGrant(state, u, definition);
+      return {
+        unitId: u.id,
+        // #544 MR4 review fix: raw UnitType strings (e.g. 'great_general',
+        // multi-word types) are internal identifiers, not player-facing names --
+        // this codebase's convention for the real display name is
+        // UNIT_DEFINITIONS[type].name. HP is appended so two units of the same
+        // type in the same picker (a common case -- Seize is most useful with
+        // several units acting together) are visually distinguishable without
+        // cross-referencing map position.
+        label: `${UNIT_DEFINITIONS[u.type]?.name ?? u.type} (${u.health} HP)`,
+        spendable,
+        ...(spendable ? {} : { reason }),
+      };
+    });
 
   return { eligibility, eligible, capacity };
 }
@@ -421,14 +503,19 @@ export function getSeizeTheMomentEligibleUnits(
 /**
  * contract §19: "bounded extra action budget, not a full reset... at most
  * one additional attack, no full movement refresh, no reset of
- * cooldowns/charges/ammo-like state." Only hasActed is cleared -- hasMoved
- * stays true and movementPointsLeft is untouched, so a unit repositions only
- * with whatever movement it already had left over. The one extra action is
- * funded by `seizeGrantedBy` (see `canSpendUnitAction`): without it the attack
- * that made the unit eligible would have spent the movement an attack also
- * requires, leaving the granted action unreachable. The caller-selected list is
- * trimmed to `capacity` (eligible-list order, i.e. id-sorted); a picker that
- * offers the pool must enforce that same number (see `SeizeTheMomentEligibility`).
+ * cooldowns/charges/ammo-like state." #1807's model: `hasActed` is never cleared —
+ * every movement-free executor (upgrade, pillage, propagandist, spy commands,
+ * worker, load/unload, fortify, rest) keeps refusing the unit through its own
+ * `!hasActed` gate, so the grant cannot be absorbed by anything outside §19's
+ * "reposition, or make another legal attack". What the unit receives instead is
+ * the bounded budget: `SEIZE_GRANT_MOVEMENT_POINTS` gated by the per-turn
+ * `seizeGrantedBy` marker, which `canSpendUnitAction` (the one action-points gate)
+ * reads. One-shot by construction: every attack path zeroes the granted movement
+ * itself, and a granted reposition marks the marker `spent` so reposition-then-
+ * attack is refused. The caller-selected list is trimmed to `capacity` (eligible-
+ * list order, i.e. id-sorted) and to candidates that can actually spend the grant;
+ * a picker that offers the pool must enforce that same number (see
+ * `SeizeTheMomentEligibility`).
  */
 export function issueSeizeTheMoment(
   state: GameState,
@@ -442,12 +529,17 @@ export function issueSeizeTheMoment(
   const definition = resolveGeneralDefinition(state, general?.generalDefinitionId);
   if (!general || !definition) return state;
 
-  const eligibleIds = new Set(eligible.map(e => e.unitId));
-  const toActivate = selectedUnitIds.filter(id => eligibleIds.has(id)).slice(0, cap);
-  // #544 MR4 review fix: mirrors issueRally's zero-target guard -- confirming
-  // Seize with no valid selection (empty array, or every selected id turned
-  // out ineligible) must not burn one of the General's 3 lifetime charges on
-  // nothing happening.
+  const eligibleById = new Map(eligible.map(entry => [entry.unitId, entry]));
+  // Execution-time truth: re-derived spendability filters the selection, so a stale
+  // picker callback (state changed since the pool was listed) grants only units the
+  // grant can still serve.
+  const toActivate = selectedUnitIds
+    .filter(id => eligibleById.get(id)?.spendable === true)
+    .slice(0, cap);
+  // #544 MR4 review fix, extended by #1807: confirming Seize with no valid selection
+  // (empty array, every selected id turned out ineligible, or every eligible selection
+  // boxed in with nothing the grant can buy) must not burn one of the General's 3
+  // lifetime charges on nothing happening.
   if (toActivate.length === 0) return state;
 
   let units = { ...state.units };
@@ -458,20 +550,20 @@ export function issueSeizeTheMoment(
     refreshed += 1;
     units[unitId] = {
       ...unit,
-      hasActed: false,
+      // hasActed stays set (#1807 — see the doc comment above). hasMoved likewise
+      // stays as it was (contract §19: "not a full reset"), so the round-end recovery
+      // gates (passive heal, gene-therapy recharge) still see that this unit acted.
       // A rest was the action this unit spent to become eligible. Handing it another
       // action ends that commitment: the round-end heal pays `isResting` (+15, and it
-      // outranks every gate except a friendly city), so a resting unit that is seized and
-      // then fights again must not also be paid for having rested.
+      // outranks every gate except a friendly city), so a resting unit that is seized
+      // and then fights again must not also be paid for having rested.
       isResting: false,
-      // hasMoved stays as it was (contract §19: "not a full reset") — Seize grants one
-      // more attack, never a movement/turn reset, so the round-end recovery gates
-      // (passive heal, gene-therapy recharge) still see that this unit acted.
-      // #887 MR1: seizeGrantedBy records which General influenced a battle this unit
-      // fights THIS turn. It is also the per-turn action grant `canSpendUnitAction` reads:
-      // the action that made this unit eligible spent its movement, and §19 forbids a
-      // movement refresh, so the marker is what makes the granted attack legal. Read only
-      // when `.turn === state.turn`; cleared by resetUnitTurn.
+      // The bounded budget itself: never a full refresh, never a reduction.
+      movementPointsLeft: Math.max(unit.movementPointsLeft, SEIZE_GRANT_MOVEMENT_POINTS),
+      // #887 MR1/#1807: the marker gates the granted action (canSpendUnitAction) and
+      // credits this General for any battle/capture the unit influences THIS turn —
+      // read while `.turn === state.turn` whether or not it has been spent; cleared
+      // by resetUnitTurn.
       seizeGrantedBy: { generalDefinitionId: definition.id, turn: state.turn },
     };
   }

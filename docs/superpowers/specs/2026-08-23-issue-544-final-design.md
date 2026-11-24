@@ -730,7 +730,12 @@ Rules:
 - siege setup/firing requirements still apply,
 - no bypass of canonical unit rules.
 
-Exact extra-action budget is data-driven and not locked.
+Exact extra-action budget is data-driven and not locked. Resolved by #1807: the grant
+is `SEIZE_GRANT_MOVEMENT_POINTS` (1) movement point(s) gated by the per-turn
+`seizeGrantedBy` marker — `issueSeizeTheMoment` never clears `hasActed` (so the budget
+cannot be absorbed by any movement-free action), `canSpendUnitAction` is the one gate
+that honours it, and a granted reposition marks the marker `spent` so the budget buys
+a reposition OR an attack, never both.
 
 Objective/city capture is allowed if legal, but a unit may not chain multiple captures in the same turn.
 

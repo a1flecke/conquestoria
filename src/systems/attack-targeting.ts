@@ -215,8 +215,10 @@ export function getAttackTargets(
   attacker: Unit,
   options: AttackTargetOptions = {},
 ): AttackTarget[] {
-  // A unit that has already acted cannot attack again this turn.
-  if (attacker.hasActed) return [];
+  // The gate is canUnitAttackTarget's own action-points check (canSpendUnitAction —
+  // unused movement, or an unspent same-turn Seize grant, never a bare !hasActed),
+  // so the highlight layer and the executor can never disagree on the grant (#1807).
+  if (!canSpendUnitAction(attacker, state.turn)) return [];
 
   const profile = getUnitAttackProfile(attacker.type);
   const candidates = state.map.wrapsHorizontally

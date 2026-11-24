@@ -8,6 +8,7 @@ import type {
   Unit,
 } from '@/core/types';
 import { getUnitAttackProfile } from '@/systems/attack-targeting';
+import { canSpendUnitAction } from '@/systems/unit-order-state';
 import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS } from '@/systems/great-general-system';
 import { appendGeneralCareerEvent } from '@/systems/great-general-career';
 import { BUILDINGS } from '@/systems/city-system';
@@ -299,7 +300,7 @@ export function beginMajorCityAssault(
         state.units,
         combat.defenderId,
       )
-      && attacker.hasActed;
+      && attacker.hasActed; // seize-grant-gate-exempt: a positive advance-validity fact, not an action gate
     if (!validAdvance) {
       return assaultFailure(state, 'invalid-post-combat-advance');
     }
@@ -325,7 +326,9 @@ export function beginMajorCityAssault(
       ),
     });
   } else {
-    if (attacker.hasActed || attacker.movementPointsLeft <= 0) {
+    // #1807: the one action-points gate — an unspent same-turn Seize grant admits the
+    // direct assault exactly as it admits the unit attack and the bombardment.
+    if (!canSpendUnitAction(attacker, state.turn)) {
       return assaultFailure(state, 'illegal-movement');
     }
 

@@ -78,6 +78,11 @@ export function createGeneralCommands(
           session.commit(after);
           const moment = describeGeneralAbilityMoment('seize', before, after, generalUnitId);
           if (moment) deps.bus.emit('general:command-used', { moment });
+          // #1807: the issuance drops candidates the grant cannot serve and refuses to
+          // burn the charge when none can — a stale picker callback (state changed since
+          // the pool was listed) must tell the player why nothing happened, not pass
+          // silently (the same refusal-copy pattern as Breach's panel above).
+          else deps.showNotification('None of the selected units can act on the Moment.', 'warning');
           core.selectUnit(generalUnitId);
         },
         () => {},

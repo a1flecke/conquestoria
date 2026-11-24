@@ -28,7 +28,9 @@ it('routes every AI and minor-civ combat resolution through the shared personal-
   const projectRoot = resolve(__dirname, '..', '..');
   const callers = [
     'src/ai/basic-ai.ts',
-    'src/ai/ai-major-turn.ts',
+    // #1807: the AI combat execution moved from ai-major-turn's local executeAttack
+    // into the shared ai-unit-attack-execution module (verbatim extraction).
+    'src/ai/ai-unit-attack-execution.ts',
     'src/systems/minor-civ-system.ts',
   ];
 

@@ -857,12 +857,16 @@ export interface Unit {
    * input for the remainder of this round, then cleared by resetUnitTurn at
    * this unit's owner's next turn. */
   rallyProtectedThisRound?: boolean;
-  /** #887 MR1: recording-only. Set by issueSeizeTheMoment on each unit whose
-   * action it refreshed; read (only when `turn === state.turn`) by combat/
-   * capture career attribution to credit that General with "battle influenced
-   * (seize)". Cleared by resetUnitTurn alongside rallyProtectedThisRound. Does
-   * NOT affect any gameplay resolution. */
-  seizeGrantedBy?: { generalDefinitionId: string; turn: number };
+  /** #1807: the active Seize the Moment grant. Set by issueSeizeTheMoment on each
+   * activated unit; the granted budget is SEIZE_GRANT_MOVEMENT_POINTS movement point(s)
+   * gated by this marker while `turn === state.turn` and `spent` is unset.
+   * `spent` is written once — by the movement executor, when the unit repositions —
+   * and ends the grant's attack permission (every attack path already zeroes the
+   * granted movement itself). The marker itself survives every spend (read by
+   * combat/capture career attribution to credit that General with "battle influenced
+   * (seize)", spent or not) and is cleared by resetUnitTurn alongside
+   * rallyProtectedThisRound. `canSpendUnitAction` is the one gate that reads it. */
+  seizeGrantedBy?: { generalDefinitionId: string; turn: number; spent?: boolean };
   /** #544 MR4 contract §20: Last Stand's defense bonus + one-time Hold save
    * for this unit's formation. Absent = not under Last Stand. */
   lastStandHold?: LastStandHoldState;

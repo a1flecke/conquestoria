@@ -132,10 +132,16 @@ export function createSeizeThePanelMoment(
   panel.appendChild(counter);
 
   const checkboxes: HTMLInputElement[] = [];
+  // #1807: only spendable candidates can be selected. A unit with no target and no
+  // reachable tile would consume one of the charge's capacity slots for nothing, so its
+  // row is rendered disabled with the reason — the player never pays for a choice the
+  // issuance would override, and the counter/capacity math only ever counts the rows
+  // that can actually act.
+  const spendableBoxes: HTMLInputElement[] = [];
   const syncSelection = () => {
-    const selected = checkboxes.filter(cb => cb.checked).length;
+    const selected = spendableBoxes.filter(cb => cb.checked).length;
     counter.textContent = `${selected} of ${capacity} selected`;
-    for (const checkbox of checkboxes) {
+    for (const checkbox of spendableBoxes) {
       checkbox.disabled = !checkbox.checked && selected >= capacity;
     }
     setButtonDisabled(confirmButton, selected === 0);
@@ -148,8 +154,17 @@ export function createSeizeThePanelMoment(
     checkbox.type = 'checkbox';
     checkbox.dataset.unitId = entry.unitId;
     checkboxes.push(checkbox);
+    if (entry.spendable) {
+      spendableBoxes.push(checkbox);
+    } else {
+      checkbox.disabled = true;
+      label.style.opacity = '0.55';
+    }
     label.appendChild(checkbox);
     label.append(document.createTextNode(`${entry.label} (${entry.unitId})`));
+    if (!entry.spendable) {
+      label.append(document.createTextNode(` — ${entry.reason ?? 'cannot act again this turn.'}`));
+    }
     panel.appendChild(label);
   }
 
