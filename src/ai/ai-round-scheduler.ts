@@ -22,6 +22,7 @@ import {
 } from './ai-prepared-turn';
 import type { AIDecisionTrace } from './ai-decision-trace';
 import { processAIGeneralCommand } from './ai-general-command';
+import { processSeizedUnitActions } from './ai-major-turn';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import {
   emitCivilizationLivenessTransitions,
@@ -299,6 +300,10 @@ export function processNonHumanMajorRound(
     working = processAIGeneralCommand(working, civId, 'pre-tactical', bus);
     working = executePrepared(working, revalidated, bus).state;
     working = processAIGeneralCommand(working, civId, 'post-tactical', bus);
+    // Seize's grant is issued after the tactical pass by definition (it needs units that
+    // have already acted), so its one extra attack has to be spent here or the charge buys
+    // nothing.
+    working = processSeizedUnitActions(working, revalidated, bus);
     liveness = reconcileCivilizationLiveness(working, working);
     emitCivilizationLivenessTransitions(liveness, bus);
     working = normalizeOpponentAIState(liveness.state);

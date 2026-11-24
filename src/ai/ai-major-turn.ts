@@ -57,6 +57,7 @@ import {
 import type { MajorCivPerception } from './ai-perception';
 import type { PreparedMajorCivPlan } from './ai-prepared-turn';
 import {
+  chooseAttackActionForUnit,
   chooseTacticalSequence,
   getOperationalRegroupingRoute,
   rankUnitTacticalActions,
@@ -593,6 +594,67 @@ function executeAction(
       };
     }
   }
+}
+
+/**
+ * Spends a Seize the Moment grant the round scheduler issued after the prepared tactical
+ * sequence. Without this pass the charge grants an action nothing ever uses: the unit that
+ * made it eligible has already acted, and nothing re-enters the tactical sequence for it.
+ *
+ * Only units carrying THIS turn's grant are considered. Each gets at most one offensive
+ * action, chosen by the same ranker the ordinary sequence uses (so a target the AI would
+ * never pick in its plan is never picked here), and any city capture the attack earns is
+ * executed through the same follow-up path. A unit whose plan withholds offensive action
+ * (scouting/mobilizing) or that has no legal target keeps the grant unspent.
+ */
+export function processSeizedUnitActions(
+  state: GameState,
+  prepared: PreparedMajorCivPlan,
+  bus: EventBus,
+): GameState {
+  const civId = prepared.civId;
+  let working = state;
+  const plans = [
+    ...Object.values(prepared.portfolio.defensePlansByCityId)
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    ...(prepared.portfolio.primaryPlan ? [prepared.portfolio.primaryPlan] : []),
+  ];
+  const seized = (working.civilizations[civId]?.units ?? [])
+    .map(id => working.units[id])
+    .filter((unit): unit is Unit =>
+      Boolean(unit) && unit.seizeGrantedBy?.turn === working.turn && !unit.hasActed)
+    .sort((left, right) => left.id.localeCompare(right.id));
+
+  for (const seizedUnit of seized) {
+    const current = working.units[seizedUnit.id];
+    if (!current || current.hasActed) continue;
+    const plan = plans.find(candidate =>
+      (prepared.assignments.assignmentsByPlanId[candidate.id] ?? candidate.assignedUnitIds)
+        .includes(seizedUnit.id));
+    if (!plan) continue;
+    const assignedUnitIds = prepared.assignments.assignmentsByPlanId[plan.id] ?? plan.assignedUnitIds;
+    const context: AITacticalContext = {
+      state: working,
+      actorId: civId,
+      plan: executionPlan(working, plan),
+      assignedUnitIds,
+      allowOffensiveActions: !(
+        isOffensivePlan(plan)
+        && (plan.phase === 'scouting' || plan.phase === 'mobilizing')
+      ),
+      routing: createOperationalRouting(),
+    };
+    const action = chooseAttackActionForUnit(context, seizedUnit.id);
+    if (!action) continue;
+    const executed = executeAction(working, action, civId, bus);
+    if (!executed.succeeded) continue;
+    working = executed.state;
+    for (const followUp of executed.followUps) {
+      const next = executeAction(working, followUp, civId, bus);
+      if (next.succeeded) working = next.state;
+    }
+  }
+  return working;
 }
 
 function hasRequiredRoles(

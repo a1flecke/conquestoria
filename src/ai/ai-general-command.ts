@@ -111,34 +111,38 @@ export function evaluateRallyOpportunity(state: GameState, generalUnitId: string
  * contract §"AI / hot-seat / saves": "Seize evaluator: extra attack, kill
  * potential, capture/denial, reposition, breakthrough." A full
  * kill-probability simulation is out of scope for v1 (YAGNI) --
- * combat-capable acted units get a flat high per-unit value (an extra
- * attack from a real attacker is almost always worth a charge), non-combat
- * acted units (already-moved workers/settlers/etc, repositioning value
- * only) get a much smaller flat value. This is intentionally coarse;
- * contract's "extra attack" and "reposition" cases are exactly the two
- * buckets modeled.
+ * combat-capable acted units get a flat high per-unit value (an extra attack
+ * from a real attacker is almost always worth a charge).
+ *
+ * Non-combat units are deliberately not valued or selected. Seize grants an
+ * action, not movement (`movementPointsLeft` is never refreshed, and an acted
+ * unit's movement budget is 0), so a worker, settler, caravan or spy can do
+ * nothing with the grant; picking one would spend a charge for no action. The
+ * evaluator's "reposition" case is served by whatever movement the unit already
+ * had left over, not by the grant.
  */
 const SEIZE_COMBAT_UNIT_VALUE = 40;
-const SEIZE_NONCOMBAT_UNIT_VALUE = 8;
 
 export function evaluateSeizeOpportunity(state: GameState, generalUnitId: string): GeneralCommandOpportunity | null {
   const { eligibility, eligible, capacity } = getSeizeTheMomentEligibleUnits(state, generalUnitId);
-  if (!eligibility.eligible || eligible.length === 0) return null;
+  if (!eligibility.eligible) return null;
 
-  // Only `capacity` units are ever activated, so only those contribute value: scoring the
-  // whole in-range pool would let four extra nearby units talk the AI into spending a
-  // charge it will not get four extra actions from. The AI hands the executor every
-  // eligible id, which trims to this same eligible-order prefix.
-  const activated = eligible.slice(0, capacity);
-  const score = activated.reduce((sum, entry) => {
-    const unit = state.units[entry.unitId];
-    return sum + (unit && hasAICombatRole(unit.type) ? SEIZE_COMBAT_UNIT_VALUE : SEIZE_NONCOMBAT_UNIT_VALUE);
-  }, 0);
+  // Only `capacity` units are ever activated, and only combat-capable ones can use the
+  // grant, so the AI selects and scores exactly that set. Score therefore matches what the
+  // executor will do: a mixed pool can no longer inflate the value, and the executor is
+  // handed the attackers rather than id-sorted civilians that would consume the capacity.
+  const targets = eligible
+    .filter(entry => {
+      const unit = state.units[entry.unitId];
+      return Boolean(unit && hasAICombatRole(unit.type));
+    })
+    .slice(0, capacity);
+  if (targets.length === 0) return null;
 
   return {
     ability: 'seize_the_moment',
-    score,
-    execute: s => issueSeizeTheMoment(s, generalUnitId, eligible.map(e => e.unitId)),
+    score: targets.length * SEIZE_COMBAT_UNIT_VALUE,
+    execute: s => issueSeizeTheMoment(s, generalUnitId, targets.map(e => e.unitId)),
   };
 }
 

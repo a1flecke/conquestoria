@@ -412,6 +412,25 @@ function isOnlyCaptureUnit(context: AITacticalContext, unit: Unit): boolean {
 export const AI_BOMBARDMENT_FOLLOWUP_RADIUS = 3;
 
 /**
+ * The single best attack/bombard action for one unit, using the ordinary tactical
+ * ranker over the caller's full plan context. Used by the Seize the Moment follow-up pass
+ * (`processSeizedUnitActions`): a seized unit has no movement budget, so only the
+ * offensive candidates can actually execute, and its target choice must stay the same
+ * one the normal sequence would make. Returns null when no legal offensive target exists
+ * (or the plan withholds offensive actions).
+ */
+export function chooseAttackActionForUnit(
+  context: AITacticalContext,
+  unitId: string,
+): AITacticalAction | null {
+  const unit = context.state.units[unitId];
+  if (!unit || unit.owner !== context.actorId) return null;
+  const ranked = rankAttacks(context, unit)
+    .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
+  return ranked[0]?.action ?? null;
+}
+
+/**
  * #974: scores a bombardment by the assault odds it BUYS, not by the damage it deals.
  *
  * Bombarding is only ever a means to an end -- it can never capture -- so the AI values it

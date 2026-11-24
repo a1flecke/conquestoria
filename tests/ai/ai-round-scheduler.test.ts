@@ -14,15 +14,20 @@ import type { AIStrategicPlan, Unit } from '@/core/types';
 import type { GeneralAbilityMoment } from '@/core/types/general-presentation';
 import { makeLivenessGame } from '../systems/helpers/civilization-liveness-fixture';
 
-function prepared(state: ReturnType<typeof createNewGame>, civId: string): PreparedMajorCivPlan {
+function prepared(
+  state: ReturnType<typeof createNewGame>,
+  civId: string,
+  primaryPlan?: AIStrategicPlan,
+): PreparedMajorCivPlan {
   const portfolio = createEmptyMajorCivPortfolio();
+  if (primaryPlan) portfolio.primaryPlan = primaryPlan;
   return {
     civId,
     perception: buildMajorCivPerception(state, civId),
     portfolio,
     assignments: {
       portfolio,
-      assignmentsByPlanId: {},
+      assignmentsByPlanId: primaryPlan ? { [primaryPlan.id]: primaryPlan.assignedUnitIds } : {},
       recoveryUnitIds: [],
       forceDemands: [],
       rejectedByUnitId: {},
@@ -82,6 +87,56 @@ describe('AI round scheduler', () => {
     expect(moments).toHaveLength(1);
     expect(moments[0]).toMatchObject({ kind: 'rally', civId: aiId, generalUnitId: 'gen-1' });
     expect(result.state.units['hurt-1']!.health).toBeGreaterThan(40);
+  });
+
+  it('spends a Seize the Moment grant on the extra attack after the tactical pass', () => {
+    const state = createNewGame({
+      civType: 'egypt',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'Scheduler seize execution',
+      seed: 'scheduler-seize-execution',
+    });
+    const aiId = 'ai-1';
+    state.turn = 5;
+    state.units['gen-1'] = {
+      id: 'gen-1', type: 'great_general', owner: aiId, position: { q: 2, r: 2 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_hannibal',
+    } as Unit;
+    // The tactical pass already spent this unit's action; Seize is the only way it can
+    // attack again, and only the post-tactical grant can make that attack legal.
+    state.units['attacker-1'] = {
+      id: 'attacker-1', type: 'swordsman', owner: aiId, position: { q: 3, r: 2 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.units['target-1'] = {
+      id: 'target-1', type: 'warrior', owner: 'player', position: { q: 4, r: 2 },
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'attacker-1'];
+    state.civilizations.player.units = [...state.civilizations.player.units, 'target-1'];
+    state.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.atWarWith = [aiId];
+    state.civilizations[aiId]!.visibility.tiles['4,2'] = 'visible';
+    const plan: AIStrategicPlan = {
+      id: 'plan-1', actorId: aiId, objective: 'capture',
+      target: { kind: 'unit', id: 'target-1', lastKnownPosition: { q: 4, r: 2 } },
+      theaterId: 'theater-1', phase: 'attacking', reasonCodes: ['nearby-opportunity'], commitment: 1,
+      createdTurn: 0, reconsiderAfterTurn: 99, expiresAfterTurn: 99, lastProgressTurn: 0,
+      requiredRoles: {}, assignedUnitIds: ['attacker-1'],
+    };
+
+    const result = processNonHumanMajorRound(state, new EventBus(), {
+      prepare: (snapshot, civId) => prepared(snapshot as typeof state, civId, plan),
+      executePrepared: current => ({ state: current }),
+    });
+
+    const after = result.state;
+    // The charge was spent and the grant consumed by the one attack it promised.
+    expect(after.units['attacker-1']!.hasActed).toBe(true);
+    const target = after.units['target-1'];
+    expect(target === undefined || target.health < 100).toBe(true);
   });
 
   it('processes every living non-human civilization once in rotating order', () => {
