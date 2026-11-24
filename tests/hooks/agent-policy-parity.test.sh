@@ -90,6 +90,18 @@ expect_ok "$d" canonical-list CLAUDE.md 'fully indexed rule tree'
 printf '# Two\n' > "$d/.claude/rules/two.md"
 expect_fail "$d" canonical-list CLAUDE.md 'missing from the Rules Index' 'new unindexed rule file'
 
+# canonical-list also checks GEMINI.md and .agents/rules/ routing when present
+d="$tmp/gemini-canonical"; mk_repo "$d"
+printf 'See CLAUDE.md and .claude/rules/.\n' > "$d/GEMINI.md"
+mkdir -p "$d/.agents/rules"
+printf 'Read .claude/rules/one.md.\n' > "$d/.agents/rules/one.md"
+expect_ok "$d" canonical-list GEMINI.md 'GEMINI.md and .agents/rules cover canonical policy'
+printf 'Standalone instructions without canonical pointer.\n' > "$d/GEMINI.md"
+expect_fail "$d" canonical-list GEMINI.md 'canonical policy' 'GEMINI.md missing canonical policy pointer'
+printf 'See CLAUDE.md and .claude/rules/.\n' > "$d/GEMINI.md"
+printf 'Read nothing.\n' > "$d/.agents/rules/one.md"
+expect_fail "$d" canonical-list GEMINI.md 'not routed by any' '.agents/rules missing canonical rule pointer'
+
 # required-gates-defer-to-impact (#1362): prose may not require a command the impact map owns; it must point at verify:impact
 d="$tmp/impact"; mk_repo "$d"
 mkdir -p "$d/scripts/data"

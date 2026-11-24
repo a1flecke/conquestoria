@@ -1,0 +1,62 @@
+{
+  "conquestoria-guardrails": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "./hooks/session-start.sh",
+        "timeout": 30
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/pre-run-command.sh",
+            "timeout": 1800
+          }
+        ]
+      },
+      {
+        "matcher": "read_file|view_file|write_file|write_to_file|edit_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/pre-file-op.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "invoke_subagent|define_subagent|swarm|run_workflow",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/pre-subagent.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "write_file|write_to_file|edit_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/post-file-edit.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostInvocation": [
+      {
+        "type": "command",
+        "command": "./hooks/post-invocation.sh",
+        "timeout": 5
+      }
+    ]
+  }
+}

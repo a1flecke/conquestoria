@@ -44,7 +44,10 @@ const ROOT = resolve(option('root') ?? resolve(dirname(fileURLToPath(import.meta
 const AGENT_SURFACES = [
   { path: 'CLAUDE.md' },
   { path: 'AGENTS.md' },
+  { path: 'GEMINI.md' },
   { path: '.claude/rules', suffix: '.md' },
+  { path: '.agents/rules', suffix: '.md' },
+  { path: '.agents/skills', suffix: '.md', recursive: true },
   { path: '.opencode/opencode.jsonc' },
   { path: '.opencode/commands', suffix: '.md' },
 ];
@@ -291,6 +294,28 @@ const RULES = [
           problems.push({ file: 'AGENTS.md', line: 0, detail: 'does not name `.claude/rules/` as canonical policy' });
         }
       }
+      const geminiPath = abs('GEMINI.md');
+      if (existsSync(geminiPath)) {
+        const gemini = readFileSync(geminiPath, 'utf8');
+        if (!gemini.includes('CLAUDE.md')) {
+          problems.push({ file: 'GEMINI.md', line: 0, detail: 'does not name `CLAUDE.md` as canonical policy' });
+        }
+        if (!gemini.includes('.claude/rules/')) {
+          problems.push({ file: 'GEMINI.md', line: 0, detail: 'does not name `.claude/rules/` as canonical policy' });
+        }
+      }
+      const agentsRulesDir = abs('.agents/rules');
+      if (existsSync(agentsRulesDir) && statSync(agentsRulesDir).isDirectory()) {
+        const pointerText = readdirSync(agentsRulesDir)
+          .filter(name => name.endsWith('.md'))
+          .map(name => readFileSync(join(agentsRulesDir, name), 'utf8'))
+          .join('\n');
+        for (const name of ruleFiles()) {
+          if (!pointerText.includes(`.claude/rules/${name}`)) {
+            problems.push({ file: '.agents/rules', line: 0, detail: `\`.claude/rules/${name}\` is not routed by any \`.agents/rules/*.md\` pointer` });
+          }
+        }
+      }
       return problems;
     },
   },
@@ -300,6 +325,18 @@ const RULES = [
 // Audit
 // ---------------------------------------------------------------------------
 
+function walkSuffix(relDir, suffix, out) {
+  const dir = abs(relDir);
+  for (const name of readdirSync(dir)) {
+    const childRel = `${relDir}/${name}`;
+    const childAbs = abs(childRel);
+    if (!existsSync(childAbs)) continue;
+    const st = statSync(childAbs);
+    if (st.isDirectory()) walkSuffix(childRel, suffix, out);
+    else if (name.endsWith(suffix)) out.push(childRel);
+  }
+}
+
 function listFiles() {
   const explicit = optionList('file');
   if (explicit.length > 0) return [...new Set(explicit)].sort();
@@ -308,7 +345,8 @@ function listFiles() {
     const path = abs(surface.path);
     if (!existsSync(path)) continue;
     if (surface.suffix && statSync(path).isDirectory()) {
-      for (const name of readdirSync(path)) if (name.endsWith(surface.suffix)) out.push(`${surface.path}/${name}`);
+      if (surface.recursive) walkSuffix(surface.path, surface.suffix, out);
+      else for (const name of readdirSync(path)) if (name.endsWith(surface.suffix)) out.push(`${surface.path}/${name}`);
     } else if (!statSync(path).isDirectory()) {
       out.push(surface.path);
     }
