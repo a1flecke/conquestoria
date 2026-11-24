@@ -87,6 +87,48 @@ describe('unit stack panel', () => {
     expect(selected).toBe('worker');
   });
 
+  it('#1807 — labels a unit with an unspent Seize grant "Moment granted", not "Spent"', () => {
+    const state = stateWithStack();
+    state.units.warrior = unit('warrior', 'warrior', {
+      hasActed: true,
+      movementPointsLeft: 1,
+      seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: state.turn },
+    });
+    const container = document.createElement('div');
+
+    renderUnitStackPanel(container, state, { q: 2, r: 1 }, ['warrior', 'worker'], {
+      onSelectUnit: () => {},
+    });
+
+    // The granted warrior's own row carries the Moment label (the worker stays "Spent").
+    const warriorRow = container.querySelector('[data-unit-id="warrior"]')!;
+    expect(warriorRow.textContent).toContain('Moment granted');
+    expect(warriorRow.textContent).not.toContain('Spent');
+  });
+
+  it('#1807 — the Moment label ends once the grant is spent or stale', () => {
+    const spent = stateWithStack();
+    spent.units.warrior = unit('warrior', 'warrior', {
+      hasActed: true,
+      movementPointsLeft: 0,
+      seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: spent.turn, spent: true },
+    });
+    const spentContainer = document.createElement('div');
+    renderUnitStackPanel(spentContainer, spent, { q: 2, r: 1 }, ['warrior'], { onSelectUnit: () => {} });
+    expect(spentContainer.textContent).not.toContain('Moment granted');
+    expect(spentContainer.textContent).toContain('Spent');
+
+    const stale = stateWithStack();
+    stale.units.warrior = unit('warrior', 'warrior', {
+      hasActed: true,
+      movementPointsLeft: 1,
+      seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: stale.turn - 1 },
+    });
+    const staleContainer = document.createElement('div');
+    renderUnitStackPanel(staleContainer, stale, { q: 2, r: 1 }, ['warrior'], { onSelectUnit: () => {} });
+    expect(staleContainer.textContent).not.toContain('Moment granted');
+  });
+
   it('renders a friendly city action for city stacks', () => {
     const container = document.createElement('div');
     let openedCity: string | null = null;

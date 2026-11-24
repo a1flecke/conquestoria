@@ -12,6 +12,7 @@ import { createCityCapturePanel } from '@/ui/city-capture-panel';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
+import { canSpendUnitAction } from '@/systems/unit-order-state';
 import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/systems/combat-reward-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
@@ -219,7 +220,11 @@ export function createPlayerCombatActions(deps: PlayerActionControllerDeps, cros
     const occupancy = buildUnitOccupancy(state.units);
     const hasDefender = hasHostileUnitAtCoord(occupancy, camp.position, attacker.owner);
     if (
-      attacker.hasActed
+      // #1807: the action-points check is canSpendUnitAction (the one gate that honours
+      // an unspent Seize grant), keeping this execution-layer guard in vocabulary with
+      // executeAttack's own re-check below. Depth preserved: a UI precedence change can
+      // never smuggle an acted unit through the direct destroy path.
+      !canSpendUnitAction(attacker, state.turn)
       || blockingEntity?.reason !== 'barbarian-camp'
       || blockingEntity.entityId !== campId
       || distance !== 1
@@ -266,10 +271,12 @@ export function createPlayerCombatActions(deps: PlayerActionControllerDeps, cros
     const legality = amphibiousAssault
       ? getEmbarkedAssaultTarget(deps.session.getState(), attackerId, targetCoord, { viewerId: deps.session.getState().currentPlayer })
       : canUnitAttackTarget(deps.session.getState(), initialAttacker, targetCoord, { viewerId: deps.session.getState().currentPlayer });
-    // hasActed guard: enforce "no action remaining" at the execution layer, not just
-    // the highlight layer (getAttackTargets). Prevents double-action if executeAttack
-    // is ever called outside the normal tap → highlight → confirm flow.
-    if (!initialAttacker || initialAttacker.hasActed || !legality.ok) {
+    // Action-points guard: enforce "no spendable action budget" at the execution layer,
+    // not just the highlight layer (getAttackTargets). Prevents double-action if
+    // executeAttack is ever called outside the normal tap → highlight → confirm flow.
+    // #1807: canSpendUnitAction is the one gate (unused movement, or an unspent same-turn
+    // Seize grant), so the executor accepts exactly what the highlight offered.
+    if (!initialAttacker || !canSpendUnitAction(initialAttacker, deps.session.getState().turn) || !legality.ok) {
       deps.showNotification('That target is no longer attackable.', 'warning');
       const currentlySelected = deps.selection.getSelectedUnitId();
       if (currentlySelected) deps.selectionController.selectUnit(currentlySelected);

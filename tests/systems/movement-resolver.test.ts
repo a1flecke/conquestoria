@@ -16,6 +16,7 @@ import {
   executeValidatedUnitMove,
 } from '@/systems/unit-movement-system';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
+import { canSpendUnitAction } from '@/systems/unit-order-state';
 
 function grasslandMap(w: number, h: number): GameMap {
   const tiles: GameMap['tiles'] = {};
@@ -192,5 +193,73 @@ describe('a unit that has acted cannot also walk (aadd00d61)', () => {
   it('a trader committed to a route is the named exception: its route runner walks it', () => {
     const { state, unitId } = actedUnitState({ committedToRouteId: 'route-1' });
     expect(resolveUnitMoveIntent(state, unitId, { q: 1, r: 0 }, asPlayer).ok).toBe(true);
+  });
+});
+
+describe('a Seize the Moment grant is the second named walking exception (#1807)', () => {
+  function grantedState(patch: Partial<Unit> = {}) {
+    const { state, unitId } = makeState({ movementPointsLeft: 1 });
+    state.units[unitId] = {
+      ...state.units[unitId]!,
+      hasActed: true,
+      movementPointsLeft: 1,
+      seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: state.turn },
+      ...patch,
+    };
+    return { state, unitId };
+  }
+
+  it('a granted unit repositions with the granted budget, in both resolver and preview', () => {
+    const { state, unitId } = grantedState();
+    expect(resolveUnitMoveIntent(state, unitId, { q: 1, r: 0 }, asPlayer).ok).toBe(true);
+    expect(getMovementRangeDetails(state, unitId).reachable.length).toBeGreaterThan(0);
+  });
+
+  it('a stale grant does not reopen walking', () => {
+    const { state, unitId } = grantedState({ seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: 0 } });
+    const resolution = resolveUnitMoveIntent(state, unitId, { q: 1, r: 0 }, asPlayer);
+    expect(resolution.ok).toBe(false);
+    if (resolution.ok) return;
+    expect(resolution.reason).toBe('already-acted');
+  });
+
+  it('the granted reposition marks the grant spent, so the budget can never also buy an attack', () => {
+    const { state, unitId } = grantedState();
+    const moved = executeUnitMove(state, unitId, { q: 1, r: 0 }, asPlayer);
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    expect(moved.state.units[unitId]!.seizeGrantedBy).toMatchObject({ turn: state.turn, spent: true });
+  });
+
+  it('a spent grant still walks out its remaining budget — reposition OR attack, and the points are movement money (roads decision)', () => {
+    const { state, unitId } = grantedState({
+      seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: 1, spent: true },
+    });
+    expect(resolveUnitMoveIntent(state, unitId, { q: 1, r: 0 }, asPlayer).ok).toBe(true);
+  });
+
+  it('two half-cost road steps are one granted budget spent as movement, and no attack follows it', () => {
+    const { state, unitId } = makeState({ movementPointsLeft: 1 });
+    state.civilizations.player.techState.completed = ['military-logistics'];
+    for (const key of ['1,0', '2,0']) {
+      state.map.tiles[key] = { ...state.map.tiles[key]!, hasRoad: true };
+    }
+    state.units[unitId] = {
+      ...state.units[unitId]!,
+      hasActed: true,
+      movementPointsLeft: 1,
+      seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: state.turn },
+    };
+
+    const first = executeUnitMove(state, unitId, { q: 1, r: 0 }, asPlayer);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.state.units[unitId]!.seizeGrantedBy!.spent).toBe(true);
+    // The remaining half point still walks the second road tile (the budget is movement
+    // money, exactly like a fresh 1-point unit)...
+    const second = resolveUnitMoveIntent(first.state, unitId, { q: 2, r: 0 }, asPlayer);
+    expect(second.ok).toBe(true);
+    // ...but the spent permission buys no attack afterward.
+    expect(canSpendUnitAction(first.state.units[unitId]!, first.state.turn)).toBe(false);
   });
 });

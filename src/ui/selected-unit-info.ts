@@ -9,7 +9,7 @@ import { getGeneralProfile } from '@/systems/great-general-profiles';
 import { getGeneralPresentation } from '@/systems/great-general-presentation';
 import { getGeneralSpecialtyPresentation, resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { getGeneralCareerForViewer, describeGeneralCareerHighlights } from '@/systems/great-general-career';
-import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
+import { getHeroicCommandEligibility, SEIZE_GRANT_MOVEMENT_POINTS } from '@/systems/great-general-abilities';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { createGameButton } from '@/ui/ui-kit';
 import { createGeneralPortrait } from '@/ui/general-portrait';
@@ -629,6 +629,17 @@ export function renderSelectedUnitInfo(
     const fortifyLayer = unit.isFortified ? ' Fortify stance: +25% defense.' : '';
     fortification.textContent = `${fortTier.label} improvement: +${Math.round((fortTier.multiplier - 1) * 100)}% defense.${fortifyLayer}`;
     wrapper.appendChild(fortification);
+  }
+
+  // #1807: an unspent Seize grant is a live budget the player must be able to see: the
+  // unit has acted, so it drops out of unmoved-unit cycling — the panel is where the
+  // remaining action is surfaced (computed from the marker → rendered, end-to-end wiring).
+  if (unit.owner === state.currentPlayer && unit.seizeGrantedBy?.turn === state.turn && unit.seizeGrantedBy.spent !== true) {
+    const momentBadge = document.createElement('div');
+    momentBadge.dataset.seizeGrantBadge = 'true';
+    momentBadge.style.cssText = 'margin-top:6px;padding:6px 8px;border-radius:6px;background:rgba(124,58,237,0.25);border:1px solid rgba(196,181,253,0.7);font-size:11px;line-height:1.4;color:#ddd6fe;';
+    momentBadge.textContent = `⚡ Moment granted: one action — attack, or reposition with ${SEIZE_GRANT_MOVEMENT_POINTS} movement point${SEIZE_GRANT_MOVEMENT_POINTS === 1 ? '' : 's'}.`;
+    wrapper.appendChild(momentBadge);
   }
 
   const scrollCue = document.createElement('div');

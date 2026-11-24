@@ -179,6 +179,22 @@ $mv_lines"
     ;;
 esac
 
+# --- Seize grant gate vocabulary (#1807) ---
+# An attack/capture/bombard/assault executor must not read hasActed directly:
+# canSpendUnitAction is the one action-points gate and the only one that honours an
+# unspent same-turn Seize grant. Writes (`hasActed: true`) are fine; a positive fact
+# check marks the line 'seize-grant-gate-exempt: <reason>'.
+case "$file_path" in
+  */src/systems/attack-targeting.ts|*/src/systems/city-bombardment-system.ts|*/src/systems/city-interaction.ts|*/src/systems/city-capture-system.ts|*/src/app/controllers/player-combat-actions.ts|*/src/systems/pirate-actions.ts)
+    gate_lines="$(grep -nE '\.hasActed' "$file_path" \
+      | grep -vE 'seize-grant-gate-exempt|^[0-9]+:[[:space:]]*(//|\*)|hasActed: ' | head -5 || true)"
+    if [ -n "$gate_lines" ]; then
+      append "Attack-family executor reads hasActed directly — route the action-points check through canSpendUnitAction (it honours an unspent Seize grant, #1807); a positive fact check marks the line 'seize-grant-gate-exempt: <reason>' (see .claude/rules/action-contracts.md):
+$gate_lines"
+    fi
+    ;;
+esac
+
 # --- silent session writes (#1015) ---
 # GameSession has no silent write. setStateWithoutRefresh was removed; the restricted
 # unpublished.adopt() (closed set of named reasons, UnpublishedReason in

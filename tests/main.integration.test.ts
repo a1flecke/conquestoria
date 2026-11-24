@@ -92,11 +92,12 @@ describe('completed-round AI wiring', () => {
 // The strategic-AI half of "shared city assault wiring" (ai-major-turn.ts
 // calling emitMajorCityCaptureEvents) had no player-side counterpart in
 // main.ts by this point and needed no new home -- it was never testing
-// main.ts source, only ai-major-turn.ts's.
+// main.ts source, only ai-major-turn.ts's. #1807: the occupation moved verbatim
+// into the shared ai-unit-attack-execution module, so the grep follows it there.
 describe('strategic AI city capture wiring', () => {
   it('routes strategic AI capture transitions through the shared emitter', () => {
     const strategicAi = readFileSync(
-      resolve(PROJECT_ROOT, 'src/ai/ai-major-turn.ts'),
+      resolve(PROJECT_ROOT, 'src/ai/ai-unit-attack-execution.ts'),
       'utf8',
     );
 

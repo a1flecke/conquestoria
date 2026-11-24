@@ -35,6 +35,8 @@ import {
 } from '@/storage/save-manager';
 import { appendNotification } from '@/core/notification-log';
 import type { CustomCivDefinition } from '@/core/types';
+import { canSpendUnitAction } from '@/systems/unit-order-state';
+import { getUnitMovementBudget } from '@/systems/unit-movement-legality';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { dbGet } from '@/storage/db';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -950,5 +952,51 @@ describe('migrateLegacyCoastalData', () => {
     const state = makeMigrationState([city]);
     const result = migrateLegacyCoastalData(state);
     expect(result).toBe(state);
+  });
+});
+
+describe('#1807 — a Seize the Moment grant survives save/reload', () => {
+  // The grant is two already-persisted fields (`seizeGrantedBy`, `movementPointsLeft`)
+  // with a new optional `spent` member, so the shape change is additive and needs no
+  // migration. What must still be proven (the #1807 review's save round-trip ask): the
+  // grant a save carries is the grant the loaded game honours — an unspent grant spends
+  // after reload, a spent one stays refused.
+  it('an unspent grant reloads spendable', () => {
+    const state = createNewGame('rome', 'seize-grant-roundtrip-unspent', 'small');
+    state.units['granted-1'] = {
+      ...createUnit('warrior', 'player', { q: 1, r: 0 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'granted-1',
+      hasActed: true,
+      hasMoved: true,
+      movementPointsLeft: 1,
+      seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: state.turn },
+    };
+    state.civilizations.player.units = [...state.civilizations.player.units, 'granted-1'];
+
+    const loaded = normalizeLoadedStateForTest(structuredClone(state));
+
+    expect(loaded.units['granted-1']!.seizeGrantedBy).toMatchObject({ turn: state.turn });
+    expect(canSpendUnitAction(loaded.units['granted-1']!, loaded.turn)).toBe(true);
+  });
+
+  it('a spent grant reloads refused — the reposition\'s one-shot write is load-canonical', () => {
+    const state = createNewGame('rome', 'seize-grant-roundtrip-spent', 'small');
+    state.units['granted-1'] = {
+      ...createUnit('warrior', 'player', { q: 1, r: 0 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'granted-1',
+      hasActed: true,
+      hasMoved: true,
+      movementPointsLeft: 1,
+      seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: state.turn, spent: true },
+    };
+    state.civilizations.player.units = [...state.civilizations.player.units, 'granted-1'];
+
+    const loaded = normalizeLoadedStateForTest(structuredClone(state));
+
+    expect(loaded.units['granted-1']!.seizeGrantedBy).toMatchObject({ turn: state.turn, spent: true });
+    expect(canSpendUnitAction(loaded.units['granted-1']!, loaded.turn)).toBe(false);
+    // The walking budget the marker's presence grants still reloads (movement money),
+    // so the loaded unit can finish its reposition but never buy the attack.
+    expect(getUnitMovementBudget(loaded.units['granted-1']!, loaded.turn)).toBe(1);
   });
 });

@@ -1,6 +1,7 @@
 import type { City, GameState, Unit } from '@/core/types';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { canUnitOccupyCity } from '@/systems/city-capture-system';
+import { canSpendUnitAction } from '@/systems/unit-order-state';
 import { isBasedAirUnit } from '@/systems/air-base-state';
 import { canUnitBombardCity, previewUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { calculateCityAssaultStrengths, getCityIntrinsicStrength, getCityOwnerBonus } from '@/systems/city-siege-system';
@@ -165,9 +166,11 @@ function resolveCaptureDenial(state: GameState, unit: Unit, city: City): string 
   // Action-state gates. beginMajorCityAssault rejects both of these
   // ('already-captured-city-this-turn' / 'illegal-movement'), so omitting them here would
   // let the UI offer a capture the executor refuses -- the exact divergence this resolver
-  // exists to prevent.
+  // exists to prevent. #1807: the action-points half is canSpendUnitAction, the one gate
+  // that honours an unspent Seize grant, so a granted unit is offered the capture the
+  // assault executor will accept.
   if (unit.hasCapturedCityThisTurn) return 'This unit has already captured a city this turn.';
-  if (unit.hasActed || unit.movementPointsLeft <= 0) return 'This unit has already acted this turn.';
+  if (!canSpendUnitAction(unit, state.turn)) return 'This unit has already acted this turn.';
 
   if (distanceFor(state, unit.position, city.position) !== 1) return 'Move next to the city to capture it.';
 

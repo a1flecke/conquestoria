@@ -3538,3 +3538,56 @@ describe('air readiness line (#884)', () => {
     expect(text).not.toMatch(/let it rest/);
   });
 });
+
+describe('#1807 — the Seize grant is visible while it is unspent', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function grantState(marker: { turnOffset?: number; spent?: boolean } = {}) {
+    const state = createNewGame(undefined, 'seize-grant-badge', 'small');
+    const unit = {
+      ...createUnit('warrior', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      hasActed: true,
+      hasMoved: true,
+      movementPointsLeft: 1,
+      seizeGrantedBy: {
+        generalDefinitionId: 'gen_hannibal',
+        turn: state.turn + (marker.turnOffset ?? 0),
+        ...(marker.spent ? { spent: true } : {}),
+      },
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    return state;
+  }
+
+  it('renders the Moment badge for an unspent same-turn grant, and offers no movement-free action buttons', () => {
+    const state = grantState();
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Moment granted');
+    // The grant never clears hasActed, so every !hasActed-gated button stays closed —
+    // the #1807 absorptions are refused by the panel too, not just the executors.
+    const buttonLabels = findButtons(container).map(button => button.textContent);
+    expect(buttonLabels).not.toContain('Rest');
+    expect(buttonLabels).not.toContain('Fortify');
+    expect(buttonLabels).not.toContain('Pillage');
+    expect(buttonLabels).not.toContain('Skip Turn');
+  });
+
+  it('hides the badge once the grant is spent repositioning, and for a stale marker', () => {
+    const spent = grantState({ spent: true });
+    const spentContainer = new MockElement('div');
+    renderSelectedUnitInfo(spentContainer as unknown as HTMLElement, spent, 'u1', {});
+    expect(collectAllText(spentContainer).join(' ')).not.toContain('Moment granted');
+
+    const stale = grantState({ turnOffset: -1 });
+    const staleContainer = new MockElement('div');
+    renderSelectedUnitInfo(staleContainer as unknown as HTMLElement, stale, 'u1', {});
+    expect(collectAllText(staleContainer).join(' ')).not.toContain('Moment granted');
+  });
+});

@@ -70,14 +70,14 @@ describe('createSeizeThePanelMoment', () => {
 
   it('renders a checkbox per eligible unit', () => {
     const container = document.createElement('div');
-    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior' }, { unitId: 'unit-2', label: 'archer' }], 3, () => {}, () => {});
+    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior', spendable: true }, { unitId: 'unit-2', label: 'archer', spendable: true }], 3, () => {}, () => {});
     expect(container.querySelectorAll('input[type="checkbox"]').length).toBe(2);
   });
 
   it('confirm passes only the checked unit ids', () => {
     const container = document.createElement('div');
     const onConfirm = vi.fn();
-    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior' }, { unitId: 'unit-2', label: 'archer' }], 3, onConfirm, () => {});
+    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior', spendable: true }, { unitId: 'unit-2', label: 'archer', spendable: true }], 3, onConfirm, () => {});
     const checkboxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
     checkboxes[0].checked = true;
     checkboxes[0].dispatchEvent(new Event('change'));
@@ -95,7 +95,7 @@ describe('createSeizeThePanelMoment', () => {
   it('review fix: Confirm starts disabled and stays disabled until at least one checkbox is checked', () => {
     const container = document.createElement('div');
     const onConfirm = vi.fn();
-    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior' }], 3, onConfirm, () => {});
+    createSeizeThePanelMoment(container, 'gen-1', [{ unitId: 'unit-1', label: 'warrior', spendable: true }], 3, onConfirm, () => {});
     const confirmButton = Array.from(container.querySelectorAll('button')).find(b => /confirm/i.test(b.textContent ?? '')) as HTMLButtonElement;
     expect(confirmButton.disabled).toBe(true);
     confirmButton.click();
@@ -110,7 +110,7 @@ describe('createSeizeThePanelMoment', () => {
   it('never lets the player select more units than the executor will activate', () => {
     const container = document.createElement('div');
     const onConfirm = vi.fn();
-    const eligible = ['u1', 'u2', 'u3', 'u4', 'u5'].map(unitId => ({ unitId, label: 'Warrior (100 HP)' }));
+    const eligible = ['u1', 'u2', 'u3', 'u4', 'u5'].map(unitId => ({ unitId, label: 'Warrior (100 HP)', spendable: true }));
     createSeizeThePanelMoment(container, 'gen-1', eligible, 3, onConfirm, () => {});
     const checkboxes = checkboxesIn(container);
 
@@ -130,9 +130,36 @@ describe('createSeizeThePanelMoment', () => {
     expect(onConfirm).toHaveBeenCalledWith(['u1', 'u2', 'u3']);
   });
 
+  it('#1807 — renders a unit that cannot spend the grant as a disabled row with its reason, never selectable and never counted', () => {
+    const container = document.createElement('div');
+    const onConfirm = vi.fn();
+    createSeizeThePanelMoment(container, 'gen-1', [
+      { unitId: 'boxed-in', label: 'Warrior (100 HP)', spendable: false, reason: 'No target or open tile in reach.' },
+      { unitId: 'able-1', label: 'Warrior (100 HP)', spendable: true },
+    ], 1, onConfirm, () => {});
+    const checkboxes = checkboxesIn(container);
+    const boxedIn = checkboxes.find(cb => cb.dataset.unitId === 'boxed-in')!;
+
+    // The reason is visible on the row, and the row is permanently disabled.
+    expect(container.textContent).toContain('No target or open tile in reach.');
+    expect(boxedIn.disabled).toBe(true);
+
+    // Spending the whole allowance on the able unit does not re-enable the dead row,
+    // and the counter only ever counts spendable selections.
+    const able = checkboxes.find(cb => cb.dataset.unitId === 'able-1')!;
+    able.checked = true;
+    able.dispatchEvent(new Event('change'));
+    expect(boxedIn.disabled).toBe(true);
+    expect(container.textContent).toContain('1 of 1 selected');
+
+    const confirmButton = Array.from(container.querySelectorAll('button')).find(b => /confirm/i.test(b.textContent ?? ''))!;
+    confirmButton.click();
+    expect(onConfirm).toHaveBeenCalledWith(['able-1']);
+  });
+
   it('re-enables the remaining units when an allowance is given back', () => {
     const container = document.createElement('div');
-    const eligible = ['u1', 'u2', 'u3', 'u4'].map(unitId => ({ unitId, label: 'Warrior (100 HP)' }));
+    const eligible = ['u1', 'u2', 'u3', 'u4'].map(unitId => ({ unitId, label: 'Warrior (100 HP)', spendable: true }));
     createSeizeThePanelMoment(container, 'gen-1', eligible, 2, () => {}, () => {});
     const checkboxes = checkboxesIn(container);
     const tick = (id: string) => {

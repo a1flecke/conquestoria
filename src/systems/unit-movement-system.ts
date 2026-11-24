@@ -146,6 +146,22 @@ export function executeValidatedUnitMove(
       [unitId]: moved,
     },
   };
+  // #1807 one-shot: a reposition spends the Seize grant's attack permission. This is the
+  // grant's only `.spent` write — every attack path already zeroes the granted movement
+  // itself — and it is what keeps §19's budget "reposition, or make another legal attack"
+  // exclusive: after the granted reposition (including a first half-cost road step),
+  // `canSpendUnitAction` refuses the attack. The marker itself survives every spend:
+  // battle/capture attribution reads it whether or not it is spent.
+  const grant = unit.seizeGrantedBy;
+  if (grant && grant.turn === state.turn && grant.spent !== true) {
+    nextState = {
+      ...nextState,
+      units: {
+        ...nextState.units,
+        [unitId]: { ...moved, seizeGrantedBy: { ...grant, spent: true } },
+      },
+    };
+  }
   nextState = recordFreightPassageTravel(nextState, moved, executedPath);
   if (unit.type === 'transport') {
     nextState = syncTransportCargoPositions(nextState, unitId);

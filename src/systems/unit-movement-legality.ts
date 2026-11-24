@@ -41,12 +41,24 @@ export type UnitMovementBlockerCode =
  * Rally/Undermine, every heroic command: aadd00d61) cannot then leave live movement behind. Every movement range,
  * the resolver and the explainer start from this one number.
  *
- * The one named exception is a trader committed to a route: establishing the route marks it `hasActed` (the
- * player has issued its command) and the route runner then walks it every round with fresh movement, so for it
- * `hasActed` means "commissioned", not "spent".
+ * Two named exceptions, both meaning "hasActed does not mean spent":
+ * - a trader committed to a route: establishing the route marks it `hasActed` (the player has issued its command)
+ *   and the route runner then walks it every round with fresh movement, so for it `hasActed` means "commissioned";
+ * - a Seize the Moment grant (#1807): the marker's presence this turn is the granted walking budget
+ *   (`issueSeizeTheMoment` wrote it), spent as movement however the map allows — one step, or two half-cost road
+ *   steps — exactly like a fresh unit's points. `spent` does not end the walking (the points are movement money);
+ *   it ends the *attack* permission, which is `canSpendUnitAction`'s to judge.
  */
-export function getUnitMovementBudget(unit: Pick<Unit, 'hasActed' | 'movementPointsLeft' | 'committedToRouteId'>): number {
-  return unit.hasActed && !unit.committedToRouteId ? 0 : unit.movementPointsLeft;
+export function getUnitMovementBudget(
+  unit: Pick<Unit, 'hasActed' | 'movementPointsLeft' | 'committedToRouteId' | 'seizeGrantedBy'>,
+  turn: number | undefined,
+): number {
+  if (!unit.hasActed) return unit.movementPointsLeft;
+  if (unit.committedToRouteId) return unit.movementPointsLeft;
+  // `turn === undefined` (the decomposed getMovementRange's fixture callers) is the
+  // conservative read: an acted unit's grant never opens walking the caller cannot date.
+  if (turn !== undefined && unit.seizeGrantedBy?.turn === turn) return unit.movementPointsLeft;
+  return 0;
 }
 
 export interface BlockingMapEntity {

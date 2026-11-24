@@ -9,6 +9,12 @@ import { canUnitAttackTarget, getAttackTargets } from '@/systems/attack-targetin
 import { canSpendUnitAction } from '@/systems/unit-order-state';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { healUnit } from '@/systems/unit-healing';
+import { evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
+import { applyPillageToState } from '@/systems/pillage-system';
+import { usePropagandistAction } from '@/systems/propagandist-system';
+import { applyWorkerAction } from '@/systems/worker-action-system';
+import { canLoadUnitOntoTransport, canUnloadUnitFromTransport } from '@/systems/transport-system';
+import { getRestActionAvailability } from '@/systems/supply-combat';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
@@ -295,9 +301,18 @@ describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
     expect(eligible[0].label).toContain('HP');
   });
 
-  it('resets hasActed on selected units so they can act again', () => {
+  it('grants the Moment without resetting hasActed — the grant is a typed budget, not a fresh action (#1807)', () => {
     const result = issueSeizeTheMoment(setup(), 'gen-1', ['unit-1']);
-    expect(result.units['unit-1'].hasActed).toBe(false);
+    const granted = result.units['unit-1']!;
+    // The unit stays "acted": every movement-free executor (upgrade, pillage,
+    // propagandist, spy commands, worker, load/unload, fortify, rest) keeps refusing it
+    // through its own !hasActed gate, so the #1807 absorptions close by omission.
+    expect(granted.hasActed).toBe(true);
+    // The budget: one bounded movement point funding §19's "reposition, or make another
+    // legal attack", gated by the per-turn marker (unspent at issuance).
+    expect(granted.movementPointsLeft).toBe(1); // SEIZE_GRANT_MOVEMENT_POINTS
+    expect(granted.seizeGrantedBy).toMatchObject({ generalDefinitionId: 'gen_hannibal', turn: result.turn });
+    expect(granted.seizeGrantedBy!.spent).toBeUndefined();
   });
 
   it('keeps hasMoved set (contract §19: only hasActed is cleared — a bounded extra action, not a reset)', () => {
@@ -307,7 +322,7 @@ describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
     expect(result.units['unit-1'].hasMoved).toBe(true);
   });
 
-  it('grants one action at zero movement without a movement refresh (contract §19: "or make another legal attack" / "no full movement refresh")', () => {
+  it('the granted budget funds the advertised attack with hasActed still set (#1807)', () => {
     const state = setup();
     state.units['enemy-1'] = makeUnit({ id: 'enemy-1', owner: 'ai-1', position: { q: 2, r: 0 } });
     state.civilizations['ai-1'] = {
@@ -320,18 +335,24 @@ describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
     const result = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
     const attacker = result.units['unit-1']!;
 
-    expect(attacker.hasActed).toBe(false);
-    // The attack that made this unit eligible spent every movement point. Attack legality
-    // needs an action, not a movement refresh: before the grant was honoured it refused
-    // with no-action-points, so a lifetime charge bought nothing and the picker's
-    // "N units can act again" was a lie.
+    // The gate and the highlight layer agree: the granted action is offered and executes.
     expect(canSpendUnitAction(attacker, result.turn)).toBe(true);
     expect(canUnitAttackTarget(result, attacker, { q: 2, r: 0 })).toMatchObject({ ok: true });
-    // The highlight layer and the executor must agree: the target must be offered too.
     expect(getAttackTargets(result, attacker).map(target => target.coord)).toContainEqual({ q: 2, r: 0 });
-    // And the grant is never a movement refresh.
-    expect(attacker.movementPointsLeft).toBe(0);
+    // The budget is bounded: exactly the granted point, never the unit's full allowance.
+    expect(attacker.movementPointsLeft).toBe(1);
     expect(attacker.movementPointsLeft).toBeLessThan(UNIT_DEFINITIONS.warrior.movementPoints);
+  });
+
+  it('a unit that fought through its grant collects no idle round-end heal (the #1796 rule extended to the grant)', () => {
+    const state = setup();
+    state.units['unit-1'] = makeUnit({ id: 'unit-1', position: { q: 1, r: 0 }, health: 40 });
+    const seized = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
+    // Exactly what the granted attack leaves behind: acted, moved, budget spent — and
+    // the round-end recovery gates must see all of it.
+    const fought = seized.units['unit-1']!;
+    const afterFight: Unit = { ...fought, hasMoved: true, movementPointsLeft: 0 };
+    expect(healUnit(afterFight, false, false).health).toBe(40);
   });
 
   it('supersedes a rest commitment, so a unit that rests and then uses the granted action does not also collect the rest heal', () => {
@@ -358,7 +379,7 @@ describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
     expect(healed.health).toBe(40);
   });
 
-  it('a seized unit whose extra action is spent cannot attack a third time without another Seize', () => {
+  it('a seized unit whose granted budget is spent cannot attack again without another Seize', () => {
     const state = setup();
     state.units['enemy-1'] = makeUnit({ id: 'enemy-1', owner: 'ai-1', position: { q: 2, r: 0 } });
     state.civilizations['ai-1'] = {
@@ -369,7 +390,8 @@ describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
     state.civilizations.player.diplomacy = { ...state.civilizations.player.diplomacy, atWarWith: ['ai-1'] };
 
     const seized = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
-    // Exactly what applyCombatOutcomeToState writes after the granted attack resolves.
+    // Exactly what applyCombatOutcomeToState writes after the granted attack resolves:
+    // the granted budget is spent with it, so the same grant cannot fund a second attack.
     const spent: GameState = {
       ...seized,
       units: { ...seized.units, 'unit-1': { ...seized.units['unit-1']!, hasActed: true, hasMoved: true, movementPointsLeft: 0 } },
@@ -421,8 +443,170 @@ describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
     }
     state.civilizations.player.units = ['gen-1', 'unit-1', 'unit-2', 'unit-3', 'unit-4'];
     const result = issueSeizeTheMoment(state, 'gen-1', ['unit-1', 'unit-2', 'unit-3', 'unit-4']);
-    const resetCount = ['unit-1', 'unit-2', 'unit-3', 'unit-4'].filter(id => result.units[id].hasActed === false).length;
-    expect(resetCount).toBe(3);
+    // #1807: a grant is a typed marker write, so count the granted units by the marker,
+    // not by hasActed (which the grant no longer clears).
+    const grantedCount = ['unit-1', 'unit-2', 'unit-3', 'unit-4']
+      .filter(id => result.units[id].seizeGrantedBy?.turn === result.turn).length;
+    expect(grantedCount).toBe(3);
+  });
+
+  it('drops air-domain and route-committed units from the pool — a grant they cannot spend is never offered (#1807)', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'seize-3' });
+    state.units['gen-1'] = makeGeneral();
+    state.units['air-1'] = { ...makeUnit({ id: 'air-1', position: { q: 1, r: 0 }, hasActed: true }), type: 'biplane' };
+    state.units['trader-1'] = makeUnit({ id: 'trader-1', position: { q: 1, r: 0 }, hasActed: true, committedToRouteId: 'route-1', movementPointsLeft: 1 });
+    state.units['unit-1'] = makeUnit({ id: 'unit-1', position: { q: 1, r: 0 }, hasActed: true });
+    state.civilizations.player.units = ['gen-1', 'air-1', 'trader-1', 'unit-1'];
+
+    const { eligible } = getSeizeTheMomentEligibleUnits(state, 'gen-1');
+    expect(eligible.map(e => e.unitId)).toEqual(['unit-1']);
+  });
+
+  it('marks a candidate with a target in spendable range as spendable (#1807 wasted-charge guard)', () => {
+    const state = setup();
+    state.units['enemy-1'] = makeUnit({ id: 'enemy-1', owner: 'ai-1', position: { q: 2, r: 0 } });
+    state.civilizations['ai-1'] = {
+      ...state.civilizations['ai-1']!,
+      units: ['enemy-1'],
+      diplomacy: { ...state.civilizations['ai-1']!.diplomacy, atWarWith: ['player'] },
+    };
+    state.civilizations.player.diplomacy = { ...state.civilizations.player.diplomacy, atWarWith: ['ai-1'] };
+
+    const { eligible } = getSeizeTheMomentEligibleUnits(state, 'gen-1');
+    expect(eligible.find(e => e.unitId === 'unit-1')!.spendable).toBe(true);
+  });
+
+  it('marks a candidate that can spend nothing as unspendable with a reason, and refuses to burn the charge on it (#1807 wasted-charge guard)', () => {
+    const state = setup();
+    // Aboard a transport, with no attack target in range: cargo never walks and there is
+    // nothing to attack, so the grant would buy nothing.
+    state.units['ship-1'] = { ...makeUnit({ id: 'ship-1', position: { q: 1, r: 0 } }), type: 'transport' };
+    state.units['unit-1'] = makeUnit({ id: 'unit-1', hasActed: true, transportId: 'ship-1' });
+    state.civilizations.player.units = ['gen-1', 'unit-1', 'ship-1'];
+
+    const pool = getSeizeTheMomentEligibleUnits(state, 'gen-1');
+    expect(pool.eligible.map(e => e.unitId)).toEqual(['unit-1']);
+    expect(pool.eligible[0].spendable).toBe(false);
+    expect(pool.eligible[0].reason).toBeTruthy();
+
+    const result = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
+    expect(result).toBe(state); // nothing spendable -> no charge spent
+    expect(result.units['gen-1'].generalCommandChargesUsed).toBeUndefined();
+  });
+
+  it('#1807 — a granted unit is refused by every movement-free executor, in one table (closed by omission: the grant never clears hasActed)', () => {
+    // The unit exactly as the grant leaves it: acted, one granted point, live marker.
+    function grantedUnitState(seed: string, unit: Unit): GameState {
+      const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed });
+      state.units['unit-1'] = {
+        ...unit,
+        id: 'unit-1',
+        hasActed: true,
+        movementPointsLeft: 1,
+        seizeGrantedBy: { generalDefinitionId: 'gen_hannibal', turn: state.turn },
+      };
+      state.civilizations.player.units = ['unit-1'];
+      return state;
+    }
+    const warriorAt = (position: { q: number; r: number }) =>
+      makeUnit({ id: 'unit-1', position, hasActed: true, hasMoved: true, movementPointsLeft: 0 });
+
+    type RowKind = 'missing-list' | 'ok-result' | 'rest-availability';
+    const cases: Array<{ label: string; kind: RowKind; refusal: () => unknown }> = [
+      {
+        label: 'upgrade (the #1807 issue\'s first absorption)',
+        kind: 'missing-list',
+        refusal: () => {
+          const state = grantedUnitState('abs-upgrade', warriorAt({ q: 1, r: 0 }));
+          return evaluateUnitUpgrade(state, 'unit-1', 'spearman').missing;
+        },
+      },
+      {
+        label: 'pillage (the #1807 issue\'s heal+gold double dip)',
+        kind: 'ok-result',
+        refusal: () => {
+          const state = grantedUnitState('abs-pillage', warriorAt({ q: 1, r: 0 }));
+          const key = hexKey({ q: 1, r: 0 });
+          state.map.tiles[key] = { ...state.map.tiles[key]!, hasRoad: true, owner: 'ai-1' };
+          return applyPillageToState(state, 'unit-1');
+        },
+      },
+      {
+        label: 'propagandist Rally/Undermine (the #1807 issue\'s double civic action)',
+        kind: 'ok-result',
+        refusal: () => {
+          const state = grantedUnitState('abs-propagandist', {
+            ...warriorAt({ q: 1, r: 0 }), type: 'propagandist',
+          });
+          state.cities['own-city'] = {
+            ...state.cities[Object.keys(state.cities)[0]!],
+            id: 'own-city', name: 'Own City', owner: 'player', position: { q: 2, r: 0 },
+          };
+          return usePropagandistAction(state, 'unit-1', 'rally', 'own-city');
+        },
+      },
+      {
+        label: 'worker action',
+        kind: 'ok-result',
+        refusal: () => {
+          const state = grantedUnitState('abs-worker', { ...warriorAt({ q: 1, r: 0 }), type: 'worker' });
+          return applyWorkerAction(state, 'unit-1', 'farm');
+        },
+      },
+      {
+        label: 'transport load',
+        kind: 'ok-result',
+        refusal: () => {
+          const state = grantedUnitState('abs-load', warriorAt({ q: 1, r: 0 }));
+          state.units['ship-1'] = { ...makeUnit({ id: 'ship-1', position: { q: 0, r: 0 } }), type: 'transport' };
+          state.civilizations.player.units = ['unit-1', 'ship-1'];
+          return canLoadUnitOntoTransport(state, 'unit-1', 'ship-1');
+        },
+      },
+      {
+        label: 'transport unload (the civilian logistics action — only the granted assault opens)',
+        kind: 'ok-result',
+        refusal: () => {
+          const state = grantedUnitState('abs-unload', warriorAt({ q: 1, r: 0 }));
+          state.units['unit-1'] = {
+            ...state.units['unit-1']!,
+            transportId: 'ship-1',
+            position: { q: 0, r: 0 },
+          };
+          state.units['ship-1'] = {
+            ...makeUnit({ id: 'ship-1', position: { q: 0, r: 0 } }),
+            type: 'transport',
+            cargoUnitIds: ['unit-1'],
+          };
+          state.civilizations.player.units = ['unit-1', 'ship-1'];
+          return canUnloadUnitFromTransport(state, 'ship-1', 'unit-1', { q: 1, r: 0 });
+        },
+      },
+      {
+        label: 'rest (the #1796-restored supply-gated panel action)',
+        kind: 'rest-availability',
+        refusal: () => {
+          const state = grantedUnitState('abs-rest', {
+            ...warriorAt({ q: 1, r: 0 }), health: 40,
+            landSupply: { state: 'grace', hostileUnsupportedTurns: 2, suppliedTurnsSinceRecovery: 0 },
+          });
+          return getRestActionAvailability(state.units['unit-1']!);
+        },
+      },
+    ];
+
+    for (const { label, kind, refusal } of cases) {
+      const outcome = refusal();
+      // Every movement-free executor keeps its own !hasActed gate, which the grant
+      // never clears — each row must refuse, and the table proves it at once.
+      if (kind === 'missing-list') {
+        expect(outcome, label).toContainEqual({ kind: 'action-already-spent' });
+      } else if (kind === 'rest-availability') {
+        expect((outcome as ReturnType<typeof getRestActionAvailability>).available, label).toBe(false);
+      } else {
+        expect((outcome as { ok: boolean }).ok, label).toBe(false);
+      }
+    }
   });
 });
 
@@ -693,7 +877,22 @@ function stateWithActedUnits(seed: string, generalId: string, n: number) {
     } as Unit;
     ids.push(id);
   }
-  state.civilizations.player.units = ids;
+  // #1807: every candidate must be spendable (a hostile unit in attack range) so the
+  // activation counts stay about capacity, not about the generated map's terrain.
+  state.units['enemy-1'] = {
+    id: 'enemy-1', type: 'warrior', owner: 'ai-1', position: { q: 2, r: 0 },
+    movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+  } as Unit;
+  state.civilizations['ai-1'] = {
+    ...state.civilizations['ai-1']!,
+    units: ['enemy-1'],
+    diplomacy: { ...state.civilizations['ai-1']!.diplomacy, atWarWith: ['player'] },
+  };
+  state.civilizations.player.diplomacy = {
+    ...state.civilizations.player.diplomacy,
+    atWarWith: ['ai-1'],
+  };
+  state.civilizations.player.units = [...ids, 'enemy-1'];
   return { state, ids: ids.slice(1) };
 }
 
@@ -701,19 +900,21 @@ describe('#885 Seize the Moment extra-target for Bold Commander', () => {
   it('baseline (generalist) activates at most commandCapacity (3) units', () => {
     const { state, ids } = stateWithActedUnits('sz-base', 'gen_hannibal', 5);
     const after = issueSeizeTheMoment(state, 'gen-1', ids);
-    expect(ids.filter(id => after.units[id]!.hasActed === false)).toHaveLength(3);
+    // #1807: a grant is a typed marker write, so count grants, not hasActed clears.
+    expect(ids.filter(id => after.units[id]!.seizeGrantedBy?.turn === after.turn)).toHaveLength(3);
   });
   it('Bold Commander activates commandCapacity + 1 (4) units', () => {
     const { state, ids } = stateWithActedUnits('sz-init', 'gen_caesar', 5);
     const after = issueSeizeTheMoment(state, 'gen-1', ids);
-    expect(ids.filter(id => after.units[id]!.hasActed === false)).toHaveLength(4);
+    expect(ids.filter(id => after.units[id]!.seizeGrantedBy?.turn === after.turn)).toHaveLength(4);
   });
-  it('Bold Commander adds an extra target but still does NOT refund movement points', () => {
+  it('Bold Commander adds an extra target and still grants only the bounded budget, never a full allowance', () => {
     const { state, ids } = stateWithActedUnits('sz-mov', 'gen_caesar', 2);
     const after = issueSeizeTheMoment(state, 'gen-1', ids);
-    // The specialty widens Seize to one more unit; movement is still never refreshed, and
-    // the extra action comes from the per-turn grant instead.
-    expect(after.units[ids[0]!]!.movementPointsLeft).toBe(0);
+    // The specialty widens Seize to one more unit; the budget stays the one granted
+    // point, and the action comes from the per-turn grant instead of a refresh.
+    expect(after.units[ids[0]!]!.movementPointsLeft).toBe(1);
+    expect(after.units[ids[0]!]!.movementPointsLeft).toBeLessThan(3);
     expect(canSpendUnitAction(after.units[ids[0]!]!, after.turn)).toBe(true);
   });
 

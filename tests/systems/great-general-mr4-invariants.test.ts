@@ -4,6 +4,7 @@ import {
   getHeroicCommandEligibility, issueRally, issueSeizeTheMoment, issueLastStand,
 } from '@/systems/great-general-abilities';
 import { getPassiveStabilizationTargets } from '@/systems/great-general-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import type { Unit } from '@/core/types';
 
 function makeGeneral(overrides: Partial<Unit> = {}): Unit {
@@ -90,8 +91,10 @@ describe('#544 MR4 — hot-seat privacy', () => {
     expect(rallied.units['unit-1'].health).toBeGreaterThan(40); // sanity: Rally actually did something
     expect(rallied.civilizations[aiId]).toBe(aiCivBefore);
 
+    // #1807: the grant is the typed marker write — hasActed stays set. The marker
+    // appearing is the "Seize actually did something" fact the isolation claim needs.
     const seized = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
-    expect(seized.units['unit-1'].hasActed).toBe(false); // sanity: Seize actually did something
+    expect(seized.units['unit-1'].seizeGrantedBy).toMatchObject({ turn: seized.turn });
     expect(seized.civilizations[aiId]).toBe(aiCivBefore);
 
     const lastStood = issueLastStand(state, 'gen-1', { q: 1, r: 0 });
@@ -101,28 +104,40 @@ describe('#544 MR4 — hot-seat privacy', () => {
 });
 
 describe('#544 MR4 — movement bonus stacking policy (game-balance.md)', () => {
-  it('Seize the Moment never changes movementPointsLeft', () => {
+  it('Seize the Moment grants exactly its bounded budget, never a full refresh (#1807)', () => {
     const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'move-1' });
     state.units['gen-1'] = makeGeneral();
     state.units['unit-1'] = {
       id: 'unit-1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
       movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
     } as Unit;
+    // A target in spendable range keeps the grant deterministic on any generated map.
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units['enemy-1'] = {
+      id: 'enemy-1', type: 'warrior', owner: aiId, position: { q: 2, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.atWarWith = [aiId];
     state.civilizations.player.units = ['gen-1', 'unit-1'];
+    state.civilizations[aiId]!.units = ['enemy-1'];
 
     const result = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
-    expect(result.units['unit-1'].movementPointsLeft).toBe(0);
+    // §19's "no full movement refresh" now means exactly this: the bounded budget is
+    // SEIZE_GRANT_MOVEMENT_POINTS, and never the unit's full allowance back.
+    expect(result.units['unit-1'].movementPointsLeft).toBe(1);
+    expect(result.units['unit-1'].movementPointsLeft).toBeLessThan(UNIT_DEFINITIONS.warrior.movementPoints);
   });
 
-  it('no ability in great-general-abilities.ts writes to Unit.movementBonus or grants/refreshes movement (source grep)', async () => {
+  it('no ability in great-general-abilities.ts writes to Unit.movementBonus or grants/refreshes movement beyond the one sanctioned grant (source grep)', async () => {
     const fs = await import('node:fs');
     const source = fs.readFileSync('src/systems/great-general-abilities.ts', 'utf8');
     expect(source).not.toMatch(/movementBonus/);
-    // The one deliberate movement write is contract §17's "ends General's remaining
-    // action/movement": spendHeroicCommandCharge zeroes the ISSUING General's
-    // leftover movement. The stacking policy forbids any write that could ever
-    // *grant* or refresh movement, so every movementPointsLeft assignment must be
-    // the literal 0 consumption — anything else fails this guard.
-    expect(source).not.toMatch(/movementPointsLeft\s*:\s*(?!\s*0\b)\S/);
+    // Two deliberate movement writes, both contract-blessed: spendHeroicCommandCharge
+    // zeroes the ISSUING General's leftover movement (§17), and issueSeizeTheMoment
+    // grants the bounded SEIZE_GRANT_MOVEMENT_POINTS budget (§19, never a full refresh —
+    // `Math.max(unit.movementPointsLeft, SEIZE_GRANT_MOVEMENT_POINTS)` can never exceed
+    // it). The stacking policy forbids any other write, so anything else fails this guard.
+    expect(source).not.toMatch(/movementPointsLeft\s*:\s*(?!\s*(0\b|SEIZE_GRANT_MOVEMENT_POINTS\b|Math\.max\())\S/);
   });
 });

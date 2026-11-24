@@ -1,5 +1,5 @@
 import type { GameState, HeroicAbilityId, Unit } from '@/core/types';
-import type { EventBus } from '@/core/event-bus';
+import { EventBus } from '@/core/event-bus';
 import type { GeneralAbilityKind } from '@/core/types/general-presentation';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
 import { describeGeneralAbilityMoment } from '@/systems/great-general-ability-presentation';
@@ -24,6 +24,10 @@ import {
 } from '@/systems/great-general-abilities';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { hasAICombatRole } from '@/ai/ai-unit-roles';
+import { executeAIUnitAttack } from '@/ai/ai-unit-attack-execution';
+import { getAttackTargets } from '@/systems/attack-targeting';
+import { canUnitBombardCity, resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
 
 /**
@@ -127,22 +131,18 @@ export function evaluateSeizeOpportunity(state: GameState, generalUnitId: string
   const { eligibility, eligible, capacity } = getSeizeTheMomentEligibleUnits(state, generalUnitId);
   if (!eligibility.eligible) return null;
 
-  // Only `capacity` units are ever activated, and only combat-capable ones can use the
-  // grant, so the AI selects and scores exactly that set. Score therefore matches what the
-  // executor will do: a mixed pool can no longer inflate the value, and the executor is
-  // handed the attackers rather than id-sorted civilians that would consume the capacity.
-  const targets = eligible
-    .filter(entry => {
-      const unit = state.units[entry.unitId];
-      return Boolean(unit && hasAICombatRole(unit.type));
-    })
-    .slice(0, capacity);
-  if (targets.length === 0) return null;
+  // Only `capacity` units are ever activated, and only candidates that can actually spend the
+  // grant count (#1807: the same spendability the human picker disables rows for; a worker,
+  // settler or boxed-in unit can do nothing with a granted attack). The AI selects and scores
+  // exactly the set the executor will activate, so a mixed pool cannot inflate the value and an
+  // all-unspendable pool scores nothing, letting the decision layer pick another ability.
+  const activated = eligible.filter(entry => entry.spendable).slice(0, capacity);
+  if (activated.length === 0) return null;
 
   return {
     ability: 'seize_the_moment',
-    score: targets.length * SEIZE_COMBAT_UNIT_VALUE,
-    execute: s => issueSeizeTheMoment(s, generalUnitId, targets.map(e => e.unitId)),
+    score: activated.length * SEIZE_COMBAT_UNIT_VALUE,
+    execute: s => issueSeizeTheMoment(s, generalUnitId, activated.map(entry => entry.unitId)),
   };
 }
 
@@ -315,6 +315,64 @@ const ABILITY_MOMENT_KIND: Readonly<Record<HeroicAbilityId, GeneralAbilityKind>>
 };
 
 /**
+ * #1807: a successful AI Seize is followed through in the same round. Without this pass
+ * the grant would die unspent (the tactical planner has already run by the post-tactical
+ * phase, and its candidate filters skip `hasActed` units), so the AI would buy a lifetime
+ * charge for nothing — the exact gap the #1807 review's finding 3 names. Each granted
+ * unit spends its budget through the canonical executors: `executeAIUnitAttack` for the
+ * §19 headline attack (unit targets first, weakest defender then id for determinism),
+ * then the city-bombardment form for a siege unit with no unit target. A granted unit
+ * whose targets vanish mid-phase simply keeps its unspent grant, exactly as a human's
+ * unspent Moment does.
+ */
+function spendSeizeGrantsForAI(state: GameState, civId: string, bus?: EventBus): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ) return state;
+  // `executeAIUnitAttack` presents its fight through the round bus like every AI
+  // attack. Called without one (silent AI processing), a detached bus is the honest
+  // equivalent: the mechanical execution is identical, the events simply have no
+  // listener — the same contract applyCombatOutcomeToState already has with `bus?`.
+  const attackBus = bus ?? new EventBus();
+  let working = state;
+  for (const unitId of [...civ.units].sort((a, b) => a.localeCompare(b))) {
+    const unit = working.units[unitId];
+    if (!unit?.seizeGrantedBy || unit.seizeGrantedBy.turn !== working.turn || unit.seizeGrantedBy.spent === true) {
+      continue;
+    }
+    const unitTargets = getAttackTargets(working, unit, { viewerId: civId })
+      .map(target => target.result.targetType === 'unit' ? working.units[target.result.targetUnitId] : undefined)
+      .filter((defender): defender is Unit => defender !== undefined);
+    if (unitTargets.length > 0) {
+      const best = unitTargets
+        .sort((a, b) => a.health - b.health || a.id.localeCompare(b.id))[0];
+      if (best) {
+        working = executeAIUnitAttack(working, unit.id, best.id, civId, attackBus).state;
+        continue;
+      }
+    }
+    if (isCityBombardUnit(unit.type)) {
+      const city = Object.values(working.cities)
+        .filter(candidate => candidate.owner !== civId)
+        .filter(candidate => canUnitBombardCity(working, unit, candidate, { requireVisibility: true }).ok)
+        .sort((a, b) => a.id.localeCompare(b.id))[0];
+      if (city) {
+        const bombardment = resolveUnitCityBombardment(working, {
+          attackerUnitId: unit.id,
+          cityId: city.id,
+          source: 'ai',
+        });
+        if (bombardment.ok) {
+          if (bombardment.cityEvent) bus?.emit('city:bombarded', bombardment.cityEvent);
+          if (bombardment.batteryEvent) bus?.emit('city:coastal-battery-fired', bombardment.batteryEvent);
+          working = bombardment.state;
+        }
+      }
+    }
+  }
+  return working;
+}
+
+/**
  * Per-civ dispatch entry (called twice per round by the AI round
  * scheduler). 'pre-tactical' runs Rally and Last Stand (both should be
  * active before this civ's own combat and before the next turn's incoming
@@ -350,8 +408,16 @@ export function processAIGeneralCommand(
       // The observed event is feedback only: keep the map/audio fields, but never put the owner-only name or result
       // sentence on the AI round bus. A viewer who cannot see the General must not learn who acted or what it did.
       if (moment) bus?.emit('general:ai-command-used', { moment: { ...moment, generalName: '', summary: '' } });
+      // #1807: only Seize is executable in the post-tactical phase, so a changed state
+      // here means grants were issued — spend them before the round moves on.
+      if (phase === 'post-tactical') {
+        working = spendSeizeGrantsForAI(after, civId, bus);
+      } else {
+        working = after;
+      }
+    } else {
+      working = after;
     }
-    working = after;
   }
   return working;
 }
@@ -391,11 +457,22 @@ function specialtyNeed(state: GameState, civId: string, specialtyId: string): nu
       return units.filter(u => u.landSupply?.state === 'degraded' || u.landSupply?.state === 'severe').length;
     case 'initiative': {
       if (!visibility) return 0;
-      return units.filter(u => u.hasActed && Object.values(state.units).some(e =>
-        e.owner !== civId
-        && isAIHostileOwner(state, civId, e.owner)
-        && getVisibility(visibility, e.position) === 'visible'
-        && mapDistance(state.map, u.position, e.position) <= 1)).length;
+      // #1807: count only units a Seize grant could actually serve — the same shape the
+      // eligible pool filters to. Air units never walk a grant and strike through their
+      // own mission gates, a commissioned trader's allowance belongs to its route runner,
+      // and only a combat-capable unit can spend the grant on §19's "another legal
+      // attack"; counting raw acted units would inflate the need with units no Seize
+      // can help.
+      return units.filter(u =>
+        u.hasActed
+        && !u.committedToRouteId
+        && (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') !== 'air'
+        && hasAICombatRole(u.type)
+        && Object.values(state.units).some(e =>
+          e.owner !== civId
+          && isAIHostileOwner(state, civId, e.owner)
+          && getVisibility(visibility, e.position) === 'visible'
+          && mapDistance(state.map, u.position, e.position) <= 1)).length;
     }
     case 'mobile': {
       const capital = getCapitalCity(state, civId);

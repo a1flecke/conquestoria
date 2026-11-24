@@ -4,23 +4,15 @@ import {
   OPPONENT_CHALLENGE_PROFILES,
   resolveOpponentChallenge,
 } from '@/core/opponent-challenge';
-import type { CombatResult, GameState, Unit } from '@/core/types';
+import type { GameState, Unit } from '@/core/types';
 import type { AIStrategicRole, AIStrategicPlan } from '@/core/types/ai';
-import { resolveUnitVsUnitAttack } from '@/systems/attack-targeting';
 import { rebaseAircraft, resolveAirStrike, resolveReconMission, resolvePatrolMission, startIntercept } from '@/systems/air-operations-system';
 import { executeParadrop, executeAirAssault } from '@/systems/airborne-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
-import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
-import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
-import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
-import { resolveCombatEra } from '@/systems/era-resolution';
+import { getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import {
-  beginMajorCityAssault,
   canUnitOccupyCity,
-  emitMajorCityCaptureEvents,
-  recordCityCaptureCareerEvents,
-  resolveMajorCityCapture,
 } from '@/systems/city-capture-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { getVisibility } from '@/systems/fog-of-war';
@@ -43,12 +35,10 @@ import { executeUnitMove } from '@/systems/unit-movement-system';
 import {
   buildUnitOccupancy,
   getUnitIdsAtCoord,
-  hasHostileUnitAtCoord,
 } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { restUnit } from '@/systems/unit-healing';
 import { getRestAvailability } from '@/systems/supply-combat';
-import { buildCombatPresentation, buildCombatSpyIdentifications } from '@/systems/viewer-event-presentation';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import {
   createAIDecisionTrace,
@@ -67,6 +57,7 @@ import {
   type AITacticalContext,
 } from './ai-tactics';
 import { canUnitFulfillAIStrategicRole, countAIStrategicRoleCapabilities, getAIStrategicRoles } from './ai-unit-roles';
+import { executeAIUnitAttack, occupyMajorCity } from './ai-unit-attack-execution';
 import { isAIHostileOwner } from './ai-hostility';
 import { processAIUpgradesInPlace } from './ai-upgrades';
 import { createOperationalRouting, getOperationalRoute, type AIOperationalRouting } from './ai-operational-routing';
@@ -123,148 +114,9 @@ function tacticalTrace(
   });
 }
 
-function occupyMajorCity(
-  state: GameState,
-  cityId: string,
-  attackerId: string,
-  civId: string,
-  bus: EventBus,
-  precedingCombat?: CombatResult,
-  attackerMultiplier?: number,
-): { state: GameState; captured: boolean } {
-  const city = state.cities[cityId];
-  if (!city || !state.civilizations[city.owner]) {
-    return { state, captured: false };
-  }
-  const previousOwnerId = city.owner;
-  const assault = beginMajorCityAssault(
-    state,
-    attackerId,
-    cityId,
-    {
-      actor: 'ai',
-      civId,
-      bus,
-      precedingCombat,
-      attackerMultiplier,
-    },
-  );
-  // Return assault.state, NOT the original state, even on failure (#522 pre-merge
-  // review fix): a repelled assault still mutates state via counter-fire (attacker
-  // damaged or killed) and consumes the attacker's action (hasActed/movementPointsLeft).
-  // Discarding that back to the pre-assault state would silently "undo" a repel for the
-  // AI actor -- the attacker keeps full health, isn't marked as acted, and could be
-  // re-selected to retry the same doomed assault for free in the same turn. Before this
-  // mechanic, beginMajorCityAssault's only failure reachable from this call site
-  // ('invalid-post-combat-advance') never mutated state, so this bug was latent and
-  // harmless; 'repelled-by-city-defense' is the first failure mode that actually needs
-  // its state kept.
-  if (!assault.ok) return { state: assault.state, captured: false };
-  const capture = resolveMajorCityCapture(
-    assault.state,
-    cityId,
-    civId,
-    'occupy',
-    assault.state.turn,
-    bus,
-  );
-  emitMajorCityCaptureEvents(
-    state,
-    capture,
-    cityId,
-    civId,
-    previousOwnerId,
-    bus,
-  );
-  // #887 MR1: same transition-owned city-captured attribution as the human
-  // finalizePlayerCityAssaultChoice path — here precedingCombat (the
-  // garrison-breaking fight) is still in hand. Applied after event emission,
-  // which does not depend on careerEvents.
-  const withCareerEvents = recordCityCaptureCareerEvents(
-    capture.state,
-    cityId,
-    city.name,
-    civId,
-    attackerId,
-    precedingCombat,
-  );
-  return { state: withCareerEvents, captured: true };
-}
-
-function executeAttack(
-  state: GameState,
-  action: Extract<AITacticalAction, { kind: 'attack' | 'embarked-attack' }>,
-  civId: string,
-  bus: EventBus,
-  amphibiousAssault = false,
-): { state: GameState; followUps: AITacticalAction[] } {
-  const next = structuredClone(state);
-  const attacker = next.units[action.unitId];
-  const defender = next.units[action.targetUnitId];
-  if (!attacker || !defender || attacker.owner !== civId) {
-    return { state, followUps: [] };
-  }
-  if (!resolveUnitVsUnitAttack(next, attacker, defender, { viewerId: civId, requireVisibility: true }).ok) {
-    return { state, followUps: [] };
-  }
-
-  const seed = deterministicCombatSeed(next.gameId, next.turn, attacker.id, defender.id);
-  const combat = resolveCombat(
-    attacker,
-    defender,
-    next.map,
-    seed,
-    buildCombatContextForDefender(next, attacker, defender, { amphibiousAssault }),
-    resolveCombatEra(next, attacker, defender),
-  );
-  const presentation = buildCombatPresentation(next, combat, attacker, defender);
-  const applied = applyCombatOutcomeToState(next, combat, seed, bus);
-  let working = applied.state;
-  emitMinorCivQuestTransitions(bus, applied.questTransitions, working);
-  bus.emit('combat:resolved', {
-    result: combat,
-    ...presentation,
-    attackerCaptureKind: applied.attackerCaptureKind,
-    defenderCaptureKind: applied.defenderCaptureKind,
-    spyIdentifications: buildCombatSpyIdentifications(next, working, attacker, defender),
-  });
-  for (const reward of applied.rewards) {
-    bus.emit('combat:reward-earned', { reward });
-  }
-
-  const followUps: AITacticalAction[] = [];
-  if (applied.defenderDefeated) {
-    const city = Object.values(working.cities).find(candidate =>
-      hexKey(candidate.position) === hexKey(defender.position)
-      && candidate.owner !== civId);
-    const attackerAfterCombat = working.units[attacker.id];
-    const occupancy = buildUnitOccupancy(working.units);
-    if (
-      city
-      && attackerAfterCombat
-      && !hasHostileUnitAtCoord(occupancy, city.position, civId)
-      && working.civilizations[city.owner]
-    ) {
-      const capture = occupyMajorCity(
-        working,
-        city.id,
-        attacker.id,
-        civId,
-        bus,
-        combat,
-      );
-      if (capture.captured) {
-        working = capture.state;
-        followUps.push({
-          kind: 'capture-city',
-          unitId: attacker.id,
-          cityId: city.id,
-        });
-      }
-    }
-  }
-  return { state: working, followUps };
-}
+// #1807: occupyMajorCity and executeAttack moved verbatim to
+// `ai-unit-attack-execution.ts` so every AI attack caller (the tactical executor here,
+// the Seize-grant spending pass in ai-general-command) shares one implementation.
 
 function executeEmbarkedAttack(
   state: GameState,
@@ -279,9 +131,10 @@ function executeEmbarkedAttack(
   if (!legality.ok || legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) return { state, followUps: [] };
   const detached = detachCargoForEmbarkedAssault(state, cargo.id);
   if (!detached.ok) return { state, followUps: [] };
-  return executeAttack(
+  return executeAIUnitAttack(
     detached.state,
-    { kind: 'embarked-attack', unitId: cargo.id, targetUnitId: defender.id },
+    cargo.id,
+    defender.id,
     civId,
     bus,
     true,
@@ -387,7 +240,7 @@ function executeAction(
       return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
     }
     case 'attack': {
-      const attack = executeAttack(state, action, civId, bus);
+      const attack = executeAIUnitAttack(state, action.unitId, action.targetUnitId, civId, bus);
       return {
         state: attack.state,
         succeeded: attack.state !== state,

@@ -285,7 +285,7 @@ export function validateUnitMove(
     return movementFailure(from, target, path, 'unexplored', 'Move one step at a time into unexplored territory.');
   }
 
-  const budget = getUnitMovementBudget(unit);
+  const budget = getUnitMovementBudget(unit, state.turn);
   let cost = 0;
   for (let i = 1; i < path.length; i++) {
     cost += getMovementStepCostFor(costParams, state.map, path[i - 1]!, path[i]!);

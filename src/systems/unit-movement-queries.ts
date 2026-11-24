@@ -74,6 +74,10 @@ export function getMovementRange(
   // #871: owners whose closed territory this mover may not enter (`getDeniedTerritoryOwners`).
   // A denied tile is impassable outright -- unlike a blocking entity it is never a tap target.
   deniedOwnerIds?: ReadonlySet<string>,
+  // #1807: the current turn, for `getUnitMovementBudget`'s Seize-grant exception. Callers
+  // without a turn (hand-built fixtures) leave it unset, which is the conservative read:
+  // an acted unit's grant never opens walking that the caller cannot date.
+  turn?: number,
 ): HexCoord[] {
   const reachable: HexCoord[] = [];
   const visited = new Map<string, number>();
@@ -81,8 +85,8 @@ export function getMovementRange(
 
   const startKey = hexKey(unit.position);
   const costParams = movementStepCostParamsForType(unit.type, 'land', { ...options, owner: unit.owner });
-  visited.set(startKey, getUnitMovementBudget(unit));
-  queue.push({ coord: unit.position, remaining: getUnitMovementBudget(unit) });
+  visited.set(startKey, getUnitMovementBudget(unit, turn));
+  queue.push({ coord: unit.position, remaining: getUnitMovementBudget(unit, turn) });
 
   while (queue.length > 0) {
     const current = queue.shift()!;
@@ -200,8 +204,8 @@ export function getMovementRangeDetails(
   const visited = new Map<string, number>();
   const queue: Array<{ coord: HexCoord; remaining: number }> = [];
   const startKey = hexKey(unit.position);
-  visited.set(startKey, getUnitMovementBudget(unit));
-  queue.push({ coord: unit.position, remaining: getUnitMovementBudget(unit) });
+  visited.set(startKey, getUnitMovementBudget(unit, state.turn));
+  queue.push({ coord: unit.position, remaining: getUnitMovementBudget(unit, state.turn) });
 
   while (queue.length > 0) {
     const current = queue.shift()!;
