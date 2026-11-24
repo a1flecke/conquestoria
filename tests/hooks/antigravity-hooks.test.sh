@@ -73,7 +73,7 @@ trap 'rm -rf "$tmp"' EXIT
 
 # Create an isolated git repo with origin/main and a feature branch + a main checkout.
 bare="$tmp/origin.git"
-git init --bare -q "$bare"
+git init --bare -q -b main "$bare"
 main_repo="$tmp/main-repo"
 git init -q -b main "$main_repo"
 git -C "$main_repo" config user.email test@example.com
@@ -91,7 +91,7 @@ git -C "$main_repo" remote add origin "$bare"
 git -C "$main_repo" push -q origin main
 
 feat_repo="$tmp/feat-repo"
-git clone -q "$bare" "$feat_repo"
+git clone -q -b main "$bare" "$feat_repo"
 git -C "$feat_repo" config user.email test@example.com
 git -C "$feat_repo" config user.name Test
 git -C "$feat_repo" checkout -q -b feat/test
