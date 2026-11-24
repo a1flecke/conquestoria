@@ -131,17 +131,20 @@ function bilateralWar(state: GameState, a: string, b: string): void {
 describe('what the diplomacy controller tells a seat is viewer-safe (differential)', () => {
   it('acting on a civilization the seat has not met says nothing about it', () => {
     const state = buildState();
-    // The contact-gated actions (`ACTIONS_REQUIRING_CONTACT`), whose refusal is documented to cover "no such
-    // civilization" too. A non-gated action such as `request_peace` answers "not at war" for an unmet civ that
-    // exists and "not available" for one that does not, which this projection would catch: it is not reachable from
-    // the panel (it lists only met civilizations) and is reported as a known gap, not asserted here.
-    const actions: DiplomaticAction[] = ['declare_war', 'alliance', 'trade_agreement', 'demand_tribute'];
+    // Every kind of action, the treaty/war family and the rest. `request_peace` once answered "not at war" for an unmet
+    // civ that exists and "not available" for one that does not, which confirmed the civ existed; contact is now
+    // checked first for every action.
+    const actions: DiplomaticAction[] = [
+      'declare_war', 'request_peace', 'alliance', 'trade_agreement', 'demand_tribute', 'demand_withdrawal',
+      'offer_vassalage', 'petition_independence', 'release_vassal', 'defend_vassal', 'reabsorb_breakaway',
+    ];
     expectViewerSafety(surface, {
       world: { state, script: actions.map((action): Step => ({ op: 'action', target: STRANGER, action })) },
       viewerId: 'player',
       hidden: [
         edit('the unmet civilization is renamed', w => { w.state.civilizations[STRANGER]!.name = 'Outsiders'; }),
         edit('the unmet civilization is at war with a rival', w => bilateralWar(w.state, STRANGER, AI)),
+        edit('the unmet civilization is a vassal of a rival', w => { w.state.civilizations[STRANGER]!.diplomacy.vassalage.overlord = AI; }),
         edit('the unmet civilization is hostile to everyone', w => {
           for (const civ of Object.values(w.state.civilizations)) civ.diplomacy.relationships[STRANGER] = -90;
         }),
