@@ -21,10 +21,18 @@ Before editing, read the rule files that match the files you will touch. While i
 This repository's normal development work happens in a fresh linked worktree,
 never in the `main` checkout. Start every implementation task from the latest
 `origin/main`; do not edit, commit, rebase, merge, or switch branches in the
-base checkout. Prefer OpenCode's worktree flow. If Git worktree creation is
-needed directly, create a new task branch from `origin/main` and use the
-requester's explicit branch name or the active agent's approved prefix (Codex
-uses `codex/<issue-or-task>-<short-name>`).
+base checkout. Prefer OpenCode's worktree flow; `.opencode/opencode.jsonc` sets
+`worktree.directory` to the sibling `../conquestoria-worktrees`, so new
+OpenCode worktrees land at `conquestoria-worktrees/<name>`. Reuse your current
+worktree for follow-up fixes on the same task instead of creating another. If
+Git worktree creation is needed directly, put it in the same sibling directory
+(`git worktree add -b <branch> ../conquestoria-worktrees/<name> origin/main`
+from the canonical checkout) and use the requester's explicit branch name or
+the active agent's approved prefix (Codex uses
+`codex/<issue-or-task>-<short-name>`). OpenCode can create a worktree with a
+detached HEAD: check `git branch --show-current` and create a named branch
+with `git switch -c <branch>` before work, because the approval plugin only
+trusts a named non-default branch.
 
 In every new worktree, complete this bootstrap before meaningful work:
 

@@ -5,6 +5,14 @@
   // transcripts through OpenCode's separate sharing feature.
   "share": "disabled",
 
+  // OpenCode's default worktree location (~/.local/share/opencode/worktree/<id>/)
+  // sits outside the session's project, so every read, edit and shell call in
+  // the worktree prompted as an external directory and missed the approver's
+  // trusted root. Create worktrees in a sibling directory instead; OpenCode
+  // resolves this relative to the canonical checkout. Existing worktrees are
+  // not moved.
+  "worktree": { "directory": "../conquestoria-worktrees" },
+
   // V2 appends an agent's permission rules after global rules, and the last
   // matching rule wins. This gives the Conquestoria build agent routine
   // repository authority without weakening the user's global credential
@@ -15,6 +23,10 @@
   "agents": {
     "build": {
       "permissions": [
+        // The session stays rooted in the canonical checkout, so its own
+        // OpenCode worktree is an external directory without this.
+        { "action": "external_directory", "resource": "$HOME/development/github/conquestoria-worktrees/*", "effect": "allow" },
+
         { "action": "shell", "resource": "pwd", "effect": "allow" },
         { "action": "shell", "resource": "ls *", "effect": "allow" },
         { "action": "shell", "resource": "find *", "effect": "allow" },
