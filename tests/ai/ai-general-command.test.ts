@@ -177,7 +177,30 @@ describe('#544 MR5 — evaluateSeizeOpportunity', () => {
     const workerState = structuredClone(state);
     workerState.units['warrior-1'] = { ...workerState.units['warrior-1']!, type: 'worker' };
     const workerOpportunity = evaluateSeizeOpportunity(workerState, 'gen-1');
-    expect(workerOpportunity?.score ?? 0).toBeLessThan(combatOpportunity!.score);
+    // A non-combat unit cannot spend Seize's grant (movement is never refreshed), so the
+    // evaluator must not offer the charge at all.
+    expect(workerOpportunity).toBeNull();
+  });
+
+  it('selects the combat-capable units even when civilians sort first in the eligible pool', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'seize-mixed' });
+    state.units['gen-1'] = makeGeneral();
+    state.units['a-worker'] = {
+      id: 'a-worker', type: 'worker', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.units['z-warrior'] = {
+      id: 'z-warrior', type: 'warrior', owner: 'player', position: { q: 2, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.civilizations.player!.units = ['gen-1', 'a-worker', 'z-warrior'];
+
+    const opportunity = evaluateSeizeOpportunity(state, 'gen-1');
+    expect(opportunity?.score).toBe(40);
+    const after = opportunity!.execute(state);
+    // The id-sorted pool would have activated the worker first and wasted the grant.
+    expect(after.units['z-warrior']!.hasActed).toBe(false);
+    expect(after.units['a-worker']!.hasActed).toBe(true);
   });
 
   it('scores only the units one charge can activate, not the whole in-range pool', () => {
