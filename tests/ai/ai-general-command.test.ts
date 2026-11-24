@@ -199,8 +199,8 @@ describe('#544 MR5 — evaluateSeizeOpportunity', () => {
     expect(opportunity?.score).toBe(40);
     const after = opportunity!.execute(state);
     // The id-sorted pool would have activated the worker first and wasted the grant.
-    expect(after.units['z-warrior']!.hasActed).toBe(false);
-    expect(after.units['a-worker']!.hasActed).toBe(true);
+    expect(after.units['z-warrior']!.seizeGrantedBy).toMatchObject({ turn: after.turn });
+    expect(after.units['a-worker']!.seizeGrantedBy).toBeUndefined();
   });
 
   it('scores only the units one charge can activate, not the whole in-range pool', () => {

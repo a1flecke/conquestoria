@@ -136,7 +136,12 @@ export function evaluateSeizeOpportunity(state: GameState, generalUnitId: string
   // settler or boxed-in unit can do nothing with a granted attack). The AI selects and scores
   // exactly the set the executor will activate, so a mixed pool cannot inflate the value and an
   // all-unspendable pool scores nothing, letting the decision layer pick another ability.
-  const activated = eligible.filter(entry => entry.spendable).slice(0, capacity);
+  const activated = eligible
+    .filter(entry => {
+      const unit = state.units[entry.unitId];
+      return entry.spendable && Boolean(unit && hasAICombatRole(unit.type));
+    })
+    .slice(0, capacity);
   if (activated.length === 0) return null;
 
   return {
