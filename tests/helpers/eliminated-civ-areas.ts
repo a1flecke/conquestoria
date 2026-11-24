@@ -220,6 +220,13 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
       .filter(r => isEliminatedId(r.fromCivId, ctx) || isEliminatedId(r.toCivId, ctx))
       .map(r => `pending diplomacy request ${r.fromCivId}->${r.toCivId} still involves an eliminated civ`),
   },
+  borderConfrontations: {
+    kind: 'teardown',
+    why: 'no border confrontation is to or from a dead civ',
+    scan: (state, ctx) => (state.borderConfrontations ?? [])
+      .filter(r => isEliminatedId(r.hostCivId, ctx) || isEliminatedId(r.intruderCivId, ctx))
+      .map(r => `border confrontation ${r.hostCivId}->${r.intruderCivId} still involves an eliminated civ`),
+  },
   pendingEvents: {
     kind: 'teardown',
     why: 'the dead civ has no event queue and no other queue references it',

@@ -66,5 +66,13 @@ export interface DiplomacyEvents {
   'diplomacy:tribute-accepted': { demanderId: string; payerId: string; goldPerRound: number; rounds: number };
   'diplomacy:tribute-refused': { demanderId: string; payerId: string };
   'diplomacy:tribute-ended': { demanderId: string; payerId: string; reason: 'expired' | 'war' | 'vassalage' | 'eliminated' };
+  // #1766: border confrontations. `hostCivId` is the civ whose cities are threatened (the demander); `intruderCivId`
+  // is the civ asked to pull back. Recipient-scoped notifications never name a hidden unit or city.
+  'diplomacy:withdrawal-demanded': { hostCivId: string; intruderCivId: string; requestId: string };
+  'diplomacy:withdrawal-promised': { hostCivId: string; intruderCivId: string; deadlineTurn: number };
+  'diplomacy:withdrawal-refused': { hostCivId: string; intruderCivId: string };
+  'diplomacy:withdrawal-fulfilled': { hostCivId: string; intruderCivId: string };
+  'diplomacy:withdrawal-broken': { hostCivId: string; intruderCivId: string };
+  'diplomacy:withdrawal-invalidated': { hostCivId: string; intruderCivId: string };
   'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };
 }

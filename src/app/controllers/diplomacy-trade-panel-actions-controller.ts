@@ -9,6 +9,7 @@ import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { setCommerceResourcePolicy } from '@/systems/resource-market-offers';
 import { setFuelConservationPolicy } from '@/systems/resource-fuel-system';
 import { controlTradeRoute, type PanelActionsCommonDeps } from './panel-actions-shared';
+import { createBorderConfrontationActionsController } from './border-confrontation-actions-controller';
 
 export interface DiplomacyTradePanelActionsController {
   openDiplomacyPanel(focusMinorCivId?: string): void;
@@ -19,6 +20,14 @@ export function createDiplomacyTradePanelActionsController(
   deps: PanelActionsCommonDeps,
 ): DiplomacyTradePanelActionsController {
   let stopMarketplaceUpdates: (() => void) | null = null;
+  // #1766: a dedicated controller, so the border-confrontation feature does not expand the shared diplomacy
+  // controller. It only needs ports this controller already has.
+  const borderConfrontation = createBorderConfrontationActionsController({
+    session: deps.session,
+    bus: deps.bus,
+    showNotification: deps.showNotification,
+    openDiplomacyPanel: () => openDiplomacyPanel(),
+  });
 
   function closeMarketplacePanel(): void {
     stopMarketplaceUpdates?.();
@@ -72,6 +81,9 @@ export function createDiplomacyTradePanelActionsController(
       onProposeSettlement: deps.diplomacyActions.handleProposeSettlement,
       onAcceptSettlementOffer: deps.diplomacyActions.handleAcceptSettlementOffer,
       onRejectSettlementOffer: deps.diplomacyActions.handleRejectSettlementOffer,
+      onDemandWithdrawal: borderConfrontation.handleDemandWithdrawal,
+      onAcceptWithdrawalDemand: borderConfrontation.handleAcceptWithdrawalDemand,
+      onRefuseWithdrawalDemand: borderConfrontation.handleRefuseWithdrawalDemand,
       onClose: () => {},
     });
   }

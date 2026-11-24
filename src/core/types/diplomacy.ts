@@ -23,7 +23,8 @@ export type DiplomaticAction =
   | 'leave_league'
   | 'reabsorb_breakaway'
   | 'arms_control_pact'
-  | 'demand_tribute';
+  | 'demand_tribute'
+  | 'demand_withdrawal';
 
 export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance' | 'vassalage' | 'arms_control_pact' | 'tribute';
 
@@ -228,13 +229,38 @@ export interface DefensiveLeague {
  * load-time validator table in `src/storage/pending-request-normalization.ts` is typed over the union, so a new kind
  * cannot be added without saying how it is validated when a save is loaded.
  */
-export const PENDING_DIPLOMATIC_REQUEST_TYPES = ['peace', 'treaty', 'independence', 'settlement', 'tribute'] as const;
+export const PENDING_DIPLOMATIC_REQUEST_TYPES = ['peace', 'treaty', 'independence', 'settlement', 'tribute', 'withdrawal'] as const;
+
+/**
+ * #1766: one border confrontation's persistent outcome. A pending demand lives in
+ * `pendingDiplomacyRequests` (type `withdrawal`); this record is written when the recipient answers and is the
+ * canonical home of an accepted promise and of its resolution. `fromCivId`/`toCivId` on the request are the host
+ * (the civ whose cities are threatened) and the intruder being asked to pull back.
+ *
+ * A promise is live while `status === 'promised'`; the per-round reconciliation resolves it at `deadlineTurn` or
+ * invalidates it when war, vassalage, an alliance, Open Borders, or an elimination makes it moot. Only armed units
+ * inside the existing `BORDER_TENSION_RADIUS` count, through `hasBorderTension`.
+ */
+export interface BorderConfrontation {
+  /** The pending request id this outcome answered. */
+  id: string;
+  /** The approached civ -- the one whose cities are threatened. */
+  hostCivId: string;
+  /** The civ asked to withdraw. */
+  intruderCivId: string;
+  issuedTurn: number;
+  /** Last turn on which compliance is evaluated. Set only for an accepted promise. */
+  deadlineTurn?: number;
+  status: 'promised' | 'fulfilled' | 'broken' | 'refused' | 'invalidated';
+  /** Set when the record reached a terminal status. */
+  resolvedTurn?: number;
+}
 
 export interface PendingDiplomaticRequest {
   id: string;
   type: typeof PENDING_DIPLOMATIC_REQUEST_TYPES[number];
   treatyType?: TreatyType;        // set when type === 'treaty'
-  turnsRemaining?: number;         // treaty duration to sign with (mirrors AI decision: 10 for NAP, -1 otherwise)
+  turnsRemaining?: number;         // treaty duration to sign with (mirrors AI decision: 10 for NAP, -1 otherwise); for a withdrawal demand, the promise window on acceptance
   /** #988: set when type === 'settlement' -- a negotiated peace offer with
    * executable terms. An empty array is a valid (if unusual) settlement offer
    * carrying no terms beyond ending the war; plain unconditional white peace

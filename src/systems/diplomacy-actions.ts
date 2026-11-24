@@ -9,6 +9,7 @@ import type { CivilizationEra } from '@/systems/era-types';
 import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
 import { isVassalBlocked } from '@/systems/diplomacy-vassal-rules';
 import { TRIBUTE_DENIAL_MESSAGES, type TributeDenialReason } from '@/systems/diplomacy-tribute';
+import { BORDER_CONFRONTATION_DENIAL_MESSAGES, type BorderConfrontationDenialReason } from '@/systems/border-confrontation';
 
 // IDs must exist in TECH_TREE — see tests/systems/diplomacy-tech-gates.test.ts
 export const TRADE_TECHS = ['trade-routes', 'currency', 'banking'];
@@ -138,12 +139,14 @@ export const DIPLOMATIC_OFFER_DENIAL_MESSAGES: Record<DiplomaticActionOfferDenia
 export type DiplomaticActionDenialReason =
   | DiplomaticActionOfferDenial
   | TributeDenialReason
+  | BorderConfrontationDenialReason
   | 'not-met'
   | 'self-target'
   | 'not-available';  // no such relationship/vassal/breakaway, or the action has no execution path
 
 export const DIPLOMATIC_ACTION_DENIAL_MESSAGES: Record<DiplomaticActionDenialReason, string> = {
   ...TRIBUTE_DENIAL_MESSAGES,
+  ...BORDER_CONFRONTATION_DENIAL_MESSAGES,
   ...DIPLOMATIC_OFFER_DENIAL_MESSAGES,
   'not-met': 'You have not met them yet.',
   'self-target': 'You cannot do that to yourself.',

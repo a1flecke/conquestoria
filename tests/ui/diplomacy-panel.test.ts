@@ -1557,4 +1557,22 @@ describe('diplomacy-panel border tension', () => {
     const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
     expect(panel.innerHTML).not.toContain('souring');
   });
+
+  it('offers a withdrawal demand only from a rival unit the player can actually see', () => {
+    const { container, state } = makeDiplomacyFixture({ includeThirdCiv: true });
+    const playerCity = state.cities[state.civilizations.player.cities[0]]!;
+    const unit = createUnit('warrior', 'outsider', { q: playerCity.position.q + 1, r: playerCity.position.r }, state.idCounters);
+    state.units[unit.id] = unit;
+    state.civilizations.outsider.units.push(unit.id);
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations.outsider.knownCivilizations = ['player'];
+
+    const hidden = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+    expect(hidden.innerHTML).not.toContain('Demand withdrawal');
+
+    state.civilizations.player.visibility.tiles[`${unit.position.q},${unit.position.r}`] = 'visible';
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+    expect(panel.innerHTML).toContain('Demand withdrawal');
+    expect(panel.innerHTML).toContain('Their armed units are near your cities');
+  });
 });

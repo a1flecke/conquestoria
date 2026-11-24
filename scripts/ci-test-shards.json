@@ -7,6 +7,7 @@
   "files": {
     "tests/main.integration.test.ts": 3.443359375,
     "tests/smoke.test.ts": 0.7158203125,
+    "tests/app/controllers/border-confrontation-actions-controller.test.ts": 5.261962890625,
     "tests/audio/audio-catalog.test.ts": 20.276611328125,
     "tests/audio/audio-loader.test.ts": 148.024169921875,
     "tests/audio/audio-mixer.test.ts": 9.1416015625,
@@ -310,6 +311,7 @@
     "tests/storage/tribute-save.test.ts": 345.507080078125,
     "tests/storage/unit-placement-migrations.test.ts": 176.25146484375,
     "tests/storage/vassalage-normalization.test.ts": 179.169189453125,
+    "tests/systems/border-confrontation.test.ts": 15.48193359375,
     "tests/testing/canvas-ops.test.ts": 2.30322265625,
     "tests/testing/e2e-mode.test.ts": 1.072998046875,
     "tests/testing/e2e-runtime.test.ts": 208.90966796875,
@@ -340,6 +342,7 @@
     "tests/ui/beast-hoard-panel.test.ts": 75.508056640625,
     "tests/ui/beast-sighting-banner.test.ts": 73.7109375,
     "tests/ui/bestiary-panel.test.ts": 68.69677734375,
+    "tests/ui/border-confrontation-controls.test.ts": 66.08349609375,
     "tests/ui/campaign-entry-flow.test.ts": 371.545654296875,
     "tests/ui/campaign-setup.test.ts": 2783.5244140625,
     "tests/ui/city-action-preview.test.ts": 73.81640625,
@@ -906,7 +909,8 @@
   },
   "shards": {
     "test-suite-shard-a": [
-      "tests/simulation/minor-civ-graduation-campaign.test.ts"
+      "tests/simulation/minor-civ-graduation-campaign.test.ts",
+      "tests/ui/border-confrontation-controls.test.ts"
     ],
     "test-suite-shard-b": [
       "tests/ai/ai-bombardment.test.ts",
@@ -929,6 +933,7 @@
       "tests/ai/basic-ai-worker-roads.test.ts",
       "tests/app/architecture/retired-market.test.ts",
       "tests/app/bootstrap.test.ts",
+      "tests/app/controllers/border-confrontation-actions-controller.test.ts",
       "tests/app/controllers/diplomacy-actions-controller.test.ts",
       "tests/app/controllers/map-interaction-controller.test.ts",
       "tests/app/controllers/panel-actions-controller.test.ts",
@@ -1649,6 +1654,7 @@
       "tests/systems/battle-forecast.test.ts",
       "tests/systems/beast-balance.test.ts",
       "tests/systems/binary-heap.test.ts",
+      "tests/systems/border-confrontation.test.ts",
       "tests/systems/breakaway-system.test.ts",
       "tests/systems/breakaway-unit-records.test.ts",
       "tests/systems/bugfix-playtest.test.ts",

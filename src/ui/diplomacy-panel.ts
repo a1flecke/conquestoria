@@ -1,5 +1,6 @@
 import { createVassalageControls } from '@/ui/vassalage-controls';
 import { createTributeControls } from '@/ui/tribute-controls';
+import { createBorderConfrontationControls } from '@/ui/border-confrontation-controls';
 import type { GameState } from '@/core/types';
 import type { DiplomaticAction, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types/diplomacy';
 import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
@@ -61,6 +62,11 @@ export interface DiplomacyPanelCallbacks {
   onProposeSettlement?: (targetCivId: string, terms: SettlementTerm[]) => void;
   onAcceptSettlementOffer?: (requestId: string) => void;
   onRejectSettlementOffer?: (requestId: string) => void;
+  /** #1766: the player demands that an AI pull its armed units back from the player's cities. */
+  onDemandWithdrawal?: (targetCivId: string) => void;
+  /** #1766: the player answers an incoming withdrawal demand. */
+  onAcceptWithdrawalDemand?: (requestId: string) => void;
+  onRefuseWithdrawalDemand?: (requestId: string) => void;
   onClose: () => void;
   /** A minor civ id to scroll to and highlight on open (e.g. the Council's
    * "Review quest" card action) -- matches `WonderAtlasCallbacks.initialWonderId`'s
@@ -692,6 +698,7 @@ export function createDiplomacyPanel(
         ${treatiesHtml}
         <div data-role="vassalage-${row.civIdx}"></div>
         <div data-role="tribute-${row.civIdx}"></div>
+        <div data-role="border-confrontation-${row.civIdx}"></div>
         ${settlementOfferHtml}
         ${actionsHtml}
       </div>
@@ -769,6 +776,12 @@ export function createDiplomacyPanel(
       onAction: (target, action) => { panel.remove(); callbacks.onAction(target, action); },
       onAcceptTreatyProposal: id => { panel.remove(); callbacks.onAcceptTreatyProposal?.(id); },
       onDeclineTreatyProposal: id => { panel.remove(); callbacks.onDeclineTreatyProposal?.(id); },
+    }));
+    panel.querySelector(`[data-role="border-confrontation-${row.civIdx}"]`)?.append(createBorderConfrontationControls(state, row.civId, {
+      ...callbacks,
+      onDemandWithdrawal: target => { panel.remove(); callbacks.onDemandWithdrawal?.(target); },
+      onAcceptWithdrawalDemand: id => { panel.remove(); callbacks.onAcceptWithdrawalDemand?.(id); },
+      onRefuseWithdrawalDemand: id => { panel.remove(); callbacks.onRefuseWithdrawalDemand?.(id); },
     }));
     setText(`civ-name-${row.civIdx}`, row.name);
     setText(`civ-bonus-${row.civIdx}`, row.bonusName);

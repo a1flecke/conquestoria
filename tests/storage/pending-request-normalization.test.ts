@@ -10,10 +10,16 @@ import { applyDiplomaticAction, acceptDiplomaticRequest } from '@/systems/diplom
 import { enqueuePeaceRequest, enqueueTreatyProposal, CONSENT_TREATY_TYPES } from '@/systems/diplomacy-requests';
 import { enqueueSettlementOffer } from '@/systems/settlement-system';
 import { demandTribute } from '@/systems/diplomacy-tribute';
+import { demandWithdrawal } from '@/systems/border-confrontation';
 import { EventBus } from '@/core/event-bus';
 import { makeVassalageFixture } from '../systems/helpers/vassalage-fixture';
 import { makeWarGoalFixture } from '../systems/helpers/war-goal-fixture';
 import { makeTributeState, DEMANDER as TRIBUTE_DEMANDER, TARGET as TRIBUTE_TARGET } from '../systems/helpers/tribute-fixture';
+import {
+  HOST as BORDER_HOST,
+  INTRUDER as BORDER_INTRUDER,
+  makeBorderConfrontationState,
+} from '../systems/helpers/border-confrontation-fixture';
 
 /** Like `makeTributeState` but with the request queue cleared and `state.turn`
  *  pinned to a value that gives `demandTribute` room to enqueue without TTL
@@ -66,6 +72,9 @@ const VALID: Record<Kind, (state: GameState) => PendingDiplomaticRequest> = {
     ...base(s), id: 'tribute:third:overlord', type: 'tribute', fromCivId: 'third', toCivId: 'overlord', turnsRemaining: 10,
     tribute: { demanderId: 'third', payerId: 'overlord', goldPerRound: 8, rounds: 10 },
   }),
+  withdrawal: s => ({
+    ...base(s), id: 'withdrawal:third:overlord', type: 'withdrawal', fromCivId: 'third', toCivId: 'overlord', turnsRemaining: 5,
+  }),
 };
 
 /** One way to damage each kind's payload. Typed over the union too. */
@@ -89,6 +98,7 @@ const DAMAGE: Record<Kind, Array<[string, (r: PendingDiplomaticRequest) => void]
     ['huge gold', r => { r.tribute!.goldPerRound = 9999; }],
     ['long term', r => { r.tribute!.rounds = 500; }],
   ],
+  withdrawal: [['self-addressed', r => { r.toCivId = r.fromCivId; }]],
 };
 
 const reload = (state: GameState): GameState =>
@@ -253,6 +263,12 @@ describe('every canonical writer round-trips through save/load (#1370)', () => {
       const request = result.request;
       return { state: result.state, request, writer: 'demandTribute' };
     },
+    withdrawal: () => {
+      const bus = new EventBus();
+      const result = demandWithdrawal(makeBorderConfrontationState(), BORDER_HOST, BORDER_INTRUDER, bus);
+      if (!result.ok) throw new Error(`canonical withdrawal demand refused: ${result.reason}`);
+      return { state: result.state, request: result.request, writer: 'demandWithdrawal' };
+    },
   };
 
   it.each(PENDING_DIPLOMATIC_REQUEST_TYPES)('%s writer round-trips byte-identical through migrateSaveToCurrent', kind => {
@@ -280,6 +296,7 @@ describe('every canonical writer round-trips through save/load (#1370)', () => {
     expect(source).toMatch(/applyDiplomaticAction\([^)]*'petition_independence'/);
     expect(source).toMatch(/enqueueSettlementOffer\(/);
     expect(source).toMatch(/demandTribute\(/);
+    expect(source).toMatch(/demandWithdrawal\(/);
   });
 });
 
@@ -324,6 +341,12 @@ describe('identity-on-game-written-state: every kind survives normalizeVassalage
         const before = makeTributeWorld();
         const result = demandTribute(before, TRIBUTE_DEMANDER, TRIBUTE_TARGET, bus);
         if (!result.ok) throw new Error(`canonical tribute demand refused: ${result.reason}`);
+        state = result.state;
+        break;
+      }
+      case 'withdrawal': {
+        const result = demandWithdrawal(makeBorderConfrontationState(), BORDER_HOST, BORDER_INTRUDER, bus);
+        if (!result.ok) throw new Error(`canonical withdrawal demand refused: ${result.reason}`);
         state = result.state;
         break;
       }
