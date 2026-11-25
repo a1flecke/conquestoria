@@ -154,7 +154,9 @@ against #1413/#1113/#1127 long after they closed, none of which still reproduced
 
 The snapshot is refreshed with `./scripts/dev.sh known-gap-owners-refresh` after any `issue:` change and verified
 live with `./scripts/dev.sh known-gap-owners`; `run-ai-long-horizon.sh` runs that live check first so a closed owner
-fails in seconds instead of after the run (exit 3, GitHub unreachable, only warns).
+fails in seconds instead of after the run (exit 3, GitHub unreachable, only warns). The offline snapshot cannot see
+an owner close later, so the closing side is guarded too: `./scripts/pr-body.sh check` (run by `create`) refuses a
+PR body that closes an issue the branch's register still names as an owner (#1784's entry outlived its fix that way).
 
 When the whole matrix cannot finish inside one invocation (see Runtime), the in-test ratchet never fires because it
 requires every scenario in one vitest run. Run the scenarios in pieces (`yarn test:ai-long -t <seed>`), then evaluate

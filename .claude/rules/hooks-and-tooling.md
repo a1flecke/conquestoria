@@ -1008,7 +1008,11 @@ repo, each a fresh permission prompt (or a refused write). **Every PR body lives
 Names are validated (no separators, `..`, leading dots), the directory must be a real directory you
 own (a symlink is refused), and nothing touches a path outside it — so allowing the directory does
 not widen what an agent can write. `check` prints every "Closes/Fixes/Resolves #N" line as a
-reminder that merging will close those issues (never write one for a follow-up MR's issue). Set
+reminder that merging will close those issues (never write one for a follow-up MR's issue). It **fails** when the
+body closes an issue that this branch's long-horizon known-gap register (`known-campaign-gaps.ts`) still names as an
+owner: merging would leave an entry with a closed owner and stop `yarn test:ai-long` from starting for everyone (this
+happened to #1784's entry). Remove or reassign the entry and refresh the owner snapshot first;
+`PR_BODY_GAP_REGISTER` points the check at another register (tests use a fixture). Set
 `PR_BODY_FOOTER` to have `create`/`update` append an attribution line (to a temporary copy, once).
 `clean --days N` removes old bodies from that directory only.
 
