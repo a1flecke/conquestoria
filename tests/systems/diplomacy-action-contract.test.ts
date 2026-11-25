@@ -22,6 +22,7 @@ import {
   OFFERED_DIPLOMATIC_ACTIONS,
 } from '@/systems/diplomacy-actions';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { expectViewerSafety, type ViewerSurface, type WorldMutation } from '../helpers/viewer-safety';
 
 const ALL_ACTIONS: readonly DiplomaticAction[] = [
   'declare_war', 'request_peace', 'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance',
@@ -163,6 +164,41 @@ describe('#1221 diplomatic executor revalidates the offer surface', () => {
         const b = resolveDiplomaticAction(secretVassal, 'player', 'ai-1', action);
         expect(a, action).toEqual({ ok: false, reason: 'not-met' });
         expect(b, action).toEqual(a);
+      }
+    });
+
+    it('a refusal towards an unmet civ, for every action, says nothing about it, not even that it exists', () => {
+      // Exhaustive by construction: a new DiplomaticAction is a compile error here until it is listed.
+      const EVERY_ACTION = {
+        declare_war: true, request_peace: true, non_aggression_pact: true, trade_agreement: true, open_borders: true,
+        alliance: true, offer_vassalage: true, petition_independence: true, release_vassal: true, defend_vassal: true,
+        propose_embargo: true, join_embargo: true, leave_embargo: true, propose_league: true, invite_to_league: true,
+        petition_league: true, leave_league: true, reabsorb_breakaway: true, arms_control_pact: true,
+        demand_tribute: true, demand_withdrawal: true,
+      } as const satisfies Record<DiplomaticAction, true>;
+      const actions = Object.keys(EVERY_ACTION) as DiplomaticAction[];
+      const surface: ViewerSurface<GameState, unknown> = {
+        name: 'diplomatic action refusals',
+        project: (state, viewerId) => actions.map(action => [action, resolveDiplomaticAction(state, viewerId, 'ai-1', action)]),
+      };
+      const edit = (label: string, apply: (state: GameState) => void): WorldMutation<GameState> => ({ label, apply });
+      expectViewerSafety(surface, {
+        world: unlock(baseGame(), 4),
+        viewerId: 'player',
+        hidden: [
+          edit('there is no such civilization', state => { delete state.civilizations['ai-1']; }),
+          edit('the unmet civ is a vassal', state => { state.civilizations['ai-1'].diplomacy.vassalage.overlord = 'ai-2'; }),
+          edit('the unmet civ holds a vassal', state => { state.civilizations['ai-1'].diplomacy.vassalage.vassals = ['ai-2']; }),
+          edit('the unmet civ broke away from someone else', state => {
+            state.civilizations['ai-1'].breakaway = { originOwnerId: 'ai-2' } as never;
+          }),
+          edit('the unmet civ is at war with someone else', state => { state.civilizations['ai-1'].diplomacy.atWarWith = ['ai-2']; }),
+        ],
+        earned: [edit('the actor meets the civ', meet)],
+      });
+      for (const action of actions) {
+        expect(resolveDiplomaticAction(unlock(baseGame(), 4), 'player', 'ai-1', action), action)
+          .toEqual({ ok: false, reason: 'not-met' });
       }
     });
 

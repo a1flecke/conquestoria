@@ -184,12 +184,6 @@ export type DiplomaticActionEligibility =
   | { ok: true }
   | { ok: false; reason: DiplomaticActionDenialReason };
 
-/** Actions that write a treaty or war record: never against a civ the actor has not met (#435). */
-const ACTIONS_REQUIRING_CONTACT: ReadonlySet<DiplomaticAction> = new Set<DiplomaticAction>([
-  'declare_war', 'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance', 'arms_control_pact', 'demand_tribute',
-  'demand_withdrawal',
-]);
-
 /**
  * The single answer to "may `actorId` do `action` to `targetCivId` right now, and if not why" (#1221).
  *
@@ -197,9 +191,13 @@ const ACTIONS_REQUIRING_CONTACT: ReadonlySet<DiplomaticAction> = new Set<Diploma
  * decision loop all ask this, so a direct call cannot do what the panel would withhold. It is omniscient
  * validation; the copy for a refusal never names a civilization.
  *
- * Contact is checked before anything that would describe the other civ (vassal status, treaties), so a refusal
- * towards an unmet civ cannot leak what it is. Legality is not willingness: an AI declining a legal proposal is
- * an outcome, not a denial here.
+ * Contact is checked first, for every action, before anything that would describe the other civ (vassal status,
+ * treaties, war): an unmet civ and a civ that does not exist both get `not-met`, so a refusal cannot confirm that a
+ * civilization exists or say anything about it. No action is lost by this: every action outside the treaty/war
+ * family already needs a relationship that is contact evidence (`request_peace` a war, the vassal actions a
+ * vassalage treaty, `reabsorb_breakaway` a breakaway origin, `offer_vassalage` checks contact itself), and the
+ * embargo/league actions have no execution path. It is also the #435 guard: no treaty or war record is ever written
+ * between unmet civs. Legality is not willingness: an AI declining a legal proposal is an outcome, not a denial here.
  */
 export function resolveDiplomaticAction(
   state: GameState,
@@ -209,13 +207,12 @@ export function resolveDiplomaticAction(
 ): DiplomaticActionEligibility {
   const deny = (reason: DiplomaticActionDenialReason): DiplomaticActionEligibility => ({ ok: false, reason });
   const actor = state.civilizations[actorId];
-  const target = state.civilizations[targetCivId];
-  const needsContact = ACTIONS_REQUIRING_CONTACT.has(action);
-  if (!actor || !target) return deny(needsContact ? 'not-met' : 'not-available');
+  if (!actor) return deny('not-available');
   if (actorId === targetCivId) return deny('self-target');
-  // Issue #435 guard: a treaty (or war record) between unmet civs becomes contact "evidence" and cascades
-  // into mass discovery on the next visibility sync.
-  if (needsContact && !hasMetCivilization(state, actorId, targetCivId)) return deny('not-met');
+  const target = state.civilizations[targetCivId];
+  // An unmet civ and a missing one are the same answer (`hasMetCivilization` is false for both). Issue #435: a treaty
+  // or war record between unmet civs would become contact "evidence" and cascade into mass discovery.
+  if (!target || !hasMetCivilization(state, actorId, targetCivId)) return deny('not-met');
 
   if (isVassalBlocked(action, Boolean(actor.diplomacy.vassalage.overlord))) return deny('vassal-restricted');
   if (action !== 'declare_war' && isVassalBlocked(action, Boolean(target.diplomacy.vassalage.overlord))) {
