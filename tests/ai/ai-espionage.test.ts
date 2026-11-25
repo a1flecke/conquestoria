@@ -1220,3 +1220,67 @@ describe('AI debriefs a spy that came back from capture', () => {
     expect(after.espionage!['ai-egypt'].spies['spy-out'].debriefUntilTurn).toBeUndefined();
   });
 });
+
+// #1723: a second AI spy used to walk to the nearest rival city even when the civ already had a spy
+// working inside it, then idle beside it forever (the infiltration pass skipped it as "already inside").
+describe('AI spy movement skips a city it already covers (#1723)', () => {
+  const FREE = { q: 5, r: 0 };
+  const SPY_AT = { q: 1, r: 0 };
+
+  function coveredState(): GameState {
+    const state = makeAiTestState();
+    state.cities['city-player-2'] = {
+      ...structuredClone(state.cities['city-player-1']), id: 'city-player-2', name: 'Outpost', position: FREE,
+    };
+    state.civilizations.player.cities = ['city-player-1', 'city-player-2'];
+    for (let q = -1; q <= 6; q++) {
+      state.map.tiles[hexKey({ q, r: 0 })] = {
+        coord: { q, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none',
+        owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+      state.civilizations['ai-egypt'].visibility.tiles[hexKey({ q, r: 0 })] = 'visible';
+    }
+    state.units['spy-free'] = { ...createUnit('spy_scout', 'ai-egypt', SPY_AT, { ...state.idCounters }), id: 'spy-free' };
+    state.civilizations['ai-egypt'].units = ['spy-free'];
+    let aiEsp: EspionageCivState = { ...createEspionageCivState(), maxSpies: 2, counterIntelligence: { 'city-egypt-1': 1 } };
+    ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'spy-free', 'ai-egypt', 'spy_scout', 'seed-1723-a'));
+    ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'spy-inside', 'ai-egypt', 'spy_scout', 'seed-1723-b'));
+    aiEsp = {
+      ...aiEsp,
+      spies: {
+        ...aiEsp.spies,
+        'spy-inside': {
+          ...aiEsp.spies['spy-inside'], status: 'stationed', infiltrationCityId: 'city-player-1',
+          targetCivId: 'player', targetCityId: 'city-player-1', currentMission: null,
+        },
+      },
+    };
+    state.espionage = { ...state.espionage, 'ai-egypt': aiEsp };
+    return state;
+  }
+
+  it('heads for a rival city it has not covered instead of idling beside the covered one', () => {
+    const after = processAITurn(coveredState(), 'ai-egypt', new EventBus());
+    const spy = after.units['spy-free'];
+    expect(spy, 'the spy is still on the map').toBeDefined();
+    expect(spy.position.q).toBeGreaterThan(SPY_AT.q);
+  });
+
+  it('never puts a second spy inside the covered city, and approaches the uncovered one over several turns', () => {
+    let current = coveredState();
+    const bus = new EventBus();
+    for (let i = 0; i < 6; i++) {
+      // processAITurn does not reset movement (the round does); refresh the spy as a new round would.
+      const spy = current.units['spy-free'];
+      const refreshed = spy ? { ...current.units, 'spy-free': { ...spy, hasMoved: false, hasActed: false, movementPointsLeft: 3 } } : current.units;
+      current = processAITurn({ ...current, turn: current.turn + 1, units: refreshed }, 'ai-egypt', bus);
+    }
+    const spies = Object.values(current.espionage!['ai-egypt'].spies);
+    const insideCovered = spies.filter(s => s.infiltrationCityId === 'city-player-1'
+      && ['stationed', 'on_mission', 'cooldown'].includes(s.status));
+    expect(insideCovered).toHaveLength(1);
+    const free = current.units['spy-free'];
+    const arrivedOrInside = free ? free.position.q >= 4 : current.espionage!['ai-egypt'].spies['spy-free'].infiltrationCityId === 'city-player-2';
+    expect(arrivedOrInside).toBe(true);
+  });
+});

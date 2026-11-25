@@ -1,4 +1,4 @@
-import type { City, GameState, Unit } from '@/core/types';
+import type { City, EspionageCivState, GameState, Unit } from '@/core/types';
 import { mapDistance } from './hex-utils';
 import { isSpyUnitType } from './spy-unit-types';
 
@@ -12,6 +12,21 @@ import { isSpyUnitType } from './spy-unit-types';
  * Cities stand at least four tiles apart, so at most one city is ever adjacent; the id order only
  * makes the answer deterministic if that ever changed.
  */
+/**
+ * Whether a civilization already has a spy working inside `cityId` (stationed, on a mission, or cooling
+ * down after one). A second infiltration is refused, so the AI neither walks a spy to such a city nor
+ * leaves one idling beside it (#1723).
+ */
+export function hasSpyInsideCity(
+  civEsp: Pick<EspionageCivState, 'spies'>,
+  cityId: string,
+): boolean {
+  return Object.values(civEsp.spies).some(
+    spy => spy.infiltrationCityId === cityId
+      && (spy.status === 'stationed' || spy.status === 'on_mission' || spy.status === 'cooldown'),
+  );
+}
+
 export function getInfiltrationTargetCity(
   state: GameState,
   spy: Pick<Unit, 'owner' | 'type' | 'position'>,
