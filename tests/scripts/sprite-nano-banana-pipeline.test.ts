@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -53,6 +53,14 @@ function makeSandbox(): Sandbox {
       cpSync(src, join(root, 'design/png-sprites/previews', unit), { recursive: true });
     }
   }
+  // A fictional, never-shipped biped spec for the end-to-end tests (real units, axeman included, ship and
+  // then stop being "new"): the shipped axeman spec re-identified as `testbiped`.
+  const fixtureSpec = JSON.parse(readFileSync(join(REPO, 'scripts/sprite-puppet/strip-rigs/axeman.json'), 'utf8')) as { id: string };
+  fixtureSpec.id = 'testbiped';
+  writeFileSync(join(root, 'scripts/sprite-puppet/strip-rigs/testbiped.json'), JSON.stringify(fixtureSpec, null, 2));
+  // The sandbox has no shipped Nano Banana preview (only `testbiped` is produced here), so start its ledger row at 0.
+  const ledgerPath = join(root, 'docs/asset-rights-ledger.md');
+  writeFileSync(ledgerPath, readFileSync(ledgerPath, 'utf8').replace(/\| Nano Banana \(unit strips\) \| \d+ \|/, '| Nano Banana (unit strips) | 0 |'));
   const originals = join(root, 'originals');
   mkdirSync(originals, { recursive: true });
   return {
@@ -106,7 +114,7 @@ for p in rigs:
 print(json.dumps({'count': len(checked), 'ids': checked}))
 `);
     const parsed = JSON.parse(out) as { count: number; ids: string[] };
-    expect(parsed.count).toBeGreaterThanOrEqual(21);
+    expect(parsed.count).toBeGreaterThanOrEqual(22);
     expect(parsed.ids).toContain('warrior');
     expect(parsed.ids).toContain('swordsman');
     expect(parsed.ids).toContain('mechanized_infantry');
@@ -122,7 +130,7 @@ from PIL import Image
 root = Path(${JSON.stringify(root)})
 sys.path.insert(0, str(root / 'scripts/sprite-nano-banana'))
 import style_ref, qc
-ref = style_ref.build_style_reference('biped', root, exclude_unit='axeman')
+ref = style_ref.build_style_reference('biped', root, exclude_unit='testbiped')
 assert ref is not None
 png_bytes, exemplar_id = ref
 assert exemplar_id == 'warrior'
@@ -157,8 +165,8 @@ sys.path.insert(0, str(root / 'scripts/sprite-nano-banana'))
 
 import pipeline, review_server
 
-# Scaffold a brand-new unit spec (axeman, biped) to verify scaffold + produce + approve end-to-end.
-spec_path = pipeline.scaffold_spec('axeman', 'biped', theme='Iron Age northern raiders', force=True, repo_root=root)
+# Scaffold a brand-new unit spec (testbiped, biped) to verify scaffold + produce + approve end-to-end.
+spec_path = pipeline.scaffold_spec('testbiped', 'biped', theme='Iron Age northern raiders', force=True, repo_root=root)
 
 def draw_biped(d, cx, top, h, *, merged_legs=False):
     # Head, red tunic (team colour #E01010), dark grey boots separated by a clear magenta gap.
@@ -282,8 +290,8 @@ finally:
 assert counts_by_role['master'] == 2, counts_by_role
 assert counts_by_role['attack'] == 2, counts_by_role
 assert 'REQUIRED CORRECTIONS FROM PREVIOUS ATTEMPT' in calls[1]['prompt']
-assert any(p.name.startswith('a-v1-') for p in (originals / 'axeman').iterdir())
-assert any(p.name.startswith('c-v1-count') for p in (originals / 'axeman').iterdir())
+assert any(p.name.startswith('a-v1-') for p in (originals / 'testbiped').iterdir())
+assert any(p.name.startswith('c-v1-count') for p in (originals / 'testbiped').iterdir())
 # Every call attached a reference: style-ref on master, master a.png on b..e.
 assert all(c['inline_count'] == 1 for c in calls)
 assert res['preflight']['ok'] is True, res['preflight']
@@ -291,18 +299,18 @@ assert res['preflight']['ok'] is True, res['preflight']
 # Now exercise the Sign-Off Studio HTTP server (GET / + /api/state + CSRF guard + POST /api/approve).
 import urllib.request, urllib.error
 
-preview_dir = root / 'design/png-sprites/previews/axeman'
+preview_dir = root / 'design/png-sprites/previews/testbiped'
 spec = json.loads(spec_path.read_text())
 studio, url, token, outcome = review_server.start_review_server(
     get_state=lambda: {
-        'unitId': 'axeman', 'unitName': 'Axeman', 'family': 'biped', 'model': 'gemini-nano-banana-2.1',
-        'originalsDir': str(originals / 'axeman'),
+        'unitId': 'testbiped', 'unitName': 'Axeman', 'family': 'biped', 'model': 'gemini-nano-banana-2.1',
+        'originalsDir': str(originals / 'testbiped'),
         'manifest': json.loads((preview_dir / 'manifest.json').read_text()),
         'preflight': res['preflight'], 'parity': None, 'hasRigReview': True, 'sheets': [],
     },
     preview_dir=preview_dir,
-    originals_dir=originals / 'axeman',
-    rig_review_path=root / '.verification/strips/axeman/rig-review.png',
+    originals_dir=originals / 'testbiped',
+    rig_review_path=root / '.verification/strips/testbiped/rig-review.png',
     parity_preview_dir=root / 'design/png-sprites/previews/warrior',
     on_regenerate=lambda f, n, c: {'message': 'ok'},
     on_approve=lambda wire: pipeline.approve_unit(spec_path, wire=wire, originals_override=str(originals), repo_root=root),
@@ -314,7 +322,7 @@ try:
     html = urllib.request.urlopen(url).read().decode('utf-8')
     assert 'Sign Off' in html
     state_json = json.loads(urllib.request.urlopen(url + 'api/state').read().decode('utf-8'))
-    assert state_json['unitId'] == 'axeman' and state_json['preflight']['ok'] is True
+    assert state_json['unitId'] == 'testbiped' and state_json['preflight']['ok'] is True
 
     # Missing CSRF token must be rejected with 403.
     bad_req = urllib.request.Request(url + 'api/approve', data=b'{"wire":true}', method='POST',
@@ -368,11 +376,11 @@ print('SUMMARY_JSON:' + json.dumps({
     expect(summary.ledgerCount).toBe(1);
 
     // Check shipped assets, manifest, provenance, and wired files in the sandbox.
-    expect(existsSync(join(root, 'public/images/units/axeman/sheet.png'))).toBe(true);
-    expect(existsSync(join(root, 'public/images/units/axeman/mask.png'))).toBe(true);
-    expect(existsSync(join(root, 'src/renderer/sprites/png/generated/axeman.manifest.ts'))).toBe(true);
+    expect(existsSync(join(root, 'public/images/units/testbiped/sheet.png'))).toBe(true);
+    expect(existsSync(join(root, 'public/images/units/testbiped/mask.png'))).toBe(true);
+    expect(existsSync(join(root, 'src/renderer/sprites/png/generated/testbiped.manifest.ts'))).toBe(true);
 
-    const prov = JSON.parse(readFileSync(join(root, 'design/png-sprites/previews/axeman/provenance.json'), 'utf8')) as {
+    const prov = JSON.parse(readFileSync(join(root, 'design/png-sprites/previews/testbiped/provenance.json'), 'utf8')) as {
       status: string;
       generator: string;
       originals: Array<{ sha256: string }>;
@@ -387,18 +395,18 @@ print('SUMMARY_JSON:' + json.dumps({
     expect(prov.signed_off_on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
     const catalog = readFileSync(join(root, 'src/renderer/sprites/png/png-sprite-catalog.ts'), 'utf8');
-    expect(catalog).toContain("import { sprite as axeman } from './generated/axeman.manifest';");
-    expect(catalog).toMatch(/STRIP_UNITS.*axeman/);
+    expect(catalog).toContain("import { sprite as testbiped } from './generated/testbiped.manifest';");
+    expect(catalog).toMatch(/STRIP_UNITS.*testbiped/);
 
     const scenarios = readFileSync(join(root, 'src/testing/scenarios.ts'), 'utf8');
-    expect(scenarios).toContain("id: 'showcase-axeman'");
-    expect(scenarios).toContain("id: 'showcase-axeman-hurt', health: 30");
+    expect(scenarios).toContain("id: 'showcase-testbiped'");
+    expect(scenarios).toContain("id: 'showcase-testbiped-hurt', health: 30");
 
     const scenTest = readFileSync(join(root, 'tests/testing/scenarios.test.ts'), 'utf8');
-    expect(scenTest).toContain("state.units['showcase-axeman']");
+    expect(scenTest).toContain("state.units['showcase-testbiped']");
 
     const e2e = readFileSync(join(root, 'tests/e2e/issue-1627-strip-units.spec.ts'), 'utf8');
-    expect(e2e.match(/'axeman'/g)?.length).toBe(2);
+    expect(e2e.match(/'testbiped'/g)?.length).toBe(2);
 
     const ledger = readFileSync(join(root, 'docs/asset-rights-ledger.md'), 'utf8');
     expect(ledger).toContain('| Nano Banana (unit strips) | 1 |');
@@ -426,7 +434,7 @@ assert pipeline.status_command(root) == 0
 print('ALL_FAMILIES_OK')
 `);
     expect(out).toContain('ALL_FAMILIES_OK');
-    expect(out).toContain('Shipped strip units (21):');
+    expect(out).toContain('Shipped strip units (22):');
   });
 
   it('supports isolated CLI execution (python3 -I pipeline.py status & produce --dry-run)', () => {
@@ -435,7 +443,7 @@ print('ALL_FAMILIES_OK')
     expect(statusRes.status, statusRes.stdout + statusRes.stderr).toBe(0);
     const statusJson = JSON.parse(statusRes.stdout) as { ok: boolean; shippedCount: number; remainingCount: number };
     expect(statusJson.ok).toBe(true);
-    expect(statusJson.shippedCount).toBe(21);
+    expect(statusJson.shippedCount).toBe(22);
     expect(statusJson.remainingCount).toBeGreaterThan(50);
 
     const dryRes = spawnSync('python3', ['-I', pipeline, 'produce', 'warrior', '--dry-run', '--theme', 'Stone Age tribal'], {
@@ -470,11 +478,11 @@ print('ALL_FAMILIES_OK')
     expect(status.status, status.stdout + status.stderr).toBe(0);
     expect(JSON.parse(status.stdout)).toMatchObject({ ok: true });
 
-    const interactive = spawnSync('sh', [wrapper, 'run', 'axeman'], { encoding: 'utf8' });
+    const interactive = spawnSync('sh', [wrapper, 'run', 'testbiped'], { encoding: 'utf8' });
     expect(interactive.status).toBe(2);
     expect(interactive.stderr).toContain('interactive');
 
-    const unknown = spawnSync('sh', [wrapper, 'rm', 'axeman'], { encoding: 'utf8' });
+    const unknown = spawnSync('sh', [wrapper, 'rm', 'testbiped'], { encoding: 'utf8' });
     expect(unknown.status).toBe(2);
 
     const traversal = spawnSync('sh', [wrapper, 'produce', '../evil'], { encoding: 'utf8' });
@@ -561,44 +569,44 @@ t.start()
 env = {**os.environ, 'GEMINI_API_KEY': 'k', 'GEMINI_API_BASE_URL': f'http://127.0.0.1:{port}/v1'}
 try:
     # Stage 1: master only -> 1 call at 1K, compact JSON stdout, versioned review-master-v1.png written.
-    r1 = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'axeman', '--stage', 'master', '--originals', str(originals), '--json'],
+    r1 = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'testbiped', '--stage', 'master', '--originals', str(originals), '--json'],
                         capture_output=True, text=True, env=env, check=True)
     j1 = json.loads(r1.stdout)
     assert j1['ok'] is True and j1['stage'] == 'master' and j1['reviewIteration'] == 1
     assert 'sheet_prompts' not in j1
     m1 = Path(j1['reviewImages']['master'])
-    assert m1.is_file() and m1.name == 'axeman-review-master-v1.png'
+    assert m1.is_file() and m1.name == 'testbiped-review-master-v1.png'
     assert len(sizes_seen) == 1 and sizes_seen[0] == ('3:4', '1K'), sizes_seen
 
     # Master iteration: regenerate a -> emits distinct -v2 filename so artifact viewers never cache v1.
-    r1b = subprocess.run([sys.executable, '-I', pipeline_py, 'regenerate', 'axeman', 'a', '--note', 'grip shield handle', '--originals', str(originals), '--json'],
+    r1b = subprocess.run([sys.executable, '-I', pipeline_py, 'regenerate', 'testbiped', 'a', '--note', 'grip shield handle', '--originals', str(originals), '--json'],
                          capture_output=True, text=True, env=env, check=True)
     j1b = json.loads(r1b.stdout)
     assert j1b['ok'] is True and j1b['stage'] == 'master' and j1b['reviewIteration'] == 2
     m2 = Path(j1b['reviewImages']['master'])
-    assert m2.is_file() and m2.name == 'axeman-review-master-v2.png' and m1.is_file()
+    assert m2.is_file() and m2.name == 'testbiped-review-master-v2.png' and m1.is_file()
 
     # Stage 2: set -> reuses a.png, b at 1K, c/d/e at 2K, creates versioned review-sheet-v1.png + review-anim-v1.gif.
-    r2 = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'axeman', '--stage', 'set', '--originals', str(originals), '--json'],
+    r2 = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'testbiped', '--stage', 'set', '--originals', str(originals), '--json'],
                         capture_output=True, text=True, env=env, check=True)
     j2 = json.loads(r2.stdout)
     assert j2['ok'] is True and j2['stage'] == 'set' and j2['reviewIteration'] == 1 and j2['preflight']['ok'] is True
     s1 = Path(j2['reviewImages']['sheet'])
     gif_path = Path(j2['reviewImages']['animGif'])
-    assert s1.is_file() and s1.name == 'axeman-review-sheet-v1.png'
-    assert gif_path.is_file() and gif_path.name == 'axeman-review-anim-v1.gif'
+    assert s1.is_file() and s1.name == 'testbiped-review-sheet-v1.png'
+    assert gif_path.is_file() and gif_path.name == 'testbiped-review-anim-v1.gif'
     with Image.open(gif_path) as gim:
         assert getattr(gim, 'n_frames', 1) > 5, 'expected animated review GIF'
 
     # Set iteration: regenerate c -> emits distinct -v2 sheet & GIF filenames while preserving -v1.
-    r2b = subprocess.run([sys.executable, '-I', pipeline_py, 'regenerate', 'axeman', 'c', '--note', 'wider axe swing', '--originals', str(originals), '--json'],
+    r2b = subprocess.run([sys.executable, '-I', pipeline_py, 'regenerate', 'testbiped', 'c', '--note', 'wider axe swing', '--originals', str(originals), '--json'],
                          capture_output=True, text=True, env=env, check=True)
     j2b = json.loads(r2b.stdout)
     assert j2b['ok'] is True and j2b['reviewIteration'] == 2
     s2 = Path(j2b['reviewImages']['sheet'])
     g2 = Path(j2b['reviewImages']['animGif'])
-    assert s2.is_file() and s2.name == 'axeman-review-sheet-v2.png' and s1.is_file()
-    assert g2.is_file() and g2.name == 'axeman-review-anim-v2.gif' and gif_path.is_file()
+    assert s2.is_file() and s2.name == 'testbiped-review-sheet-v2.png' and s1.is_file()
+    assert g2.is_file() and g2.name == 'testbiped-review-anim-v2.gif' and gif_path.is_file()
     assert sizes_seen == [('3:4', '1K'), ('3:4', '1K'), ('1:1', '1K'), ('3:2', '2K'), ('3:2', '2K'), ('3:2', '2K'), ('3:2', '2K')], sizes_seen
 finally:
     srv.shutdown()
@@ -624,7 +632,7 @@ fake_cli.chmod(fake_cli.stat().st_mode | stat.S_IXUSR)
 cli_env = {k: v for k, v in os.environ.items() if k not in ('GEMINI_API_KEY', 'GOOGLE_API_KEY')}
 cli_env['PATH'] = str(fake_bin) + os.pathsep + cli_env.get('PATH', '')
 cli_orig = root / 'cli-originals'
-r3 = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'axeman', '--stage', 'master', '--originals', str(cli_orig), '--json'],
+r3 = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'testbiped', '--stage', 'master', '--originals', str(cli_orig), '--json'],
                     capture_output=True, text=True, env=cli_env, check=True)
 j3 = json.loads(r3.stdout)
 assert j3['ok'] is True and j3['backend'] == 'cli'
@@ -728,7 +736,7 @@ base_env = {
 }
 try:
     # (a) AI Studio primary success path
-    r_ai = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'axeman', '--stage', 'master', '--originals', str(originals / 'case-a'), '--json'],
+    r_ai = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'testbiped', '--stage', 'master', '--originals', str(originals / 'case-a'), '--json'],
                           capture_output=True, text=True, env=base_env, check=True)
     j_ai = json.loads(r_ai.stdout)
     assert j_ai['ok'] is True and j_ai['backend'] == 'aistudio' and j_ai['model'] == 'gemini-nano-banana-2.1'
@@ -737,7 +745,7 @@ try:
 
     # (b) Automatic failover to Vertex AI on AI Studio 429 / RESOURCE_EXHAUSTED
     mode['aistudio_status'] = 429
-    r_fo = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'axeman', '--stage', 'master', '--originals', str(originals / 'case-b'), '--json'],
+    r_fo = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'testbiped', '--stage', 'master', '--originals', str(originals / 'case-b'), '--json'],
                           capture_output=True, text=True, env=base_env, check=True)
     j_fo = json.loads(r_fo.stdout)
     assert j_fo['ok'] is True and j_fo['backend'] == 'vertex' and j_fo['model'] == 'gemini-nano-banana-2.1'
@@ -748,7 +756,7 @@ try:
 
     # (c) Forced --backend vertex skips AI Studio completely even when GEMINI_API_KEY is present
     mode['aistudio_status'] = 200
-    r_vx = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'axeman', '--stage', 'master', '--backend', 'vertex', '--vertex-model', 'nano-banana-pro', '--originals', str(originals / 'case-c'), '--json'],
+    r_vx = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'testbiped', '--stage', 'master', '--backend', 'vertex', '--vertex-model', 'nano-banana-pro', '--originals', str(originals / 'case-c'), '--json'],
                           capture_output=True, text=True, env=base_env, check=True)
     j_vx = json.loads(r_vx.stdout)
     assert j_vx['ok'] is True and j_vx['backend'] == 'vertex' and j_vx['model'] == 'gemini-3-pro-image'
