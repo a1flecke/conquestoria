@@ -1,4 +1,5 @@
 import { createVassalageControls } from '@/ui/vassalage-controls';
+import { escapeHtmlAttr, sanitizeHexColor } from '@/core/html-safety';
 import { createTributeControls } from '@/ui/tribute-controls';
 import { createBorderConfrontationControls } from '@/ui/border-confrontation-controls';
 import type { GameState } from '@/core/types';
@@ -563,9 +564,11 @@ export function createDiplomacyPanel(
     });
   });
 
-  // Build structural HTML with only hardcoded strings and data-text placeholders
+  // Build structural HTML with only hardcoded strings, escaped attributes/colors, and data-text placeholders
   let civRowsHtml = '';
   for (const row of civRows) {
+    const safeCivId = escapeHtmlAttr(row.civId);
+    const safeCivColor = sanitizeHexColor(row.color);
     let treatiesHtml = '';
     if (row.treaties.length > 0) {
       treatiesHtml = '<div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px;">';
@@ -573,10 +576,11 @@ export function createDiplomacyPanel(
         const turnsPlaceholder = t.turns > 0
           ? ` (<span data-text="treaty-turns-${row.civIdx}-${tIdx}"></span> turns)`
           : '';
+        const safeTreatyType = escapeHtmlAttr(t.type);
         treatiesHtml += `
           <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(232,193,112,0.2);border-radius:4px;padding:2px 4px 2px 8px;font-size:10px;">
             <span><span data-text="treaty-label-${row.civIdx}-${tIdx}"></span>${turnsPlaceholder}</span>
-            <button class="diplo-break-treaty" data-civ-id="${row.civId}" data-treaty-type="${t.type}" style="padding:2px 6px;background:rgba(217,74,74,0.25);border:1px solid #d94a4a;border-radius:4px;color:white;cursor:pointer;font-size:9px;">Break</button>
+            <button class="diplo-break-treaty" data-civ-id="${safeCivId}" data-treaty-type="${safeTreatyType}" style="padding:2px 6px;background:rgba(217,74,74,0.25);border:1px solid #d94a4a;border-radius:4px;color:white;cursor:pointer;font-size:9px;">Break</button>
           </span>`;
       });
       treatiesHtml += '</div>';
@@ -584,11 +588,12 @@ export function createDiplomacyPanel(
 
     let treatyProposalsHtml = '';
     row.incomingTreatyProposals.forEach((proposal, pIdx) => {
+      const safeProposalId = escapeHtmlAttr(proposal.id);
       treatyProposalsHtml += `
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:rgba(232,193,112,0.12);border-radius:6px;padding:6px 8px;">
           <span style="font-size:11px;flex:1;">Proposes: <strong data-text="treaty-proposal-label-${row.civIdx}-${pIdx}"></strong> <span data-text="treaty-proposal-expiry-${row.civIdx}-${pIdx}"></span></span>
-          <button class="diplo-accept-treaty" data-request-id="${proposal.id}" data-action="accept-treaty-proposal" style="padding:5px 10px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept</button>
-          <button class="diplo-decline-treaty" data-request-id="${proposal.id}" data-action="decline-treaty-proposal" style="padding:5px 10px;background:rgba(217,148,74,0.25);border:1px solid #d9944a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Decline</button>
+          <button class="diplo-accept-treaty" data-request-id="${safeProposalId}" data-action="accept-treaty-proposal" style="padding:5px 10px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept</button>
+          <button class="diplo-decline-treaty" data-request-id="${safeProposalId}" data-action="decline-treaty-proposal" style="padding:5px 10px;background:rgba(217,148,74,0.25);border:1px solid #d9944a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Decline</button>
         </div>`;
     });
 
@@ -637,11 +642,12 @@ export function createDiplomacyPanel(
     const warGoalStatusHtml = row.warGoalStatusText
       ? `<div style="font-size:11px;color:#e8c170;margin-bottom:8px;" data-text="war-goal-status-${row.civIdx}"></div>`
       : '';
+    const safeSettlementOfferId = row.settlementOfferId ? escapeHtmlAttr(row.settlementOfferId) : '';
     const settlementOfferHtml = row.settlementOfferState === 'incoming' && row.settlementOfferId
       ? `<div style="margin-bottom:8px;background:rgba(232,193,112,0.12);border-radius:6px;padding:6px 8px;">
           <div style="font-size:11px;margin-bottom:6px;">Settlement proposed: <span data-text="settlement-offer-summary-${row.civIdx}"></span></div>
-          <button class="diplo-accept-settlement" data-request-id="${row.settlementOfferId}" style="padding:5px 10px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept</button>
-          <button class="diplo-reject-settlement" data-request-id="${row.settlementOfferId}" style="padding:5px 10px;background:rgba(217,148,74,0.25);border:1px solid #d9944a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Reject</button>
+          <button class="diplo-accept-settlement" data-request-id="${safeSettlementOfferId}" style="padding:5px 10px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept</button>
+          <button class="diplo-reject-settlement" data-request-id="${safeSettlementOfferId}" style="padding:5px 10px;background:rgba(217,148,74,0.25);border:1px solid #d9944a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Reject</button>
         </div>`
       : row.settlementOfferState === 'outgoing'
         ? '<div style="margin-bottom:8px;"><span style="display:inline-block;padding:6px 12px;background:rgba(232,193,112,0.2);border:1px solid rgba(232,193,112,0.5);border-radius:6px;color:#e8c170;font-size:11px;">Settlement Offered</span></div>'
@@ -649,30 +655,33 @@ export function createDiplomacyPanel(
 
     let actionsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     if (row.peaceRequestState === 'incoming' && row.peaceRequestId) {
-      actionsHtml += `<button class="diplo-accept-peace" data-request-id="${row.peaceRequestId}" data-action="accept-peace-request" style="padding:6px 12px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept Peace</button>`;
-      actionsHtml += `<button class="diplo-reject-peace" data-request-id="${row.peaceRequestId}" data-action="reject-peace-request" style="padding:6px 12px;background:rgba(217,148,74,0.25);border:1px solid #d9944a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Reject Peace</button>`;
+      const safePeaceRequestId = escapeHtmlAttr(row.peaceRequestId);
+      actionsHtml += `<button class="diplo-accept-peace" data-request-id="${safePeaceRequestId}" data-action="accept-peace-request" style="padding:6px 12px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept Peace</button>`;
+      actionsHtml += `<button class="diplo-reject-peace" data-request-id="${safePeaceRequestId}" data-action="reject-peace-request" style="padding:6px 12px;background:rgba(217,148,74,0.25);border:1px solid #d9944a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Reject Peace</button>`;
     } else if (row.peaceRequestState === 'outgoing') {
       actionsHtml += '<span data-role="peace-requested-pill" style="display:inline-block;padding:6px 12px;background:rgba(232,193,112,0.2);border:1px solid rgba(232,193,112,0.5);border-radius:6px;color:#e8c170;font-size:11px;">Peace Requested</span>';
     }
     row.actions.forEach((a, aIdx) => {
       const btnColor = a.isHostile ? 'rgba(217,74,74,0.3)' : 'rgba(255,255,255,0.1)';
       const borderColor = a.isHostile ? '#d94a4a' : 'rgba(255,255,255,0.2)';
-      actionsHtml += `<button class="diplo-action" data-civ-id="${row.civId}" data-action="${a.action}" style="padding:6px 12px;background:${btnColor};border:1px solid ${borderColor};border-radius:6px;color:white;cursor:pointer;font-size:11px;text-transform:capitalize;" data-text="action-label-${row.civIdx}-${aIdx}"></button>`;
+      const safeAction = escapeHtmlAttr(a.action);
+      actionsHtml += `<button class="diplo-action" data-civ-id="${safeCivId}" data-action="${safeAction}" style="padding:6px 12px;background:${btnColor};border:1px solid ${borderColor};border-radius:6px;color:white;cursor:pointer;font-size:11px;text-transform:capitalize;" data-text="action-label-${row.civIdx}-${aIdx}"></button>`;
     });
     // #988
     if (row.canDeclareWarGoal) {
-      actionsHtml += `<button class="diplo-open-war-goal" data-civ-id="${row.civId}" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:11px;">Declare War Goal</button>`;
+      actionsHtml += `<button class="diplo-open-war-goal" data-civ-id="${safeCivId}" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:11px;">Declare War Goal</button>`;
     }
     if (row.canProposeSettlement) {
       const label = row.activeWarId ? 'War Conference' : 'Propose Settlement';
-      actionsHtml += `<button class="diplo-open-settlement" data-civ-id="${row.civId}" data-war-id="${row.activeWarId ?? ''}" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:11px;">${label}</button>`;
+      const safeWarId = escapeHtmlAttr(row.activeWarId ?? '');
+      actionsHtml += `<button class="diplo-open-settlement" data-civ-id="${safeCivId}" data-war-id="${safeWarId}" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:11px;">${label}</button>`;
     }
     actionsHtml += '</div>';
 
     civRowsHtml += `
       <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:14px;margin-bottom:12px;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-          <div style="width:24px;height:24px;border-radius:50%;background:${row.color};"></div>
+          <div style="width:24px;height:24px;border-radius:50%;background:${safeCivColor};"></div>
           <div>
             <div style="font-weight:bold;font-size:14px;" data-text="civ-name-${row.civIdx}"></div>
             <div style="font-size:11px;opacity:0.6;"><span data-text="civ-bonus-${row.civIdx}"></span> · <span data-text="civ-status-${row.civIdx}"></span></div>
@@ -711,9 +720,11 @@ export function createDiplomacyPanel(
     for (const row of minorCivRows) {
       const isFocused = row.mcId === callbacks.focusMinorCivId;
       const focusStyle = isFocused ? 'outline:2px solid #e8c170;' : '';
-      minorCivsHtml += `<div data-mc-row-id="${row.mcId}" style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px;margin-bottom:8px;${focusStyle}">`;
+      const safeMcId = escapeHtmlAttr(row.mcId);
+      const safeDefColor = sanitizeHexColor(row.defColor);
+      minorCivsHtml += `<div data-mc-row-id="${safeMcId}" style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px;margin-bottom:8px;${focusStyle}">`;
       minorCivsHtml += `<div style="display:flex;justify-content:space-between;align-items:center;">`;
-      minorCivsHtml += `<span style="font-size:13px;">${row.archIcon} <strong style="color:${row.defColor};" data-text="mc-name-${row.mcIdx}"></strong></span>`;
+      minorCivsHtml += `<span style="font-size:13px;">${row.archIcon} <strong style="color:${safeDefColor};" data-text="mc-name-${row.mcIdx}"></strong></span>`;
       minorCivsHtml += `<span style="font-size:12px;color:${row.statusColor};" data-text="mc-status-${row.mcIdx}"></span>`;
       minorCivsHtml += `</div>`;
       if (row.questDescription !== null) {
@@ -1058,7 +1069,9 @@ export function createDiplomacyPanel(
   });
 
   if (callbacks.focusMinorCivId) {
-    panel.querySelector(`[data-mc-row-id="${callbacks.focusMinorCivId}"]`)?.scrollIntoView({ block: 'center' });
+    Array.from(panel.querySelectorAll<HTMLElement>('[data-mc-row-id]'))
+      .find(el => el.dataset.mcRowId === callbacks.focusMinorCivId)
+      ?.scrollIntoView({ block: 'center' });
   }
 
   return panel;

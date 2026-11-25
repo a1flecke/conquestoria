@@ -1,4 +1,4 @@
-import type { City, CivBonusEffect, Civilization, GameMap, GameState, HexCoord, Unit } from '@/core/types';
+import type { City, CivBonusEffect, GameMap, GameState, HexCoord, Unit } from '@/core/types';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import type { OpponentChallenge } from '@/core/types/ai';
 import { OPPONENT_CHALLENGE_PROFILES } from '@/core/opponent-challenge';
@@ -190,7 +190,7 @@ export function resolveCityAssault(
 // strength would have ignored that convention (caught in design review).
 export function getCityCounterFireDamage(
   city: City,
-  ownerCiv: Civilization,
+  ownerCiv: CitySiegeOwner,
   attackerDomain: 'land' | 'naval' | 'air',
   attackerStrength: number,
   hasGarrison: boolean,
@@ -210,9 +210,30 @@ export function getCityCounterFireDamage(
   return Math.round(baseDamage * (1 - adjustedRatio));
 }
 
+export interface CitySiegeOwner {
+  techState: { completed: string[] };
+  gold: number;
+}
+
+export const MINOR_CIV_SIEGE_OWNER: CitySiegeOwner = {
+  techState: { completed: [] },
+  gold: 0,
+};
+
+/**
+ * Resolves the siege-relevant owner record for any city (major civilization or minor civ /
+ * city-state). Returns undefined only when `ownerId` belongs to neither table.
+ */
+export function resolveCitySiegeOwner(state: GameState, ownerId: string): CitySiegeOwner | undefined {
+  const major = state.civilizations[ownerId];
+  if (major) return major;
+  if (state.minorCivs?.[ownerId]) return MINOR_CIV_SIEGE_OWNER;
+  return undefined;
+}
+
 export interface CitySiegeInput {
   city: City;
-  ownerCiv: Civilization;
+  ownerCiv: CitySiegeOwner;
   rawDamage: number;
   attackerDomain: 'land' | 'naval' | 'air';
   hasGarrison: boolean;
@@ -448,14 +469,15 @@ export function isCityHpRegenerating(state: GameState, city: City): boolean {
   // the city healed, so a ranged siege could never make progress.
   if (isBombardmentSuppressingRegen(city, state.turn)) return false;
 
-  const ownerCiv = state.civilizations[city.owner];
+  const ownerDiplomacy = state.civilizations[city.owner]?.diplomacy
+    ?? state.minorCivs?.[city.owner]?.diplomacy;
   const distanceFn = state.map.wrapsHorizontally
     ? (a: HexCoord, b: HexCoord) => wrappedHexDistance(a, b, state.map.width)
     : hexDistance;
   return !hasHostileUnitNearCity(
     state.units,
     city,
-    unitOwner => isAlwaysHostilePair(unitOwner, city.owner) || (ownerCiv ? isAtWar(ownerCiv.diplomacy, unitOwner) : false),
+    unitOwner => isAlwaysHostilePair(unitOwner, city.owner) || (ownerDiplomacy ? isAtWar(ownerDiplomacy, unitOwner) : false),
     CITY_HP_REGEN_HOSTILE_RANGE,
     distanceFn,
   );

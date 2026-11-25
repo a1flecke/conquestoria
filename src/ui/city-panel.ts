@@ -1,4 +1,5 @@
 import type { City, CityFocus, GameState, HexCoord, ResourceType } from '@/core/types';
+import { escapeHtmlAttr } from '@/core/html-safety';
 import {
   getAvailableBuildings,
   BUILDINGS,
@@ -428,9 +429,10 @@ export function createCityPanelView(
     .map((rec, ri) => (rec.rowLabel === '' ? recSubHtml(ri) : ''))
     .join('');
   // #419: a cyber attack locks production with no unrest involved; say so, with the real turns left (a number, never game text).
+  const safeCityId = escapeHtmlAttr(city.id);
   const lockoutTurns = city.productionDisabledTurns ?? 0;
   const lockoutSectionHtml = lockoutTurns > 0 && city.unrestLevel === 0 ? `
-    <div data-cyber-lockout="${city.id}" style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+    <div data-cyber-lockout="${safeCityId}" style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#e88;margin-bottom:4px;">⚠️ Cyber attack — production locked for ${lockoutTurns} more turn${lockoutTurns === 1 ? '' : 's'}</div>
       <div>Rush-buy the current item to break the lock, or wait it out. A Cyber Defense Center makes these attacks fail more often.</div>
     </div>` : '';
@@ -441,8 +443,8 @@ export function createCityPanelView(
       </div>
       <div style="margin-bottom:8px;">${pressureRowsHtml}${fallbackRecsHtml}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" data-appease="${city.id}" ${appeaseDisabled ? 'disabled' : ''} title="${appeaseTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${appeaseDisabled ? 'default' : 'pointer'};background:${appeaseDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${appeaseDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${appeaseLabel}</button>
-        <button type="button" data-concede="${city.id}" ${concedeDisabled ? 'disabled' : ''} title="${concedeTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${concedeDisabled ? 'default' : 'pointer'};background:${concedeDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${concedeDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${concedeLabel}</button>
+        <button type="button" data-appease="${safeCityId}" ${appeaseDisabled ? 'disabled' : ''} title="${appeaseTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${appeaseDisabled ? 'default' : 'pointer'};background:${appeaseDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${appeaseDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${appeaseLabel}</button>
+        <button type="button" data-concede="${safeCityId}" ${concedeDisabled ? 'disabled' : ''} title="${concedeTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${concedeDisabled ? 'default' : 'pointer'};background:${concedeDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${concedeDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${concedeLabel}</button>
       </div>
       <div style="opacity:0.7;margin-top:6px;" data-text="concede-appease-help"></div>
     </div>` : '';
@@ -469,7 +471,7 @@ export function createCityPanelView(
       <div style="font-weight:bold;color:#e8c170;margin-bottom:4px;">Imperial Levy</div>
       <div style="opacity:0.85;margin-bottom:4px;">${levyStatusText}</div>
       <div style="opacity:0.7;margin-bottom:8px;">${levyEaseText}</div>
-      <button type="button" data-set-levy="${city.id}:${levyActive ? 'off' : 'on'}" ${levyDisabled ? 'disabled' : ''} title="${levyTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${levyDisabled ? 'default' : 'pointer'};background:${levyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${levyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${levyLabel}</button>
+      <button type="button" data-set-levy="${safeCityId}:${levyActive ? 'off' : 'on'}" ${levyDisabled ? 'disabled' : ''} title="${levyTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${levyDisabled ? 'default' : 'pointer'};background:${levyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${levyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${levyLabel}</button>
     </div>` : '';
   // Post-catastrophe reward: transient, and the crisis itself may already be gone from
   // activeCrises by the time this is active — must render on its own, not piggyback on
@@ -605,27 +607,33 @@ export function createCityPanelView(
       quarantineDisabled, quarantineLabel, remedyDisabled, remedyLabel,
     };
   }).filter((c): c is NonNullable<typeof c> => c !== null);
-  const famineSectionHtml = famineChips.map((chip, idx) => `
+  const famineSectionHtml = famineChips.map((chip, idx) => {
+    const safeCrisisId = escapeHtmlAttr(chip.crisis.id);
+    return `
     <div style="background:rgba(217,150,80,0.12);border:1px solid rgba(217,150,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#e8a85a;margin-bottom:4px;" data-text="famine-stage-${idx}"></div>
       <div style="margin-bottom:4px;opacity:0.85;" data-text="famine-advisor-${idx}"></div>
       <div style="margin-bottom:8px;opacity:0.7;" data-text="famine-progress-${idx}"></div>
       ${chip.showsEpidemicControlLine ? `<div style="margin-bottom:8px;opacity:0.7;color:#8ac97a;" data-text="famine-epidemic-control-${idx}"></div>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" data-quarantine-crisis="${chip.crisis.id}:${city.id}" ${chip.quarantineDisabled ? 'disabled' : ''} title="${chip.quarantineLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.quarantineDisabled ? 'default' : 'pointer'};background:${chip.quarantineDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${chip.quarantineDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${chip.quarantineLabel}</button>
-        <button type="button" data-remedy-crisis="${chip.crisis.id}:${city.id}" ${chip.remedyDisabled ? 'disabled' : ''} title="${chip.remedyLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.remedyDisabled ? 'default' : 'pointer'};background:${chip.remedyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${chip.remedyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${chip.remedyLabel}</button>
+        <button type="button" data-quarantine-crisis="${safeCrisisId}:${safeCityId}" ${chip.quarantineDisabled ? 'disabled' : ''} title="${chip.quarantineLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.quarantineDisabled ? 'default' : 'pointer'};background:${chip.quarantineDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${chip.quarantineDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${chip.quarantineLabel}</button>
+        <button type="button" data-remedy-crisis="${safeCrisisId}:${safeCityId}" ${chip.remedyDisabled ? 'disabled' : ''} title="${chip.remedyLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.remedyDisabled ? 'default' : 'pointer'};background:${chip.remedyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${chip.remedyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${chip.remedyLabel}</button>
       </div>
-    </div>`).join('');
-  const crisisSectionHtml = crisisChips.map((chip, idx) => `
+    </div>`;
+  }).join('');
+  const crisisSectionHtml = crisisChips.map((chip, idx) => {
+    const safeCrisisId = escapeHtmlAttr(chip.crisis.id);
+    return `
     <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#e88;margin-bottom:4px;" data-text="crisis-stage-${idx}"></div>
       <div style="margin-bottom:8px;opacity:0.85;" data-text="crisis-advisor-${idx}"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" data-quarantine-crisis="${chip.crisis.id}:${city.id}" ${chip.quarantineDisabled ? 'disabled' : ''} title="${chip.quarantineLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.quarantineDisabled ? 'default' : 'pointer'};background:${chip.quarantineDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${chip.quarantineDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${chip.quarantineLabel}</button>
-        <button type="button" data-remedy-crisis="${chip.crisis.id}:${city.id}" ${chip.remedyDisabled ? 'disabled' : ''} title="${chip.remedyLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.remedyDisabled ? 'default' : 'pointer'};background:${chip.remedyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${chip.remedyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${chip.remedyLabel}</button>
-        ${chip.showEmpireContain ? `<button type="button" data-empire-contain-crisis="${chip.crisis.id}" ${chip.empireContainDisabled ? 'disabled' : ''} title="Fund a remedy in every affected city at once (requires Medicine)" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.empireContainDisabled ? 'default' : 'pointer'};background:${chip.empireContainDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${chip.empireContainDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${chip.empireContainLabel}</button>` : ''}
+        <button type="button" data-quarantine-crisis="${safeCrisisId}:${safeCityId}" ${chip.quarantineDisabled ? 'disabled' : ''} title="${chip.quarantineLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.quarantineDisabled ? 'default' : 'pointer'};background:${chip.quarantineDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${chip.quarantineDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${chip.quarantineLabel}</button>
+        <button type="button" data-remedy-crisis="${safeCrisisId}:${safeCityId}" ${chip.remedyDisabled ? 'disabled' : ''} title="${chip.remedyLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.remedyDisabled ? 'default' : 'pointer'};background:${chip.remedyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${chip.remedyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${chip.remedyLabel}</button>
+        ${chip.showEmpireContain ? `<button type="button" data-empire-contain-crisis="${safeCrisisId}" ${chip.empireContainDisabled ? 'disabled' : ''} title="Fund a remedy in every affected city at once (requires Medicine)" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.empireContainDisabled ? 'default' : 'pointer'};background:${chip.empireContainDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${chip.empireContainDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${chip.empireContainLabel}</button>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   // Faith row (#591 MR4): a city has at most one faith relationship at a time, so this
   // is a single optional row, not a chip list like crises. `getStrongestPressure` is
   // recomputed at display time only to derive turns-remaining (display-only per the

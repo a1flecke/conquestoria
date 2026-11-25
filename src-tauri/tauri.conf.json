@@ -31,7 +31,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' asset: http://asset.localhost https://asset.localhost; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost https://asset.localhost data: blob:; media-src 'self' asset: http://asset.localhost https://asset.localhost data: blob:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https://ipc.localhost; object-src 'none'; base-uri 'self'"
     }
   },
   "bundle": {

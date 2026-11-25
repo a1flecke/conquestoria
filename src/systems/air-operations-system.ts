@@ -10,7 +10,7 @@ import { getVisibility } from './fog-of-war';
 import { isHostileOwnerTo } from './owner-hostility';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { appendLegendaryWonderMilitaryFacts } from './legendary-wonder-history';
-import { applyCitySiegeOutcome, getCityGarrisonUnit, resolveCitySiegeDamage, type CitySiegeResult } from './city-siege-system';
+import { applyCitySiegeOutcome, getCityGarrisonUnit, MINOR_CIV_SIEGE_OWNER, resolveCitySiegeDamage, resolveCitySiegeOwner, type CitySiegeResult } from './city-siege-system';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { estimateCombatEraForViewer, resolveCombatEra } from './era-resolution';
 import { resolveCivilizationEra } from './tech-definitions';
@@ -328,7 +328,7 @@ export function resolveAirStrike(
     const result = resolveCombat(interceptor, striker, state.map, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), buildCombatContextForDefender(nextState, interceptor, striker, {
       isIntercepting: true,
       tacticalInterceptionMultiplier: tacticalClaim.multiplier,
-    }), resolveCombatEra(state, interceptor, striker));
+    }), resolveCombatEra(state, interceptor, striker), nextState);
     nextState = applyAirCombatResult(nextState, result, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), bus);
     if (nextState.units[interceptor.id]) nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: withAirStrain({ ...nextState.units[interceptor.id]!, interceptedTurn: state.turn }, 'interception') } };
     if (nextState.units[interceptor.id] && !nextState.units[striker.id]) {
@@ -347,7 +347,7 @@ export function resolveAirStrike(
   const currentStriker = nextState.units[striker.id]!;
   if (targetCity) {
     const currentCity = nextState.cities[targetCity.id];
-    const ownerCiv = currentCity && nextState.civilizations[currentCity.owner];
+    const ownerCiv = currentCity && resolveCitySiegeOwner(nextState, currentCity.owner);
     if (!currentCity || !ownerCiv) return { ok: false, state, reason: 'missing-target' };
     const cityResult = predicting ? predictAirStrikeCityDamage(nextState, currentStriker, currentCity) : resolveCitySiegeDamage({
       city: currentCity,
@@ -371,7 +371,7 @@ export function resolveAirStrike(
     : resolveCombatEra(nextState, currentStriker, currentTarget);
   const seed = deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id);
   // attack-contract-exempt: air-mission: getAirStrikeDenial validates the strike target, see #1223
-  const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, seed, context, era);
+  const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, seed, context, era, nextState);
   nextState = applyAirCombatResult(nextState, targetResult, seed, bus);
   if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: withAirStrain({ ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'strike') } };
   const identifications = bus && buildCombatSpyIdentifications(beforeTargetExchange, nextState, currentStriker, currentTarget);
@@ -392,9 +392,9 @@ export function hasObservedAirStrikeGarrison(state: GameState, striker: Unit, ci
 export function predictAirStrikeCityDamage(
   state: GameState, striker: Unit, city: City, hasGarrison = hasObservedAirStrikeGarrison(state, striker, city),
 ): CitySiegeResult {
-  const owner = state.civilizations[city.owner];
+  const owner = resolveCitySiegeOwner(state, city.owner) ?? MINOR_CIV_SIEGE_OWNER;
   return resolveCitySiegeDamage({
-    city, ownerCiv: { ...owner, techState: { ...owner.techState, completed: [] } },
+    city, ownerCiv: { ...owner, techState: { completed: [] } },
     rawDamage: getAirStrikeCityRawDamage(striker), attackerDomain: 'air',
     hasGarrison,
     preventDestruction: true, era: 1, challenge: resolveChallengeForCiv(state, city.owner),

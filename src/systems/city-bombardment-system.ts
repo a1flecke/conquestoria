@@ -11,8 +11,10 @@ import {
   getCityCounterFireDamage,
   getCityGarrisonUnit,
   getRemainingBombardmentCap,
+  MINOR_CIV_SIEGE_OWNER,
   recordBombardment,
   resolveCitySiegeDamage,
+  resolveCitySiegeOwner,
 } from '@/systems/city-siege-system';
 import { getOwnedCityCount } from '@/systems/city-ownership';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
@@ -164,6 +166,7 @@ export function previewUnitCityBombardment(
   city: GameState['cities'][string],
 ): CityBombardmentPreview {
   const ownerCiv = state.civilizations[city.owner];
+  const siegeOwner = resolveCitySiegeOwner(state, city.owner) ?? MINOR_CIV_SIEGE_OWNER;
   const domain = UNIT_DEFINITIONS[attacker.type].domain ?? 'land';
   const hasGarrison = getCityGarrisonUnit(state.units, city) !== undefined;
   const capRemaining = getRemainingBombardmentCap(city, state.turn);
@@ -171,8 +174,7 @@ export function previewUnitCityBombardment(
 
   const shared = {
     city,
-    // Minor civs have no Civilization record; an empty tech list is the honest stand-in.
-    ownerCiv: ownerCiv ?? ({ techState: { completed: [] }, gold: 0, cities: [] } as never),
+    ownerCiv: siegeOwner,
     rawDamage,
     attackerDomain: domain,
     hasGarrison,
@@ -180,7 +182,7 @@ export function previewUnitCityBombardment(
     garrisonMitigation: getBombardmentGarrisonMitigation(city, attacker.owner),
     isOwnersLastCity: getOwnedCityCount(state, city.owner) <= 1,
     preventDestruction: true,
-    era: resolveCivilizationEra(ownerCiv?.techState.completed ?? []),
+    era: resolveCivilizationEra(siegeOwner.techState.completed),
     challenge: resolveChallengeForCiv(state, city.owner),
   } as const;
 
@@ -232,10 +234,9 @@ export function resolveUnitCityBombardment(
   if (!legality.ok) return { ok: false, state, reason: legality.reason };
 
   // A minor civ (city-state) has no Civilization record at all. Bombarding one is legal --
-  // an empty tech list and no treasury is the honest stand-in, since neither a tech defense
+  // resolveCitySiegeOwner returns the empty-tech/zero-gold stand-in, since neither a tech defense
   // bonus nor a sack payout applies. Only CAPTURE is major-civ-only (see resolveCityInteraction).
-  const ownerCiv = state.civilizations[city.owner]
-    ?? ({ techState: { completed: [] }, gold: 0, cities: [] } as never);
+  const ownerCiv = resolveCitySiegeOwner(state, city.owner) ?? MINOR_CIV_SIEGE_OWNER;
 
   const domain = UNIT_DEFINITIONS[attacker.type].domain ?? 'land';
   const hasGarrison = getCityGarrisonUnit(state.units, city) !== undefined;

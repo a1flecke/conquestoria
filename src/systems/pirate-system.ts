@@ -174,6 +174,7 @@ function attackTarget(
     seed,
     buildCombatContextForDefender(state, attacker, defender),
     resolveCombatEra(state, attacker, defender),
+    state,
   );
   // #1200: route cleanup, camp, combat record and kill consequences are the shared outcome's job; a bus is a
   // real execution and announces them from there.

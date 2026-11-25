@@ -334,6 +334,7 @@ function resolveAirborneLanding(state: GameState, unit: Unit, destination: HexCo
       seed,
       buildCombatContextForDefender(nextState, interceptor, workingUnit, { isIntercepting: true }),
       resolveCombatEra(nextState, interceptor, workingUnit),
+      nextState,
     );
     nextState = applyCombatOutcomeToState(nextState, result, seed, bus).state;
     if (nextState.units[interceptor.id]) {

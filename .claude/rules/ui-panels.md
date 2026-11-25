@@ -28,6 +28,8 @@ paths:
 - Enemy units must show: owner civ name, civ color (as border/accent), unit description, diplomatic relationship (At War / Neutral / Allied)
 - Friendly units must show: description, HP, moves remaining, and available actions
 - Use `textContent` / `createTextNode()` for dynamic text — never `innerHTML` with game-generated strings (XSS risk)
+- Any state-derived color or attribute interpolated into HTML or SVG markup (`civ.color`, `row.color`, `city.id`, `civId`, `crisis.id`, etc.) MUST pass through `sanitizeHexColor()` / `isSafeHexColor()` / `escapeHtmlAttr()` from `src/core/html-safety.ts` (#1830). Never interpolate raw `.color` into inline `style=`/`fill=` attributes, and never construct `querySelector('[data-...="..."]')` from unsanitized state IDs. Enforced by `scripts/check-src-rule-violations.sh` + `.claude/hooks/check-src-edit.sh` and tested in `tests/core/html-safety.test.ts`, `tests/renderer/sprite-overlay.test.ts`, `tests/ui/diplomacy-panel.test.ts`, and `tests/storage/save-file-transfer.test.ts`.
+- Keep an explicit Content Security Policy in `src-tauri/tauri.conf.json` (`app.security.csp`, never `null`), pinned by `tests/platform/tauri-config.test.ts`.
 - If a selected unit can load, carry, or unload cargo, the panel must show cargo state and expose tested load/unload callbacks wired to shared gameplay helpers.
 - Loaded cargo selected directly must render as aboard a transport and must not expose normal land-unit actions until unloaded.
 

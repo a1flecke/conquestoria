@@ -15,6 +15,7 @@ import {
   type AirMissionFailureReason,
 } from '@/systems/air-operations-system';
 import { forecastAirStrike, type AirStrikeBranch, type AirStrikeForecast } from '@/systems/air-strike-forecast';
+import { resolveCitySiegeOwner } from '@/systems/city-siege-system';
 import {
   BAND_PRESENTATION,
   buildBattleForecastView,
@@ -187,7 +188,7 @@ export function buildAirStrikeForecastView(request: AirStrikeForecastRequest): A
   }
 
   const city = resolved.city!;
-  const ownerCiv = state.civilizations[city.owner];
+  const ownerCiv = resolveCitySiegeOwner(state, city.owner);
   if (!ownerCiv) return refusal('missing-target');
   // The garrison counts only if the viewer can see it; the owner's tech never enters the number.
   const visibleGarrison = hasObservedAirStrikeGarrison(state, striker, city);

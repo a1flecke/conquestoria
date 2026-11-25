@@ -482,4 +482,20 @@ describe('SpriteOverlay.sync() — civColor reaches live-fallback unit sprites',
     expect(el).not.toBeNull();
     expect(el.innerHTML).toContain('cq-sprite-wrap');
   });
+
+  it('#1830: refuses malicious civColor payloads in both native and fallback sprite paths without injecting DOM elements', () => {
+    const payload = '"><img src=x onerror=alert(1)>';
+    const rawSvg = '<div class="unit-sprite"><rect fill="#b53026"/></div>';
+    expect(applyFactionCivColor(rawSvg, 'imperials', payload)).toBe(rawSvg);
+
+    const { overlay, mount } = mountOverlay();
+    const nativeEnt = entity({ id: 'u-native', subtype: 'warrior', faction: 'imperials', civId: 'bad-civ' });
+    const fallbackEnt = entity({ id: 'u-fallback', subtype: 'tank', faction: 'imperials', civId: 'bad-civ' });
+
+    overlay.sync(cam(), [nativeEnt, fallbackEnt], MAP, OPTS, { 'bad-civ': payload });
+
+    expect(mount.querySelectorAll('img').length).toBe(0);
+    expect(mount.innerHTML).not.toContain('onerror');
+    expect(mount.innerHTML).not.toContain('alert(1)');
+  });
 });

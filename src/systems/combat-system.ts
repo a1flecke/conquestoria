@@ -561,6 +561,7 @@ export function resolveCombat(
 
   const attackerHealthAfter = attacker.health - attackerDamage;
   const defenderHealthAfter = defender.health - defenderDamage;
+  const splashHits = state ? resolveBoundedSplash(state, attacker, defender, defenderDamage) : [];
 
   return {
     attackerId: attacker.id,
@@ -575,6 +576,6 @@ export function resolveCombat(
     defenderPosition: defender.position,
     modifierFacts: { attacker: strengths.attackerModifierFacts ?? [], defender: strengths.defenderModifierFacts ?? [] },
     ...(exchange.kind === 'none' ? {} : { exchange: { kind: exchange.kind, label: exchange.label! } }),
-    ...(state ? { splashHits: resolveBoundedSplash(state, attacker, defender, defenderDamage) } : {}),
+    ...(splashHits.length > 0 ? { splashHits } : {}),
   };
 }

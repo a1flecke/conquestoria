@@ -8,4 +8,12 @@ describe('tauri config', () => {
     expect(tauriConfig.build.beforeDevCommand.script).not.toContain('run-with-mise');
     expect(tauriConfig.build.beforeBuildCommand.script).not.toContain('run-with-mise');
   });
+
+  it('sets an explicit Content Security Policy rather than null (#1830)', () => {
+    const csp = tauriConfig.app.security.csp;
+    expect(typeof csp).toBe('string');
+    expect(csp).toContain("script-src 'self'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).not.toContain("'unsafe-eval'");
+  });
 });
