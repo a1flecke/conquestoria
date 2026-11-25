@@ -7,6 +7,8 @@ import {
   findSpyReturnTile,
   isLegalSpawnTile,
   isUnitOnEnterableTerrain,
+  isUnitStranded,
+  settleStrandedUnits,
   spawnNeighbours,
 } from '@/systems/unit-spawn-placement';
 
@@ -162,5 +164,81 @@ describe('unit spawn placement', () => {
     expect(isUnitOnEnterableTerrain(state, { owner: 'pirate-1', type: 'pirate_frigate', position: at(2) })).toBe(true);
     expect(isUnitOnEnterableTerrain(state, { owner: 'pirate-1', type: 'pirate_corsair', position: at(0) })).toBe(false);
     expect(isUnitOnEnterableTerrain(state, { owner: 'p1', type: 'warrior', position: { q: 9, r: 9 } })).toBe(false);
+  });
+});
+
+/**
+ * #1698: a unit whose tile became illegal without it moving (ownership changed around it) is "stranded", and the
+ * shared settle step moves it to the nearest legal tile.
+ */
+describe('stranded units (#1698)', () => {
+  function plains(): GameState {
+    const terrain: Record<string, TerrainType> = {};
+    for (let q = -4; q <= 4; q++) for (let r = -4; r <= 4; r++) terrain[`${q},${r}`] = 'plains';
+    return makeState(terrain);
+  }
+  function place(state: GameState, owner: string, position: HexCoord): string {
+    const unit = createUnit('warrior', owner, position, state.idCounters);
+    state.units[unit.id] = unit;
+    return unit.id;
+  }
+  const camp = (position: HexCoord) => ({ 'camp-1': { id: 'camp-1', position, strength: 5, spawnCooldown: 5 } });
+  const key = (coord: HexCoord) => `${coord.q},${coord.r}`;
+
+  it('a unit alone on an open tile is not stranded, and settling returns the same state', () => {
+    const state = plains();
+    const id = place(state, 'mc-a', { q: 0, r: 0 });
+    expect(isUnitStranded(state, state.units[id])).toBe(false);
+    expect(settleStrandedUnits(state, [id])).toBe(state);
+  });
+
+  it('a city-state unit on a barbarian camp is stranded and steps to the nearest open tile', () => {
+    const state = plains();
+    state.barbarianCamps = camp({ q: 0, r: 0 });
+    const id = place(state, 'mc-a', { q: 0, r: 0 });
+    expect(isUnitStranded(state, state.units[id])).toBe(true);
+
+    const settled = settleStrandedUnits(state, [id]);
+
+    expect(key(settled.units[id].position)).not.toBe('0,0');
+    expect(isUnitStranded(settled, settled.units[id])).toBe(false);
+  });
+
+  it('a barbarian on its own camp is not stranded', () => {
+    const state = plains();
+    state.barbarianCamps = camp({ q: 0, r: 0 });
+    const id = place(state, 'barbarian', { q: 0, r: 0 });
+    expect(isUnitStranded(state, state.units[id])).toBe(false);
+  });
+
+  it('two owners on one tile: the listed unit steps away, the other stays', () => {
+    const state = plains();
+    const mover = place(state, 'mc-a', { q: 1, r: 1 });
+    const stayer = place(state, 'mc-b', { q: 1, r: 1 });
+    expect(isUnitStranded(state, state.units[mover])).toBe(true);
+
+    const settled = settleStrandedUnits(state, [mover]);
+
+    expect(settled.units[stayer].position).toEqual({ q: 1, r: 1 });
+    expect(key(settled.units[mover].position)).not.toBe('1,1');
+    expect(isUnitStranded(settled, settled.units[mover])).toBe(false);
+  });
+
+  it('cargo aboard a ship is never stranded', () => {
+    const state = plains();
+    const id = place(state, 'mc-a', { q: 0, r: 0 });
+    place(state, 'mc-b', { q: 0, r: 0 });
+    state.units[id] = { ...state.units[id], transportId: 'ship-1' };
+    expect(isUnitStranded(state, state.units[id])).toBe(false);
+  });
+
+  it('is deterministic: the same input settles to the same tile', () => {
+    const settle = () => {
+      const state = plains();
+      state.barbarianCamps = camp({ q: 0, r: 0 });
+      const id = place(state, 'mc-a', { q: 0, r: 0 });
+      return settleStrandedUnits(state, [id]).units[id].position;
+    };
+    expect(settle()).toEqual(settle());
   });
 });

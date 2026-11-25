@@ -12,6 +12,7 @@ import {
 import { reconcileMinorCivLeagues } from '@/systems/minor-civ-league-system';
 import { createTechState } from '@/systems/tech-system';
 import { withNewOwner } from '@/systems/unit-trained-movement-bonus';
+import { settleStrandedUnits } from '@/systems/unit-spawn-placement';
 
 /**
  * City-state graduation (#497), the conversion. One city-state becomes a major civilization in a single
@@ -177,7 +178,8 @@ export function graduateMinorCiv(state: GameState, minorCivId: string): MinorCiv
 
   return {
     ok: true,
-    state: reconcileMinorCivLeagues(next),
+    // The garrison changed hands where it stood; one left on a tile its new owner may not hold steps out (#1698).
+    state: reconcileMinorCivLeagues(settleStrandedUnits(next, transferredUnitIds)),
     transition: {
       minorCivId,
       civId,

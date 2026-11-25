@@ -2,10 +2,10 @@ import type { BreakawayMetadata, Civilization, GameState } from '@/core/types';
 import { transferLegendaryWondersForCity } from './legendary-wonder-ownership';
 import { EventBus } from '@/core/event-bus';
 import { isAtWar } from './diplomacy-queries';
-import { mapDistance } from './hex-utils';
+import { hexKey, mapDistance } from './hex-utils';
+import { settleStrandedUnits } from './unit-spawn-placement';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
-import { findLegalSpawnTile, spawnNeighbours } from '@/systems/unit-spawn-placement';
 import { withNewOwner } from './unit-trained-movement-bonus';
 import { removeNationalProjectsHostedBy } from './national-project-system';
 import { beginCityMaterialOccurrence, releaseCityMaterialCommitment } from './city-production-materials';
@@ -117,25 +117,16 @@ export function isBreakawayCiv(civ: Civilization): boolean {
   return civ.breakaway !== undefined;
 }
 
-function moveLoyalSpiesOffCity(state: GameState, cityId: string, ownerId: string): GameState {
-  const city = state.cities[cityId];
-  if (!city) return state;
-  let next = state;
-  const spies = Object.values(state.units)
-    .filter(unit => unit.owner === ownerId && !unit.transportId && isSpyUnitType(unit.type)
-      && unit.position.q === city.position.q && unit.position.r === city.position.r)
-    .map(unit => unit.id)
-    .sort();
-  for (const spyId of spies) {
-    const spy = next.units[spyId]!;
-    const destination = findLegalSpawnTile(
-      next,
-      { ownerId, unitType: spy.type, stacking: 'same-owner' },
-      spawnNeighbours(next, city.position),
-    );
-    if (destination) next = { ...next, units: { ...next.units, [spyId]: { ...spy, position: { ...destination } } } };
-  }
-  return next;
+/**
+ * The old owner's units that stayed loyal (its spies) are left where they stood while the units around them and the
+ * city changed hands. One standing on the city, or sharing a tile with a unit that seceded, is stranded (#1698
+ * sweep): it steps out by the shared rule (`findStrandedUnitExit`), else stays. Nothing is deleted.
+ */
+function moveStrandedLoyalUnitsOut(state: GameState, territoryKeys: ReadonlySet<string>, ownerId: string): GameState {
+  const loyal = Object.values(state.units)
+    .filter(unit => unit.owner === ownerId && territoryKeys.has(hexKey(unit.position)))
+    .map(unit => unit.id);
+  return settleStrandedUnits(state, loyal);
 }
 
 export function createBreakawayFromCity(
@@ -272,9 +263,9 @@ export function createBreakawayFromCity(
   });
 
   // The city's national projects leave the old owner with it, exactly as on a capture.
-  const withLoyalSpiesOut = moveLoyalSpiesOffCity(
+  const withLoyalSpiesOut = moveStrandedLoyalUnitsOut(
     removeNationalProjectsHostedBy(transferLegendaryWondersForCity(beginCityMaterialOccurrence(nextState, cityId), cityId, breakawayId), cityId),
-    cityId,
+    new Set([...cityTerritory, hexKey(city.position)]),
     previousOwner.id,
   );
   const liveness = reconcileCivilizationLiveness(state, withLoyalSpiesOut);
@@ -410,7 +401,14 @@ function reunifyBreakaway(
   const funded = transferredCityIds.reduce((acc, id) => beginCityMaterialOccurrence(acc, id), nextState);
   const tornDown = eliminateCivilization(funded, breakawayId, ownerId).state;
   const { [breakawayId]: _reabsorbed, ...remainingCivilizations } = tornDown.civilizations;
-  const withoutBreakaway: GameState = { ...tornDown, civilizations: remainingCivilizations };
+  // The cities and units changed hands where they stood: anything now on a tile it may not hold (another civ's unit
+  // inside a rejoined city, a returning unit stacked with someone else's) steps out by the shared rule.
+  const cityKeys = new Set(transferredCities.map(city => hexKey(city.position)));
+  const toSettle = [
+    ...transferredUnitIds,
+    ...Object.values(tornDown.units).filter(unit => cityKeys.has(hexKey(unit.position))).map(unit => unit.id),
+  ];
+  const withoutBreakaway = settleStrandedUnits({ ...tornDown, civilizations: remainingCivilizations }, toSettle);
   const liveness = reconcileCivilizationLiveness(state, withoutBreakaway);
   if (bus) emitCivilizationLivenessTransitions(liveness, bus);
   return liveness.state;

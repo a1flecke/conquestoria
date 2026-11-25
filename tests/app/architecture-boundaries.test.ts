@@ -1616,6 +1616,31 @@ describe('unit placement — every createUnit call site is reviewed against the 
       .sort();
     expect(callers).toEqual(Object.keys(REVIEWED_CREATE_UNIT_CALLERS).sort());
   });
+
+  /**
+   * #1698: the twin of the list above, for a unit that changes owner where it stands. Creation was guarded, an
+   * in-place handover was not, so a camp that became a city-state handed it a raider standing on another camp, a
+   * secession left a loyal spy stacked with a unit that seceded, and a rejoining city kept an ally's unit inside
+   * it. A new caller fails here until it is added with why every unit it touches ends on a tile it may hold:
+   * through `settleStrandedUnits` (`unit-spawn-placement.ts`), by excluding blocked tiles up front, or because
+   * the unit leaves the map.
+   */
+  const REVIEWED_OWNER_TRANSFER_CALLERS: Record<string, string> = {
+    'src/systems/air-base-loss.ts': 'a captured aircraft is based at the captured city, not a map occupant',
+    'src/systems/breakaway-system.ts': 'secession and reabsorption both finish with settleStrandedUnits over every unit that changed hands or stayed in the territory',
+    'src/systems/combat-reward-system.ts': 'a captured unit and its stack mates are settled by settleCapturedStack (nearest legal tile)',
+    'src/systems/minor-civ-graduation-conversion.ts': 'the graduated garrison is settled with settleStrandedUnits',
+    'src/systems/minor-civ-system.ts': 'camp evolution excludes raiders on tiles the city-state is blocked by; a conquered garrison is settled with settleStrandedUnits',
+    'src/systems/unit-trained-movement-bonus.ts': 'defines withNewOwner; its callers are listed here with their own reasons',
+  };
+
+  it('lists exactly the modules that hand a unit to a new owner in place (withNewOwner)', () => {
+    const callers = walkTs(resolve(root, 'src'))
+      .filter(file => /\bwithNewOwner\b/.test(stripComments(readFileSync(file, 'utf8'))))
+      .map(rel)
+      .sort();
+    expect(callers).toEqual(Object.keys(REVIEWED_OWNER_TRANSFER_CALLERS).sort());
+  });
 });
 
 describe('#1025 — the action-contract inventory is complete and every gap has an owner', () => {

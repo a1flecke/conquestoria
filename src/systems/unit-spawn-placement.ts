@@ -1,9 +1,11 @@
 import type { GameState, Unit, UnitType } from '@/core/types';
 import type { HexCoord } from '@/core/types/hex';
-import { hexKey, hexNeighbors, wrapHexCoord } from './hex-utils';
+import { getWrappedHexesInRange, hexesInRange, hexKey, hexNeighbors, mapDistance, wrapHexCoord } from './hex-utils';
 import { isPassableForParams, movementStepCostParamsForType } from './unit-movement-cost';
 import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
 import { isCityCoastal } from './city-lifecycle';
+import { getCapitalCityId } from './capital-system';
+import { syncTransportCargoPositions } from './transport-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord, type UnitOccupancyIndex } from './unit-occupancy';
 
 /**
@@ -165,6 +167,68 @@ export function findSpyReturnTile(
   );
 }
 
+
+/**
+ * #1698: is `unit` on a tile it may not hold, although it never moved there? That happens when ownership changes
+ * around it: a city it stood in changed hands, or the units it was stacked with did. The tile then holds a map
+ * entity that blocks the unit's owner (`getBlockingMapEntityKeysForOwner`) or another owner's unit. Terrain is
+ * not judged here (a ship in its own port is legal on land; `isUnitOnEnterableTerrain` owns that). Cargo and
+ * based aircraft are not map occupants and are never stranded.
+ */
+export function isUnitStranded(state: GameState, unit: Pick<Unit, 'id' | 'owner' | 'position' | 'transportId' | 'airBase'>): boolean {
+  if (unit.transportId || unit.airBase) return false;
+  if (getBlockingMapEntityKeysForOwner(state, unit.owner).has(hexKey(unit.position))) return true;
+  const occupancy = buildUnitOccupancy(state.units);
+  return getUnitIdsAtCoord(occupancy, unit.position)
+    .some(id => id !== unit.id && occupancy.ownersByUnitId[id] !== unit.owner);
+}
+
+/** How far a stranded unit looks for a tile before it is sent home. */
+export const STRANDED_UNIT_EXIT_RADIUS = 3;
+
+/**
+ * Where a stranded unit (see `isUnitStranded`) steps to: the nearest tile within `STRANDED_UNIT_EXIT_RADIUS` of
+ * `origin` it may legally stand on (friendly stacking allowed; nearest first, ties by tile key), else its own home
+ * city or a neighbour of it. `null` when there is nowhere legal, in which case the unit stays and nothing is
+ * deleted. The one rule for every path that changes who owns a city or a unit in place.
+ */
+export function findStrandedUnitExit(
+  state: GameState,
+  unit: Pick<Unit, 'owner' | 'type'>,
+  origin: HexCoord,
+  homePosition: HexCoord | undefined,
+): HexCoord | null {
+  const map = state.map;
+  const originKey = hexKey(origin);
+  const ring = (map.wrapsHorizontally
+    ? getWrappedHexesInRange(origin, STRANDED_UNIT_EXIT_RADIUS, map.width)
+    : hexesInRange(origin, STRANDED_UNIT_EXIT_RADIUS))
+    .filter(coord => hexKey(coord) !== originKey)
+    .sort((a, b) => mapDistance(map, origin, a) - mapDistance(map, origin, b) || hexKey(a).localeCompare(hexKey(b)));
+  const query = { ownerId: unit.owner, unitType: unit.type, stacking: 'same-owner' as const };
+  return findLegalSpawnTile(state, query, ring)
+    ?? (homePosition ? findSpyReturnTile(state, unit.owner, unit.type, homePosition) : null);
+}
+
+/**
+ * #1698: after ownership changes in place (a city-state conquered or graduated, a breakaway seceding or rejoining),
+ * each listed unit that is stranded (`isUnitStranded`) steps out by the one rule (`findStrandedUnitExit`, home is
+ * its owner's capital). A unit with nowhere legal to go stays; nothing is deleted. Units are visited in id order,
+ * so the result is deterministic. Returns `state` itself when nothing moved.
+ */
+export function settleStrandedUnits(state: GameState, unitIds: readonly string[]): GameState {
+  let next = state;
+  for (const unitId of [...unitIds].sort()) {
+    const unit = next.units[unitId];
+    if (!unit || !isUnitStranded(next, unit)) continue;
+    const home = getCapitalCityId(next, unit.owner);
+    const destination = findStrandedUnitExit(next, unit, unit.position, home ? next.cities[home]?.position : undefined);
+    if (!destination) continue;
+    next = { ...next, units: { ...next.units, [unitId]: { ...unit, position: { ...destination } } } };
+    if ((unit.cargoUnitIds?.length ?? 0) > 0) next = syncTransportCargoPositions(next, unitId);
+  }
+  return next;
+}
 
 /**
  * Does `unit` stand on terrain its type can enter? The movement step-cost model decides (no land
