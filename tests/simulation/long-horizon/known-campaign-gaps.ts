@@ -151,10 +151,9 @@ export interface AcceptedOccurrence {
  * its own production (14/156/162/352), because it is short of materials (2 for ai-2) or, in explorer-small,
  * because the two-round maintenance reserve was not met (2). No legal purchase was missed.
  *
- * The same base also reports stagnant wars that never resolve: ai-1 vs `mc-numantia` in `lh-veteran-small`
- * (240-299, 60 rounds), ai-1 vs `mc-timbuktu` in `lh-veteran-medium` (290-399, 110) and ai-1 vs `mc-samarkand`
- * in `lh-late-era-medium` (44-249, 206). They are scoped below against #1784, which owns the stuck-war
- * investigation; this register only prevents them from failing a matrix run as unregistered new findings.
+ * The stagnant city-state wars once scoped here against #1784 (ai-1 in `lh-veteran-small`, `lh-veteran-medium` and
+ * `lh-late-era-medium`) were fixed by #1793, which ties a city-state war to a viable capture plan. Re-run on `main`
+ * `baf75877c`, none of the three scenarios reports a `stagnant-war` finding, so the entry is removed.
  *
  * `tech-frozen` no longer reproduces on this base, so its scoped entry is removed.
  *
@@ -186,17 +185,6 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       { scenario: 'lh-late-era-medium', civId: 'ai-1', maxRounds: 107 },
       { scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 98 },
       { scenario: 'lh-late-era-medium', civId: 'ai-3', maxRounds: 107 },
-    ],
-  },
-  {
-    code: 'stagnant-war',
-    issue: '#1784',
-    why: 'AI civs stayed at war with a city-state with no capture, war-set change or peace event: lh-veteran-small ai-1 60 rounds (vs mc-numantia), lh-veteran-medium ai-1 110 (vs mc-timbuktu) and lh-late-era-medium ai-1 206 (vs mc-samarkand); the stuck-war investigation is owned by #1784.',
-    scenarios: ['lh-veteran-small', 'lh-veteran-medium', 'lh-late-era-medium'],
-    accepted: [
-      { scenario: 'lh-veteran-small', civId: 'ai-1', maxRounds: 60 },
-      { scenario: 'lh-veteran-medium', civId: 'ai-1', maxRounds: 110 },
-      { scenario: 'lh-late-era-medium', civId: 'ai-1', maxRounds: 206 },
     ],
   },
 ];

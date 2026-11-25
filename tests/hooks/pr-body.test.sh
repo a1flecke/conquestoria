@@ -10,6 +10,10 @@ PRB="$ROOT/scripts/pr-body.sh"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 export PR_BODY_DIR="$tmpdir/pr-bodies"
+# The known-gap owner check reads this branch's register by default; pin it to an empty fixture so the cases below
+# never depend on which gaps the real register happens to accept today (5b supplies its own).
+printf 'export const KNOWN_CAMPAIGN_GAPS = [];\n' > "$tmpdir/default-register.ts"
+export PR_BODY_GAP_REGISTER="$tmpdir/default-register.ts"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -66,6 +70,29 @@ printf '## Summary\n\nFixes #99 later\n' | bash "$PRB" write closing >/dev/null
 bash "$PRB" check closing >"$tmpdir/out5" 2>&1 || fail "5: closing-keyword body should still pass"
 grep -q 'will CLOSE' "$tmpdir/out5" || fail "5: closing keyword not surfaced"
 echo "ok 5: placeholders and missing Summary fail; closing keywords are surfaced"
+
+# --- 5b. closing an issue that still owns a long-horizon known-gap entry fails ---
+cat > "$tmpdir/register.ts" <<'REG'
+export const KNOWN_CAMPAIGN_GAPS = [
+  { code: 'stagnant-war', issue: '#1784', why: 'x', scenarios: [] },
+];
+REG
+printf '## Summary\n\nCloses #1784\n' | bash "$PRB" write closes-owner >/dev/null
+if PR_BODY_GAP_REGISTER="$tmpdir/register.ts" bash "$PRB" check closes-owner >"$tmpdir/out5b" 2>&1; then
+  fail "5b: closing a known-gap owner passed"
+fi
+grep -q 'known-gap entry' "$tmpdir/out5b" || fail "5b: refusal does not name the register"
+printf '## Summary\n\nResolved #1784 and fixes #12\n' | bash "$PRB" write resolves-owner >/dev/null
+if PR_BODY_GAP_REGISTER="$tmpdir/register.ts" bash "$PRB" check resolves-owner >/dev/null 2>&1; then
+  fail "5b: 'Resolved #1784' passed"
+fi
+printf '## Summary\n\nCloses #1785; mentions #1784 without closing it\n' | bash "$PRB" write other-issue >/dev/null
+PR_BODY_GAP_REGISTER="$tmpdir/register.ts" bash "$PRB" check other-issue >/dev/null 2>&1 \
+  || fail "5b: a body that only mentions the owner (and closes another issue) should pass"
+printf 'export const KNOWN_CAMPAIGN_GAPS = [];\n' > "$tmpdir/empty-register.ts"
+PR_BODY_GAP_REGISTER="$tmpdir/empty-register.ts" bash "$PRB" check closes-owner >/dev/null 2>&1 \
+  || fail "5b: closing the owner after its entry is removed should pass"
+echo "ok 5b: closing an issue that still owns a known-gap entry fails until the entry is gone"
 
 # --- 6. create hands gh --body-file inside the directory, with passthrough flags -
 printf '## Summary\n\nbody text\n' | bash "$PRB" write good >/dev/null

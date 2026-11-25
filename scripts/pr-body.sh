@@ -146,6 +146,29 @@ cmd_check() {
   if grep -n -i -E '\b(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' "$file"; then
     echo "pr-body: note -- the lines above will CLOSE those issues when the PR merges." >&2
   fi
+  check_known_gap_owners "$file"
+}
+
+# A long-horizon known-gap entry must be owned by an OPEN issue (known-campaign-gaps.ts). A PR that closes the owner
+# and leaves the entry behind breaks `yarn test:ai-long` for everyone the moment it merges: the live owner check
+# refuses to start (this happened to #1784's entry). So a body that closes an issue this branch's register still
+# names as an owner fails here: remove the entry (or reassign it to an open issue) and refresh the snapshot first.
+check_known_gap_owners() {
+  local file="$1" register top issue owners
+  register="${PR_BODY_GAP_REGISTER:-}"
+  if [[ -z "$register" ]]; then
+    top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+    [[ -n "$top" ]] || return 0
+    register="$top/tests/simulation/long-horizon/known-campaign-gaps.ts"
+  fi
+  [[ -f "$register" ]] || return 0
+  owners=""
+  for issue in $(grep -o -i -E '\b(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' "$file" | grep -o -E '#[0-9]+' | sort -u); do
+    if grep -q -E "issue:[[:space:]]*'${issue}'" "$register"; then owners="$owners $issue"; fi
+  done
+  if [[ -n "$owners" ]]; then
+    die "this PR closes${owners}, which still owns a long-horizon known-gap entry in ${register#"${top:-}/"}. Remove the entry (or reassign it to an open issue), then run ./scripts/dev.sh known-gap-owners-refresh."
+  fi
 }
 
 with_footer() {
