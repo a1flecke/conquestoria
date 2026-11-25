@@ -12,6 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
 import { fileURLToPath } from 'url';
+import { GEO_LATITUDE_BOUNDS } from '../src/systems/geo-latitude';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -398,19 +399,19 @@ interface MapScriptDef {
 const MAP_SCRIPTS: MapScriptDef[] = [
   {
     name: 'earth',
-    bounds: { lonMin: -180, lonMax: 180, latMin: -80, latMax: 80, wrapsHorizontally: true },
+    bounds: { lonMin: -180, lonMax: 180, ...GEO_LATITUDE_BOUNDS.earth, wrapsHorizontally: true },
     homelandLatLon: EARTH_HOMELAND_LATLON,
     varPrefix: 'EARTH',
   },
   {
     name: 'old-world',
-    bounds: { lonMin: -15, lonMax: 150, latMin: -40, latMax: 70, wrapsHorizontally: false },
+    bounds: { lonMin: -15, lonMax: 150, ...GEO_LATITUDE_BOUNDS['old-world'], wrapsHorizontally: false },
     homelandLatLon: OLD_WORLD_HOMELAND_LATLON,
     varPrefix: 'OLD_WORLD',
   },
   {
     name: 'new-world',
-    bounds: { lonMin: -170, lonMax: -30, latMin: -60, latMax: 75, wrapsHorizontally: false },
+    bounds: { lonMin: -170, lonMax: -30, ...GEO_LATITUDE_BOUNDS['new-world'], wrapsHorizontally: false },
     homelandLatLon: NEW_WORLD_COLONIZER_LATLON,
     varPrefix: 'NEW_WORLD',
   },
