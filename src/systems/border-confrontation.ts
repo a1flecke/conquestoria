@@ -31,9 +31,9 @@ import { isDiplomaticRequestLive } from './diplomacy-requests';
 import { modifyRelationship, withDiplomacy } from './diplomacy-state';
 import { applyTreachery, broadcastTreacheryPenalty } from './diplomacy-treachery';
 import { buildViewerMilitaryIntel, estimatePerceivedCivStrength } from './diplomatic-strength';
-import { BORDER_TENSION_RADIUS, hasBorderTension, type BorderTensionKnowledge } from './border-tension';
+import { BORDER_TENSION_RADIUS, getBorderTensionCities, hasBorderTension, type BorderTensionKnowledge } from './border-tension';
 import { classifyTerritorialRelation } from './territorial-access';
-import { mapDistance, mapHexesInRange } from './hex-utils';
+import { hexKey, mapDistance, mapHexesInRange } from './hex-utils';
 import { resolveCivilizationEra } from './tech-definitions';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { findPath } from './unit-pathfinding';
@@ -589,4 +589,61 @@ export function reconcileBorderConfrontations(state: GameState, bus?: EventBus):
     next = { ...next, borderConfrontations: retained };
   }
   return next;
+}
+
+// ---- Disputed-radius map overlay ----
+/**
+ * The disputed-radius overlay (#1766, "legible near"): while a rival's armed units are within
+ * `BORDER_TENSION_RADIUS` of a city, the hexes inside that radius are shown on the map to the civilization the
+ * tension involves, so "near" is never a guess.
+ *
+ * Viewer-safe by the same rules as the diplomacy panel's tension line: as the approached civ the viewer sees a ring
+ * only around its own cities that a rival unit it can currently see is close to; as the intruder it sees a ring only
+ * around a city it has explored that its own armed units are close to. The ring names no one, so it reveals nothing
+ * the panel's own wording does not. War, alliance, Open Borders and vassalage are exempt exactly as for the drift
+ * (`getBorderTensionCities`), and it is derived every time, never persisted.
+ */
+export interface BorderTensionOverlayTile {
+  coord: HexCoord;
+  /** True on the outermost ring of a disputed area, so the renderer can outline the boundary. */
+  edge: boolean;
+}
+
+export interface BorderTensionPresentation {
+  tiles: BorderTensionOverlayTile[];
+}
+
+export const EMPTY_BORDER_TENSION_PRESENTATION: BorderTensionPresentation = { tiles: [] };
+
+export function getBorderTensionPresentationForViewer(state: GameState, viewerId: string): BorderTensionPresentation {
+  const viewer = state.civilizations[viewerId];
+  if (!viewer || viewer.isEliminated) return EMPTY_BORDER_TENSION_PRESENTATION;
+  const visibility = viewer.visibility;
+
+  const centers = new Map<string, HexCoord>();
+  for (const [otherId, other] of Object.entries(state.civilizations)) {
+    if (otherId === viewerId || other.isEliminated) continue;
+    if (viewer.diplomacy && isAtWar(viewer.diplomacy, otherId)) continue;
+    const approached = visibility
+      ? getBorderTensionCities(state, viewerId, otherId, { unitKnown: unit => isVisible(visibility, unit.position) })
+      : [];
+    const intruding = getBorderTensionCities(state, otherId, viewerId, {
+      cityKnown: city => hasExploredCoord(state, viewerId, city.position),
+    });
+    for (const city of [...approached, ...intruding]) centers.set(city.id, city.position);
+  }
+  if (centers.size === 0) return EMPTY_BORDER_TENSION_PRESENTATION;
+
+  const tiles = new Map<string, BorderTensionOverlayTile>();
+  for (const center of [...centers.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, c]) => c)) {
+    for (const coord of mapHexesInRange(state.map, center, BORDER_TENSION_RADIUS)) {
+      const key = hexKey(coord);
+      const edge = mapDistance(state.map, center, coord) === BORDER_TENSION_RADIUS;
+      const existing = tiles.get(key);
+      // A tile inside any disputed area is interior for the union, so overlapping areas outline as one region.
+      if (!existing) tiles.set(key, { coord, edge });
+      else if (!edge) existing.edge = false;
+    }
+  }
+  return { tiles: [...tiles.values()] };
 }

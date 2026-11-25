@@ -23,7 +23,7 @@ export function createNotificationLogPanel(
   const panel = document.createElement('div');
   panel.id = 'notification-log';
   panel.setAttribute('aria-label', 'Message log');
-  panel.style.cssText = 'position:absolute;top:70px;right:12px;width:280px;max-height:300px;overflow-y:auto;background:rgba(10,10,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:25;padding:12px;';
+  panel.style.cssText = 'position:absolute;top:calc(var(--hud-height, 60px) + var(--utility-toolbar-height, 44px) + 8px);right:12px;width:280px;max-height:300px;overflow-y:auto;background:rgba(10,10,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:25;padding:12px;';
 
   const header = document.createElement('div');
   header.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:8px;display:flex;justify-content:space-between;';

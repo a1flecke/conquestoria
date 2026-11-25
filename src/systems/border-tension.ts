@@ -37,22 +37,37 @@ export function hasBorderTension(
   intruderCivId: string,
   knowledge: BorderTensionKnowledge = {},
 ): boolean {
-  if (hostCivId === intruderCivId) return false;
+  return getBorderTensionCities(state, hostCivId, intruderCivId, knowledge).length > 0;
+}
+
+/**
+ * The host cities that `intruderCivId`'s armed units are currently close to: the single derivation behind both the
+ * yes/no tension answer and the map's disputed-radius overlay (#1766), so "near" on the map can never disagree with
+ * the relationship drift or the demand's eligibility. Every rule in `hasBorderTension` applies unchanged.
+ */
+export function getBorderTensionCities<C extends TensionCity>(
+  state: BorderTensionState & { readonly cities: Readonly<Record<string, C | undefined>> },
+  hostCivId: string,
+  intruderCivId: string,
+  knowledge: BorderTensionKnowledge = {},
+): C[] {
+  if (hostCivId === intruderCivId) return [];
   const host = state.civilizations[hostCivId];
   const intruder = state.civilizations[intruderCivId];
-  if (!host || !intruder) return false;
+  if (!host || !intruder) return [];
   const relation = classifyTerritorialRelation(state, intruderCivId, hostCivId);
-  if (relation === 'alliance' || relation === 'open-borders' || relation === 'vassalage') return false;
+  if (relation === 'alliance' || relation === 'open-borders' || relation === 'vassalage') return [];
 
-  const cities = host.cities
+  const cities = (host.cities ?? [])
     .map(id => state.cities[id])
-    .filter((city): city is TensionCity => !!city && city.owner === hostCivId && (knowledge.cityKnown?.(city) ?? true));
-  if (cities.length === 0) return false;
+    .filter((city): city is C => !!city && city.owner === hostCivId && (knowledge.cityKnown?.(city) ?? true));
+  if (cities.length === 0) return [];
 
-  return intruder.units.some(id => {
-    const unit = state.units[id];
-    if (!unit || unit.owner !== intruderCivId || (UNIT_DEFINITIONS[unit.type]?.strength ?? 0) <= 0) return false;
-    if (knowledge.unitKnown && !knowledge.unitKnown(unit)) return false;
-    return cities.some(city => mapDistance(state.map, unit.position, city.position) <= BORDER_TENSION_RADIUS);
-  });
+  const intruders = (intruder.units ?? [])
+    .map(id => state.units[id])
+    .filter((unit): unit is TensionUnit => {
+      if (!unit || unit.owner !== intruderCivId || (UNIT_DEFINITIONS[unit.type]?.strength ?? 0) <= 0) return false;
+      return !knowledge.unitKnown || knowledge.unitKnown(unit);
+    });
+  return cities.filter(city => intruders.some(unit => mapDistance(state.map, unit.position, city.position) <= BORDER_TENSION_RADIUS));
 }
