@@ -21,7 +21,7 @@ export function createTreasuryDrawer(): TreasuryDrawer {
 
   const el = document.createElement('div');
   el.style.cssText =
-    'position:absolute;top:44px;left:0;width:66%;background:rgba(0,0,0,0.85);' +
+    'position:absolute;top:calc(var(--hud-height, 60px) - 16px);left:0;width:66%;background:rgba(0,0,0,0.85);' +
     'border-radius:0 0 8px 0;padding:8px 12px;z-index:25;pointer-events:auto;color:#e0d6c8;';
   el.style.display = 'none';
 

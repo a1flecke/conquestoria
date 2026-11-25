@@ -52,6 +52,8 @@ import {
 } from '@/systems/religion-badge-presentation';
 import { drawAirDefenseOverlay } from './air-defense-overlay';
 import { drawSupplyOverlay } from './supply-overlay-renderer';
+import { drawBorderTensionOverlay } from './border-tension-overlay-renderer';
+import { EMPTY_BORDER_TENSION_PRESENTATION, getBorderTensionPresentationForViewer, type BorderTensionPresentation } from '@/systems/border-confrontation';
 import { getSupplyOverlayPresentationForViewer, type SupplyOverlayPresentation } from '@/systems/supply-overlay-presentation';
 import { drawStrategicLaunchPreviewOverlay } from './strategic-launch-overlay-renderer';
 import type { StrategicLaunchPreviewPresentation } from '@/systems/strategic-launch-preview-presentation';
@@ -404,6 +406,8 @@ export class RenderLoop {
   // across handoffs instead of one flag leaking between players.
   private supplyOverlayEnabledByViewer = new Map<string, boolean>();
   private supplyOverlayPresentation: SupplyOverlayPresentation = { tiles: [], sources: [] };
+  // #1766: the disputed-radius overlay, recomputed with every published state like the other viewer presentations.
+  private borderTensionPresentation: BorderTensionPresentation = EMPTY_BORDER_TENSION_PRESENTATION;
 
   toggleSupplyOverlay(): boolean {
     const viewerId = this.state?.currentPlayer;
@@ -751,6 +755,7 @@ export class RenderLoop {
     this.loyaltyPressurePresentation = getLoyaltyPressurePresentationForViewer(state, state.currentPlayer);
     this.religionBadgePresentation = getReligionBadgePresentationForViewer(state, state.currentPlayer);
     this.airDefenseOverlayProviders = getKnownAirDefenseProviders(state, state.currentPlayer);
+    this.borderTensionPresentation = getBorderTensionPresentationForViewer(state, state.currentPlayer);
     // #544 MR2: unlike the unconditional presentations above, this one can be
     // a full-territory-tile scan, so it's only recomputed when the current
     // viewer actually has the overlay toggled on.
@@ -1250,6 +1255,14 @@ export class RenderLoop {
         this.state.map.wrapsHorizontally,
       );
     }
+
+    drawBorderTensionOverlay(
+      this.ctx,
+      this.borderTensionPresentation,
+      this.state.map.width,
+      this.camera,
+      this.state.map.wrapsHorizontally,
+    );
 
     // #545 MR4: the strategic-launch stage-2 target/preview overlay, same
     // before-fog placement as the supply overlay above.
