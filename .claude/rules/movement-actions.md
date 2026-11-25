@@ -148,7 +148,9 @@ transport unload and `assertNoIllegalBlockingOccupancy` all agree, and the refus
 `SPY_FOREIGN_CITY_MESSAGE` (`getBlockingMapEntityMessage`). Infiltration is an adjacent action:
 `getInfiltrationTargetCity` (`espionage-infiltration-target.ts`) is the one answer for the
 selected-unit panel's Infiltrate button, the player's command and the AI (a rival major
-civilization's city at distance 1). A failed, uncaught attempt leaves the spy where it stood.
+civilization's city at distance 1). A failed, uncaught attempt leaves the spy where it stood. A city the civ already has a spy inside
+(`hasSpyInsideCity`: stationed, on a mission or cooling down) is never an AI spy's destination and its
+infiltration is skipped, so a second spy cannot idle beside it (#1723).
 Before this, a parked foreign spy locked the owner out of its own city and stacked with whatever
 the city trained; schema 39 (`spies-leave-foreign-cities`) moves such a spy out of an older save.
 Pinned by `unit-movement-system.test.ts`, `save-state-invariants.test.ts`,

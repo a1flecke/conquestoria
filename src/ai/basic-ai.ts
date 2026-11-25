@@ -159,7 +159,7 @@ import { isAtWar } from '@/systems/diplomacy-queries';
 import { processWorkerDevelopment } from './ai-worker-development';
 import { chooseAiBoon, chooseBoon } from '@/systems/religion-system';
 import { findSpyReturnTile } from '@/systems/unit-spawn-placement';
-import { getInfiltrationTargetCity } from '@/systems/espionage-infiltration-target';
+import { getInfiltrationTargetCity, hasSpyInsideCity } from '@/systems/espionage-infiltration-target';
 import { removeUnits } from '@/systems/unit-removal-system';
 
 /** #988: how decisive a military advantage must be before the AI converts a
@@ -1717,11 +1717,14 @@ function processAITurnInternal(
         && u.movementPointsLeft > 0);
 
     for (const spyUnit of idleSpyUnits) {
+      // A city this civ already has a spy inside is no target: a second spy would only idle beside it (#1723).
+      const civEspForTargets = newState.espionage![civId];
       const candidates = administrativePerception.knownCities
         .filter(city =>
           city.owner !== civId
           && city.position !== null
-          && city.confidence !== 'rumored')
+          && city.confidence !== 'rumored'
+          && !hasSpyInsideCity(civEspForTargets, city.id))
         .sort((a, b) => {
           const da = mapDistance(newState.map, spyUnit.position, a.position!);
           const db = mapDistance(newState.map, spyUnit.position, b.position!);
@@ -1766,11 +1769,7 @@ function processAITurnInternal(
       if (!civEspNow) continue;
       const spyRec = civEspNow.spies[spyUnitId];
       if (!spyRec || spyRec.status !== 'idle') continue;
-      const alreadyInside = Object.values(civEspNow.spies).some(
-        s => s.infiltrationCityId === cityHere.id &&
-             (s.status === 'stationed' || s.status === 'on_mission' || s.status === 'cooldown'),
-      );
-      if (alreadyInside) continue;
+      if (hasSpyInsideCity(civEspNow, cityHere.id)) continue;
       const cityCI = newState.espionage?.[cityHere.owner]?.counterIntelligence[cityHere.id] ?? 0;
       const infSeed = `ai-infiltrate-${spyUnitId}-${newState.turn}`;
       const result = attemptInfiltration(civEspNow, spyUnitId, spyUnit.type as UnitType, cityHere.id, cityHere.position, cityCI, infSeed);
