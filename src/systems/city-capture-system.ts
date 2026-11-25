@@ -24,8 +24,8 @@ import { modifyRelationship } from '@/systems/diplomacy-state';
 import { recordWarGoalCityCapture, applyWarGoalOverreachIfNeeded } from '@/systems/war-goal-system';
 import { recordCityCaptured } from '@/systems/war-history-system';
 import { getCapitalCityId } from '@/systems/capital-system';
-import { getWrappedHexesInRange, hexDistance, hexesInRange, hexKey, mapDistance, wrappedHexDistance } from '@/systems/hex-utils';
-import { findLegalSpawnTile, findSpyReturnTile } from '@/systems/unit-spawn-placement';
+import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
+import { findStrandedUnitExit } from '@/systems/unit-spawn-placement';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
@@ -790,12 +790,10 @@ export function resolveMajorCityCapture(
  *
  * - Aircraft based at the city are resolved by the same rule a captured city uses
  *   (`resolveAirBaseLoss`, `captured`).
- * - Every other map unit on the city tile that the new owner does not own steps out to the nearest
- *   tile within `CITY_EXIT_RADIUS` it may legally stand on (`findLegalSpawnTile`, friendly stacking
- *   allowed), ties by tile key, else home to its own capital. Cargo moves with its ship. A unit
- *   with nowhere legal to go stays; nothing is deleted.
+ * - Every other map unit on the city tile that the new owner does not own steps out by the shared
+ *   stranded-unit rule (`findStrandedUnitExit`: the nearest legal tile within 3, else home to its own
+ *   capital). Cargo moves with its ship. A unit with nowhere legal to go stays; nothing is deleted.
  */
-const CITY_EXIT_RADIUS = 3;
 
 function moveForeignOccupantsOut(state: GameState, cityId: string): GameState {
   const city = state.cities[cityId];
@@ -807,21 +805,11 @@ function moveForeignOccupantsOut(state: GameState, cityId: string): GameState {
     .map(unit => unit.id)
     .sort();
   if (occupants.length === 0) return next;
-  const map = next.map;
-  const ring = (map.wrapsHorizontally
-    ? getWrappedHexesInRange(city.position, CITY_EXIT_RADIUS, map.width)
-    : hexesInRange(city.position, CITY_EXIT_RADIUS))
-    .filter(coord => hexKey(coord) !== cityKey)
-    .sort((a, b) => mapDistance(map, city.position, a) - mapDistance(map, city.position, b)
-      || hexKey(a).localeCompare(hexKey(b)));
   for (const unitId of occupants) {
     const unit = next.units[unitId];
     if (!unit) continue;
-    const query = { ownerId: unit.owner, unitType: unit.type, stacking: 'same-owner' as const };
     const home = getCapitalCityId(next, unit.owner);
-    const homePosition = home ? next.cities[home]?.position : undefined;
-    const destination = findLegalSpawnTile(next, query, ring)
-      ?? (homePosition ? findSpyReturnTile(next, unit.owner, unit.type, homePosition) : null);
+    const destination = findStrandedUnitExit(next, unit, city.position, home ? next.cities[home]?.position : undefined);
     if (!destination) continue;
     next = { ...next, units: { ...next.units, [unitId]: { ...unit, position: { ...destination } } } };
     if ((unit.cargoUnitIds?.length ?? 0) > 0) next = syncTransportCargoPositions(next, unitId);

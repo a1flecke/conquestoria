@@ -59,6 +59,7 @@ import {
   reconcileMinorCivLeagues,
 } from './minor-civ-league-system';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { settleStrandedUnits } from '@/systems/unit-spawn-placement';
 import { isFertileStart } from '@/systems/start-fertility';
 import { createUnitForCiv, withNewOwner } from './unit-trained-movement-bonus';
 import { applyResearchGain } from './tech-completion-system';
@@ -803,7 +804,8 @@ export function peacefullyAbsorbMinorCiv(
   }
   mc.units = [];
 
-  return { state: reconcileMinorCivLeagues(nextState), transitions, absorbed: true };
+  // The garrison changed hands where it stood; one left on a tile its new owner may not hold steps out (#1698).
+  return { state: reconcileMinorCivLeagues(settleStrandedUnits(nextState, transferredUnitIds)), transitions, absorbed: true };
 }
 
 // === Guerrilla & Scuffles ===

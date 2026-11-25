@@ -3,7 +3,7 @@ import { EventBus } from '@/core/event-bus';
 import { createBreakawayFromCity, tryReabsorbBreakaway } from '@/systems/breakaway-system';
 import { foundCity } from '@/systems/city-lifecycle';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
-import { hexDistance } from '@/systems/hex-utils';
+import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { getNationalProjectCivYieldBonus } from '@/systems/national-project-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { assertSaveStateInvariants } from '../helpers/save-state-invariants';
@@ -56,6 +56,80 @@ describe('breakaway secession carries owner-keyed unit records with its units', 
     expect(after.civilizations[`breakaway-${cityId}`].units).not.toContain(spyId);
     expect(after.espionage?.['ai-1']?.spies[spyId]).toBeDefined();
     expect(hexDistance(spy!.position, cityPosition)).toBe(1);
+  });
+
+  // #1698 sweep: the units around a loyal spy change owner in place, so the spy must not be left sharing a tile
+  // with them (a stack of two owners) or standing in the city once no neighbour is free.
+  it('a loyal spy in the territory never ends up stacked with a unit that seceded', () => {
+    const { state, cityId, spyId } = breakawayWithOwnedRecords('breakaway-spy-stack');
+    const city = state.cities[cityId];
+    const territoryTile = city.ownedTiles.find(coord => hexKey(coord) !== hexKey(city.position)
+      && state.map.tiles[hexKey(coord)]?.terrain !== 'ocean' && state.map.tiles[hexKey(coord)]?.terrain !== 'coast'
+      && state.map.tiles[hexKey(coord)]?.terrain !== 'mountain')!;
+    expect(territoryTile, 'the city owns a land tile besides its centre').toBeDefined();
+    state.units[spyId] = { ...state.units[spyId], position: { ...territoryTile } };
+    const warrior = createUnit('warrior', 'ai-1', territoryTile, state.idCounters);
+    state.units[warrior.id] = warrior;
+    state.civilizations['ai-1'].units.push(warrior.id);
+    assertSaveStateInvariants(state, 'before the secession');
+
+    const after = createBreakawayFromCity(state, cityId, new EventBus());
+
+    expect(after.units[warrior.id].owner).toBe(`breakaway-${cityId}`);
+    expect(after.units[spyId].owner).toBe('ai-1');
+    assertSaveStateInvariants(after, 'after the secession');
+  });
+
+  it('a loyal spy on the city tile with every neighbour taken still leaves the city', () => {
+    const { state, cityId, spyId } = breakawayWithOwnedRecords('breakaway-spy-boxed-in');
+    const city = state.cities[cityId];
+    for (const coord of hexNeighbors(city.position)) {
+      const tile = state.map.tiles[hexKey(coord)];
+      if (!tile || tile.terrain === 'ocean' || tile.terrain === 'coast' || tile.terrain === 'mountain') continue;
+      if (!city.ownedTiles.some(owned => hexKey(owned) === hexKey(coord))) continue;
+      const guard = createUnit('warrior', 'ai-1', coord, state.idCounters);
+      state.units[guard.id] = guard;
+      state.civilizations['ai-1'].units.push(guard.id);
+    }
+    assertSaveStateInvariants(state, 'before the secession');
+
+    const after = createBreakawayFromCity(state, cityId, new EventBus());
+
+    assertSaveStateInvariants(after, 'after the secession');
+    expect(hexKey(after.units[spyId]?.position ?? city.position)).not.toBe(hexKey(city.position));
+  });
+
+  it('an ally\'s unit inside a rejoining city steps out instead of being left in a foreign city', () => {
+    const { state, cityId } = breakawayWithOwnedRecords('reabsorb-ally-inside');
+    const seceded = createBreakawayFromCity(state, cityId, new EventBus());
+    const breakawayId = `breakaway-${cityId}`;
+    const third = Object.keys(seceded.civilizations).find(id =>
+      id !== 'ai-1' && id !== breakawayId && !seceded.civilizations[id].isEliminated)!;
+    // The third civ is allied with the breakaway, so its unit may stand in the breakaway's city.
+    const alliance = { type: 'alliance', civA: breakawayId, civB: third, turnsRemaining: -1 } as never;
+    seceded.civilizations[breakawayId].diplomacy.treaties = [...seceded.civilizations[breakawayId].diplomacy.treaties, alliance];
+    seceded.civilizations[third].diplomacy.treaties = [...seceded.civilizations[third].diplomacy.treaties, alliance];
+    // The city holds only the ally's unit (the seceded garrison stepped away), as a real reinforcement would.
+    const cityKey = hexKey(seceded.cities[cityId].position);
+    const friend = createUnit('warrior', third, seceded.cities[cityId].position, seceded.idCounters);
+    for (const unit of Object.values(seceded.units)) {
+      if (unit.owner === breakawayId && hexKey(unit.position) === cityKey) {
+        const away = hexNeighbors(unit.position).find(coord => seceded.map.tiles[hexKey(coord)]?.terrain === 'grassland'
+          || seceded.map.tiles[hexKey(coord)]?.terrain === 'plains')!;
+        seceded.units[unit.id] = { ...unit, position: away };
+      }
+    }
+    seceded.units[friend.id] = friend;
+    seceded.civilizations[third].units.push(friend.id);
+    seceded.civilizations['ai-1'].diplomacy.relationships[breakawayId] = 80;
+    seceded.civilizations['ai-1'].gold = 1000;
+    seceded.civilizations[breakawayId].breakaway!.reunification = 60;
+
+    const reabsorbed = tryReabsorbBreakaway(seceded, 'ai-1', breakawayId, new EventBus());
+
+    expect(reabsorbed.cities[cityId].owner).toBe('ai-1');
+    expect(hexKey(reabsorbed.units[friend.id].position)).not.toBe(cityKey);
+    assertSaveStateInvariants(reabsorbed, 'after the reabsorption');
   });
 
   it('the new civilization meets every living civ and no eliminated one', () => {
