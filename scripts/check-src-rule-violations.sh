@@ -351,9 +351,18 @@ for file_path in "$@"; do
       ;;
   esac
 
-  if grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" >/dev/null; then
-    lines="$(grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" | head -5)"
-    append_match_block "innerHTML with interpolated game data — use textContent or data-text placeholders (see .claude/rules/ui-panels.md#unit-info-panels)" "$lines"
+  if grep -nE '(innerHTML\s*=\s*`[^`]*\$\{|insertAdjacentHTML\([^,]+,\s*`[^`]*\$\{)' "$file_path" >/dev/null; then
+    lines="$(grep -nE '(innerHTML\s*=\s*`[^`]*\$\{|insertAdjacentHTML\([^,]+,\s*`[^`]*\$\{)' "$file_path" | head -5)"
+    append_match_block "innerHTML/insertAdjacentHTML with interpolated game data — use textContent or data-text placeholders (see .claude/rules/ui-panels.md#unit-info-panels)" "$lines"
+  fi
+
+  # --- raw state color interpolated into HTML/SVG markup (#1830): civ/save colors can come from
+  # imported JSON and break out of inline style/fill attributes unless validated via html-safety.ts.
+  raw_color_lines="$(grep -nE 'style="[^"]*\$\{[^}]*(\.color|defColor)\b|fill="[^"]*\$\{[^}]*(\.color|civColor|defColor)\b' "$file_path" \
+    | grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' \
+    | grep -vE 'sanitizeHexColor\(' | head -5 || true)"
+  if [ -n "$raw_color_lines" ]; then
+    append_match_block "Raw color interpolated into HTML/SVG markup — validate through sanitizeHexColor() / isSafeHexColor() from src/core/html-safety.ts (see .claude/rules/ui-panels.md#unit-info-panels, #1830)" "$raw_color_lines"
   fi
 
   if grep -nE ':\s*(0|null|\[\])\s*,\s*//\s*calculated' "$file_path" >/dev/null; then

@@ -1,4 +1,5 @@
 import type { GameState } from '@/core/types';
+import { sanitizeHexColor } from '@/core/html-safety';
 import { loadAutoSave } from '@/storage/save-manager';
 import type { SaveFileAdapter, SaveFileReadResult, SaveFileWriteResult } from '@/platform/save-file-adapter';
 
@@ -47,6 +48,22 @@ export function serializeSaveFile(state: GameState): string {
   return `${JSON.stringify(state)}\n`;
 }
 
+function sanitizeImportedColors(state: GameState): void {
+  for (const civ of Object.values(state.civilizations)) {
+    if (isRecord(civ) && civ.color !== undefined) {
+      civ.color = sanitizeHexColor(civ.color);
+    }
+  }
+  const customCivs = state.settings?.customCivilizations;
+  if (Array.isArray(customCivs)) {
+    for (const def of customCivs) {
+      if (isRecord(def) && def.color !== undefined) {
+        def.color = sanitizeHexColor(def.color);
+      }
+    }
+  }
+}
+
 export function parseSaveFile(raw: string): SaveFileParseResult {
   let parsed: unknown;
   try {
@@ -59,6 +76,7 @@ export function parseSaveFile(raw: string): SaveFileParseResult {
     return { status: 'error', message: 'Invalid save file: missing required game state fields.' };
   }
 
+  sanitizeImportedColors(parsed);
   return { status: 'success', state: parsed };
 }
 

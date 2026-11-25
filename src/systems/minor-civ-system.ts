@@ -542,6 +542,7 @@ function executePurposefulMinorCivOrders(
       seed,
       buildCombatContextForDefender(nextState, attacker, defender),
       resolveCombatEra(nextState, attacker, defender),
+      nextState,
     );
     const presentation = buildCombatPresentation(nextState, result, attacker, defender);
     const applied = applyCombatOutcomeToState(nextState, result, seed, bus);
@@ -886,6 +887,7 @@ export function processScuffles(state: GameState, bus: EventBus): void {
             seed,
             buildCombatContextForDefender(state, attackerUnit, defenderUnit),
             resolveCombatEra(state, attackerUnit, defenderUnit),
+            state,
           );
           attackerUnit.health = Math.max(1, attackerUnit.health - result.attackerDamage);
           defenderUnit.health = Math.max(1, defenderUnit.health - result.defenderDamage);

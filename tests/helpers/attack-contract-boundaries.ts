@@ -10,6 +10,8 @@
  * A new executor therefore either runs the legality or has to be named here on purpose.
  */
 
+import ts from 'typescript';
+
 export const LEGALITY_TOKENS = ['resolveUnitVsUnitAttack(', 'canUnitAttackTarget(', 'getEmbarkedAssaultTarget('] as const;
 export const EXEMPT_CATEGORIES = ['preview', 'world-actor', 'air-mission'] as const;
 export type ExemptCategory = typeof EXEMPT_CATEGORIES[number];
@@ -105,6 +107,42 @@ export function findAttackContractViolations(files: readonly SourceFile[]): Atta
         violations.push({ path, line: 0, message: `expected ${expected} "${category}" exemption(s), found ${actual}` });
       }
     }
+  }
+  return violations;
+}
+
+/**
+ * #1830 — every `resolveCombat(...)` call in `src/` must pass the 7th `state` argument so
+ * state-scoped combat rules (bounded splash hits, Rogue Elephant Handler Command) never diverge
+ * between player, AI, and world-actor executors.
+ */
+export function findResolveCombatStateArgViolations(files: readonly SourceFile[]): AttackContractViolation[] {
+  const violations: AttackContractViolation[] = [];
+  for (const { path, source } of files) {
+    if (path === DEFINITION_FILE) continue;
+    if (!source.includes('resolveCombat')) continue;
+    const sf = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node) => {
+      if (
+        ts.isCallExpression(node)
+        && ts.isIdentifier(node.expression)
+        && node.expression.text === 'resolveCombat'
+      ) {
+        const seventh = node.arguments[6];
+        const missing = node.arguments.length < 7
+          || (seventh !== undefined && ts.isIdentifier(seventh) && seventh.text === 'undefined');
+        if (missing) {
+          const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
+          violations.push({
+            path,
+            line: line + 1,
+            message: `resolveCombat() call omits the 7th state argument (got ${node.arguments.length} args) — pass GameState so splash hits and state-scoped modifiers apply consistently (#1830)`,
+          });
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
   }
   return violations;
 }

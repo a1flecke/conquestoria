@@ -149,6 +149,7 @@ function runBeasts(state: GameState, context: RoundPhaseContext): GameState {
         combatSeed,
         buildCombatContextForDefender(newState, attacker, defender),
         resolveCombatEra(newState, attacker, defender),
+        newState,
       );
       const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
       const applied = applyCombatOutcomeToState(newState, result, combatSeed, bus);

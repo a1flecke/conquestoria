@@ -1,4 +1,5 @@
 import { djb2XorUnsigned } from '@/systems/deterministic-hash';
+import { isSafeHexColor } from '@/core/html-safety';
 import { hexToPixel } from '@/systems/hex-utils';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
@@ -26,7 +27,7 @@ import {
 
 export function applyFactionCivColor(svgHtml: string, faction: string, civColor: string): string {
   const accent = FACTION_SPRITE_ACCENT[faction];
-  if (!accent || !civColor || civColor === accent) return svgHtml;
+  if (!accent || !isSafeHexColor(civColor) || civColor === accent) return svgHtml;
   return svgHtml.replaceAll(accent, civColor);
 }
 

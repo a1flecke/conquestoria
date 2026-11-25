@@ -124,6 +124,7 @@ export function executeAIUnitAttack(
     seed,
     buildCombatContextForDefender(next, attacker, defender, { amphibiousAssault }),
     resolveCombatEra(next, attacker, defender),
+    next,
   );
   const presentation = buildCombatPresentation(next, combat, attacker, defender);
   const applied = applyCombatOutcomeToState(next, combat, seed, bus);

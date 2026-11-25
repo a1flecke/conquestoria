@@ -1,4 +1,5 @@
 import { BUILDING_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
+import { escapeHtmlAttr } from '@/core/html-safety';
 import { PRODUCTION_ICON_FALLBACK } from '@/systems/city-production-presentation';
 import { buildBuildingArtPanelSvg } from '@/renderer/buildings/building-art-sprite';
 import { getUnitIconSource, type UnitIconSource } from '@/renderer/sprites/unit-icon-source';
@@ -44,14 +45,15 @@ const PRODUCTION_ICON_STYLE =
 let unitIconSerial = 0;
 
 function unitIconHtml(unitType: string, source: UnitIconSource): string {
+  const safeUnitType = escapeHtmlAttr(unitType);
   if (source.kind === 'png') {
     // `cq-png-static` holds the first frame: a list of icons does not animate.
-    return `<span data-unit-art="${unitType}" data-unit-art-kind="png" class="cq-png-static" aria-hidden="true" ` +
+    return `<span data-unit-art="${safeUnitType}" data-unit-art-kind="png" class="cq-png-static" aria-hidden="true" ` +
       `style="${PRODUCTION_ICON_STYLE}position:relative;">${source.html}</span>`;
   }
   const svg = namespaceSvgIds(source.svg, `${unitType}-${unitIconSerial++}`)
     .replace(/(<svg\b[^>]*?)\swidth="\d+"\s+height="\d+"/, `$1 width="${PRODUCTION_ICON_SIZE_PX}" height="${PRODUCTION_ICON_SIZE_PX}"`);
-  return `<span data-unit-art="${unitType}" data-unit-art-kind="svg" aria-hidden="true" style="${PRODUCTION_ICON_STYLE}">${svg}</span>`;
+  return `<span data-unit-art="${safeUnitType}" data-unit-art-kind="svg" aria-hidden="true" style="${PRODUCTION_ICON_STYLE}">${svg}</span>`;
 }
 
 /**
@@ -63,7 +65,7 @@ function unitIconHtml(unitType: string, source: UnitIconSource): string {
  */
 export function getProductionItemIconHtml(itemId: string, owner: ProductionIconOwner): string {
   const artSvg = buildBuildingArtPanelSvg(itemId, owner.palette, PRODUCTION_ICON_SIZE_PX);
-  if (artSvg) return `<span data-building-art="${itemId}" aria-hidden="true" style="${PRODUCTION_ICON_STYLE}">${artSvg}</span>`;
+  if (artSvg) return `<span data-building-art="${escapeHtmlAttr(itemId)}" aria-hidden="true" style="${PRODUCTION_ICON_STYLE}">${artSvg}</span>`;
   const unitSource = getUnitIconSource(itemId, owner.color);
   if (unitSource) return unitIconHtml(itemId, unitSource);
   return productionIconHtml(itemId);

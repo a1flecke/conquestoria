@@ -1575,4 +1575,15 @@ describe('diplomacy-panel border tension', () => {
     expect(panel.innerHTML).toContain('Demand withdrawal');
     expect(panel.innerHTML).toContain('Their armed units are near your cities');
   });
+
+  it('#1830: neutralizes malicious civ colors and attribute payloads without injecting HTML elements', () => {
+    const { container, state } = makeDiplomacyFixture({ includeThirdCiv: true });
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations.outsider.color = '"><img src=x onerror=alert(1)>';
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+    expect(panel.querySelectorAll('img, script').length).toBe(0);
+    expect(panel.innerHTML).not.toContain('onerror');
+    expect(panel.innerHTML).not.toContain('alert(1)');
+  });
 });

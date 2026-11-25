@@ -17,9 +17,9 @@ import {
 } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import {
-  calculateCombatStrengths,
   deterministicCombatSeed,
   resolveCombat,
+  resolveCombatStrengths,
 } from '@/systems/combat-system';
 import { buildObservedCombatContext, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitOccupyCity, resolveMajorCityCapture } from '@/systems/city-capture-system';
@@ -513,7 +513,7 @@ function rankAttacks(
       continue;
     }
     const combatContext = buildObservedCombatContext(context.state, context.actorId, unit, defender);
-    const strengths = calculateCombatStrengths(unit, defender, context.state.map, combatContext);
+    const strengths = resolveCombatStrengths(unit, defender, context.state.map, combatContext, context.state);
     const defenderProfile = getUnitAttackProfile(defender.type);
     const safeRanged = target.result.range > defenderProfile.range;
     const action: AITacticalAction = {
@@ -529,6 +529,7 @@ function rankAttacks(
       combatSeed(context.state, unit.id, defender.id),
       combatContext,
       estimateCombatEraForViewer(context.state, context.actorId, defender.owner),
+      context.state,
     );
     const expectedDamageRatio = Math.min(2, preview.defenderDamage / Math.max(1, defender.health));
     const deathRisk = Math.min(2, preview.attackerDamage / Math.max(1, unit.health));
@@ -1385,6 +1386,7 @@ function rankEmbarkedAttacks(
         combatSeed(context.state, attacker.id, defender.id),
         combatContext,
         estimateCombatEraForViewer(context.state, context.actorId, defender.owner),
+        context.state,
       );
       return [ranked(
         { kind: 'embarked-attack', unitId: unit.id, targetUnitId: defender.id },
@@ -1477,6 +1479,7 @@ export function applyPredictedAction(
         seed,
         buildObservedCombatContext(next, context.actorId, unit, defender),
         estimateCombatEraForViewer(next, context.actorId, defender.owner),
+        next,
       );
       return applyCombatOutcomeToState(next, result, seed).state;
     }
@@ -1504,6 +1507,7 @@ export function applyPredictedAction(
         seed,
         buildObservedCombatContext(detached.state, context.actorId, detached.attacker, defender, { amphibiousAssault: true }),
         estimateCombatEraForViewer(detached.state, context.actorId, defender.owner),
+        detached.state,
       );
       return applyCombatOutcomeToState(detached.state, result, seed).state;
     }

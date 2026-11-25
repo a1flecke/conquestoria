@@ -761,3 +761,48 @@ describe('city assault balance sampling (#522)', () => {
     expect(winRate).toBeGreaterThan(0.05);
   });
 });
+
+describe('#1830 minor-civ city siege HP regeneration', () => {
+  it('blocks passive HP regeneration on a wounded city-state city when a warring major civ unit stands adjacent', () => {
+    const { state } = makeGameStateWithCity();
+    const mcCity: City = {
+      ...state.cities.town,
+      id: 'mc-city',
+      owner: 'mc-sparta',
+      name: 'Sparta',
+      position: { q: 4, r: 4 },
+      hp: 60,
+    };
+    state.cities['mc-city'] = mcCity;
+    state.minorCivs = {
+      'mc-sparta': {
+        id: 'mc-sparta',
+        definitionId: 'sparta',
+        cityId: 'mc-city',
+        units: [],
+        diplomacy: { atWarWith: ['player'], relationships: {}, treaties: [], events: [] } as never,
+        activeQuests: {},
+        chainStatusByCiv: {},
+        questCooldownUntilByCiv: {},
+        lastNotifiedStatusByCiv: {},
+        isDestroyed: false,
+        garrisonCooldown: 0,
+        lastEraUpgrade: 0,
+      },
+    };
+    state.civilizations.player.diplomacy.atWarWith = ['mc-sparta'];
+    state.units = {};
+
+    // Without adjacent enemies, the wounded city-state regenerates.
+    expect(isCityHpRegenerating(state, mcCity)).toBe(true);
+
+    // Place a warring player unit adjacent to the city-state city.
+    const besieger = createUnit('warrior', 'player', { q: 5, r: 4 }, mkC());
+    state.units[besieger.id] = besieger;
+    state.civilizations.player.units.push(besieger.id);
+
+    expect(isCityHpRegenerating(state, mcCity)).toBe(false);
+    const afterRegen = applyCityHpRegeneration(state);
+    expect(afterRegen.cities['mc-city']!.hp).toBe(60);
+  });
+});

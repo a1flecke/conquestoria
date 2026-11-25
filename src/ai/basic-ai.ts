@@ -496,6 +496,7 @@ export function applyPirateAiResponse(state: GameState, civId: string, bus: Even
         seed,
         buildCombatContextForDefender(nextState, warship, adjacentPirate),
         resolveCombatEra(nextState, warship, adjacentPirate),
+        nextState,
       );
       const combatPresentation = buildCombatPresentation(nextState, combat, warship, adjacentPirate);
       const applied = applyCombatOutcomeToState(nextState, combat, seed, bus);
