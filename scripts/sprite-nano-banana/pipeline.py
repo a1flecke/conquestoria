@@ -103,6 +103,22 @@ def _review_dir(unit_id: str, repo_root: Path) -> Path:
     return d
 
 
+def _next_review_version(rev_dir: Path, unit_id: str, stems: tuple[tuple[str, str], ...]) -> int:
+    """Return the next monotonic review version (1, 2, 3...) across the given artifact stems.
+
+    Each produce/regenerate iteration writes to a unique `<unit_id>-<stem>-v<N>.<ext>` filename so
+    image viewers and Antigravity's artifact cache never serve a stale earlier take.
+    """
+    max_v = 0
+    for stem, ext in stems:
+        pattern = re.compile(rf'^{re.escape(unit_id)}-{re.escape(stem)}-v(\d+)\.{re.escape(ext)}$')
+        for p in rev_dir.iterdir():
+            m = pattern.match(p.name)
+            if m:
+                max_v = max(max_v, int(m.group(1)))
+    return max_v + 1
+
+
 def _archive_rejected(target: Path, reason: str) -> Path:
     slug = re.sub(r'[^a-z0-9_-]+', '-', reason.lower()).strip('-') or 'retry'
     stem = target.stem
@@ -471,6 +487,7 @@ def produce_unit(
     master_qc = qc_results.get('a')
     if stage == 'master':
         rig_review_path = _calibrate_master_only(spec, originals_dir, repo_root)
+        master_ver = _next_review_version(rev_dir, uid, (('review-master', 'png'),))
         master_card = render_master_review_card(
             spec,
             master_path,
@@ -480,9 +497,11 @@ def produce_unit(
             warnings=master_qc.warnings if master_qc else [],
             rig_review_path=rig_review_path,
             parity_preview_dir=parity_dir,
-            out_path=rev_dir / 'review-master.png',
+            out_path=rev_dir / f'{uid}-review-master-v{master_ver}.png',
             repo_root=repo_root,
+            iteration=master_ver,
         )
+        shutil.copy2(master_card, rev_dir / 'review-master.png')
         # Save master prompt into draft provenance so `--stage set` preserves it verbatim.
         existing = _load_existing_provenance(preview_dir)
         merged_prompts = {**(existing.get('sheet_prompts') or {}), **sheet_prompts}
@@ -503,6 +522,7 @@ def produce_unit(
             'ok': True,
             'unitId': uid,
             'stage': 'master',
+            'reviewIteration': master_ver,
             'model': active_model,
             'backend': active_backend,
             'styleRef': style_ref_id,
@@ -540,6 +560,8 @@ def produce_unit(
     preflight = preflight_export_check(spec, preview_dir, repo_root=repo_root)
     rig_review_path = repo_root / '.verification' / 'strips' / uid / 'rig-review.png'
 
+    master_ver = _next_review_version(rev_dir, uid, (('review-master', 'png'),))
+    set_ver = _next_review_version(rev_dir, uid, (('review-sheet', 'png'), ('review-anim', 'gif')))
     master_card = render_master_review_card(
         spec,
         master_path,
@@ -549,28 +571,35 @@ def produce_unit(
         warnings=master_qc.warnings if master_qc else [],
         rig_review_path=rig_review_path if rig_review_path.is_file() else None,
         parity_preview_dir=parity_dir,
-        out_path=rev_dir / 'review-master.png',
+        out_path=rev_dir / f'{uid}-review-master-v{master_ver}.png',
         repo_root=repo_root,
+        iteration=master_ver,
     )
+    shutil.copy2(master_card, rev_dir / 'review-master.png')
     set_card = render_set_review_card(
         spec,
         preview_dir,
         model=active_model,
         preflight=preflight,
         parity_preview_dir=parity_dir,
-        out_path=rev_dir / 'review-sheet.png',
+        out_path=rev_dir / f'{uid}-review-sheet-v{set_ver}.png',
+        iteration=set_ver,
     )
+    shutil.copy2(set_card, rev_dir / 'review-sheet.png')
     anim_gif = render_review_gif(
         spec,
         preview_dir,
         parity_preview_dir=parity_dir,
-        out_path=rev_dir / 'review-anim.gif',
+        out_path=rev_dir / f'{uid}-review-anim-v{set_ver}.gif',
+        iteration=set_ver,
     )
+    shutil.copy2(anim_gif, rev_dir / 'review-anim.gif')
 
     out_payload = {
         'ok': True,
         'unitId': uid,
         'stage': stage,
+        'reviewIteration': set_ver,
         'model': active_model,
         'backend': active_backend,
         'styleRef': style_ref_id,

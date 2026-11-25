@@ -560,26 +560,46 @@ t = threading.Thread(target=srv.serve_forever, daemon=True)
 t.start()
 env = {**os.environ, 'GEMINI_API_KEY': 'k', 'GEMINI_API_BASE_URL': f'http://127.0.0.1:{port}/v1'}
 try:
-    # Stage 1: master only -> 1 call at 1K, compact JSON stdout, review-master.png written.
+    # Stage 1: master only -> 1 call at 1K, compact JSON stdout, versioned review-master-v1.png written.
     r1 = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'axeman', '--stage', 'master', '--originals', str(originals), '--json'],
                         capture_output=True, text=True, env=env, check=True)
     j1 = json.loads(r1.stdout)
-    assert j1['ok'] is True and j1['stage'] == 'master'
+    assert j1['ok'] is True and j1['stage'] == 'master' and j1['reviewIteration'] == 1
     assert 'sheet_prompts' not in j1
-    assert Path(j1['reviewImages']['master']).is_file()
+    m1 = Path(j1['reviewImages']['master'])
+    assert m1.is_file() and m1.name == 'axeman-review-master-v1.png'
     assert len(sizes_seen) == 1 and sizes_seen[0] == ('3:4', '1K'), sizes_seen
 
-    # Stage 2: set -> reuses a.png, b at 1K, c/d/e at 2K, creates review-sheet.png + multi-frame review-anim.gif.
+    # Master iteration: regenerate a -> emits distinct -v2 filename so artifact viewers never cache v1.
+    r1b = subprocess.run([sys.executable, '-I', pipeline_py, 'regenerate', 'axeman', 'a', '--note', 'grip shield handle', '--originals', str(originals), '--json'],
+                         capture_output=True, text=True, env=env, check=True)
+    j1b = json.loads(r1b.stdout)
+    assert j1b['ok'] is True and j1b['stage'] == 'master' and j1b['reviewIteration'] == 2
+    m2 = Path(j1b['reviewImages']['master'])
+    assert m2.is_file() and m2.name == 'axeman-review-master-v2.png' and m1.is_file()
+
+    # Stage 2: set -> reuses a.png, b at 1K, c/d/e at 2K, creates versioned review-sheet-v1.png + review-anim-v1.gif.
     r2 = subprocess.run([sys.executable, '-I', pipeline_py, 'produce', 'axeman', '--stage', 'set', '--originals', str(originals), '--json'],
                         capture_output=True, text=True, env=env, check=True)
     j2 = json.loads(r2.stdout)
-    assert j2['ok'] is True and j2['stage'] == 'set' and j2['preflight']['ok'] is True
-    assert Path(j2['reviewImages']['sheet']).is_file()
+    assert j2['ok'] is True and j2['stage'] == 'set' and j2['reviewIteration'] == 1 and j2['preflight']['ok'] is True
+    s1 = Path(j2['reviewImages']['sheet'])
     gif_path = Path(j2['reviewImages']['animGif'])
-    assert gif_path.is_file()
+    assert s1.is_file() and s1.name == 'axeman-review-sheet-v1.png'
+    assert gif_path.is_file() and gif_path.name == 'axeman-review-anim-v1.gif'
     with Image.open(gif_path) as gim:
         assert getattr(gim, 'n_frames', 1) > 5, 'expected animated review GIF'
-    assert sizes_seen == [('3:4', '1K'), ('1:1', '1K'), ('3:2', '2K'), ('3:2', '2K'), ('3:2', '2K')], sizes_seen
+
+    # Set iteration: regenerate c -> emits distinct -v2 sheet & GIF filenames while preserving -v1.
+    r2b = subprocess.run([sys.executable, '-I', pipeline_py, 'regenerate', 'axeman', 'c', '--note', 'wider axe swing', '--originals', str(originals), '--json'],
+                         capture_output=True, text=True, env=env, check=True)
+    j2b = json.loads(r2b.stdout)
+    assert j2b['ok'] is True and j2b['reviewIteration'] == 2
+    s2 = Path(j2b['reviewImages']['sheet'])
+    g2 = Path(j2b['reviewImages']['animGif'])
+    assert s2.is_file() and s2.name == 'axeman-review-sheet-v2.png' and s1.is_file()
+    assert g2.is_file() and g2.name == 'axeman-review-anim-v2.gif' and gif_path.is_file()
+    assert sizes_seen == [('3:4', '1K'), ('3:4', '1K'), ('1:1', '1K'), ('3:2', '2K'), ('3:2', '2K'), ('3:2', '2K'), ('3:2', '2K')], sizes_seen
 finally:
     srv.shutdown()
     srv.server_close()

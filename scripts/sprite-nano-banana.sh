@@ -7,7 +7,7 @@
 #     CLI) first so AI Studio Prepay / Developer Program credits are consumed first, then automatically fails over
 #     to Vertex AI (ADC) on quota/billing exhaustion or missing AI Studio credentials.
 #   - Forced backend: set `NANO_BANANA_BACKEND=aistudio|vertex` or pass `--backend aistudio|vertex`.
-#   - Vertex AI defaults: `GOOGLE_CLOUD_PROJECT=conquestoria-image-gen`, `GOOGLE_CLOUD_LOCATION=us-central1`.
+#   - Vertex AI defaults: `GOOGLE_CLOUD_PROJECT=gen-lang-client-0840262071`, `GOOGLE_CLOUD_LOCATION=global`.
 #
 # Contract:
 #   - runs `python3 -I <this worktree>/scripts/sprite-nano-banana/pipeline.py <subcommand> ...` and nothing else;
@@ -36,9 +36,9 @@ subcommands (all accept --json except where noted):
 Environment variables:
   NANO_BANANA_BACKEND     auto (default: AI Studio -> Vertex AI failover) | aistudio | vertex
   AISTUDIO_IMAGE_MODEL    AI Studio model ID/alias (default: gemini-nano-banana-2.1)
-  VERTEX_IMAGE_MODEL      Vertex AI model ID/alias (default: gemini-3.1-flash-image)
-  GOOGLE_CLOUD_PROJECT    Vertex AI project (default: conquestoria-image-gen)
-  GOOGLE_CLOUD_LOCATION   Vertex AI location (default: us-central1)
+  VERTEX_IMAGE_MODEL      Vertex AI model ID/alias (default: gemini-nano-banana-2.1)
+  GOOGLE_CLOUD_PROJECT    Vertex AI project (default: gen-lang-client-0840262071)
+  GOOGLE_CLOUD_LOCATION   Vertex AI location (default: global)
 USAGE
 }
 
