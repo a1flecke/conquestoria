@@ -44,15 +44,17 @@ An agent follows `.agents/skills/nano-banana-sprites/SKILL.md`:
 # 1. Check status (compact JSON)
 ./scripts/sprite-nano-banana.sh status --json
 
-# 2. Stage 1: generate ONLY master a.png (1K = 1,120 tokens) + review-master.png
+# 2. Stage 1: generate ONLY master a.png (1K = 1,120 tokens) + <id>-review-master-v1.png
 ./scripts/sprite-nano-banana.sh produce axeman --stage master --json
-#    -> Human signs off on review-master.png directly in Antigravity
-#    -> If tweaks needed: pipeline.py regenerate axeman a --note "..." --json
+#    -> Human signs off on <id>-review-master-v1.png directly in Antigravity
+#    -> If tweaks needed (emits -v2, -v3... so Antigravity never caches an old take):
+#       ./scripts/sprite-nano-banana.sh regenerate axeman a --note "..." --json
 
-# 3. Stage 2: generate b..e from approved a.png + build preview + review-sheet.png + review-anim.gif
+# 3. Stage 2: generate b..e from approved a.png + build preview + <id>-review-sheet-v1.png + <id>-review-anim-v1.gif
 ./scripts/sprite-nano-banana.sh produce axeman --stage set --json
-#    -> Human signs off on review-sheet.png + review-anim.gif in Antigravity
-#    -> If one action needs a tweak: pipeline.py regenerate axeman c --note "..." --json
+#    -> Human signs off on <id>-review-sheet-v1.png + <id>-review-anim-v1.gif in Antigravity
+#    -> If one action needs a tweak (emits -v2, -v3...):
+#       ./scripts/sprite-nano-banana.sh regenerate axeman c --note "..." --json
 
 # 4. Ship: export + finalize provenance + wire catalog, scenarios, tests, and asset-rights ledger
 ./scripts/sprite-nano-banana.sh approve axeman --json

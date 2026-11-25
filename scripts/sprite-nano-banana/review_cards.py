@@ -115,6 +115,7 @@ def render_master_review_card(
     parity_preview_dir: Path | None,
     out_path: Path,
     repo_root: Path,
+    iteration: int | None = None,
 ) -> Path:
     """Render one compact review card for Stage 1 (master `a.png`) sign-off in Antigravity."""
     strips = load_strips(repo_root)
@@ -142,9 +143,10 @@ def render_master_review_card(
     tint_str = f'{tint_fraction * 100:.1f}%' if tint_fraction is not None else 'n/a'
     warn_str = f' | {len(warnings)} warn' if warnings else ' | 0 warnings'
     status_str = 'QC PASS' if qc_ok else 'QC ISSUES'
+    iter_tag = f' [v{iteration}]' if iteration is not None else ''
     _draw_header(
         canvas,
-        f'MASTER REVIEW: {spec["prompt"]["name"]} ({spec["id"]}) — {status_str}',
+        f'MASTER REVIEW: {spec["prompt"]["name"]} ({spec["id"]}){iter_tag} — {status_str}',
         f'Family: {family} | Model: {model} | Team tint: {tint_str}{warn_str} | Sign off master before generating b..e',
     )
 
@@ -209,6 +211,7 @@ def render_set_review_card(
     preflight: dict,
     parity_preview_dir: Path | None,
     out_path: Path,
+    iteration: int | None = None,
 ) -> Path:
     """Render one compact full-unit review contact sheet for final sign-off in Antigravity."""
     man = json.loads((preview_dir / 'manifest.json').read_text(encoding='utf-8'))
@@ -251,9 +254,10 @@ def render_set_review_card(
         budget = f'Export OK: {preflight["diskKb"]}/{preflight["maxDiskKb"]} KB, {preflight["decodedMib"]}/{preflight["maxDecodedMib"]} MiB'
     else:
         budget = f'EXPORT BLOCKED: {preflight.get("error", "unknown")}'
+    iter_tag = f' [v{iteration}]' if iteration is not None else ''
     _draw_header(
         canvas,
-        f'FINAL SIGN-OFF SHEET: {spec["prompt"]["name"]} ({spec["id"]})',
+        f'FINAL SIGN-OFF SHEET: {spec["prompt"]["name"]} ({spec["id"]}){iter_tag}',
         f'Family: {family} | Model: {model} | {budget}',
     )
 
@@ -324,6 +328,7 @@ def render_review_gif(
     *,
     parity_preview_dir: Path | None,
     out_path: Path,
+    iteration: int | None = None,
 ) -> Path:
     """Render a compact animated GIF playing Walk -> Attack -> Hurt -> Defeat beside the shipped exemplar."""
     man = json.loads((preview_dir / 'manifest.json').read_text(encoding='utf-8'))
@@ -366,13 +371,14 @@ def render_review_gif(
     if not sequence:
         sequence.append(('IDLE', 'idle', 0, 400))
 
+    iter_tag = f' [v{iteration}]' if iteration is not None else ''
     frames: list[Image.Image] = []
     durations: list[int] = []
     for tick, (label, st_name, fi, dur) in enumerate(sequence):
         frame = Image.new('RGBA', (W, H), (*bg_rgb, 255))
         d = ImageDraw.Draw(frame)
         d.rectangle((0, 0, W, 28), fill=(36, 31, 26, 255))
-        d.text((10, 7), f'{spec["id"]} — {label}', fill=(245, 238, 224, 255))
+        d.text((10, 7), f'{spec["id"]}{iter_tag} — {label}', fill=(245, 238, 224, 255))
         if ex_man:
             d.text((W - 180, 7), f'vs {ex_man["id"]} (shipped)', fill=(195, 184, 164, 255))
 

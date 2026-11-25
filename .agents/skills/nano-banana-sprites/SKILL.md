@@ -32,23 +32,23 @@ Generate and ship Conquestoria painted unit strip sprites with **minimal token c
 ./scripts/sprite-nano-banana.sh produce <id> --stage master --json
 ```
 - If exit code is `3` (missing auth), tell the user to configure AI Studio (`gemini-api configure --api-key "..."`) and/or Vertex AI ADC (`gcloud auth application-default login && gcloud auth application-default set-quota-project gen-lang-client-0840262071`). By default (`NANO_BANANA_BACKEND=auto`), the wrapper tries AI Studio first and automatically fails over to Vertex AI when AI Studio credits/quota are exhausted.
-- Copy `reviewImages.master` (`review-master.png`) into the conversation artifact directory using a versioned filename (`<appDataDir>/brain/<conversation-id>/<id>-master-v1.png`, incrementing `-v2`, `-v3` on regenerations so the artifact viewer never caches an older take), embed it in a concise review artifact (`RequestFeedback: true`), and ask the user: **Approve master or describe tweaks?**
+- Copy `reviewImages.master` (already uniquely versioned per take, e.g. `<id>-review-master-v1.png`, `-v2.png`, with `[vN]` stamped in the header so Antigravity's artifact viewer never serves a cached earlier take) into `<appDataDir>/brain/<conversation-id>/` preserving its exact basename, embed it in a concise review artifact (`RequestFeedback: true`), and ask the user: **Approve master or describe tweaks?**
 - On tweaks:
   ```bash
   ./scripts/sprite-nano-banana.sh regenerate <id> a --note "<user feedback>" --json
   ```
-  and re-present the updated `review-master.png`.
+  then copy the new versioned `reviewImages.master` (`-v2`, `-v3`, ...) preserving its basename and update the review artifact to embed the new filename.
 
 ### 3. Stage 2 — Generate Full Action Set (`b..e`) & Request Final Sign-Off
 ```bash
 ./scripts/sprite-nano-banana.sh produce <id> --stage set --json
 ```
-- Copy `reviewImages.sheet` (`review-sheet.png`) and `reviewImages.animGif` (`review-anim.gif`) into the conversation artifact directory, embed both in a concise review artifact alongside the `preflight` budget summary, and ask for final sign-off.
+- Copy `reviewImages.sheet` (`<id>-review-sheet-v1.png`) and `reviewImages.animGif` (`<id>-review-anim-v1.gif`) into `<appDataDir>/brain/<conversation-id>/` preserving their exact versioned basenames, embed both in a concise review artifact alongside the `preflight` budget summary, and ask for final sign-off.
 - If a single action sheet needs a tweak (e.g. `c` attack):
   ```bash
   ./scripts/sprite-nano-banana.sh regenerate <id> c --note "<user feedback>" --json
   ```
-  and re-present the updated `review-sheet.png` + `review-anim.gif`.
+  then copy the newly incremented `reviewImages.sheet` (`-v2`, ...) and `reviewImages.animGif` (`-v2`, ...) preserving their basenames and update the review artifact to embed the new filenames.
 
 ### 4. Ship on Approval
 ```bash
