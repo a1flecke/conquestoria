@@ -34,6 +34,7 @@ const counts = {
   'ChatGPT image generation (codex illustrations)': codexImages.filter(r => String(r.generator ?? '').startsWith('ChatGPT')).length,
   'ChatGPT image generation (building sprites)': buildingArt.filter(r => String(r.generator ?? '').startsWith('ChatGPT')).length,
   'ChatGPT image generation (unit strips)': stripUnits.filter(r => String(r.generator ?? '').startsWith('ChatGPT')).length,
+  'Nano Banana (unit strips)': stripUnits.filter(r => String(r.generator ?? '').startsWith('Nano Banana')).length,
   'Public-domain artwork (General portraits)': portraits.filter(r => r.licence === 'Public domain').length,
 };
 

@@ -104,7 +104,9 @@ catalog). Operating procedure: `scripts/sprite-puppet/STRIPS.md` ("Export to the
   256-colour palette PNG (watch smooth gradients for banding).
 - **Rollback.** Delete the unit's `STRIP_UNITS` entry. The SVG sprite stays either way.
 - **Provenance and ledger.** `design/png-sprites/previews/<id>/provenance.json` lists the originals' SHA-256s; strip units are counted in
-  the ledger family `ChatGPT image generation (unit strips)` (`tests/systems/asset-rights-ledger.test.ts`).
+  the ledger family `ChatGPT image generation (unit strips)` or `Nano Banana (unit strips)` (`tests/systems/asset-rights-ledger.test.ts`).
+- **Automated Nano Banana producer.** A second production pipeline (`scripts/sprite-nano-banana/pipeline.py`, see `scripts/sprite-nano-banana/README.md`)
+  generates the same `strip-rigs/<id>.json` sheets directly via Google's Nano Banana API with style-reference parity, automated `portrait_pixelate.py scan` + `strips.py` QC/retry, local Sign-Off Studio, and automated `strips.py export` + game/test/ledger wiring.
 
 ---
 
