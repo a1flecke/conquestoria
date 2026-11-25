@@ -30,6 +30,7 @@ changes.
 | ChatGPT image generation (codex illustrations) | 42 | `design/wonder-codex-images/*.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
 | ChatGPT image generation (building sprites) | 167 | `design/building-art/*.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
 | ChatGPT image generation (unit strips) | 21 | `design/png-sprites/previews/<unit>/provenance.json` of each strip unit in the catalog | Sufficient evidence recorded (owner's statement of a paid plan) |
+| Nano Banana (unit strips) | 0 | `design/png-sprites/previews/<unit>/provenance.json` of each Nano Banana strip unit in the catalog | Sufficient evidence recorded (owner's Gemini API account; non-commercial posture) |
 | Public-domain artwork (General portraits) | 8 | `design/general-portraits/*.provenance.json` | Sufficient evidence recorded |
 | Kenney CC0 and credited audio | not counted here | `AUDIO-CREDITS.md`, `src/audio/*-audio-sources.ts` | Sufficient where reviewed; not re-audited here |
 | Original crisis and loss stingers (#616) | 9 | [Synthesis and shipped hashes](audio/crisis-stingers.md) | Sufficient evidence recorded (project-authored synthesis with no external source material) |
@@ -102,6 +103,12 @@ The earlier Sprite-AI and SpriteCook unit sprites (#621, #1040) were replaced by
   the families above.
 - Same re-check gate before any commercial release.
 
+### Nano Banana, unit strips (automated pipeline)
+
+- Generated directly by the project owner via Google's Gemini / Nano Banana API (`scripts/sprite-nano-banana/pipeline.py`), from the same `scripts/sprite-puppet/strip-rigs/<unit>.json` specs and `strip-prompts/` templates as the ChatGPT strip pipeline, with no logo, brand, person, or lettering. Google's current API terms were **not** reviewed here; the owner holds the Gemini API account.
+- Each unit's record under `design/png-sprites/previews/<unit>/provenance.json` keeps the exact model ID, verbatim per-sheet prompts, security-scan summary, regeneration log, and the SHA-256 of every generated original; originals are never committed, and `strips.py build` and `export` re-encode from decoded pixels (dropping EXIF/XMP/ICC/C2PA metadata; Google's invisible SynthID watermark applies to Nano Banana output).
+- Same re-check gate before any commercial release.
+
 ### Public-domain portraits (8 General portraits)
 
 - Wikimedia Commons file pages are recorded per image with licence "Public domain" (never share-alike). Verified at intake, not
@@ -118,7 +125,7 @@ The earlier Sprite-AI and SpriteCook unit sprites (#621, #1040) were replaced by
 
 A checklist, not a clearance. Do all of it, in order:
 
-1. Re-read the **current** terms for every AI generator above (Sprite-AI, DeepAI, OpenAI) and save a dated copy.
+1. Re-read the **current** terms for every AI generator above (Sprite-AI, DeepAI, OpenAI, Google Gemini / Nano Banana) and save a dated copy.
 2. The 13 Sprite-AI assets were generated on the **free plan**. Decide: regenerate under a paid plan, replace, or obtain written
    confirmation from the vendor. Do not assume a later subscription covers earlier output.
 3. Decide how to treat DeepAI output, which carries no exclusivity: keep, or replace the portraits that matter most.

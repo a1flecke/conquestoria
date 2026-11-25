@@ -1,0 +1,29 @@
+{
+  "id": "axeman",
+  "family": "biped",
+  "prompt": {
+    "name": "Axeman",
+    "theme": "Early Copper / Bronze Age melee infantry (Era 1–2): clean hand-painted historical 2D strategy art matching the Warrior and Swordsman sprites.",
+    "look": "An early copper-age axeman: a friendly, stout adult man with a strong jaw, short brown beard, brown hair and thick eyebrows, wearing a simple bronze-rimmed leather cap, a knee-above sleeveless bold red wool tunic over a tan linen undershirt, a wide brown leather belt with a bronze buckle, leather forearm bracers, dark wool trousers tucked into sturdy calf-high brown leather boots. In his right hand he grips a long wooden-hafted battle axe with a flared bronze/copper crescent blade; on his left arm he carries a medium round wooden shield covered in tan hide with stitched rim and a raised bronze central boss.",
+    "team_area": "his tunic",
+    "identity": "the same face, brown hair and short brown beard, bronze-rimmed leather cap, red tunic, leather belt with bronze buckle, bracers, dark wool trousers, brown leather boots, wooden-hafted bronze battle axe and round hide shield with bronze boss",
+    "weapon_pose": "Pose his arms naturally like a real fighter: his near (right) arm is bent forward across his chest, forearm raised and fist firmly gripping the wooden axe handle near the lower third so the flared bronze axe head rises straight up to the right, completely clear of the shield with magenta background visible between them. His far (left) arm is clearly raised and bent behind the medium round hide shield, actively holding the shield in front of his chest so the shield is clearly supported by his arm (never floating or pasted onto his torso). The shield reaches from his shoulder to his waist, well above the hem of his red tunic, and the axe butt stays well above his knees and nowhere near his boots.",
+    "attack_frames": 6,
+    "attack": "(1) ready stance, axe raised upright in front of the chest, round shield guarding the torso; (2) anticipation: weight shifting back, axe drawn back behind his shoulder; (3) wind-up: stepping forward with the axe raised high overhead; (4) the cleave: swinging the axe forcefully down and forward to the right over the top of the shield, arm extended; (5) follow-through: axe head low and out to the right beyond the shield, body leaning forward, front knee bent; (6) recover to the ready stance. The shield stays on his left arm in every frame, and the whole axe stays visible, never hidden behind the shield. No motion arc or trail.",
+    "damage_gear": "a dented leather cap, a scuffed shield and a nicked bronze axe blade",
+    "damage_gear_critical": "a split leather cap, a torn tunic, a cracked shield rim and a notched axe haft, still in his hands",
+    "defeat_prop": "the battle axe still gripped loosely in his hand and the round shield still on his arm"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 140 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",    "file": "a", "cells": 1, "fps": 4 },
+    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": { "sources": ["a", "b#0", "b#1", "b#2", "b#3"], "shafts": 0, "stride_deg": 24, "knee_bend": 14, "foot_level": 0.7 } },
+    { "state": "attack",  "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "restFrames": [0, 5] },
+    { "state": "hit",     "file": "d", "cells": 5, "grid": [3, 2], "fps": 8, "restFrames": [0, 4], "loop": false },
+    { "state": "defeat",  "file": "e", "cells": 5, "grid": [3, 2], "fps": 5, "restFrames": [0], "loop": false }
+  ]
+}
