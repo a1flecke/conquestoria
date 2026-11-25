@@ -178,13 +178,13 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
     code: 'gold-hoard',
     issue: '#1693',
-    why: 'AIs kept net treasury growth after maturation: lh-explorer-small ai-2 60 rounds (213-272, +4,128), lh-late-era-medium ai-1 107 (136-242, +51,625), ai-2 98 (152-249, +63,812) and ai-3 107 (143-249, +39,470); the decision-point traces show every legal rush-buy was made and the rest were structurally blocked (completes-this-turn, materials or the maintenance reserve), with no missed purchase.',
+    why: 'AIs kept net treasury growth after maturation: lh-explorer-small ai-2 60 rounds (213-272, +4,128), lh-late-era-medium ai-1 105 (145-249, +53,950), ai-2 126 (124-249, +80,328) and ai-3 105 (145-249, +22,684). The late-era windows were re-measured after #1793 ended ai-1\'s 206-round war with mc-samarkand, which reshaped that campaign: before it (a3bf45c23^) the same scenario gives 107/98/107, exactly the old budgets. The #1798 decision-point traces (every legal rush-buy made, the rest blocked by completes-this-turn, materials or the maintenance reserve) were taken on the pre-#1793 base and have not been retaken.',
     scenarios: ['lh-explorer-small', 'lh-late-era-medium'],
     accepted: [
       { scenario: 'lh-explorer-small', civId: 'ai-2', maxRounds: 60 },
-      { scenario: 'lh-late-era-medium', civId: 'ai-1', maxRounds: 107 },
-      { scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 98 },
-      { scenario: 'lh-late-era-medium', civId: 'ai-3', maxRounds: 107 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-1', maxRounds: 105 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 126 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-3', maxRounds: 105 },
     ],
   },
 ];
