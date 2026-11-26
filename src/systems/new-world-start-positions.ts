@@ -6,12 +6,12 @@ import type { HexCoord } from '@/core/types/hex';
 export const NEW_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Record<string, HexCoord>> = {
   "small": {
     "england": {
-      "q": 19,
-      "r": 6
+      "q": 20,
+      "r": 7
     },
     "france": {
-      "q": 20,
-      "r": 5
+      "q": 21,
+      "r": 6
     },
     "spain": {
       "q": 16,
@@ -29,28 +29,28 @@ export const NEW_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
   "medium": {
     "england": {
       "q": 33,
-      "r": 11
+      "r": 13
     },
     "france": {
-      "q": 34,
+      "q": 35,
       "r": 10
     },
     "spain": {
       "q": 25,
-      "r": 18
+      "r": 19
     },
     "viking": {
-      "q": 40,
-      "r": 8
+      "q": 37,
+      "r": 10
     },
     "aztec": {
-      "q": 25,
-      "r": 17
+      "q": 24,
+      "r": 20
     }
   },
   "large": {
     "england": {
-      "q": 51,
+      "q": 53,
       "r": 22
     },
     "france": {
@@ -58,16 +58,16 @@ export const NEW_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
       "r": 16
     },
     "spain": {
-      "q": 40,
+      "q": 41,
       "r": 32
     },
     "viking": {
-      "q": 66,
-      "r": 16
+      "q": 63,
+      "r": 13
     },
     "aztec": {
-      "q": 39,
-      "r": 31
+      "q": 40,
+      "r": 32
     }
   }
 } as const;

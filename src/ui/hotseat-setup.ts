@@ -125,7 +125,7 @@ export function showHotSeatSetup(
 
     const spacingNote = document.createElement('p');
     spacingNote.dataset.role = 'hotseat-start-spacing-note';
-    spacingNote.textContent = 'Balanced starts keep rival civilizations from beginning next door, including across the wrapped map edge.';
+    spacingNote.textContent = 'Anywhere placement keeps rival civilizations from beginning next door, including across the wrapped map edge.';
     spacingNote.style.cssText = 'font-size:12px;opacity:0.65;margin:16px 0 0;text-align:center;max-width:420px;line-height:1.45;';
     panel.querySelector('.map-size-card')?.parentElement?.insertAdjacentElement('afterend', spacingNote);
 
@@ -158,17 +158,17 @@ export function showHotSeatSetup(
       earth: {
         emoji: '🌍',
         label: 'Earth',
-        description: 'Real-world geography with your choice of separated Balanced starts or exact True Starts.',
+        description: 'Real-world geography. Start anywhere on good, separated land, or in historical homelands.',
       },
       'old-world': {
         emoji: '🗺️',
         label: 'Old World',
-        description: 'Europe, Asia, and Africa with Balanced or exact True Start placement.',
+        description: 'Europe, Asia, and Africa. Start anywhere on good land, or in historical homelands.',
       },
       'new-world': {
         emoji: '🌎',
         label: 'New World',
-        description: 'North and South America with Balanced or exact True Start placement.',
+        description: 'North and South America. Start anywhere on good land, or in historical homelands.',
       },
       balanced: {
         emoji: '⚖️',
@@ -207,9 +207,9 @@ export function showHotSeatSetup(
     const placement = document.createElement('div');
     placement.dataset.role = 'start-placement-options';
     placement.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:480px;';
-    const balancedPlacement = createGameButton('Balanced (Recommended)', 'secondary');
+    const balancedPlacement = createGameButton('Anywhere (Recommended)', 'secondary');
     balancedPlacement.dataset.placementMode = 'balanced';
-    const historicalPlacement = createGameButton('True Start', 'secondary');
+    const historicalPlacement = createGameButton('Homelands (True Start)', 'secondary');
     historicalPlacement.dataset.placementMode = 'historical';
     placement.append(balancedPlacement, historicalPlacement);
     panel.appendChild(placement);
@@ -237,10 +237,10 @@ export function showHotSeatSetup(
         button.style.outline = button.dataset.selected === 'true' ? '2px solid #e8c170' : 'none';
       }
       placementDescription.textContent = selectedPlacementMode === 'balanced'
-        ? 'Separated viable starts are guaranteed; historical regions are soft preferences.'
-        : 'Exact known homelands are used. Nearby civilizations may begin close together.';
+        ? 'Every civilization starts on good land, well apart from the others. Homelands are only a soft preference.'
+        : 'Each civilization starts at its historical homeland, moved to the nearest livable land. Neighbors may start close together.';
       if (!anywhereFits) {
-        placementDescription.textContent = `${MAP_SCRIPT_LABELS[selectedMapScript as MapScriptKey]?.label ?? 'This map'} (${selectedMapSize}) is too small for separated starts, so True Start is used. Pick a larger size for separated starts.`;
+        placementDescription.textContent = `${MAP_SCRIPT_LABELS[selectedMapScript as MapScriptKey]?.label ?? 'This map'} (${selectedMapSize}) is too small for separated starts, so Homelands (True Start) is used. Pick a larger size for Anywhere placement.`;
       }
     };
     balancedPlacement.addEventListener('click', () => {
@@ -679,7 +679,7 @@ export function showHotSeatSetup(
     summary.style.cssText = 'max-width:520px;width:100%;background:rgba(255,255,255,0.06);border-radius:12px;padding:16px;line-height:1.6;';
     const lines = [
       `Map: ${selectedMapSize} ${selectedMapScript}`,
-      `Starts: ${selectedPlacementMode === 'balanced' ? 'Balanced' : 'True Start'}`,
+      `Starts: ${selectedPlacementMode === 'balanced' ? 'Anywhere' : 'Homelands (True Start)'}`,
       `Humans: ${humans.map(player => `${player.name} (${player.civType})`).join(', ')}`,
       `AI opponents (${ais.length}): ${ais.map(player => player.civType).join(', ')}`,
     ];

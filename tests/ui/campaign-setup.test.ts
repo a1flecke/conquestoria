@@ -178,7 +178,7 @@ describe('campaign-setup', () => {
     expect(Array.from(document.querySelectorAll('[data-opponent-count]')).map(card => card.getAttribute('data-opponent-count'))).toEqual(['1', '2', '3', '4']);
     expect(opponentsSelect.value).toBe('1');
     expect(document.querySelector('[data-role="start-spacing-note"]')?.textContent)
-      .toContain('Balanced mode guarantees separated starts');
+      .toContain('Anywhere placement guarantees separated starts');
 
     click(document, '[data-size="large"]');
 
@@ -639,6 +639,18 @@ describe('map type selection', () => {
     expect((document.querySelector('[data-role="campaign-capacity-note"]') as HTMLElement).hidden).toBe(true);
     // The switch to True Start lasted only while the map was too small: the player never chose it.
     expect(document.querySelector('[data-placement-mode="balanced"]')?.getAttribute('data-selected')).toBe('true');
+  });
+
+  it('names the placement choices Anywhere and Homelands (True Start), not Balanced, so they never clash with the Balanced map type', () => {
+    renderSetup();
+    expect(document.querySelector('[data-placement-mode="balanced"]')?.textContent).toBe('Anywhere (Recommended)');
+    expect(document.querySelector('[data-placement-mode="historical"]')?.textContent).toBe('Homelands (True Start)');
+    expect(document.querySelector('[data-role="campaign-placement-description"]')?.textContent).toContain('well apart');
+    click(document, '[data-placement-mode="historical"]');
+    expect(document.querySelector('[data-role="campaign-placement-description"]')?.textContent)
+      .toContain('nearest livable land');
+    // The Balanced MAP type keeps its name.
+    expect(document.querySelector('[data-map-script="balanced"]')?.textContent).toContain('Balanced');
   });
 
   it('keeps an explicit True Start choice when moving between sizes', () => {

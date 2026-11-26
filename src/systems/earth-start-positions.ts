@@ -6,56 +6,56 @@ import type { HexCoord } from '@/core/types/hex';
 export const EARTH_START_POSITIONS: Record<'small' | 'medium' | 'large', Record<string, HexCoord>> = {
   "small": {
     "egypt": {
-      "q": 19,
-      "r": 6
+      "q": 17,
+      "r": 9
     },
     "rome": {
-      "q": 18,
-      "r": 5
+      "q": 17,
+      "r": 7
     },
     "greece": {
-      "q": 19,
-      "r": 5
+      "q": 16,
+      "r": 6
     },
     "babylon": {
-      "q": 20,
-      "r": 5
+      "q": 18,
+      "r": 8
     },
     "persia": {
-      "q": 21,
-      "r": 5
+      "q": 19,
+      "r": 8
     },
     "india": {
       "q": 21,
-      "r": 6
+      "r": 10
     },
     "china": {
       "q": 24,
-      "r": 5
+      "r": 8
     },
     "mongolia": {
       "q": 23,
-      "r": 4
+      "r": 6
     },
     "japan": {
-      "q": 23,
-      "r": 10
+      "q": 24,
+      "r": 9
     },
     "zulu": {
       "q": 17,
-      "r": 18
+      "r": 15
     },
     "england": {
-      "q": 17,
+      "q": 15,
       "r": 5
     },
     "france": {
-      "q": 18,
-      "r": 4
+      "q": 16,
+      "r": 5
     },
     "spain": {
       "q": 17,
-      "r": 7
+      "r": 5
     },
     "viking": {
       "q": 17,
@@ -66,122 +66,122 @@ export const EARTH_START_POSITIONS: Record<'small' | 'medium' | 'large', Record<
       "r": 4
     },
     "russia": {
-      "q": 19,
+      "q": 18,
       "r": 4
     },
     "ottoman": {
-      "q": 20,
-      "r": 4
-    },
-    "aztec": {
-      "q": 7,
-      "r": 8
-    },
-    "annuvin": {
-      "q": 21,
-      "r": 4
-    },
-    "atlantis": {
-      "q": 7,
-      "r": 7
-    },
-    "avalon": {
-      "q": 7,
-      "r": 6
-    },
-    "gondor": {
-      "q": 20,
-      "r": 6
-    },
-    "isengard": {
       "q": 18,
       "r": 6
     },
-    "lothlorien": {
+    "aztec": {
+      "q": 6,
+      "r": 10
+    },
+    "annuvin": {
       "q": 22,
-      "r": 4
+      "r": 3
+    },
+    "atlantis": {
+      "q": 8,
+      "r": 8
+    },
+    "avalon": {
+      "q": 6,
+      "r": 8
+    },
+    "gondor": {
+      "q": 18,
+      "r": 9
+    },
+    "isengard": {
+      "q": 18,
+      "r": 5
+    },
+    "lothlorien": {
+      "q": 19,
+      "r": 6
     },
     "narnia": {
       "q": 25,
       "r": 3
     },
     "prydain": {
-      "q": 8,
-      "r": 6
+      "q": 7,
+      "r": 5
     },
     "rohan": {
-      "q": 23,
-      "r": 3
+      "q": 21,
+      "r": 5
     },
     "shire": {
-      "q": 20,
-      "r": 3
+      "q": 19,
+      "r": 5
     },
     "wakanda": {
-      "q": 17,
+      "q": 18,
       "r": 14
     }
   },
   "medium": {
     "egypt": {
-      "q": 32,
-      "r": 12
+      "q": 29,
+      "r": 15
     },
     "rome": {
-      "q": 28,
-      "r": 9
-    },
-    "greece": {
-      "q": 31,
-      "r": 10
-    },
-    "babylon": {
-      "q": 33,
+      "q": 26,
       "r": 11
     },
+    "greece": {
+      "q": 29,
+      "r": 13
+    },
+    "babylon": {
+      "q": 30,
+      "r": 14
+    },
     "persia": {
-      "q": 34,
-      "r": 10
+      "q": 32,
+      "r": 13
     },
     "india": {
       "q": 35,
       "r": 17
     },
     "china": {
-      "q": 41,
-      "r": 11
+      "q": 40,
+      "r": 14
     },
     "mongolia": {
-      "q": 41,
-      "r": 8
+      "q": 39,
+      "r": 10
     },
     "japan": {
-      "q": 42,
-      "r": 12
+      "q": 41,
+      "r": 13
     },
     "zulu": {
       "q": 29,
       "r": 33
     },
     "england": {
-      "q": 27,
-      "r": 8
-    },
-    "france": {
-      "q": 27,
+      "q": 25,
       "r": 9
     },
-    "spain": {
-      "q": 27,
+    "france": {
+      "q": 25,
       "r": 10
     },
+    "spain": {
+      "q": 24,
+      "r": 12
+    },
     "viking": {
-      "q": 29,
+      "q": 26,
       "r": 6
     },
     "germany": {
-      "q": 29,
-      "r": 8
+      "q": 26,
+      "r": 9
     },
     "russia": {
       "q": 30,
@@ -189,26 +189,26 @@ export const EARTH_START_POSITIONS: Record<'small' | 'medium' | 'large', Record<
     },
     "ottoman": {
       "q": 29,
-      "r": 9
+      "r": 12
     },
     "aztec": {
       "q": 11,
       "r": 15
     },
     "annuvin": {
-      "q": 38,
-      "r": 5
+      "q": 37,
+      "r": 6
     },
     "atlantis": {
       "q": 13,
-      "r": 11
+      "r": 14
     },
     "avalon": {
-      "q": 13,
-      "r": 10
+      "q": 11,
+      "r": 12
     },
     "gondor": {
-      "q": 36,
+      "q": 34,
       "r": 17
     },
     "isengard": {
@@ -220,73 +220,73 @@ export const EARTH_START_POSITIONS: Record<'small' | 'medium' | 'large', Record<
       "r": 10
     },
     "narnia": {
-      "q": 42,
-      "r": 5
+      "q": 41,
+      "r": 6
     },
     "prydain": {
-      "q": 13,
+      "q": 11,
       "r": 9
     },
     "rohan": {
-      "q": 37,
-      "r": 8
+      "q": 36,
+      "r": 9
     },
     "shire": {
-      "q": 30,
+      "q": 31,
       "r": 9
     },
     "wakanda": {
-      "q": 29,
+      "q": 30,
       "r": 24
     }
   },
   "large": {
     "egypt": {
-      "q": 47,
-      "r": 22
+      "q": 48,
+      "r": 23
     },
     "rome": {
-      "q": 45,
-      "r": 16
+      "q": 43,
+      "r": 19
     },
     "greece": {
       "q": 47,
-      "r": 21
+      "r": 19
     },
     "babylon": {
-      "q": 48,
-      "r": 22
+      "q": 49,
+      "r": 23
     },
     "persia": {
-      "q": 54,
-      "r": 19
+      "q": 52,
+      "r": 21
     },
     "india": {
       "q": 57,
       "r": 27
     },
     "china": {
-      "q": 64,
-      "r": 25
+      "q": 65,
+      "r": 22
     },
     "mongolia": {
-      "q": 65,
-      "r": 14
+      "q": 63,
+      "r": 16
     },
     "japan": {
-      "q": 68,
-      "r": 22
+      "q": 66,
+      "r": 23
     },
     "zulu": {
       "q": 46,
       "r": 54
     },
     "england": {
-      "q": 41,
-      "r": 13
+      "q": 40,
+      "r": 14
     },
     "france": {
-      "q": 42,
+      "q": 40,
       "r": 15
     },
     "spain": {
@@ -294,11 +294,11 @@ export const EARTH_START_POSITIONS: Record<'small' | 'medium' | 'large', Record<
       "r": 19
     },
     "viking": {
-      "q": 43,
-      "r": 8
+      "q": 42,
+      "r": 10
     },
     "germany": {
-      "q": 45,
+      "q": 42,
       "r": 14
     },
     "russia": {
@@ -307,42 +307,42 @@ export const EARTH_START_POSITIONS: Record<'small' | 'medium' | 'large', Record<
     },
     "ottoman": {
       "q": 47,
-      "r": 17
+      "r": 20
     },
     "aztec": {
-      "q": 18,
-      "r": 30
+      "q": 17,
+      "r": 27
     },
     "annuvin": {
-      "q": 62,
-      "r": 7
+      "q": 60,
+      "r": 9
     },
     "atlantis": {
-      "q": 20,
+      "q": 21,
       "r": 22
     },
     "avalon": {
-      "q": 20,
+      "q": 18,
       "r": 20
     },
     "gondor": {
-      "q": 55,
-      "r": 26
+      "q": 56,
+      "r": 28
     },
     "isengard": {
       "q": 49,
       "r": 13
     },
     "lothlorien": {
-      "q": 54,
+      "q": 52,
       "r": 17
     },
     "narnia": {
-      "q": 67,
-      "r": 8
+      "q": 66,
+      "r": 9
     },
     "prydain": {
-      "q": 19,
+      "q": 18,
       "r": 14
     },
     "rohan": {
@@ -354,7 +354,7 @@ export const EARTH_START_POSITIONS: Record<'small' | 'medium' | 'large', Record<
       "r": 15
     },
     "wakanda": {
-      "q": 47,
+      "q": 48,
       "r": 39
     }
   }

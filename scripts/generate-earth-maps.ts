@@ -12,7 +12,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
 import { fileURLToPath } from 'url';
-import { GEO_LATITUDE_BOUNDS } from '../src/systems/geo-latitude';
+import { GEO_LATITUDE_BOUNDS, getPolarRowBand } from '../src/systems/geo-latitude';
+import type { GeographicMapScript } from '../src/systems/geo-map-data';
+import { createStartQualityIndex } from '../src/systems/start-quality';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -510,48 +512,48 @@ function generateScript(
     }
   }
 
-  // Each homeland snaps to the nearest tile a city can stand on (never water, mountain, snow or volcanic), within
-  // three steps, preferring the tile with the most workable land around it (not desert, mountain or snow), one
-  // civilization per tile. A homeland with no such tile fails generation loudly instead of being skipped.
+  // Each homeland snaps to the nearest tile that passes the major-civilization start minimum (land, food, production,
+  // room for a second city on the same landmass, not polar; `start-quality.ts`, design 2026-11-25), preferring the best
+  // scoring tile at that distance, one civilization per tile. Real homelands that fail the minimum on their own
+  // (Britain and Japan are a handful of tiles at this resolution; Scandinavia is polar) move to the nearest livable
+  // land, so True Start is a historical flavour and never an ocean start (#1837). Closeness between homelands is not
+  // limited here: True Start may crowd neighbours, and placement time puts a homeland closer than a capital may be
+  // founded to an earlier one through the shared selection. A homeland with no livable tile within MAX_HOMELAND_MOVE
+  // steps (a small map has few) is left out and logged, and that civilization is placed by the shared selection too.
+  const qualityMap = {
+    width,
+    height,
+    wrapsHorizontally: bounds.wrapsHorizontally,
+    tiles: Object.fromEntries(tiles.map(tile => [
+      `${tile.q},${tile.r}`,
+      { coord: { q: tile.q, r: tile.r }, terrain: tile.terrain, resource: tile.resource },
+    ])),
+  };
+  const quality = createStartQualityIndex(qualityMap, { polarRows: getPolarRowBand(script.name as GeographicMapScript, height) });
+  const MAX_HOMELAND_MOVE = 8;
   const terrainAt = new Map(tiles.map(tile => [`${tile.q},${tile.r}`, tile.terrain]));
   const CITY_TERRAIN_BLOCKED = new Set(['ocean', 'coast', 'mountain', 'snow', 'volcanic']);
-  const UNWORKABLE = new Set(['ocean', 'coast', 'mountain', 'snow', 'volcanic', 'desert']);
-  const landAround = (q: number, r: number): number => {
-    const seen = new Set<string>([`${q},${r}`]);
-    let frontier: Array<[number, number]> = [[q, r]];
-    let land = 0;
-    for (let ring = 0; ring < 2; ring++) {
-      const next: Array<[number, number]> = [];
-      for (const [cq, cr] of frontier) {
-        for (const [nq, nr] of neighbourCells(cq, cr)) {
-          const key = `${nq},${nr}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          next.push([nq, nr]);
-          const terrain = terrainAt.get(key);
-          if (terrain !== undefined && !UNWORKABLE.has(terrain)) land++;
-        }
-      }
-      frontier = next;
-    }
-    return land;
-  };
+  const NEIGHBOUR_UNWORKABLE = new Set(['ocean', 'mountain', 'volcanic', 'desert', 'snow']);
   const starts: Record<string, HexCoord> = {};
-  const claimed = new Set<string>();
   for (const [civId, [lon, lat]] of Object.entries(script.homelandLatLon)) {
     if (lon < bounds.lonMin || lon > bounds.lonMax || lat < bounds.latMin || lat > bounds.latMax) continue;
     const origin = latLonToHex(lon, lat, width, height, bounds);
-    let best: { q: number; r: number; distance: number; land: number } | null = null;
+    let best: { q: number; r: number; distance: number; score: number } | null = null;
     const seen = new Set<string>([`${origin.q},${origin.r}`]);
     let frontier: Array<[number, number]> = [[origin.q, origin.r]];
-    for (let distance = 0; distance <= 3; distance++) {
+    for (let distance = 0; distance <= MAX_HOMELAND_MOVE && frontier.length > 0; distance++) {
       for (const [q, r] of frontier) {
-        const key = `${q},${r}`;
-        const terrain = terrainAt.get(key);
-        if (terrain === undefined || CITY_TERRAIN_BLOCKED.has(terrain) || claimed.has(key)) continue;
-        const land = landAround(q, r) - distance; // each step away costs one workable tile's worth
-        if (!best || land > best.land) best = { q, r, distance, land };
+        // The start tile itself must be one a city can stand on; the minimum judges the land around it.
+        if (CITY_TERRAIN_BLOCKED.has(terrainAt.get(`${q},${r}`) ?? 'ocean')) continue;
+        // The older homeland contract (map-validation.ts `hasWorkableSurroundings`, pinned by
+        // earth-map-starting-positions.test.ts): at least two neighbours a city can work.
+        if (neighbourCells(q, r).filter(([nq, nr]) => !NEIGHBOUR_UNWORKABLE.has(terrainAt.get(`${nq},${nr}`) ?? 'ocean')).length < 2) continue;
+        if (!quality.passesFloor({ q, r }, 'major')) continue;
+        if (Object.values(starts).some(other => other.q === q && other.r === r)) continue;
+        const score = quality.assess({ q, r }).score;
+        if (!best || score > best.score) best = { q, r, distance, score };
       }
+      if (best) break;
       const next: Array<[number, number]> = [];
       for (const [q, r] of frontier) {
         for (const [nq, nr] of neighbourCells(q, r)) {
@@ -561,8 +563,11 @@ function generateScript(
       }
       frontier = next;
     }
-    if (!best) throw new Error(`${script.name}/${size}: no land for ${civId}'s homeland within 3 tiles of ${lon},${lat}`);
-    claimed.add(`${best.q},${best.r}`);
+    if (!best) {
+      console.warn(`    ${script.name}/${size}: ${civId} has no livable start within ${MAX_HOMELAND_MOVE} tiles of ${lon},${lat}; left out (placed by the shared selection)`);
+      continue;
+    }
+    if (best.distance > 0) console.log(`    ${script.name}/${size}: ${civId} moved ${best.distance} tile(s) to the nearest livable start`);
     starts[civId] = { q: best.q, r: best.r };
   }
 

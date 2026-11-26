@@ -175,10 +175,14 @@ Now there is one definition, and an outcome test that covers every placer.
   neighbour check uses the game's axial directions, and every homeland (all 29 Earth civilizations, fantasy ones
   included) snaps to workable land within three tiles. `tests/systems/geo-map-terrain-quality.test.ts` pins land share,
   coast/ocean correctness, rainforest and homelands. After regenerating, re-measure capacity.
-- **True Start** keeps exact homelands; a homeland on unusable terrain, or closer than `MIN_CITY_CENTER_DISTANCE` to
-  one already kept (roster order), is treated as missing, and a civilization without a usable homeland is placed by
-  the shared selection at least that far from every homeland. Whether a real homeland that fails the floor (an
-  island with no room for a second city, a polar homeland) should move is the next delivery's decision.
+- **True Start ("Homelands (True Start)" in setup; "Anywhere" is the other mode)** starts each civilization at its
+  historical homeland *moved to the nearest livable land*: `scripts/generate-earth-maps.ts` snaps every homeland to the
+  nearest tile that is a legal city site, has two workable neighbours, and passes the major start minimum
+  (`start-quality.ts`), within 8 tiles, one civilization per tile. So Britain and Japan, a handful of tiles at map
+  resolution, and polar Scandinavia move to the nearest land a civilization can grow from; a homeland with no
+  livable tile in reach is left out (logged) and placed by the shared selection. Homelands may still crowd each
+  other; at placement time a homeland closer than `MIN_CITY_CENTER_DISTANCE` to an earlier one is treated as missing
+  and placed by the shared selection. `KNOWN_START_VIOLATIONS` is empty and must stay empty.
 - **Enforced by** `tests/systems/start-outcome-matrix.test.ts` (every script x size x mode, solo and hot seat, a
   two-way ratchet over `start-outcome-known-violations.ts`: a new violation fails, a fixed one must be deleted),
   `start-quality.test.ts`, `start-site-selection.test.ts`, and the architecture rule limiting who imports the

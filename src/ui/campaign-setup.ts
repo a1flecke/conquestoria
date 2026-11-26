@@ -153,15 +153,15 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   const MAP_SCRIPT_LABELS: Record<string, { emoji: string; label: string; description: string }> = {
     earth: {
       emoji: '🌍', label: 'Earth',
-      description: 'Real-world geography with your choice of separated Balanced starts or exact True Starts.',
+      description: 'Real-world geography. Start anywhere on good, separated land, or in your civilization\'s historical homeland.',
     },
     'old-world': {
       emoji: '🗺️', label: 'Old World',
-      description: 'Europe, Asia, and Africa with Balanced or exact True Start placement.',
+      description: 'Europe, Asia, and Africa. Start anywhere on good land, or in your civilization\'s historical homeland.',
     },
     'new-world': {
       emoji: '🌎', label: 'New World',
-      description: 'North and South America with Balanced or exact True Start placement.',
+      description: 'North and South America. Start anywhere on good land, or in your civilization\'s historical homeland.',
     },
     balanced: {
       emoji: '⚖️', label: 'Balanced',
@@ -216,9 +216,9 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   const placementRow = document.createElement('div');
   placementRow.dataset.role = 'campaign-placement-options';
   placementRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px;';
-  const balancedPlacement = createChoiceButton('Balanced (Recommended)');
+  const balancedPlacement = createChoiceButton('Anywhere (Recommended)');
   balancedPlacement.dataset.placementMode = 'balanced';
-  const historicalPlacement = createChoiceButton('True Start');
+  const historicalPlacement = createChoiceButton('Homelands (True Start)');
   historicalPlacement.dataset.placementMode = 'historical';
   placementRow.append(balancedPlacement, historicalPlacement);
   mapSection.content.appendChild(placementRow);
@@ -237,7 +237,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
       || mapScriptSelect.value === 'new-world';
     placementRow.hidden = !geographic;
     placementHelp.hidden = !geographic;
-    // A real-world map that cannot hold two separated, livable starts offers True Start only (design 2026-11-25),
+    // A real-world map that cannot hold two separated, livable starts offers Homelands (True Start) only (design 2026-11-25),
     // for as long as that map is selected; the player's own choice comes back with a map that fits.
     const anywhereFits = !geographic
       || getMaxCivilizationsForSetup(mapScriptSelect.value as MapScript, currentMapSize(), 'balanced') >= 2;
@@ -246,10 +246,10 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     syncChoiceButtonState(balancedPlacement, selectedPlacementMode === 'balanced');
     syncChoiceButtonState(historicalPlacement, selectedPlacementMode === 'historical');
     placementHelp.textContent = selectedPlacementMode === 'balanced'
-      ? 'Separated viable starts are guaranteed; homelands are soft preferences.'
-      : 'Exact known homelands are used. Close neighboring starts may occur.';
+      ? 'Every civilization starts on good land, well apart from the others. Homelands are only a soft preference.'
+      : 'Each civilization starts at its historical homeland, moved to the nearest livable land. Neighbors may start close together.';
     if (!anywhereFits) {
-      placementHelp.textContent = `${MAP_SCRIPT_LABELS[mapScriptSelect.value as MapScriptKey]?.label ?? 'This map'} (${currentMapSize()}) is too small for separated starts, so True Start is used. Pick a larger size for separated starts.`;
+      placementHelp.textContent = `${MAP_SCRIPT_LABELS[mapScriptSelect.value as MapScriptKey]?.label ?? 'This map'} (${currentMapSize()}) is too small for separated starts, so Homelands (True Start) is used. Pick a larger size for Anywhere placement.`;
     }
     onCivilizationLimitChanged();
   };
@@ -303,7 +303,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
 
   const startSpacingNote = document.createElement('p');
   startSpacingNote.dataset.role = 'start-spacing-note';
-  startSpacingNote.textContent = 'Balanced mode guarantees separated starts. True Start uses exact homelands and may place neighbors close together.';
+  startSpacingNote.textContent = 'Anywhere placement guarantees separated starts. Homelands (True Start) uses historical homelands, moved to livable land, and may place neighbors close together.';
   Object.assign(startSpacingNote.style, {
     margin: '0',
     fontSize: '12px',
