@@ -434,7 +434,7 @@ assert pipeline.status_command(root) == 0
 print('ALL_FAMILIES_OK')
 `);
     expect(out).toContain('ALL_FAMILIES_OK');
-    expect(out).toContain('Shipped strip units (22):');
+    expect(out).toMatch(/Shipped strip units \(\d+\):/);
   });
 
   it('supports isolated CLI execution (python3 -I pipeline.py status & produce --dry-run)', () => {
@@ -443,7 +443,7 @@ print('ALL_FAMILIES_OK')
     expect(statusRes.status, statusRes.stdout + statusRes.stderr).toBe(0);
     const statusJson = JSON.parse(statusRes.stdout) as { ok: boolean; shippedCount: number; remainingCount: number };
     expect(statusJson.ok).toBe(true);
-    expect(statusJson.shippedCount).toBe(22);
+    expect(statusJson.shippedCount).toBeGreaterThanOrEqual(23); // a floor, so shipping another unit never breaks this
     expect(statusJson.remainingCount).toBeGreaterThan(50);
 
     const dryRes = spawnSync('python3', ['-I', pipeline, 'produce', 'warrior', '--dry-run', '--theme', 'Stone Age tribal'], {
