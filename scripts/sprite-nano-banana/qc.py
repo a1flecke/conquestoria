@@ -25,6 +25,11 @@ REPO = Path(__file__).resolve().parents[2]
 
 MIN_MASTER_TINT = 0.012
 MAX_MASTER_TINT = 0.60
+# A biped master's two legs must stand nearly parallel, as the shipped Warrior's do (resting angles about -2 and +10 degrees,
+# spread 12.5): the walk rig swings each leg from its resting angle, so a wide or turned stance makes the legs scissor and the
+# boots tilt (the first Crossbowman masters measured spread 17 to 23).
+MAX_LEG_SPREAD_DEG = 13.0
+MAX_LEG_ANGLE_DEG = 13.0
 MAX_HALO_FRACTION = 0.12  # >12% magenta-like pixels in the outer 3px shell signals semi-transparent smoke halo (1px anti-alias is ~3-5% and stripped by clean_rgba)
 
 
@@ -38,6 +43,22 @@ def _load_module(name: str, path: Path):
     sys.modules[mod_name] = mod
     spec.loader.exec_module(mod)
     return mod
+
+
+def leg_rest_angles(strips, rgba: np.ndarray, rig: dict) -> tuple[float, float]:
+    """The resting angle (degrees from vertical, back leg then front leg) the walk rig measures for a biped drawing."""
+    cal = strips.calibrate(rgba, dict(rig))
+    full = {**rig, **cal}
+    alpha = rgba[..., 3] > 40
+    u = strips.figure_scale(alpha)
+    comps, _ = strips.leg_pieces(alpha, cal['cut_y'], u, 2, rig.get('shafts', 0))
+    angles = []
+    for d in comps[-2:]:
+        _, px = strips.leg_band(d, alpha, full, cal['cut_y'], u)
+        ys, xs = np.where(d['mask'])
+        foot = ys > ys.max() - round(60 * u)
+        angles.append(float(np.degrees(np.arctan2(xs[foot].mean() - px, ys[foot].mean() - cal['hip_y']))))
+    return angles[0], angles[1]
 
 
 def load_strips(repo_root: Path = REPO):
@@ -70,7 +91,7 @@ class SheetQCResult:
         """Issues that justify an automated retry (all errors, plus retryable structural warnings)."""
         issues = list(self.errors)
         for code, msg in self.warnings:
-            if code in ('edge', 'tint_leak', 'rig_cut', 'magenta_halo'):
+            if code in ('edge', 'tint_leak', 'rig_cut', 'magenta_halo', 'leg_stance'):
                 issues.append((code, msg))
         return issues
 
@@ -210,6 +231,14 @@ def validate_sheet(
                     cleaned, _ = strips.clean_rgba(*figs[idx])
                     src_rgba = (cleaned * 255 + 0.5).astype(np.uint8)
                 strips.calibrate(src_rgba, rig)
+                if is_master and spec.get('family') == 'biped' and rig.get('kind') not in getattr(strips, 'GIVEN_KINDS', ()):
+                    back, front = leg_rest_angles(strips, src_rgba, rig)
+                    if front - back > MAX_LEG_SPREAD_DEG or max(abs(back), abs(front)) > MAX_LEG_ANGLE_DEG:
+                        errors.append((
+                            'leg_stance',
+                            f'the legs rest at {back:+.0f} and {front:+.0f} degrees from vertical '
+                            f'(spread {front - back:.0f}, limit {MAX_LEG_SPREAD_DEG:.0f})',
+                        ))
             except (strips.RigCutError, IndexError) as exc:
                 if is_master:
                     errors.append(('rig_cut', f'{ref}: {exc}'))

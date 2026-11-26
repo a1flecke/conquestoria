@@ -129,3 +129,20 @@ def build_style_reference(
         return None
     preview_dir = repo_root / 'design' / 'png-sprites' / 'previews' / exemplar
     return render_style_reference_png(preview_dir), exemplar
+
+
+def leg_stance_guide(style_ref_png: bytes) -> bytes | None:
+    """The legs of a style reference (the lower 42% of the figure's box) on the same magenta canvas, as a stance guide."""
+    im = Image.open(io.BytesIO(style_ref_png)).convert('RGB')
+    arr = np.asarray(im).astype(np.int16)
+    not_bg = (np.abs(arr - np.array([255, 0, 255])).sum(axis=2) > 60)
+    ys, xs = np.where(not_bg)
+    if ys.size == 0:
+        return None
+    y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
+    top = int(y1 - 0.42 * (y1 - y0))
+    pad = 24
+    crop = im.crop((max(0, x0 - pad), top, min(im.width, x1 + pad), min(im.height, y1 + pad)))
+    buf = io.BytesIO()
+    crop.save(buf, format='PNG')
+    return buf.getvalue()
