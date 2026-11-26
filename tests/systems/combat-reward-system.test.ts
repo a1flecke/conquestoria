@@ -1189,6 +1189,35 @@ describe('applyCombatOutcomeToState', () => {
     expect(() => assertNoIllegalBlockingOccupancy(applied.state)).not.toThrow();
   });
 
+  it('a civilian captured inside its own city steps out of the city it can no longer hold (#1693)', () => {
+    // Found by the long-horizon matrix once AI wars actually formed: ai-1 took a worker standing in an ai-2 city and
+    // the worker stayed on that foreign city tile (`no-illegal-blocking-occupancy`).
+    const state = makeRewardState();
+    for (const [q, r] of [[0, 0], [1, 0], [2, 0], [1, 1], [0, 1], [2, -1], [1, -1]]) {
+      state.map.tiles[`${q},${r}`] = {
+        coord: { q, r }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none',
+        owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+    }
+    state.cities['ai-city'] = { id: 'ai-city', name: 'Hold', owner: 'ai-1', position: { q: 1, r: 0 } } as City;
+    state.civilizations['ai-1'].cities = ['ai-city'];
+    state.units.defender = { ...state.units.defender, type: 'worker', owner: 'ai-1', health: 100 };
+    state.civilizations['ai-1'].units = ['defender'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.state.units.defender.owner).toBe('player');
+    expect(applied.state.units.defender.position).not.toEqual({ q: 1, r: 0 });
+    expect(() => assertNoIllegalBlockingOccupancy(applied.state)).not.toThrow();
+  });
+
   it('a Great General beside a captured civilian withdraws instead of changing sides', () => {
     const state = makeRewardState();
     for (const [q, r] of [[0, 0], [1, 0], [2, 0], [1, 1], [0, 1], [2, -1], [1, -1]]) {

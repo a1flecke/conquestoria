@@ -27,7 +27,7 @@ import { recordCampPressureFromCombatOutcome } from '@/systems/barbarian-pressur
 import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { resolveRogueElephantHostHandlerDeaths } from '@/systems/rogue-elephant-host-system';
 import { getWrappedHexesInRange, hexDistance, hexesInRange, hexKey, mapDistance, wrappedHexDistance } from '@/systems/hex-utils';
-import { findLegalSpawnTile } from '@/systems/unit-spawn-placement';
+import { findLegalSpawnTile, settleStrandedUnits } from '@/systems/unit-spawn-placement';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 import { recordBeastSlain, type BeastSlainPayload } from '@/systems/beast-system';
 import { normalizedExperience } from '@/systems/veterancy-tiers';
@@ -859,6 +859,13 @@ export function applyCombatOutcomeToState(
       espionage,
       ...(marketplace !== state.marketplace ? { marketplace } : {}),
   };
+  // #1693: the captured unit itself changed owner where it stood (#1698). A civilian taken inside its own city is now
+  // on a foreign city tile, which the new owner may not hold; step it out by the canonical stranded-unit rule.
+  const capturedIds = [
+    ...(attackerCaptured ? [result.attackerId] : []),
+    ...(defenderCaptured ? [result.defenderId] : []),
+  ];
+  if (capturedIds.length > 0) nextState = settleStrandedUnits(nextState, capturedIds);
   const pirateEvents: PirateActionEvent[] = [];
   const defenderFaction = state.pirates?.factions[defenderBefore.owner];
   if (defenderFaction && canReceiveCivilizationCombatRewards(attackerBefore.owner)) {

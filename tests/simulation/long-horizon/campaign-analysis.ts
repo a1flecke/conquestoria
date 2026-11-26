@@ -383,8 +383,9 @@ function detectExpansionFrozen(series: CivSeries[]): CampaignFinding[] {
  * #1693: this used to require that the city count NEVER grew in the whole campaign, so a civ that founded its
  * cities early and then piled up units for 170 rounds (28 to 330 units at 4 cities: stranded expeditions and
  * transports) was invisible to it. It now judges the stretch since the city count last changed, when that stretch
- * is at least `unitRunawayFlatCityMinRounds` long: growth from its first to its last round. A transient spike that
- * resolves, and an army still growing with an expanding empire, do not fire.
+ * is at least `unitRunawayFlatCityMinRounds` long: growth from its first to its last round, against
+ * `unitRunawayGrowthWithFlatCities` per city. A transient spike that resolves, and an army still growing with an
+ * expanding empire, do not fire.
  */
 function detectUnitCountRunaway(
   series: CivSeries[],
@@ -403,7 +404,8 @@ function detectUnitCountRunaway(
     if (activeRows.length - start < config.unitRunawayFlatCityMinRounds) continue;
     const first = activeRows[start]!;
     const unitGrowth = last.row.units - first.row.units;
-    if (unitGrowth >= config.unitRunawayGrowthWithFlatCities) {
+    // Per city: a one-city civ keeps the original 25-unit bound; a mature empire may field an army that scales with it.
+    if (unitGrowth >= config.unitRunawayGrowthWithFlatCities * Math.max(1, first.row.cities)) {
       findings.push({
         code: 'unit-count-runaway',
         civId: civ.civId,
