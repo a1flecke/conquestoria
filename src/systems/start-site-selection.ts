@@ -52,14 +52,20 @@ export function selectStartSites(input: SiteSelectionInput): SiteSelectionResult
   const distance = (a: HexCoord, b: HexCoord): number =>
     map.wrapsHorizontally ? wrappedHexDistance(a, b, map.width) : hexDistance(a, b);
 
-  const pool = input.candidates
+  const ranked = input.candidates
     .filter(candidate => fixed.every(anchor => distance(candidate.coord, anchor) >= minFromFixed))
     .map(candidate => ({ candidate, noise: rng() }))
     .sort((a, b) => b.candidate.score - a.candidate.score || a.noise - b.noise)
-    .slice(0, START_SELECTION.candidateCap)
     .map(entry => entry.candidate);
 
-  if (pool.length === 0) return { ok: false, maximumPlaced: 0 };
+  if (ranked.length === 0) return { ok: false, maximumPlaced: 0 };
+  // The strongest sites first (bounded work); only when they cannot hold every civilization does the search
+  // widen to every floor-passing site, so a cluster of strong sites never turns a placeable map into a failure.
+  const capped = run(ranked.slice(0, START_SELECTION.candidateCap));
+  if (capped.ok || ranked.length <= START_SELECTION.candidateCap) return capped;
+  return run(ranked);
+
+  function run(pool: ScoredSite[]): SiteSelectionResult {
 
   const solutions: Array<{ sites: ScoredSite[]; weakest: number; total: number; key: string }> = [];
   let maximumPlaced = 0;
@@ -102,4 +108,5 @@ export function selectStartSites(input: SiteSelectionInput): SiteSelectionResult
     .sort((a, b) => b.weakest - a.weakest || b.total - a.total || (a.key < b.key ? -1 : 1));
   const picked = qualifying[Math.floor(rng() * qualifying.length)];
   return { ok: true, sites: picked.sites, weakestScore: picked.weakest };
+  }
 }

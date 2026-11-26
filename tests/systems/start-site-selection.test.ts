@@ -75,6 +75,18 @@ describe('selectStartSites (design 2026-11-25, B2)', () => {
     expect(result).toEqual({ ok: false, maximumPlaced: 1 });
   });
 
+  it('looks past the strongest-site cap before giving up', () => {
+    // 450 strong sites packed into one corner (no two of them 9 apart is the binding case), plus one weaker site far
+    // away: the far site is outside the top-400 pool but is the only way to place two civilizations.
+    const candidates: ScoredSite[] = [];
+    for (let i = 0; i < 450; i++) candidates.push(site(i % 3, Math.floor(i / 3) % 3, 30 + (i % 7)));
+    candidates.push(site(50, 50, 5));
+    const result = selectStartSites(input({ candidates, count: 2 }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.sites.map(s => hexKey(s.coord))).toContain('50,50');
+  });
+
   it('measures distance across the seam on a wrapping map', () => {
     const map = { width: 60, wrapsHorizontally: true };
     expect(wrappedHexDistance({ q: 1, r: 5 }, { q: 58, r: 5 }, 60)).toBe(3);
