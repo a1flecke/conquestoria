@@ -396,6 +396,13 @@ def build_retry_feedback(
                     'both feet flat and a clear vertical #FF00FF magenta gap between the legs below the '
                     'hem; keep shields, cloaks, and weapons completely above the hem and clear of the boots.'
                 )
+        elif code == 'leg_stance':
+            lines.append(
+                f'- The legs were not standing like the stance guide ({message}). Draw both legs straight and '
+                'VERTICAL and parallel directly under the hips, one boot-width apart, both boots flat on the same '
+                'ground line and both pointing right, in a strict side view; no stride, no splayed inverted-V, '
+                'no leg or boot turned toward the viewer.'
+            )
         elif code == 'tint_leak':
             lines.append(
                 f'- Bright red leaked onto non-team areas ({message}). Keep saturated pure red (#E01010) '

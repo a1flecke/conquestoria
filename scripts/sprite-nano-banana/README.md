@@ -95,4 +95,5 @@ Uses the GA **Gemini Interactions API** (`POST https://generativelanguage.google
 
 - **Originals are never committed**: raw Nano Banana outputs live under `~/conquestoria-art-originals/strips/<id>/` (override via `SPRITE_ORIGINALS_DIR` or `--originals`), matching the ChatGPT pipeline.
 - **Same runtime contract**: uses the exact same `strips.py` rigs (`LegRig`, `QuadRig`, `VehicleRig`, `NavalRig`, `FlightRig`), `strips_export.py` palette/budget/hold/alignment checks, `PngUnitSprite` manifests, and SVG fallback safety.
+- **Leg stance (biped masters)**: QC measures each leg's resting angle the way the walk rig does and rejects a master whose legs spread more than 13 degrees or lean more than 13 degrees from vertical (`leg_stance`, auto-retried). A biped master call also carries a legs-only crop of the style exemplar as a stance guide. A splayed or turned leg makes the rig-built walk scissor and tilt the boots.
 - **Asset rights ledger**: Nano Banana units are tracked in their own ledger family (`Nano Banana (unit strips)`) in `docs/asset-rights-ledger.md` and pinned by `tests/systems/asset-rights-ledger.test.ts`.

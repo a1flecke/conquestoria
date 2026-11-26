@@ -60,7 +60,7 @@ from prompts import (
 from qc import SheetQCResult, load_strips, preflight_export_check, validate_sheet
 from review_cards import render_master_review_card, render_review_gif, render_set_review_card
 from review_server import start_review_server
-from style_ref import build_style_reference, pick_exemplar_id
+from style_ref import build_style_reference, leg_stance_guide, pick_exemplar_id
 from wiring import build_provenance_record, export_unit, wire_all_game_files, write_provenance
 
 REPO = Path(__file__).resolve().parents[2]
@@ -176,6 +176,17 @@ def _generate_one_sheet(
                 mime_type='image/png',
                 label=f'STYLE REFERENCE ONLY (shipped unit "{style_ref_id}" — copy style/outlines/red-tint convention only, NOT the character):',
             ))
+            if family == 'biped':
+                guide = leg_stance_guide(ref_bytes)
+                if guide is not None:
+                    refs.append(ReferenceImage(
+                        data=guide,
+                        mime_type='image/png',
+                        label=('LEG STANCE GUIDE ONLY (the legs of the shipped style reference): draw the new unit\'s legs '
+                               'standing exactly like this: two straight parallel vertical legs directly under the hips, '
+                               'one boot-width apart, both feet flat on one ground line, both pointing right. Copy the '
+                               'stance only, not the clothing or the character:'),
+                    ))
     else:
         master_path = originals_dir / 'a.png'
         if not master_path.is_file() and not dry_run:

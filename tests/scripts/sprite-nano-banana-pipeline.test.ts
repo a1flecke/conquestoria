@@ -292,8 +292,9 @@ assert counts_by_role['attack'] == 2, counts_by_role
 assert 'REQUIRED CORRECTIONS FROM PREVIOUS ATTEMPT' in calls[1]['prompt']
 assert any(p.name.startswith('a-v1-') for p in (originals / 'testbiped').iterdir())
 assert any(p.name.startswith('c-v1-count') for p in (originals / 'testbiped').iterdir())
-# Every call attached a reference: style-ref on master, master a.png on b..e.
-assert all(c['inline_count'] == 1 for c in calls)
+# Every call attached references: style-ref plus the leg stance guide on a biped master, master a.png on b..e.
+assert all(c['inline_count'] in (1, 2) for c in calls)
+assert sum(1 for c in calls if c['inline_count'] == 2) == counts_by_role['master']
 assert res['preflight']['ok'] is True, res['preflight']
 
 # Now exercise the Sign-Off Studio HTTP server (GET / + /api/state + CSRF guard + POST /api/approve).
