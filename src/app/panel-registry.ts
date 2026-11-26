@@ -13,7 +13,7 @@ export type PanelId =
   | 'council' | 'tech' | 'city' | 'espionage' | 'diplomacy' | 'marketplace'
   | 'network' | 'wonder' | 'wonder-atlas' | 'bestiary' | 'pirate-waters'
   | 'notification-log' | 'city-overview' | 'territory-inspection' | 'pacing-debug'
-  | 'strategic-arsenal' | 'hall-of-fame' | 'victory-progress' | 'governance'
+  | 'strategic-arsenal' | 'hall-of-fame' | 'victory-progress' | 'governance' | 'homeland'
   // Imperatively-opened action panels: they are never opened through the router
   // (their open() throws), but registering their domIds puts them inside the
   // closeGroup teardown so a hot-seat boundary cannot carry them across the veil.

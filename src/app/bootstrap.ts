@@ -42,6 +42,7 @@ import { createPanelActionsController, type PanelActionsController } from '@/app
 import { createPlayerActionController, type PlayerActionController } from '@/app/controllers/player-action-controller';
 import { createMapInteractionController, type MapInteractionController } from '@/app/controllers/map-interaction-controller';
 import { createTurnFlowController, type TurnFlowController } from '@/app/controllers/turn-flow-controller';
+import { createHomelandPanelController } from '@/app/controllers/homeland-panel-controller';
 import { createHudController, type HudController } from '@/app/controllers/hud-controller';
 import { createCampaignEntryController, type CampaignEntryController } from '@/app/controllers/campaign-entry-controller';
 import { createGameSessionController, type GameSessionController } from '@/app/controllers/game-session-controller';
@@ -383,6 +384,9 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     advisorSystem,
   });
 
+  /** The turn-1 homeland choice panel (#1837); `turnFlow` offers it and the panel registry can open it. */
+  const homelandPanel = createHomelandPanelController({ session, uiLayer, getElementById: id => document.getElementById(id), renderLoop, showNotification });
+
   /**
    * Owns turn advancement: `endTurn`, the hot-seat handoff lifecycle, AI-move
    * replay, difficulty application at handoff, and "entering a viewer's turn"
@@ -430,6 +434,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     scanSubmarineSightings: () => scanSubmarineSightings(session, bus),
     maybeShowPendingHoardChoice,
     maybeShowPendingGeneralChoice,
+    maybeShowHomelandChoice: () => { homelandPanel.offerHomelandChoiceOnce(); },
     checkAdvisors: () => advisorSystem.check(session.getState()),
     // `campaignEntry` is declared after `turnFlow` (it needs `turnFlow` itself
     // as a dep) -- same deferred-but-eager forward reference `router`/`notifier`
@@ -668,6 +673,8 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     'pacing-debug': { domId: 'pacing-debug-panel', group: 'transient', open: () => panelActions.openPacingDebugPanel() },
     'strategic-arsenal': { domId: 'strategic-arsenal-panel', group: 'transient', open: () => panelActions.openStrategicArsenalPanel() },
     governance: { domId: 'governance-panel', group: 'transient', open: () => panelActions.openGovernancePanel() },
+    // Turn-1 homeland choice (#1837). Registered so a hot-seat handoff closes it with every other transient panel.
+    homeland: { domId: 'homeland-panel', group: 'transient', open: () => { homelandPanel.openHomelandChoiceIfActive(); } },
     'victory-progress': { domId: 'victory-progress-panel', group: 'main', open: () => panelActions.openVictoryProgressPanel() },
     // Imperatively-opened action panels: parameterized entries whose open()
     // throws (the parameterized-panel pattern), registered purely so

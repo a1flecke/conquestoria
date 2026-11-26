@@ -60,6 +60,13 @@ export function showHotSeatSetup(
   let selectedOpponentChallenge: OpponentChallenge = 'standard';
   let superweaponsSelected: 'off' | 'on' = 'on';
   let graduationSelected: 'off' | 'on' = 'off';
+  let homelandSelected: 'off' | 'on' = 'on';
+  /** The one place the creation-time switches are assembled, so no writer can drop one of them. */
+  const currentSettingsOverrides = () => ({
+    superweapons: superweaponsSelected,
+    cityStateGraduation: graduationSelected,
+    homelandPicker: homelandSelected,
+  });
   let playerCount = 0;
   let aiCount = 1;
   const players: HotSeatPlayer[] = [];
@@ -655,7 +662,7 @@ export function showHotSeatSetup(
       startPlacementMode: selectedPlacementMode,
       players: [...humanPlayers, ...aiPlayers],
       customCivilizations,
-      settingsOverrides: { superweapons: superweaponsSelected, cityStateGraduation: graduationSelected },
+      settingsOverrides: currentSettingsOverrides(),
       },
       minimumHistoricalDistance: selection.minimumHistoricalDistance,
       fallbackCivilizationTypeIds: selection.fallbackCivilizationTypeIds,
@@ -745,7 +752,7 @@ export function showHotSeatSetup(
         // review.config was already built by the time this card renders --
         // mutate it directly so a later click on Start picks up the change,
         // rather than the value frozen at buildFinalConfig() time.
-        review.config.settingsOverrides = { superweapons: superweaponsSelected, cityStateGraduation: graduationSelected };
+        review.config.settingsOverrides = currentSettingsOverrides();
       });
       superweaponsButtons.set(option.value, button);
       superweaponsRow.appendChild(button);
@@ -783,7 +790,7 @@ export function showHotSeatSetup(
       button.addEventListener('click', () => {
         graduationSelected = value;
         refreshGraduationButtons();
-        review.config.settingsOverrides = { superweapons: superweaponsSelected, cityStateGraduation: graduationSelected };
+        review.config.settingsOverrides = currentSettingsOverrides();
       });
       graduationButtons.set(value, button);
       graduationRow.appendChild(button);
@@ -792,6 +799,45 @@ export function showHotSeatSetup(
     graduationSection.appendChild(graduationRow);
     graduationSection.appendChild(graduationHelpText);
     panel.appendChild(graduationSection);
+
+    // Turn-1 homeland choice (#1837): every human seat is offered up to three starting places on its first turn.
+    const homelandSection = document.createElement('div');
+    homelandSection.style.cssText = 'max-width:520px;width:100%;margin-top:12px;';
+    const homelandLabel = document.createElement('p');
+    homelandLabel.textContent = 'Homeland Choice';
+    homelandLabel.style.cssText = 'margin:0 0 6px;font-size:12px;opacity:0.7;';
+    homelandSection.appendChild(homelandLabel);
+    const homelandRow = document.createElement('div');
+    homelandRow.style.cssText = 'display:flex;gap:6px;';
+    const HOMELAND_DESCRIPTIONS: Record<'off' | 'on', string> = {
+      off: 'Every player begins where the map places them.',
+      on: 'On their first turn each human player is offered up to three good places to begin and can pick one before founding a city.',
+    };
+    const homelandHelpText = document.createElement('p');
+    Object.assign(homelandHelpText.style, { margin: '6px 0 0', fontSize: '11px', opacity: '0.65', lineHeight: '1.4' });
+    const homelandButtons = new Map<'off' | 'on', HTMLButtonElement>();
+    const refreshHomelandButtons = (): void => {
+      for (const [value, button] of homelandButtons) {
+        Object.assign(button.style, value === homelandSelected ? VARIANT_STYLES.primary : VARIANT_STYLES.secondary);
+        button.setAttribute('aria-pressed', String(value === homelandSelected));
+      }
+      homelandHelpText.textContent = HOMELAND_DESCRIPTIONS[homelandSelected];
+    };
+    for (const value of ['off', 'on'] as const) {
+      const button = createGameButton(value === 'on' ? 'On' : 'Off', value === homelandSelected ? 'primary' : 'secondary');
+      button.dataset.homelandOption = value;
+      button.addEventListener('click', () => {
+        homelandSelected = value;
+        refreshHomelandButtons();
+        review.config.settingsOverrides = currentSettingsOverrides();
+      });
+      homelandButtons.set(value, button);
+      homelandRow.appendChild(button);
+    }
+    refreshHomelandButtons();
+    homelandSection.appendChild(homelandRow);
+    homelandSection.appendChild(homelandHelpText);
+    panel.appendChild(homelandSection);
 
     const start = createGameButton(
       crowded ? 'Review Crowding Risk' : 'Start Game',

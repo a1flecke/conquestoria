@@ -178,7 +178,7 @@ describe('hotseat-setup', () => {
     click('#hs-review-start');
 
     const config = onComplete.mock.calls[0]![0];
-    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'off' });
+    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'off', homelandPicker: 'on' });
   });
 
   it('offers city-state graduation off by default and threads an On choice into settingsOverrides (#497)', () => {
@@ -206,7 +206,36 @@ describe('hotseat-setup', () => {
     click('#hs-review-start');
 
     const config = onComplete.mock.calls[0]![0];
-    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'on' });
+    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'on', homelandPicker: 'on' });
+  });
+
+  it('offers the turn-1 homeland choice on by default and threads an Off choice without dropping the others (#1837)', () => {
+    const onComplete = vi.fn();
+    showHotSeatSetup(document.body, { onComplete, onCancel: vi.fn() });
+
+    click('[data-size="medium"]');
+    advanceThroughMapType();
+    click('[data-count="2"]');
+    click('[data-ai-count="2"]');
+    click('#hs-names-next');
+    chooseCiv('england');
+    click('#hs-civ-ready');
+    click('.civ-card[data-civ-id="germany"]');
+    click('#civ-start');
+    click('#hs-personal-challenge-next');
+
+    expect(document.querySelector('[data-homeland-option="on"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.body.textContent).toContain('offered up to three good places to begin');
+    click('[data-homeland-option="off"]');
+    expect(document.querySelector('[data-homeland-option="off"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.body.textContent).toContain('Every player begins where the map places them');
+    // Every other card rewrites the override object from the same builder; none may drop the homeland choice.
+    click('[data-graduation-option="on"]');
+    click('[data-superweapons-option="off"]');
+    click('#hs-review-start');
+
+    const config = onComplete.mock.calls[0]![0];
+    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'on', homelandPicker: 'off' });
   });
 
   it('reserves capacity for an explicitly chosen AI instead of offering every seat to humans', () => {
