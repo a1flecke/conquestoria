@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { GameMap, HexTile, TerrainType } from '@/core/types';
-import { MAP_DIMENSIONS } from '@/core/game-state';
-import { loadGeoMap } from '@/systems/geo-map-loader';
 import { getPolarRowBand } from '@/systems/geo-latitude';
 import { isFertileStart } from '@/systems/start-fertility';
 import { START_FLOORS, createStartQualityIndex } from '@/systems/start-quality';
-import { readGeoMapDataFromDisk } from '../helpers/geo-map-data';
 
 /** A map of `fill`, with `paint(q, r)` overriding single tiles. */
 function buildMap(
@@ -32,10 +29,11 @@ const MIX: TerrainType[] = ['grassland', 'forest', 'hills', 'plains'];
 const mixed = (q: number, r: number): TerrainType => MIX[(q * 7 + r * 13) % MIX.length];
 
 describe('start-quality floors (design 2026-11-25, B1)', () => {
-  it('rejects the reported Arctic islet (Earth large q46 r6) for land, expansion room and latitude', () => {
-    const data = readGeoMapDataFromDisk('earth');
-    const map = loadGeoMap(data.tiles.large, data.rivers.large, MAP_DIMENSIONS.large, true);
-    const index = createStartQualityIndex(map, { polarRows: getPolarRowBand('earth', MAP_DIMENSIONS.large.height) });
+  it('rejects an Arctic islet like the reported start (Earth large q46 r6) for land, expansion room and latitude', () => {
+    // The regenerated Earth keeps its real shoreline, so the original one-tile islet no longer exists; this rebuilds
+    // its shape: one tundra tile in open water, in Earth large's polar rows.
+    const map = buildMap(80, 80, 'coast', (q, r) => (q === 46 && r === 6 ? 'tundra' : undefined), true);
+    const index = createStartQualityIndex(map, { polarRows: getPolarRowBand('earth', 80) });
     const failures = index.floorFailures({ q: 46, r: 6 }, 'major');
     expect(failures).toEqual(expect.arrayContaining(['land-r2', 'expansion-room', 'polar-band']));
     expect(index.assess({ q: 46, r: 6 }).landmassTiles).toBe(1);
