@@ -114,6 +114,7 @@ export function baseDeps(state: GameState, overrides: Partial<TurnFlowController
     scanSubmarineSightings: vi.fn(),
     maybeShowPendingHoardChoice: vi.fn(),
     maybeShowPendingGeneralChoice: vi.fn(),
+    maybeShowHomelandChoice: vi.fn(),
     checkAdvisors: vi.fn(),
     showGameModeSelection: vi.fn(),
     reloadPage: vi.fn(),

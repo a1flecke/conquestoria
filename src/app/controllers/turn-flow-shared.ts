@@ -57,6 +57,8 @@ export interface TurnFlowControllerDeps {
   readonly scanSubmarineSightings: () => void;
   readonly maybeShowPendingHoardChoice: () => void;
   readonly maybeShowPendingGeneralChoice: () => void;
+  /** Offers the turn-1 homeland choice once the required choices are settled (#1837). */
+  readonly maybeShowHomelandChoice: () => void;
   readonly checkAdvisors: () => void;
   readonly showGameModeSelection: () => void;
   readonly reloadPage: () => void;

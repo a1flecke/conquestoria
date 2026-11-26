@@ -76,6 +76,8 @@ export function createTurnRequiredChoices(deps: TurnFlowControllerDeps): TurnReq
 
     if (!idleCityIds.length && !missingResearch) {
       closeRequiredChoicePanel();
+      // Nothing required is blocking the screen: this is the moment to offer the turn-1 homeland choice (#1837).
+      deps.maybeShowHomelandChoice();
       return false;
     }
 
@@ -117,6 +119,7 @@ export function createTurnRequiredChoices(deps: TurnFlowControllerDeps): TurnReq
     // only block the screen.
     if (researchChoices.length === 0 && cityChoices.length === 0) {
       closeRequiredChoicePanel();
+      deps.maybeShowHomelandChoice();
       return false;
     }
 

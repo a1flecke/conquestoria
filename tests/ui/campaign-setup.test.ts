@@ -165,6 +165,20 @@ describe('campaign-setup', () => {
     expect(startSoloAndGetOverrides('on')).toMatchObject({ cityStateGraduation: 'on' });
   });
 
+  it('offers the turn-1 homeland choice on by default, explained, and sends the choice (#1837)', () => {
+    const panel = showCampaignSetup(document.body, { onStartSolo: vi.fn(), onCancel: vi.fn() });
+    expect(panel.querySelector('[data-homeland-picker="on"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel.textContent).toContain('up to three good places to begin');
+    panel.querySelector<HTMLButtonElement>('[data-homeland-picker="off"]')!.click();
+    expect(panel.querySelector('[data-homeland-picker="off"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel.querySelector('[data-homeland-picker="on"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(panel.textContent).toContain('You begin where the map places you');
+    panel.remove();
+    document.body.innerHTML = '';
+
+    expect(startSoloAndGetOverrides(null)).toMatchObject({ homelandPicker: 'on' });
+  });
+
   it('updates the visible map-size and opponent cards together, preserving valid counts and snapping invalid ones', () => {
     showCampaignSetup(document.body, {
       onStartSolo: () => {},

@@ -521,6 +521,42 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   }
   syncGraduationCards();
 
+  // Turn-1 homeland choice (#1837): the player may pick between up to three good starting places. On unless switched off.
+  let homelandSelected: 'off' | 'on' = 'on';
+  const homelandSection = createSetupSection({
+    title: 'Homeland Choice',
+    description: 'On the first turn, choose where your civilization begins from a few good starting places.',
+  });
+  hero.appendChild(homelandSection.section);
+  const homelandRow = document.createElement('div');
+  Object.assign(homelandRow.style, { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' });
+  homelandSection.content.appendChild(homelandRow);
+  const homelandHelp = document.createElement('p');
+  Object.assign(homelandHelp.style, { margin: '8px 0 0', fontSize: '12px', opacity: '0.72', lineHeight: '1.45' });
+  homelandSection.content.appendChild(homelandHelp);
+  const HOMELAND_DESCRIPTIONS: Record<'off' | 'on', string> = {
+    off: 'You begin where the map places you.',
+    on: 'You are offered up to three good places to begin and can pick one before founding your first city.',
+  };
+  const homelandCards = new Map<'off' | 'on', HTMLButtonElement>();
+  const syncHomelandCards = (): void => {
+    for (const [value, button] of homelandCards.entries()) {
+      syncChoiceButtonState(button, homelandSelected === value);
+    }
+    homelandHelp.textContent = HOMELAND_DESCRIPTIONS[homelandSelected];
+  };
+  for (const value of ['off', 'on'] as const) {
+    const button = createChoiceButton(value);
+    button.dataset.homelandPicker = value;
+    button.addEventListener('click', () => {
+      homelandSelected = value;
+      syncHomelandCards();
+    });
+    homelandCards.set(value, button);
+    homelandRow.appendChild(button);
+  }
+  syncHomelandCards();
+
   let selectedCivId: string | null = null;
   let customCivilizations: CustomCivDefinition[] = [...(options?.initialCustomCivilizations ?? [])];
   let civDefinitions = getPlayableCivDefinitions({ customCivilizations });
@@ -651,7 +687,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
         mapScript,
         startPlacementMode: selectedPlacementMode,
         opponentChallenge: selectedOpponentChallenge,
-        settingsOverrides: { beastsMode: beastsModeSelected, cityStateGraduation: graduationSelected },
+        settingsOverrides: { beastsMode: beastsModeSelected, cityStateGraduation: graduationSelected, homelandPicker: homelandSelected },
       }), () => panel.remove());
     } catch (error) {
       if (!(error instanceof GameCreationError)) throw error;

@@ -1295,6 +1295,24 @@ describe('createTurnFlowController', () => {
     });
   });
 
+  describe('turn-1 homeland choice offer (#1837)', () => {
+    it('is offered when nothing required is blocking the screen', () => {
+      const state = makeFixture();
+      clearRequiredChoices(state, 'player');
+      const deps = baseDeps(state);
+      expect(createTurnFlowController(deps).showRequiredChoicesIfNeeded()).toBe(false);
+      expect(deps.maybeShowHomelandChoice).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits while a required choice (research) is on screen, so the two never fight for the screen', () => {
+      const state = makeFixture();
+      state.civilizations.player.techState.currentResearch = null;
+      const deps = baseDeps(state);
+      expect(createTurnFlowController(deps).showRequiredChoicesIfNeeded()).toBe(true);
+      expect(deps.maybeShowHomelandChoice).not.toHaveBeenCalled();
+    });
+  });
+
   describe('other public methods (smoke coverage)', () => {
     it('centerOnCurrentPlayer centers the camera on a current-player unit', () => {
       const state = makeFixture();
