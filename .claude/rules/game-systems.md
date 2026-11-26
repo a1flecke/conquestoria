@@ -189,6 +189,16 @@ Now there is one definition, and an outcome test that covers every placer.
   selection. `start-viability.ts` remains the in-game "is this start trapped" definition; for placement it is a
   building block of the floor, and its sea-route clause no longer makes a start acceptable.
 
+## Turn-1 homeland choice (#1837, design 2026-11-25 Phase C)
+
+A human may be offered up to three homelands on turn 1 (the placed start plus up to two alternates), solo and hot seat. The AI never chooses.
+
+- **Options are chosen and reserved at creation**, not at choice time. `selectHomelandOptions` (`homeland-options.ts`) uses the shared selection and the major start floor; an alternate is 6-16 hexes from its own start, at least `MIN_MAJOR_CIV_START_DISTANCE` from every other civilization's start and from every other human's options, and 5+ from its sibling. `reserveHomelands` (`game-state.ts`) then feeds every start-relative creation step (guaranteed resources, wonders, late resources, villages, lairs, camps, city-states) the full set of options, so any choice leaves a legal, fair world. Fewer than three options is normal; one option means no choice.
+- **Opt-in**: `GameSettings.homelandPicker` (`'on'`; absent reads as off). With it off nothing is written and creation is byte-identical to before.
+- **The choice is derived, never a phase.** `getActiveHomelandChoice` (`start-placement-system.ts`) is live only on turn 1, while the civilization has no city, and while its settler and warrior stand together on `options[selected]`. A stale `Civilization.homelandChoice` in a save is therefore inert; no clearing code or new round phase exists (the phase order is pinned).
+- **One executor.** `confirmHomeland(state, civId, index)` re-runs the active check, validates the index and that the tile is a legal spawn tile, moves both units immutably, rebuilds the civilization's visibility as if the game had started there, and returns a typed `ConfirmHomelandDenial` (`not-active` | `bad-index` | `occupied`) with copy in `CONFIRM_HOMELAND_MESSAGES`. It touches no other seat.
+- Pinned by `tests/systems/homeland-options.test.ts`, `tests/core/homeland-reservation.test.ts`, `tests/systems/homeland-choice.test.ts` and the `homeland:` configs of `start-outcome-matrix.test.ts`. Descriptions (`describeHomelandSite`) read only the land within two hexes, i.e. what a settler sees.
+
 ## Geographic map data is loaded on demand (#1456)
 
 The Earth / Old World / New World tile and river tables are `src/systems/geo-data/{earth,old-world,new-world}-map.json`
