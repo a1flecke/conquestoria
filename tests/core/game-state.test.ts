@@ -525,6 +525,21 @@ describe('createHotSeatGame — mapScript', () => {
     ],
   };
 
+  it('uses True Start on a real-world map too small for separated starts, like the setup screens (design 2026-11-25)', () => {
+    const hotSeat = createHotSeatGame({ ...baseConfig, mapScript: 'earth', startPlacementMode: 'balanced' }, 'seed-small-earth');
+    expect(hotSeat.startPlacementMode).toBe('historical');
+    const solo = createNewGame({
+      civType: 'rome', seed: 'seed-small-earth', mapSize: 'small', opponentCount: 2,
+      mapScript: 'new-world', startPlacementMode: 'balanced', gameTitle: 't',
+    });
+    expect(solo.startPlacementMode).toBe('historical');
+    const roomy = createNewGame({
+      civType: 'rome', seed: 'seed-medium-earth', mapSize: 'medium', opponentCount: 2,
+      mapScript: 'earth', startPlacementMode: 'balanced', gameTitle: 't',
+    });
+    expect(roomy.startPlacementMode).toBe('balanced');
+  });
+
   it('defaults to procedural when mapScript is omitted', () => {
     const state = createHotSeatGame(baseConfig, 'seed-proc');
     expect(state.mapScript).toBe('procedural');
