@@ -12,6 +12,7 @@ import type {
   StartPlacementMode,
 } from './types';
 import type { OpponentChallenge } from '@/core/types/ai';
+import { getMaxCivilizationsForSetup } from '@/systems/geo-start-capacity';
 import { generateMap, findStartPositions, StartPlacementError, createRng, guaranteeStartResources } from '@/systems/map-generator';
 import { loadGeoMap } from '@/systems/geo-map-loader';
 import { getLoadedGeoMapData, type GeographicMapScript } from '@/systems/geo-map-data';
@@ -91,12 +92,23 @@ export class GameCreationError extends Error {
   }
 }
 
+/**
+ * Placement mode for a new game. A real-world map that cannot hold this many separated, livable starts (measured
+ * capacity, design 2026-11-25) uses True Start, the same rule the setup screens apply, so every entry point agrees.
+ */
 function resolveStartPlacementMode(
   mapScript: MapScript,
-  requested?: StartPlacementMode,
+  requested: StartPlacementMode | undefined,
+  mapSize: 'small' | 'medium' | 'large',
+  civilizationCount: number,
 ): StartPlacementMode {
   const geographic = mapScript === 'earth' || mapScript === 'old-world' || mapScript === 'new-world';
-  return geographic ? (requested ?? 'balanced') : 'balanced';
+  if (!geographic) return 'balanced';
+  const mode = requested ?? 'balanced';
+  if (mode === 'balanced' && getMaxCivilizationsForSetup(mapScript, mapSize, 'balanced') < civilizationCount) {
+    return 'historical';
+  }
+  return mode;
 }
 
 /**
@@ -300,7 +312,9 @@ export function createNewGame(
   const gameSeed = config.seed ?? `game-${Date.now()}`;
   const resolvedGameTitle = config.gameTitle.trim() || 'Solo Campaign';
   const mapScript: MapScript = config.mapScript ?? 'procedural';
-  const startPlacementMode = resolveStartPlacementMode(mapScript, config.startPlacementMode);
+  const startPlacementMode = resolveStartPlacementMode(
+    mapScript, config.startPlacementMode, actualSize, boundedOpponentCount + 1,
+  );
 
   // Determine civ types before map generation so placement can use real civ IDs.
   const settings = createDefaultSettings(actualSize, {
@@ -539,7 +553,9 @@ export function createHotSeatGame(
   const resolvedGameTitle = gameTitle?.trim() || 'Hot Seat Campaign';
   const dims = MAP_DIMENSIONS[config.mapSize];
   const mapScript: MapScript = config.mapScript ?? 'procedural';
-  const startPlacementMode = resolveStartPlacementMode(mapScript, config.startPlacementMode);
+  const startPlacementMode = resolveStartPlacementMode(
+    mapScript, config.startPlacementMode, config.mapSize, config.players.length,
+  );
   const civTypeIds = config.players.map(p => p.civType);
 
   let map: GameMap;
