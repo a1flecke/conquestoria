@@ -1,0 +1,122 @@
+{
+  "id": "musketeer",
+  "family": "biped",
+  "prompt": {
+    "name": "Musketeer",
+    "look": "A 17th-century musketeer: a friendly adult man with a long face, neat dark-brown moustache and short beard, brown eyes and strong eyebrows, wearing a wide-brimmed brown felt hat with a small feather, a bold red wool coat to mid-thigh with plain brass buttons over a tan linen shirt with a white collar, a brown leather bandolier across his chest hung with small wooden powder charges, a wide brown leather belt, dark wool breeches, light stockings and brown leather shoes with simple buckles. He holds a long wooden-stocked matchlock musket with a dark iron barrel in both hands.",
+    "team_area": "his coat",
+    "identity": "the same face, moustache and short beard, wide-brimmed felt hat with feather, red coat with brass buttons, linen collar, bandolier with powder charges, belt, dark breeches, stockings, buckled shoes and long matchlock musket",
+    "damage_gear": "a dented hat brim, a scuffed coat and a scratched musket stock",
+    "damage_gear_critical": "a torn hat brim, a ripped coat sleeve, a cracked musket stock, still held in his hands",
+    "weapon_pose": "He holds the musket across his body at the ready: near hand gripping the stock just behind the lock at chest height, far hand supporting the barrel ahead of it, the barrel angled up to the right and the butt held at his hip, so the whole musket stays at or above his belt, completely clear of his legs and shoes, with background visible between the musket and his legs.",
+    "attack_frames": 6,
+    "attack": "(1) ready stance, musket across the body; (2) anticipation: musket lifted toward the shoulder; (3) aiming: butt at the shoulder, barrel levelled to the right, cheek on the stock; (4) the shot: musket recoiling slightly upward, head turned away, a small puff of grey smoke at the muzzle; (5) lowering: musket coming down, reloading stance; (6) recover to the ready stance. No motion arc or trail.",
+    "defeat_prop": "the musket lying on the ground beside him",
+    "theme": "Early gunpowder-era musket infantry (Era 5): clean hand-painted historical 2D strategy art matching the Pikeman, Swordsman and Axeman sprites."
+  },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 140
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0,
+        0.045
+      ],
+      [
+        0.955,
+        1
+      ]
+    ],
+    "min_sat": 0.45,
+    "min_val": 0.18
+  },
+  "states": [
+    {
+      "state": "idle",
+      "file": "a",
+      "cells": 1,
+      "fps": 4,
+      "anchor": "center"
+    },
+    {
+      "state": "damage",
+      "file": "b",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 1,
+      "loop": false,
+      "note": "idle pose at damage tiers 0-3",
+      "anchor": "center"
+    },
+    {
+      "state": "walkrig",
+      "cells": 8,
+      "fps": 10,
+      "anchor": "center",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": {
+        "sources": [
+          "a",
+          "b#0",
+          "b#1",
+          "b#2",
+          "b#3"
+        ],
+        "shafts": 0,
+        "stride_deg": 24,
+        "knee_bend": 14,
+        "foot_level": 0.7
+      }
+    },
+    {
+      "state": "attack",
+      "file": "c",
+      "cells": 6,
+      "grid": [
+        3,
+        3
+      ],
+      "fps": 9,
+      "loop": false,
+      "restFrames": [
+        0,
+        5
+      ]
+    },
+    {
+      "state": "hit",
+      "file": "d",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 8,
+      "restFrames": [
+        0,
+        4
+      ],
+      "loop": false
+    },
+    {
+      "state": "defeat",
+      "file": "e",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 5,
+      "restFrames": [
+        0
+      ],
+      "loop": false
+    }
+  ]
+}
