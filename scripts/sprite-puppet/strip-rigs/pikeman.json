@@ -1,0 +1,120 @@
+{
+  "id": "pikeman",
+  "family": "biped",
+  "prompt": {
+    "name": "Pikeman",
+    "look": "A disciplined late-medieval pikeman: a friendly adult man with a square jaw, short dark-brown beard, brown eyes and strong eyebrows, wearing a plain steel kettle helmet with a broad brim, a steel gorget and a short steel breastplate over a bold red wool tunic whose sleeves and knee-above skirt show below the plate, a wide brown leather belt with a brass buckle, leather forearm bracers, dark wool hose tucked into sturdy calf-high brown leather boots. He grips a very long straight ash-wood pike with a slim silver-grey steel head in both hands; no shield.",
+    "team_area": "the wool tunic sleeves and skirt below his breastplate",
+    "identity": "the same face and short dark-brown beard, steel kettle helmet, gorget and breastplate, red wool tunic sleeves and skirt, belt with brass buckle, bracers, dark hose, brown leather boots and long ash-wood pike",
+    "damage_gear": "a dented helmet brim, a scuffed breastplate and a nicked pike head",
+    "damage_gear_critical": "a split helmet brim, a dented cracked breastplate, torn tunic sleeves and a splintered pike shaft, still in his hands",
+    "weapon_pose": "He holds the pike upright in both hands in front of his body, near fist at chest height and far fist just above it, the pike butt on the ground well to the side of his boots, a clear hand's width away from them, the pike's steel head rising straight up and kept fully inside the picture. Both hands clearly grip the shaft; the shaft never passes through his body or boots.",
+    "attack_frames": 6,
+    "attack": "(1) ready stance, pike upright in both hands; (2) anticipation: knees bent, weight shifting back, pike levelling toward the right; (3) wind-up: pike drawn back along his hip, point angled forward; (4) fast forward thrust, pike half-extended; (5) full extension: pike levelled to the right at chest height, front knee deeply bent; (6) recover to the upright ready stance. No motion arc or trail.",
+    "defeat_prop": "the pike lying on the ground beside him, one hand still resting on the shaft",
+    "theme": "Late medieval / early Renaissance pike infantry (Era 3-4): clean hand-painted historical 2D strategy art matching the Spearman, Swordsman and Axeman sprites."
+  },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 140
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0,
+        0.045
+      ],
+      [
+        0.955,
+        1
+      ]
+    ],
+    "min_sat": 0.45,
+    "min_val": 0.18
+  },
+  "states": [
+    {
+      "state": "idle",
+      "file": "a",
+      "cells": 1,
+      "fps": 4
+    },
+    {
+      "state": "damage",
+      "file": "b",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 1,
+      "loop": false,
+      "note": "idle pose at damage tiers 0-3"
+    },
+    {
+      "state": "walkrig",
+      "cells": 8,
+      "fps": 10,
+      "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": {
+        "sources": [
+          "a",
+          "b#0",
+          "b#1",
+          "b#2",
+          "b#3"
+        ],
+        "shafts": 1,
+        "stride_deg": 24,
+        "knee_bend": 14,
+        "foot_level": 0.7
+      }
+    },
+    {
+      "state": "attack",
+      "file": "c",
+      "cells": 6,
+      "grid": [
+        3,
+        3
+      ],
+      "fps": 9,
+      "loop": false,
+      "restFrames": [
+        0,
+        5
+      ]
+    },
+    {
+      "state": "hit",
+      "file": "d",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 8,
+      "restFrames": [
+        0,
+        4
+      ],
+      "loop": false
+    },
+    {
+      "state": "defeat",
+      "file": "e",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 5,
+      "restFrames": [
+        0
+      ],
+      "loop": false
+    }
+  ]
+}
