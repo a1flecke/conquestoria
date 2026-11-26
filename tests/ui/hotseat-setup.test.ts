@@ -112,6 +112,8 @@ describe('hotseat-setup', () => {
       .toContain('too small for separated starts');
     click('[data-map-script="old-world"]');
     expect((document.querySelector('[data-placement-mode="balanced"]') as HTMLButtonElement).disabled).toBe(false);
+    // The forced True Start ends with the constraint: the players never chose it.
+    expect(document.querySelector('[data-placement-mode="balanced"]')?.getAttribute('data-selected')).toBe('true');
   });
 
   it('chooses AI count independently and previews exactly that many roster-aware opponents', () => {

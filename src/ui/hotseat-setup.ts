@@ -49,6 +49,8 @@ export function showHotSeatSetup(
   let selectedMapScript: MapScript = 'earth';
   // The default map is already a choice: let the owner start any background preparation now (#1456).
   callbacks.onMapScriptChosen?.(selectedMapScript);
+  /** The placement the player chose; `selectedPlacementMode` is what the current map allows (design 2026-11-25). */
+  let chosenPlacementMode: StartPlacementMode = 'balanced';
   let selectedPlacementMode: StartPlacementMode = 'balanced';
   /** Civilizations this map can start with separated, livable starts (design 2026-11-25). */
   const maxCivilizations = (): number =>
@@ -223,11 +225,11 @@ export function showHotSeatSetup(
         || selectedMapScript === 'new-world';
       placement.hidden = !geographic;
       placementDescription.hidden = !geographic;
-      if (!geographic) selectedPlacementMode = 'balanced';
+      // Forced True Start lasts only while the selected map is too small; the players' own choice comes back after.
       const anywhereFits = !geographic
         || getMaxCivilizationsForSetup(selectedMapScript, selectedMapSize!, 'balanced') >= MIN_HOTSEAT_CIVILIZATIONS;
       setButtonDisabled(balancedPlacement, !anywhereFits);
-      if (!anywhereFits) selectedPlacementMode = 'historical';
+      selectedPlacementMode = !geographic ? 'balanced' : anywhereFits ? chosenPlacementMode : 'historical';
       for (const button of [balancedPlacement, historicalPlacement]) {
         button.dataset.selected = button.dataset.placementMode === selectedPlacementMode
           ? 'true'
@@ -242,11 +244,11 @@ export function showHotSeatSetup(
       }
     };
     balancedPlacement.addEventListener('click', () => {
-      selectedPlacementMode = 'balanced';
+      chosenPlacementMode = 'balanced';
       syncPlacement();
     });
     historicalPlacement.addEventListener('click', () => {
-      selectedPlacementMode = 'historical';
+      chosenPlacementMode = 'historical';
       syncPlacement();
     });
 
