@@ -2618,13 +2618,17 @@ describe('AI transport load/unload', () => {
     } as GameState;
   }
 
-  it('transport loads an adjacent idle land unit', () => {
+  // #1693: the administrative loop used to load any idle land unit onto any idle transport, which nothing then
+  // sailed. At peace the cargo never came ashore, and the stranded units could not be assigned to the plans that
+  // wanted them, so those plans kept ordering more (144 expeditions and 92 transports idle in one campaign).
+  it('a transport no plan owns does not take an idle land unit aboard', () => {
     const state = makeTransportLoadState();
     const bus = new EventBus();
 
     const result = processAITurn(state, 'ai-1', bus);
 
-    expect(result.units['warrior-1']?.transportId).toBe('transport-1');
+    expect(result.units['warrior-1']?.transportId).toBeUndefined();
+    expect(result.units['transport-1']?.cargoUnitIds ?? []).toEqual([]);
   });
 
   it('transport unloads cargo onto an adjacent enemy-owned tile', () => {
@@ -2637,17 +2641,19 @@ describe('AI transport load/unload', () => {
     expect(result.units['warrior-1']?.position).toEqual({ q: 0, r: 0 });
   });
 
-  it('transport loads ALL adjacent idle land units up to capacity in one turn', () => {
-    // Two warriors flank the transport: warrior-1 at (0,0), warrior-2 at (2,0).
-    // Transport capacity=2 means both should board in a single AI turn.
+  it('puts ashore, on its own land, cargo stranded aboard a transport no plan owns (#1693)', () => {
+    // A worker and an expedition were left aboard at peace (the old loader's legacy, and any older save).
+    // Nothing will sail this transport, so the cargo comes ashore rather than staying out of play forever.
     const transport = createUnit('transport', 'ai-1', { q: 1, r: 0 }, mkC());
     transport.id = 'transport-1';
-    transport.cargoUnitIds = [];
+    transport.cargoUnitIds = ['warrior-1', 'warrior-2'];
 
-    const warrior1 = createUnit('warrior', 'ai-1', { q: 0, r: 0 }, mkC());
+    const warrior1 = createUnit('worker', 'ai-1', { q: 1, r: 0 }, mkC());
     warrior1.id = 'warrior-1';
-    const warrior2 = createUnit('warrior', 'ai-1', { q: 2, r: 0 }, mkC());
+    warrior1.transportId = 'transport-1';
+    const warrior2 = createUnit('expedition', 'ai-1', { q: 1, r: 0 }, mkC());
     warrior2.id = 'warrior-2';
+    warrior2.transportId = 'transport-1';
 
     const state: GameState = {
       turn: 1, era: 1, currentPlayer: 'ai-1', gameOver: false, winner: null,
@@ -2683,8 +2689,12 @@ describe('AI transport load/unload', () => {
 
     const result = processAITurn(state, 'ai-1', new EventBus());
 
-    expect(result.units['warrior-1']?.transportId).toBe('transport-1');
-    expect(result.units['warrior-2']?.transportId).toBe('transport-1');
+    expect(result.units['warrior-1']?.transportId).toBeUndefined();
+    expect(result.units['warrior-2']?.transportId).toBeUndefined();
+    expect(result.units['transport-1']?.cargoUnitIds ?? []).toEqual([]);
+    for (const id of ['warrior-1', 'warrior-2']) {
+      expect(result.map.tiles[`${result.units[id]!.position.q},${result.units[id]!.position.r}`]?.owner).toBe('ai-1');
+    }
   });
 
   it('transport unloads ALL eligible cargo in one turn when multiple enemy tiles are adjacent', () => {

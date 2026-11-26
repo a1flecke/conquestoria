@@ -24,11 +24,7 @@ import { getIdleExplorerUnitIds, computeAdministrativeExploreLeash } from './ai-
 import { planHomeGuardStations } from './ai-home-guard';
 import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
 import {
-  canLoadUnitOntoTransport,
-  loadUnitOntoTransport,
   getTransportCargo,
-  getTransportCargoUsed,
-  getTransportCapacity,
   getUnloadDestinations,
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
@@ -42,14 +38,13 @@ import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
-import { hasKnownStrategicCapability, hasManhattanProject } from '@/systems/strategic-arsenal-system';
+import { hasManhattanProject } from '@/systems/strategic-arsenal-system';
 import { getEligibleStrategicLaunchPlatforms } from '@/systems/strategic-launch-system';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
 import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
 
 import { chooseProduction } from './ai-strategy';
-import { applyAiCityStateWar, applyAiMinorCivGifts, applyAiMinorCivPeace, applyAiMinorCivReparations, applyAiMinorCivQuestPayments, evaluateDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
-import { getKnownSharedBorderOwners } from './ai-known-borders';
+import { applyAiCityStateWar, buildDiplomacyContexts, applyAiMinorCivGifts, applyAiMinorCivPeace, applyAiMinorCivReparations, applyAiMinorCivQuestPayments, evaluateDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import { NATIONAL_INTENT_POSTURE } from './ai-national-intent-posture';
 import { chooseWarGoal } from './ai-war-goals';
 import { declareWarGoal, getWarGoalStatus } from '@/systems/war-goal-system';
@@ -631,6 +626,35 @@ interface ProcessAITurnInternalOptions {
   prepared?: PreparedMajorCivPlan;
 }
 
+/**
+ * #1693: puts ashore the cargo of a transport that no plan owns, preferring the civ's own land, then unclaimed
+ * land. An unowned transport has nobody to sail it, so anything aboard is otherwise out of play for good. Cargo
+ * a plan has claimed stays aboard (the plan is moving it), and `getUnloadDestinations` already applies every
+ * unload rule (terrain, occupancy, borders), so this adds no legality of its own.
+ */
+function releaseUnplannedCargo(
+  state: GameState,
+  civId: string,
+  transportId: string,
+  plannedUnitIds: ReadonlySet<string>,
+  recoveryUnitIds: ReadonlySet<string>,
+): GameState {
+  let next = state;
+  const preference = (coord: { q: number; r: number }) => {
+    const owner = next.map.tiles[hexKey(coord)]?.owner ?? null;
+    return owner === civId ? 0 : owner === null ? 1 : 2;
+  };
+  for (const cargo of getTransportCargo(next, transportId)) {
+    if (plannedUnitIds.has(cargo.id) || recoveryUnitIds.has(cargo.id)) continue;
+    const destination = [...getUnloadDestinations(next, transportId, cargo.id)]
+      .sort((a, b) => preference(a) - preference(b) || hexKey(a).localeCompare(hexKey(b)))[0];
+    if (!destination) continue;
+    const result = unloadUnitFromTransport(next, transportId, cargo.id, destination);
+    if (result.ok) next = result.state;
+  }
+  return next;
+}
+
 export function canDeclareWarForPreparedPlan(
   state: GameState,
   prepared: PreparedMajorCivPlan,
@@ -961,8 +985,8 @@ function processAITurnInternal(
     civ = newState.civilizations[civId];
   }
 
-  // Cargo handling is administrative rather than a competing strategic
-  // chase path, so retain the canonical all-cargo load/unload behavior.
+  // Cargo handling is administrative rather than a competing strategic chase path: put cargo ashore onto
+  // hostile land the transport already touches, and release cargo no plan owns (#1693). It never loads.
   const transportHostileOwners = new Set<string>([
     'barbarian',
     ...(newState.settings?.aiContestsBeasts === true ? [BEAST_OWNER] : []),
@@ -1005,25 +1029,16 @@ function processAITurnInternal(
       }
     }
     if (unloaded) continue;
-    for (const candidate of civ.units
-      .map(id => newState.units[id])
-      .filter((unit): unit is Unit =>
-        Boolean(unit)
-        && !recoveryUnitIds.has(unit.id)
-        && !unit.transportId
-        && !unit.hasActed
-        && unit.movementPointsLeft > 0
-        && (UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'land')) {
-      if (getTransportCargoUsed(newState, transport.id)
-        >= getTransportCapacity(newState.units[transport.id]!)) break;
-      const check = canLoadUnitOntoTransport(newState, candidate.id, transport.id);
-      if (!check.ok) continue;
-      const result = loadUnitOntoTransport(newState, candidate.id, transport.id);
-      if (result.ok) {
-        newState = result.state;
-        civ = newState.civilizations[civId];
-      }
-    }
+    // #1693: this loop used to also LOAD every idle land unit (workers, expeditions, settlers,
+    // missionaries) onto any idle transport. Nothing here ever sails a transport, and cargo is only
+    // unloaded onto hostile land, so at peace that cargo stayed aboard forever. Embarked units cannot
+    // be assigned to a plan, so the plan that wanted them kept ordering more, which were loaded in
+    // turn: one late-era AI ended with 144 expeditions, 92 transports and 75 workers idle in port.
+    // Loading is the purposeful amphibious plan's job (`ai-tactics` 'load'); here the only
+    // administrative duty left is to put ashore cargo that no plan owns.
+    if (assignedThisRound.has(transport.id)) continue;
+    newState = releaseUnplannedCargo(newState, civId, transport.id, assignedThisRound, recoveryUnitIds);
+    civ = newState.civilizations[civId];
   }
 
   // #1064 (design section 2.5): passive knowledge never reaches MIN_CITY_CENTER_DISTANCE
@@ -1348,43 +1363,8 @@ function processAITurnInternal(
       perception,
       civilizationEra,
     );
-    const sharedKnownBorders = getKnownSharedBorderOwners(newState, civId);
-    const diplomacyContext: Record<string, { hasMet: boolean; hasBorderPressure: boolean; targetHasKnownStrategicCapability: boolean; sharesKnownBorder: boolean }> = {};
-    for (const otherId of perception.knownCivIds) {
-      const otherCities = perception.knownCities
-        .filter(city => city.owner === otherId && city.position !== null);
-      const ownCities = civ.cities
-        .map(id => newState.cities[id])
-        .filter((city): city is City => city !== undefined);
-      const ownUnits = civ.units
-        .map(id => newState.units[id])
-        .filter((unit): unit is Unit => unit !== undefined);
-      const otherUnits = perception.units
-        .filter(unit => unit.owner === otherId && unit.position !== null);
-
-      const hasBorderPressure = ownUnits.some(unit =>
-        otherCities.some(city => {
-          const distance = newState.map.wrapsHorizontally
-            ? wrappedHexDistance(unit.position, city.position!, newState.map.width)
-            : hexDistance(unit.position, city.position!);
-          return distance <= 3;
-        }),
-      ) || otherUnits.some(unit =>
-        ownCities.some(city => {
-          const distance = newState.map.wrapsHorizontally
-            ? wrappedHexDistance(unit.position!, city.position, newState.map.width)
-            : hexDistance(unit.position!, city.position);
-          return distance <= 3;
-        }),
-      );
-
-      diplomacyContext[otherId] = {
-        hasMet: hasMetCivilization(newState, civId, otherId),
-        hasBorderPressure,
-        targetHasKnownStrategicCapability: hasKnownStrategicCapability(newState, civId, otherId),
-        sharesKnownBorder: sharedKnownBorders.has(otherId),
-      };
-    }
+    // #1693: one derivation, shared with the planner's war-intent check (`getPersonalityWarTargets`).
+    const diplomacyContext = buildDiplomacyContexts(newState, civId, perception);
 
     const strategicDeterrenceCautionWeight =
       OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(newState)].strategicDeterrenceCautionWeight;

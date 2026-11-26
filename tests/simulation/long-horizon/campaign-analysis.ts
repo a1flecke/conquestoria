@@ -59,6 +59,7 @@ export interface CampaignAnalysisConfig {
   goldHoardAbsoluteRise: number;
   /** end-of-campaign unit-count growth (over first living round) that counts as a runaway force, when city count never grew */
   unitRunawayGrowthWithFlatCities: number;
+  unitRunawayFlatCityMinRounds: number;
   /** a single round's max plan-no-progress span that counts as a wedged plan */
   planStuckRounds: number;
   /** consecutive rounds of an unchanged non-empty war set with no capture and no peace event */
@@ -91,6 +92,8 @@ export const DEFAULT_CAMPAIGN_ANALYSIS_CONFIG: CampaignAnalysisConfig = {
   // AI ends 30-77 units above its first living round while never founding a 2nd
   // city (F3). 25 sits far above the healthy Δ and far below the runaway Δ.
   unitRunawayGrowthWithFlatCities: 25,
+  // #1693: the shortest flat-city stretch judged for runaway growth (the old whole-campaign rule's 40-round floor).
+  unitRunawayFlatCityMinRounds: 40,
   // The fixture's own assertPlanInvariants already throws past expiry+1; a
   // 20-round no-progress span is well inside that and still clearly wedged.
   planStuckRounds: 20,
@@ -372,12 +375,16 @@ function detectExpansionFrozen(series: CivSeries[]): CampaignFinding[] {
 }
 
 /**
- * `unit-count-runaway`: a living AI civ that ENDS the campaign with far more
- * units than it started, while its city count never grew. A sane civ's army
- * scales with its cities/economy; a lone-city civ accumulating a 30-80 unit
- * stack it never expanded to support is a spawn/economy bug (late-game work
- * blowup, `#1005`'s stated target). Distinct from `expansion-frozen` (which is
+ * `unit-count-runaway`: a living AI civ whose unit count balloons over a long stretch in which its city count never
+ * changed. A sane civ's army scales with its cities/economy; a 30-80 unit stack it never expanded to support is a
+ * spawn/economy bug (late-game work blowup, `#1005`'s stated target). Distinct from `expansion-frozen` (which is
  * about cities not growing) — a civ can be expansion-frozen with 1 unit.
+ *
+ * #1693: this used to require that the city count NEVER grew in the whole campaign, so a civ that founded its
+ * cities early and then piled up units for 170 rounds (28 to 330 units at 4 cities: stranded expeditions and
+ * transports) was invisible to it. It now judges the stretch since the city count last changed, when that stretch
+ * is at least `unitRunawayFlatCityMinRounds` long: growth from its first to its last round. A transient spike that
+ * resolves, and an army still growing with an expanding empire, do not fire.
  */
 function detectUnitCountRunaway(
   series: CivSeries[],
@@ -389,19 +396,21 @@ function detectUnitCountRunaway(
     const activeRows = civ.rows
       .map((row, index) => ({ row, index }))
       .filter(({ row }) => activeAiRow(row));
-    if (activeRows.length < 40) continue;
-    const first = activeRows[0]!.row;
-    const lastEntry = activeRows[activeRows.length - 1]!;
-    const citiesEverGrew = activeRows.some(({ row }) => row.cities > first.cities);
-    const unitGrowth = lastEntry.row.units - first.units;
-    if (!citiesEverGrew && unitGrowth >= config.unitRunawayGrowthWithFlatCities) {
+    if (activeRows.length < config.unitRunawayFlatCityMinRounds) continue;
+    const last = activeRows[activeRows.length - 1]!;
+    let start = activeRows.length - 1;
+    while (start > 0 && activeRows[start - 1]!.row.cities === last.row.cities) start -= 1;
+    if (activeRows.length - start < config.unitRunawayFlatCityMinRounds) continue;
+    const first = activeRows[start]!;
+    const unitGrowth = last.row.units - first.row.units;
+    if (unitGrowth >= config.unitRunawayGrowthWithFlatCities) {
       findings.push({
         code: 'unit-count-runaway',
         civId: civ.civId,
-        detail: `units grew from ${first.units} to ${lastEntry.row.units} `
-          + `while city count stayed at ${first.cities}`,
-        firstRound: civ.rounds[activeRows[0]!.index]!,
-        lastRound: civ.rounds[lastEntry.index]!,
+        detail: `units grew from ${first.row.units} to ${last.row.units} `
+          + `while city count stayed at ${first.row.cities}`,
+        firstRound: civ.rounds[first.index]!,
+        lastRound: civ.rounds[last.index]!,
       });
     }
   }

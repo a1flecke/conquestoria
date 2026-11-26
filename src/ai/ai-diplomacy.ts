@@ -21,10 +21,25 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { mapDistance } from '@/systems/hex-utils';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
+import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
+import { hasMetCivilization } from '@/systems/discovery-system';
+import { buildDiplomaticStrengthEstimates } from '@/systems/diplomatic-strength';
+import { hasKnownStrategicCapability } from '@/systems/strategic-arsenal-system';
+import { getKnownSharedBorderOwners } from './ai-known-borders';
+import type { MajorCivPerception } from './ai-perception';
 
 export interface DiplomaticDecision {
   action: DiplomaticAction;
   targetCiv: string;
+}
+
+/**
+ * Own perceived strength over a rival's, the one ratio `shouldDeclareWar` and the peace check read. 1 when either side
+ * is unknown or zero, so a missing estimate never reads as an overwhelming edge.
+ */
+export function militaryAdvantage(ownStrength: number, theirStrength: number): number {
+  return ownStrength > 0 && theirStrength > 0 ? ownStrength / theirStrength : 1;
 }
 
 export interface DiplomaticContext {
@@ -81,10 +96,7 @@ export function evaluateDiplomacy(
     const actions = getAvailableActions(diplomacy, civId, { completedTechs, civilizationEra, hasArmsControlTreaty });
     const relationship = getRelationship(diplomacy, civId);
     const theirStrength = militaryStrengths[civId]?.midpoint ?? 0;
-    const ownStrength = selfStrength.midpoint;
-    const advantage = ownStrength > 0 && theirStrength > 0
-      ? ownStrength / theirStrength
-      : 1;
+    const advantage = militaryAdvantage(selfStrength.midpoint, theirStrength);
 
     if (isAtWar(diplomacy, civId)) {
       const goalStatus = warGoalStatusByCiv[civId] ?? 'none';
@@ -511,4 +523,99 @@ export function evaluateLeagueResponse(
                     personality.traits.includes('diplomatic') ? 5 : 10;
   const threshold = baseThreshold - posture.diplomaticOpennessBias * 20;
   return avgRel > threshold;
+}
+
+// ---- #1693: personality war intent, shared by the planner and diplomacy ----
+/*
+ * #1693: whom this AI's personality would go to war with, derived once and read by both the strategic planner and
+ * diplomacy.
+ *
+ * Before this, `shouldDeclareWar` ran only inside `evaluateDiplomacy`, and `basic-ai.ts` threw its `declare_war`
+ * verdicts away unless a prepared capture plan already pointed at that civ. The planner admitted a peaceful major
+ * civ as a capture target only through the domination doctrine's freshly-observed gate, which never asked the
+ * personality. So an aggressive AI that wanted war never got a plan, and with no plan it never declared: in a
+ * 250-round late-era campaign no AI went to war with anyone, a defenceless one-city neighbour included. The planner
+ * now offers a capture objective against exactly the civs returned here, and a war is still declared only by the
+ * prepared plan once it is advancing (`canDeclareWarForPreparedPlan`), so no war ever starts without a force.
+ *
+ * Everything read is the actor's own perception: its relationships and treaties, strength estimates built from what
+ * it has observed, and border pressure from units and cities it can see. Thresholds are the personality's own and
+ * identical at every difficulty, as `shouldDeclareWar` always was.
+ */
+/** A rival unit within this many hexes of one of our cities (or ours of theirs) is border pressure. */
+const BORDER_PRESSURE_RADIUS = 3;
+
+/** The per-rival facts `evaluateDiplomacy` and the war-intent check both read, from the actor's own perception. */
+export function buildDiplomacyContexts(
+  state: GameState,
+  civId: string,
+  perception: MajorCivPerception,
+): Record<string, Required<DiplomaticContext>> {
+  const civ = state.civilizations[civId];
+  if (!civ) return {};
+  const sharedKnownBorders = getKnownSharedBorderOwners(state, civId);
+  const ownCities = civ.cities.flatMap(id => state.cities[id] ? [state.cities[id]!] : []);
+  const ownUnits = civ.units.flatMap(id => state.units[id] ? [state.units[id]!] : []);
+  const contexts: Record<string, Required<DiplomaticContext>> = {};
+  for (const otherId of perception.knownCivIds) {
+    const otherCities = perception.knownCities.filter(city => city.owner === otherId && city.position !== null);
+    const otherUnits = perception.units.filter(unit => unit.owner === otherId && unit.position !== null);
+    const hasBorderPressure = ownUnits.some(unit =>
+      otherCities.some(city => mapDistance(state.map, unit.position, city.position!) <= BORDER_PRESSURE_RADIUS))
+      || otherUnits.some(unit =>
+        ownCities.some(city => mapDistance(state.map, unit.position!, city.position) <= BORDER_PRESSURE_RADIUS));
+    contexts[otherId] = {
+      hasMet: hasMetCivilization(state, civId, otherId),
+      hasBorderPressure,
+      targetHasKnownStrategicCapability: hasKnownStrategicCapability(state, civId, otherId),
+      sharesKnownBorder: sharedKnownBorders.has(otherId),
+    };
+  }
+  return contexts;
+}
+
+/**
+ * The major civilizations at peace with `civId` that its personality would declare war on this turn, by the same
+ * `shouldDeclareWar` rule diplomacy applies, and only where declaring is currently a legal diplomatic action.
+ */
+export function getPersonalityWarTargets(
+  state: GameState,
+  civId: string,
+  perception: MajorCivPerception,
+  personality: PersonalityTraits,
+  posture: NationalIntentPosture,
+): ReadonlySet<string> {
+  const civ = state.civilizations[civId];
+  const targets = new Set<string>();
+  if (!civ?.diplomacy) return targets;
+  const civilizationEra = resolveCivilizationEra(civ.techState.completed);
+  const { self, others } = buildDiplomaticStrengthEstimates(perception, civilizationEra);
+  const contexts = buildDiplomacyContexts(state, civId, perception);
+  const cautionWeight = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)].strategicDeterrenceCautionWeight;
+  const armsControl = hasArmsControlTreaty(state, civId);
+  for (const otherId of perception.knownCivIds) {
+    if (classifyOwner(otherId) !== 'major' || isAtWar(civ.diplomacy, otherId)) continue;
+    const context = contexts[otherId];
+    if (!context?.hasMet) continue;
+    const actions = getAvailableActions(civ.diplomacy, otherId, {
+      completedTechs: civ.techState.completed,
+      civilizationEra,
+      hasArmsControlTreaty: armsControl,
+    });
+    if (!actions.includes('declare_war')) continue;
+    if (shouldDeclareWar(
+      personality,
+      getRelationship(civ.diplomacy, otherId),
+      militaryAdvantage(self.midpoint, others[otherId]?.midpoint ?? 0),
+      state.turn,
+      context.hasMet,
+      context.hasBorderPressure,
+      context.targetHasKnownStrategicCapability,
+      cautionWeight,
+      posture,
+    )) {
+      targets.add(otherId);
+    }
+  }
+  return targets;
 }

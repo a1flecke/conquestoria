@@ -14,7 +14,12 @@ import {
 } from '@/ai/ai-prepared-turn';
 import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
-import { refreshMajorCivIntel } from '@/ai/ai-perception';
+import { buildMajorCivPerception, refreshMajorCivIntel } from '@/ai/ai-perception';
+import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
+import { getPersonalityWarTargets } from '@/ai/ai-diplomacy';
+import { resolveCivDefinition } from '@/systems/civ-registry';
+import { getAvailableActions } from '@/systems/diplomacy-actions';
+import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { applyAIProduction, generateAIProductionCandidates } from '@/ai/ai-production';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { processPreparedAITurn } from '@/ai/basic-ai';
@@ -416,6 +421,95 @@ describe('prepared major-civilization planning', () => {
     expect(prepared.portfolio.primaryPlan).not.toMatchObject({
       objective: 'capture',
       target: { kind: 'city', id: city.id },
+    });
+  });
+
+  describe('personality war intent drafts a capture plan (#1693)', () => {
+    // Before #1693 the planner admitted a peaceful major only through the Domination doctrine's freshly-observed
+    // report, and diplomacy discarded `shouldDeclareWar`'s verdict for want of a plan, so no AI ever went to war.
+    function warIntentState(seed: string, options: { civType: string; relationship: number; minDistance?: number }) {
+      const state = createNewGame(undefined, seed, 'small');
+      state.turn = 20;
+      const civ = state.civilizations['ai-1'];
+      civ.civType = options.civType;
+      const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+      const targetTile = Object.values(state.map.tiles)
+        .filter(tile =>
+          (options.minDistance ? hexDistance(anchor, tile.coord) >= options.minDistance : hexDistance(anchor, tile.coord) === 1)
+          && findPath(anchor, tile.coord, state.map, 'land') !== null)
+        .sort((left, right) => hexKey(left.coord).localeCompare(hexKey(right.coord)))[0]!;
+      const ownCity = foundCity(civ.id, anchor, state.map, state.idCounters);
+      const targetCity = foundCity('player', targetTile.coord, state.map, state.idCounters);
+      state.cities[ownCity.id] = ownCity;
+      state.cities[targetCity.id] = targetCity;
+      civ.cities = [ownCity.id];
+      state.civilizations.player.cities = [targetCity.id];
+      for (const index of [0, 1]) {
+        const tank = createUnit('tank', civ.id, anchor, state.idCounters);
+        tank.id = `war-intent-tank-${index}`;
+        state.units[tank.id] = tank;
+        civ.units.push(tank.id);
+      }
+      civ.techState.completed = TECH_TREE.filter(tech => tech.era <= 7).map(tech => tech.id);
+      civ.knownCivilizations = ['player'];
+      civ.diplomacy.relationships.player = options.relationship;
+      civ.visibility.tiles = options.minDistance
+        ? Object.fromEntries(Object.keys(state.map.tiles).map(key => [key, 'visible' as const]))
+        : { [hexKey(anchor)]: 'visible', [hexKey(targetCity.position)]: 'visible' };
+      return { state, civ, targetCity };
+    }
+
+    it('a warlike civilization that dislikes a weak known neighbour plans to capture its city', () => {
+      const { state, civ, targetCity } = warIntentState('war-intent-aggressive', { civType: 'mongolia', relationship: -50 });
+      expect(getPersonalityWarTargets(state, civ.id, buildMajorCivPerception(state, civ.id),
+        resolveCivDefinition(state, civ.civType)!.personality, NATIONAL_INTENT_POSTURE.develop).has('player')).toBe(true);
+
+      const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+
+      expect(prepared.portfolio.primaryPlan).toMatchObject({
+        objective: 'capture',
+        target: { kind: 'city', id: targetCity.id },
+      });
+      expect(prepared.portfolio.primaryPlan?.reasonCodes ?? []).not.toContain('domination-pursuit');
+    });
+
+    it('does not start a war over a city too far away to be worth the trip', () => {
+      const { state, civ, targetCity } = warIntentState('war-intent-distant', { civType: 'mongolia', relationship: -50, minDistance: 16 });
+      expect(getPersonalityWarTargets(state, civ.id, buildMajorCivPerception(state, civ.id),
+        resolveCivDefinition(state, civ.civType)!.personality, NATIONAL_INTENT_POSTURE.develop).has('player')).toBe(true);
+      const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+      expect(prepared.portfolio.primaryPlan).not.toMatchObject({ objective: 'capture', target: { id: targetCity.id } });
+      expect(prepared.traces[0]!.candidates.some(candidate => candidate.id === `capture:city:${targetCity.id}`)).toBe(false);
+    });
+
+    it('a peaceful civilization facing a neighbour of equal strength does not', () => {
+      const { state, civ, targetCity } = warIntentState('war-intent-peaceful', { civType: 'india', relationship: -50 });
+      for (const index of [0, 1]) {
+        const tank = createUnit('tank', 'player', targetCity.position, state.idCounters);
+        tank.id = `war-intent-defender-${index}`;
+        state.units[tank.id] = tank;
+        state.civilizations.player.units.push(tank.id);
+      }
+      const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+      expect(prepared.portfolio.primaryPlan).not.toMatchObject({ objective: 'capture', target: { id: targetCity.id } });
+    });
+
+    it('a warlike civilization on good terms (relationship above 30) does not', () => {
+      const { state, civ, targetCity } = warIntentState('war-intent-friendly', { civType: 'mongolia', relationship: 40 });
+      const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+      expect(prepared.portfolio.primaryPlan).not.toMatchObject({ objective: 'capture', target: { id: targetCity.id } });
+    });
+
+    it('a vassal, whose overlord decides its wars, has no war target', () => {
+      const { state, civ } = warIntentState('war-intent-vassal', { civType: 'mongolia', relationship: -50 });
+      civ.diplomacy.vassalage = { ...civ.diplomacy.vassalage, overlord: 'ai-2' };
+      expect(getAvailableActions(civ.diplomacy, 'player', {
+        completedTechs: civ.techState.completed,
+        civilizationEra: resolveCivilizationEra(civ.techState.completed),
+        hasArmsControlTreaty: false,
+      })).not.toContain('declare_war');
+      expect(getPersonalityWarTargets(state, civ.id, buildMajorCivPerception(state, civ.id),
+        resolveCivDefinition(state, civ.civType)!.personality, NATIONAL_INTENT_POSTURE.develop).has('player')).toBe(false);
     });
   });
 

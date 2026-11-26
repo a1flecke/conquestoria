@@ -1,6 +1,7 @@
 import { EventBus } from '@/core/event-bus';
-import type { GameEvents, GameMap, GameState, HexCoord, HexTile, TerrainType, Unit } from '@/core/types';
+import type { GameEvents, GameMap, GameState, HexCoord, HexTile, TerrainType, Unit, UnitType } from '@/core/types';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { foundCity } from '@/systems/city-system';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
@@ -652,8 +653,17 @@ describe('unit-movement-system', () => {
     });
   });
 
-  it('syncs loaded cargo positions after a Transport move', () => {
-    const transport = createUnit('transport', 'player', { q: 0, r: 0 }, mkC());
+  // #1693: derived from the catalogue, so a new hull is covered. Only the plain 'transport' used to sync, so a
+  // Troop Transport sailed away from cargo still recorded at its old tile.
+  const NAVAL_TRANSPORT_TYPES = (Object.keys(UNIT_DEFINITIONS) as UnitType[])
+    .filter(type => (UNIT_DEFINITIONS[type].domain ?? 'land') === 'naval' && UNIT_DEFINITIONS[type].cargoCapacity !== undefined);
+
+  it('covers more than one naval transport hull', () => {
+    expect(NAVAL_TRANSPORT_TYPES.length).toBeGreaterThan(1);
+  });
+
+  it.each(NAVAL_TRANSPORT_TYPES)('syncs loaded cargo positions after a %s move', type => {
+    const transport = createUnit(type, 'player', { q: 0, r: 0 }, mkC());
     transport.id = 'transport';
     transport.cargoUnitIds = ['cargo'];
     const cargo = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());

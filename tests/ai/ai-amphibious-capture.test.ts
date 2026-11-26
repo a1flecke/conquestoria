@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { processMajorCivStrategicTurn } from '@/ai/ai-major-turn';
 import { buildMajorCivPerception } from '@/ai/ai-perception';
-import type { PreparedMajorCivPlan } from '@/ai/ai-prepared-turn';
+import { prepareMajorCivStrategicPlan, type PreparedMajorCivPlan } from '@/ai/ai-prepared-turn';
 import { rankUnitTacticalActions, type AITacticalAction } from '@/ai/ai-tactics';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
@@ -246,5 +246,37 @@ describe('#1434 amphibious city capture', () => {
     expect(reloaded.rounds.map(round => round.actions)).toEqual(straight.rounds.map(round => round.actions));
     assertSimulationEquivalent(straight.state, repeated.state, 'repeat');
     assertSimulationEquivalent(straight.state, reloaded.state, 'save/reload');
+  });
+});
+
+describe('an operation across water is staffed through the real planning path (#1693)', () => {
+  // Before #1693 the scorer routed a target across water through a crossing, but unit assignment costed every unit
+  // straight to the target (unreachable for a land unit and for a ship alike) and never set the embarkation flag.
+  // No unit could ever be assigned, so the plan's demand re-ordered an expedition and a transport every few turns:
+  // one late-era AI ended with 144 expeditions and 92 transports idle in port.
+  function resourceAcrossWater(): GameState {
+    const state = makeState({});
+    const home = ['0,0', '0,1'];
+    const isle = ['4,0', '5,0'];
+    for (const key of [...home, ...isle]) state.map.tiles[key]!.terrain = 'grassland';
+    for (const key of home) state.map.tiles[key]!.regionKey = 'home';
+    for (const key of isle) state.map.tiles[key]!.regionKey = 'isle';
+    state.map.tiles['5,0']!.resource = 'cattle';
+    const city = foundCity(AI, { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations[AI].cities = [city.id];
+    addUnit(state, 'expedition-1', 'expedition', AI, { q: 0, r: 0 });
+    addUnit(state, 'ship', 'transport', AI, { q: 1, r: 0 });
+    return state;
+  }
+
+  it('assigns the expedition and the transport it already has, and asks for no more', () => {
+    const prepared = prepareMajorCivStrategicPlan(resourceAcrossWater(), AI);
+    const plan = prepared.portfolio.primaryPlan;
+    expect(plan).toMatchObject({ objective: 'secure-resource', requiredRoles: { transport: 1 } });
+    expect([...prepared.assignments.assignmentsByPlanId[plan!.id]!].sort()).toEqual(['expedition-1', 'ship']);
+    const unfilled = prepared.forceDemands.filter(demand =>
+      (demand.role === 'resource-expedition' || demand.role === 'transport') && demand.missing > 0);
+    expect(unfilled).toEqual([]);
   });
 });
