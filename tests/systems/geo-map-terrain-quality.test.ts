@@ -7,8 +7,9 @@
 import { describe, expect, it } from 'vitest';
 import { MAP_DIMENSIONS } from '@/core/game-state';
 import { loadGeoMap } from '@/systems/geo-map-loader';
-import { GEO_LATITUDE_BOUNDS } from '@/systems/geo-latitude';
+import { GEO_LATITUDE_BOUNDS, getPolarRowBand } from '@/systems/geo-latitude';
 import { getWrappedHexNeighbors, hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { createStartQualityIndex } from '@/systems/start-quality';
 import { isValidStartTile } from '@/systems/map-validation';
 import { EARTH_START_POSITIONS } from '@/systems/earth-start-positions';
 import { OLD_WORLD_START_POSITIONS } from '@/systems/old-world-start-positions';
@@ -70,6 +71,19 @@ describe('real-world map terrain', () => {
             .map(([civ, coord]) => `${civ}@${hexKey(coord)} ${map.tiles[hexKey(coord)]?.terrain}`);
           expect(bad).toEqual([]);
           expect(new Set(positions.map(([, coord]) => hexKey(coord))).size).toBe(positions.length);
+        });
+
+        it('puts every historical homeland on a start that passes the major minimum', () => {
+          // True Start keeps its flavour (the nearest livable land to the real place) but never an island with no room
+          // to grow, a polar strip or barren ground: those were the "ocean start" in a historical coat (#1837).
+          // Closeness between homelands is True Start's nature; placement puts one closer than a capital may be
+          // founded to an earlier one through the shared selection (start-placement-system.test.ts).
+          const index = createStartQualityIndex(map, { polarRows: getPolarRowBand(script.id, map.height) });
+          const failing = Object.entries(script.starts[size])
+            .map(([civ, coord]) => ({ civ, coord, failures: index.floorFailures(coord, 'major') }))
+            .filter(entry => entry.failures.length > 0)
+            .map(entry => `${entry.civ}@${hexKey(entry.coord)} ${entry.failures.join(',')}`);
+          expect(failing).toEqual([]);
         });
       });
     }

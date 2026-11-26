@@ -108,6 +108,14 @@ describe('hotseat-setup', () => {
       .toBe(true);
   });
 
+  it('names the placement choices Anywhere and Homelands (True Start), and the review says the same', () => {
+    showHotSeatSetup(document.body, { onComplete: vi.fn(), onCancel: vi.fn() });
+    click('[data-size="medium"]');
+    expect(document.querySelector('[data-placement-mode="balanced"]')?.textContent).toBe('Anywhere (Recommended)');
+    expect(document.querySelector('[data-placement-mode="historical"]')?.textContent).toBe('Homelands (True Start)');
+    expect(document.querySelector('[data-map-script="balanced"]')?.textContent).toContain('Balanced');
+  });
+
   it('offers True Start only when the real-world map is too small for separated starts (design 2026-11-25)', () => {
     // Simulate an undersized map: every real-world map now fits its full player count.
     shrinkGeoStartCapacity('earth', 'small', 1);
@@ -283,7 +291,7 @@ describe('hotseat-setup', () => {
     );
 
     expect(document.querySelector('[data-role="hotseat-start-spacing-note"]')?.textContent)
-      .toContain('Balanced starts keep rival civilizations from beginning next door');
+      .toContain('Anywhere placement keeps rival civilizations from beginning next door');
   });
 
   it('passes custom civ definitions into hot-seat setup selection flow for later players', () => {
