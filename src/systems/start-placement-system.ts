@@ -5,15 +5,19 @@ import type {
   MapScript,
   StartPlacementMode,
 } from '@/core/types';
-import { getWrappedHexesInRange, hexesInRange, hexKey } from '@/systems/hex-utils';
+import { hexKey } from '@/systems/hex-utils';
 import {
+  createRng,
   getGeographicStartAnchor,
   getStartPositionDistance,
   MIN_MAJOR_CIV_START_DISTANCE,
   type GeographicMapScript,
 } from '@/systems/map-generator';
 import { isValidStartTile } from '@/systems/map-validation';
-import { createStartViabilityIndex } from '@/systems/start-viability';
+import { createStartQualityIndex } from '@/systems/start-quality';
+import { getPolarRowBand } from '@/systems/geo-latitude';
+import { START_SELECTION, selectStartSites, type ScoredSite } from '@/systems/start-site-selection';
+import { MIN_CITY_CENTER_DISTANCE } from '@/systems/city-territory-system';
 
 export interface StartAssignment {
   civilizationTypeId: string;
@@ -47,12 +51,6 @@ export interface StartPlacementInput {
   candidateHexes?: Set<string>;
 }
 
-interface Candidate {
-  coord: HexCoord;
-  quality: number;
-  tieRank: number;
-}
-
 function isGeographicMapScript(script: MapScript): script is GeographicMapScript {
   return script === 'earth' || script === 'old-world' || script === 'new-world';
 }
@@ -61,122 +59,28 @@ function stableHash(value: string): number {
   return fnv1a32(value);
 }
 
-function candidateQuality(map: GameMap, coord: HexCoord): number {
-  let workable = 0;
-  let fertility = 0;
-  const neighborhood = map.wrapsHorizontally
-    ? getWrappedHexesInRange(coord, 2, map.width)
-    : hexesInRange(coord, 2);
-  for (const nearby of neighborhood) {
-    const tile = map.tiles[hexKey(nearby)];
-    if (!tile) continue;
+/**
+ * Every candidate passes the major-civilization start-quality floor (design 2026-11-25, B1), with the real-world
+ * polar band on geographic maps. Exact historical anchors are not candidates and are judged separately.
+ */
+function collectCandidates(input: StartPlacementInput): ScoredSite[] {
+  const quality = createStartQualityIndex(input.map, {
+    polarRows: isGeographicMapScript(input.mapScript)
+      ? getPolarRowBand(input.mapScript, input.map.height)
+      : undefined,
+  });
+  const candidates: ScoredSite[] = [];
+  for (const tile of Object.values(input.map.tiles)) {
     if (!isValidStartTile(tile)) continue;
-    workable++;
-    if (tile.terrain === 'grassland' || tile.terrain === 'forest' || tile.terrain === 'jungle') {
-      fertility += 2;
-    } else {
-      fertility += 1;
-    }
+    if (input.candidateHexes && !input.candidateHexes.has(hexKey(tile.coord))) continue;
+    if (!quality.passesFloor(tile.coord, 'major')) continue;
+    candidates.push({ coord: tile.coord, score: quality.assess(tile.coord).score });
   }
-  return workable * 10 + fertility;
+  return candidates;
 }
 
-function collectCandidates(input: StartPlacementInput): Candidate[] {
-  // Same minimum viable-start contract as `findStartPositions` (#1453). Exact
-  // historical anchors are not candidates and are deliberately left alone.
-  const viability = createStartViabilityIndex(input.map);
-  const valid = Object.values(input.map.tiles)
-    .filter(tile => isValidStartTile(tile))
-    .filter(tile => viability.isViable(tile.coord))
-    .filter(tile => !input.candidateHexes || input.candidateHexes.has(hexKey(tile.coord)))
-    .map(tile => ({
-      coord: tile.coord,
-      quality: candidateQuality(input.map, tile.coord),
-      tieRank: stableHash(`${input.seed}:${hexKey(tile.coord)}`),
-    }));
-  return valid.sort((a, b) =>
-      b.quality - a.quality
-      || a.tieRank - b.tieRank
-      || a.coord.r - b.coord.r
-      || a.coord.q - b.coord.q,
-  );
-}
-
-function compareSolutions(a: Candidate[], b: Candidate[], map: GameMap): number {
-  const aMinimum = minimumDistance(a.map(candidate => candidate.coord), map) ?? Infinity;
-  const bMinimum = minimumDistance(b.map(candidate => candidate.coord), map) ?? Infinity;
-  if (aMinimum !== bMinimum) return aMinimum - bMinimum;
-  const aWeakest = Math.min(...a.map(candidate => candidate.quality));
-  const bWeakest = Math.min(...b.map(candidate => candidate.quality));
-  if (aWeakest !== bWeakest) return aWeakest - bWeakest;
-  return a.reduce((sum, candidate) => sum + candidate.quality, 0)
-    - b.reduce((sum, candidate) => sum + candidate.quality, 0);
-}
-
-function selectBalancedSites(
-  map: GameMap,
-  candidates: Candidate[],
-  count: number,
-): { sites: Candidate[] | null; maximumPlaced: number } {
-  if (count === 0) return { sites: [], maximumPlaced: 0 };
-  let best: Candidate[] | null = null;
-  let maximumPlaced = 0;
-  const firstChoices = candidates.slice(0, Math.min(candidates.length, 256));
-
-  for (const first of firstChoices) {
-    const selected = [first];
-    while (selected.length < count) {
-      const remaining = candidates
-        .filter(candidate => !selected.includes(candidate))
-        .map(candidate => ({
-          candidate,
-          distance: Math.min(...selected.map(existing =>
-            getStartPositionDistance(map, candidate.coord, existing.coord),
-          )),
-        }))
-        .filter(entry => entry.distance >= MIN_MAJOR_CIV_START_DISTANCE)
-        .sort((a, b) =>
-          b.distance - a.distance
-          || b.candidate.quality - a.candidate.quality
-          || a.candidate.tieRank - b.candidate.tieRank,
-        );
-      if (!remaining[0]) break;
-      selected.push(remaining[0].candidate);
-    }
-    maximumPlaced = Math.max(maximumPlaced, selected.length);
-    if (selected.length === count && (!best || compareSolutions(selected, best, map) > 0)) {
-      best = selected;
-    }
-  }
-  if (!best) {
-    const selected: Candidate[] = [];
-    let visited = 0;
-    const visit = (startIndex: number): Candidate[] | null => {
-      maximumPlaced = Math.max(maximumPlaced, selected.length);
-      if (selected.length === count) return [...selected];
-      if (visited >= 100_000 || candidates.length - startIndex < count - selected.length) {
-        return null;
-      }
-      for (let index = startIndex; index < candidates.length; index++) {
-        const candidate = candidates[index];
-        if (selected.some(existing =>
-          getStartPositionDistance(map, candidate.coord, existing.coord)
-            < MIN_MAJOR_CIV_START_DISTANCE,
-        )) {
-          continue;
-        }
-        visited++;
-        selected.push(candidate);
-        const result = visit(index + 1);
-        if (result) return result;
-        selected.pop();
-        if (visited >= 100_000) break;
-      }
-      return null;
-    };
-    best = visit(0);
-  }
-  return { sites: best, maximumPlaced };
+function placementRng(input: StartPlacementInput): () => number {
+  return createRng(`${input.seed}-start-placement`);
 }
 
 function minimumDistance(positions: HexCoord[], map: GameMap): number | null {
@@ -192,7 +96,7 @@ function minimumDistance(positions: HexCoord[], map: GameMap): number | null {
 
 function assignBalancedSites(
   input: StartPlacementInput,
-  sites: Candidate[],
+  sites: ScoredSite[],
 ): StartAssignment[] {
   const anchors = input.civilizationTypeIds.map(civ =>
     isGeographicMapScript(input.mapScript)
@@ -203,7 +107,7 @@ function assignBalancedSites(
   let bestCost = Infinity;
   let bestTie = Infinity;
 
-  const visit = (remaining: Candidate[], assigned: HexCoord[], index: number, cost: number) => {
+  const visit = (remaining: ScoredSite[], assigned: HexCoord[], index: number, cost: number) => {
     if (cost > bestCost) return;
     if (index === anchors.length) {
       const tie = stableHash(`${input.seed}:${assigned.map(hexKey).join('|')}`);
@@ -237,52 +141,49 @@ function assignBalancedSites(
 
 function placeHistorical(
   input: StartPlacementInput,
-  candidates: Candidate[],
+  candidates: ScoredSite[],
 ): StartPlacementResult {
-  const positions: Array<HexCoord | null> = input.civilizationTypeIds.map(civ =>
-    isGeographicMapScript(input.mapScript)
+  const positions: Array<HexCoord | null> = input.civilizationTypeIds.map(civ => {
+    const anchor = isGeographicMapScript(input.mapScript)
       ? getGeographicStartAnchor(input.mapScript, input.mapSize, civ)
-      : null,
-  );
-  const fallbackCivilizationTypeIds: string[] = [];
-  const used = new Set(
-    positions.filter((coord): coord is HexCoord => coord !== null).map(hexKey),
-  );
+      : null;
+    return anchor && isValidStartTile(input.map.tiles[hexKey(anchor)]) ? anchor : null;
+  });
+  const fallbackIndices = positions.flatMap((position, index) => (position === null ? [index] : []));
+  const anchors = positions.filter((coord): coord is HexCoord => coord !== null);
 
-  for (let index = 0; index < positions.length; index++) {
-    const exact = positions[index];
-    if (exact && input.map.tiles[hexKey(exact)] && isValidStartTile(input.map.tiles[hexKey(exact)])) {
-      continue;
-    }
-    const placed = positions.filter((coord): coord is HexCoord => coord !== null);
-    const fallback = candidates
-      .filter(candidate => !used.has(hexKey(candidate.coord)))
-      .map(candidate => ({
-        candidate,
-        distance: placed.length === 0
-          ? Infinity
-          : Math.min(...placed.map(coord =>
-            getStartPositionDistance(input.map, candidate.coord, coord),
-          )),
-      }))
-      .sort((a, b) =>
-        b.distance - a.distance
-        || b.candidate.quality - a.candidate.quality
-        || a.candidate.tieRank - b.candidate.tieRank,
-      )[0]?.candidate;
-    if (!fallback) {
+  if (fallbackIndices.length > 0) {
+    // A civilization without a usable homeland is placed by the shared selection: livable land, spaced from the
+    // other fallbacks, and never closer to a homeland than a capital may be founded (design 2026-11-25, B2).
+    // True Start promises homelands, not spacing: fallbacks prefer the usual separation from each other and accept
+    // the capital-founding distance when a crowded map cannot hold more.
+    const anchorKeys = new Set(anchors.map(hexKey));
+    const select = (minSeparation: number) => selectStartSites({
+      map: input.map,
+      candidates: candidates.filter(candidate => !anchorKeys.has(hexKey(candidate.coord))),
+      count: fallbackIndices.length,
+      fixed: anchors,
+      minSeparation,
+      minFromFixed: MIN_CITY_CENTER_DISTANCE,
+      band: START_SELECTION.varietyBand,
+      rng: placementRng(input),
+    });
+    const spaced = select(MIN_MAJOR_CIV_START_DISTANCE);
+    const selection = spaced.ok ? spaced : select(MIN_CITY_CENTER_DISTANCE);
+    if (!selection.ok) {
       return {
         ok: false,
         reason: 'insufficient-separated-sites',
         requested: input.civilizationTypeIds.length,
-        available: used.size,
+        available: anchors.length + selection.maximumPlaced,
       };
     }
-    positions[index] = fallback.coord;
-    used.add(hexKey(fallback.coord));
-    fallbackCivilizationTypeIds.push(input.civilizationTypeIds[index]);
+    fallbackIndices.forEach((civIndex, siteIndex) => {
+      positions[civIndex] = { ...selection.sites[siteIndex].coord };
+    });
   }
 
+  const fallbackCivilizationTypeIds = fallbackIndices.map(index => input.civilizationTypeIds[index]);
   const resolved = positions as HexCoord[];
   return {
     ok: true,
@@ -305,12 +206,16 @@ export function placeCivilizationStarts(input: StartPlacementInput): StartPlacem
   if (input.mode === 'historical' && isGeographicMapScript(input.mapScript)) {
     return placeHistorical(input, candidates);
   }
-  const selection = selectBalancedSites(
-    input.map,
+  const selection = selectStartSites({
+    map: input.map,
     candidates,
-    input.civilizationTypeIds.length,
-  );
-  if (!selection.sites) {
+    count: input.civilizationTypeIds.length,
+    minSeparation: MIN_MAJOR_CIV_START_DISTANCE,
+    minFromFixed: MIN_MAJOR_CIV_START_DISTANCE,
+    band: START_SELECTION.varietyBand,
+    rng: placementRng(input),
+  });
+  if (!selection.ok) {
     return {
       ok: false,
       reason: 'insufficient-separated-sites',
@@ -329,4 +234,30 @@ export function placeCivilizationStarts(input: StartPlacementInput): StartPlacem
       .filter(assignment => assignment.usedFallback)
       .map(assignment => assignment.civilizationTypeId),
   };
+}
+
+/**
+ * How many separated, livable starts a map holds, up to `maxPlayers` (design 2026-11-25, B2): the selection run with
+ * every floor-passing candidate and no quality band. Terrain is fixed for real-world maps, so the answer is a
+ * property of the map, committed in `geo-start-capacity-data.ts` and read by the setup screens.
+ */
+export function computeGeographicStartCapacity(
+  map: GameMap,
+  mapScript: GeographicMapScript,
+  mapSize: 'small' | 'medium' | 'large',
+  maxPlayers: number,
+): number {
+  const input: StartPlacementInput = {
+    map, civilizationTypeIds: [], mapScript, mapSize, mode: 'balanced', seed: 'capacity',
+  };
+  const selection = selectStartSites({
+    map,
+    candidates: collectCandidates(input),
+    count: maxPlayers,
+    minSeparation: MIN_MAJOR_CIV_START_DISTANCE,
+    minFromFixed: MIN_MAJOR_CIV_START_DISTANCE,
+    band: 1,
+    rng: placementRng(input),
+  });
+  return selection.ok ? maxPlayers : selection.maximumPlaced;
 }

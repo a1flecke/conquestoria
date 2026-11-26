@@ -13,13 +13,14 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import type { GameState, HexCoord, MapScript, StartPlacementMode } from '@/core/types';
-import { MAP_DIMENSIONS, createHotSeatGame, createNewGame } from '@/core/game-state';
+import { createHotSeatGame, createNewGame } from '@/core/game-state';
 import { isGeographicMapScript } from '@/systems/geo-map-data';
 import { getPolarRowBand } from '@/systems/geo-latitude';
 import { createStartQualityIndex } from '@/systems/start-quality';
 import { getStartPositionDistance } from '@/systems/map-generator';
 import { MIN_CITY_CENTER_DISTANCE } from '@/systems/city-territory-system';
 import { hexKey } from '@/systems/hex-utils';
+import { getMaxCivilizationsForSetup } from '@/systems/geo-start-capacity';
 import { preloadGeoMapData } from '../helpers/geo-map-data';
 import { KNOWN_START_VIOLATIONS, startViolationKey } from './start-outcome-known-violations';
 
@@ -43,6 +44,15 @@ export function configLabel(config: MatrixConfig): string {
   return `${config.hotSeat ? 'hotseat:' : ''}${config.mapScript}/${config.mapSize}/${config.startPlacementMode ?? '-'}`;
 }
 
+function civilizationsOffered(config: MatrixConfig): number {
+  return getMaxCivilizationsForSetup(config.mapScript, config.mapSize, config.startPlacementMode ?? 'balanced');
+}
+
+/** Setup offers Anywhere placement only where two separated starts fit (a solo game needs one opponent). */
+function offered(config: MatrixConfig): boolean {
+  return civilizationsOffered(config) >= (config.hotSeat ? 3 : 2);
+}
+
 function create(config: MatrixConfig, seed: string): GameState {
   if (config.hotSeat) {
     return createHotSeatGame({
@@ -62,7 +72,8 @@ function create(config: MatrixConfig, seed: string): GameState {
     civType: 'rome',
     seed,
     mapSize: config.mapSize,
-    opponentCount: MAP_DIMENSIONS[config.mapSize].maxPlayers - 1,
+    // As many civilizations as the setup screen offers for this map (capped at real-world map capacity).
+    opponentCount: civilizationsOffered(config) - 1,
     mapScript: config.mapScript,
     startPlacementMode: config.startPlacementMode,
     gameTitle: 'matrix',
@@ -111,7 +122,7 @@ describe('start outcome matrix (design 2026-11-25, B7)', () => {
 
   it('places no start below its floor beyond the known, shrinking list', () => {
     const seen = new Map<string, string>();
-    for (const config of CONFIGS) {
+    for (const config of CONFIGS.filter(offered)) {
       for (let n = 0; n < SEEDS; n++) {
         for (const { key, example } of observe(config, `matrix-${n}`)) {
           if (!seen.has(key)) seen.set(key, example);

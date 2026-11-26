@@ -19,6 +19,7 @@ import { markModal } from '@/ui/modal-contract';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selector';
 import { selectAIRoster } from '@/systems/ai-roster-selection';
+import { getMaxCivilizationsForSetup } from '@/systems/geo-start-capacity';
 
 export interface CampaignSetupCallbacks {
   /** May return a promise while geographic map data loads (#1456); the screen shows the busy/error state. */
@@ -224,6 +225,10 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   placementHelp.style.cssText = 'font-size:12px;opacity:0.82;margin:0 0 10px;line-height:1.45;';
   mapSection.content.appendChild(placementHelp);
 
+  // Late-bound: the map-size control and the opponent list are built further down.
+  let currentMapSize = (): 'small' | 'medium' | 'large' => 'medium';
+  let onCivilizationLimitChanged = (): void => {};
+
   const syncPlacement = (): void => {
     const geographic = mapScriptSelect.value === 'earth'
       || mapScriptSelect.value === 'old-world'
@@ -231,11 +236,20 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     placementRow.hidden = !geographic;
     placementHelp.hidden = !geographic;
     if (!geographic) selectedPlacementMode = 'balanced';
+    // A real-world map that cannot hold two separated, livable starts offers True Start only (design 2026-11-25).
+    const anywhereFits = !geographic
+      || getMaxCivilizationsForSetup(mapScriptSelect.value as MapScript, currentMapSize(), 'balanced') >= 2;
+    setButtonDisabled(balancedPlacement, !anywhereFits);
+    if (!anywhereFits) selectedPlacementMode = 'historical';
     syncChoiceButtonState(balancedPlacement, selectedPlacementMode === 'balanced');
     syncChoiceButtonState(historicalPlacement, selectedPlacementMode === 'historical');
     placementHelp.textContent = selectedPlacementMode === 'balanced'
       ? 'Separated viable starts are guaranteed; homelands are soft preferences.'
       : 'Exact known homelands are used. Close neighboring starts may occur.';
+    if (!anywhereFits) {
+      placementHelp.textContent = `${MAP_SCRIPT_LABELS[mapScriptSelect.value as MapScriptKey]?.label ?? 'This map'} (${currentMapSize()}) is too small for separated starts, so True Start is used. Pick a larger size for separated starts.`;
+    }
+    onCivilizationLimitChanged();
   };
   balancedPlacement.addEventListener('click', () => {
     selectedPlacementMode = 'balanced';
@@ -318,7 +332,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     button.dataset.size = size;
     button.addEventListener('click', () => {
       mapSizeField.select.value = size;
-      refreshOpponentOptions();
+      syncPlacement();
       syncMapSizeCards();
     });
     mapSizeCards.set(size, button);
@@ -339,6 +353,12 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   });
   opponentSection.content.appendChild(opponentCardRow);
 
+  const capacityNote = document.createElement('p');
+  capacityNote.dataset.role = 'campaign-capacity-note';
+  capacityNote.style.cssText = 'font-size:12px;opacity:0.82;margin:0 0 8px;line-height:1.45;';
+  capacityNote.hidden = true;
+  opponentSection.content.appendChild(capacityNote);
+
   const opponentsField = createLabeledSelect('Opponents', 'campaign-opponents');
   opponentsField.wrapper.hidden = true;
   opponentSection.content.appendChild(opponentsField.wrapper);
@@ -354,7 +374,12 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
 
   const refreshOpponentOptions = (): void => {
     const mapSize = mapSizeField.select.value as 'small' | 'medium' | 'large';
-    const maxOpponents = MAP_DIMENSIONS[mapSize].maxPlayers - 1;
+    const maxCivilizations = getMaxCivilizationsForSetup(mapScriptSelect.value as MapScript, mapSize, selectedPlacementMode);
+    const maxOpponents = Math.max(1, maxCivilizations - 1);
+    capacityNote.textContent = maxCivilizations < MAP_DIMENSIONS[mapSize].maxPlayers
+      ? `${MAP_SCRIPT_LABELS[mapScriptSelect.value as MapScriptKey]?.label ?? 'This map'} (${mapSize}) fits up to ${maxCivilizations} civilizations with separated starts.`
+      : '';
+    capacityNote.hidden = capacityNote.textContent === '';
     const currentValue = opponentsField.select.value;
     opponentsField.select.textContent = '';
     for (let count = 1; count <= maxOpponents; count++) {
@@ -382,10 +407,12 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     syncOpponentCards();
   };
 
-  refreshOpponentOptions();
+  currentMapSize = () => mapSizeField.select.value as 'small' | 'medium' | 'large';
+  onCivilizationLimitChanged = refreshOpponentOptions;
+  syncPlacement();
   syncMapSizeCards();
   mapSizeField.select.addEventListener('change', () => {
-    refreshOpponentOptions();
+    syncPlacement();
     syncMapSizeCards();
   });
 

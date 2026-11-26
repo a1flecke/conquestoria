@@ -16,7 +16,8 @@ import { buildCustomCivId, customCivDefinitionsEqual, mergeCustomCivDefinitions 
 import { loadSettings, saveSettings } from '@/storage/save-manager';
 import { markModal } from '@/ui/modal-contract';
 import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selector';
-import { createGameButton, VARIANT_STYLES } from '@/ui/ui-kit';
+import { createGameButton, setButtonDisabled, VARIANT_STYLES } from '@/ui/ui-kit';
+import { getMaxCivilizationsForSetup } from '@/systems/geo-start-capacity';
 import { selectAIRoster } from '@/systems/ai-roster-selection';
 
 export interface HotSeatSetupCallbacks {
@@ -49,6 +50,11 @@ export function showHotSeatSetup(
   // The default map is already a choice: let the owner start any background preparation now (#1456).
   callbacks.onMapScriptChosen?.(selectedMapScript);
   let selectedPlacementMode: StartPlacementMode = 'balanced';
+  /** Civilizations this map can start with separated, livable starts (design 2026-11-25). */
+  const maxCivilizations = (): number =>
+    getMaxCivilizationsForSetup(selectedMapScript, selectedMapSize!, selectedPlacementMode);
+  /** Two humans and one AI is the smallest hot seat game. */
+  const MIN_HOTSEAT_CIVILIZATIONS = 3;
   let selectedOpponentChallenge: OpponentChallenge = 'standard';
   let superweaponsSelected: 'off' | 'on' = 'on';
   let graduationSelected: 'off' | 'on' = 'off';
@@ -218,6 +224,10 @@ export function showHotSeatSetup(
       placement.hidden = !geographic;
       placementDescription.hidden = !geographic;
       if (!geographic) selectedPlacementMode = 'balanced';
+      const anywhereFits = !geographic
+        || getMaxCivilizationsForSetup(selectedMapScript, selectedMapSize!, 'balanced') >= MIN_HOTSEAT_CIVILIZATIONS;
+      setButtonDisabled(balancedPlacement, !anywhereFits);
+      if (!anywhereFits) selectedPlacementMode = 'historical';
       for (const button of [balancedPlacement, historicalPlacement]) {
         button.dataset.selected = button.dataset.placementMode === selectedPlacementMode
           ? 'true'
@@ -227,6 +237,9 @@ export function showHotSeatSetup(
       placementDescription.textContent = selectedPlacementMode === 'balanced'
         ? 'Separated viable starts are guaranteed; historical regions are soft preferences.'
         : 'Exact known homelands are used. Nearby civilizations may begin close together.';
+      if (!anywhereFits) {
+        placementDescription.textContent = `${MAP_SCRIPT_LABELS[selectedMapScript as MapScriptKey]?.label ?? 'This map'} (${selectedMapSize}) is too small for separated starts, so True Start is used. Pick a larger size for separated starts.`;
+      }
     };
     balancedPlacement.addEventListener('click', () => {
       selectedPlacementMode = 'balanced';
@@ -355,7 +368,7 @@ export function showHotSeatSetup(
   }
 
   function showPlayerCountStage() {
-    const max = MAP_DIMENSIONS[selectedMapSize!].maxPlayers;
+    const max = maxCivilizations();
 
     const counts = Array.from({ length: Math.max(1, max - 2) }, (_, i) => i + 2);
 
@@ -408,7 +421,7 @@ export function showHotSeatSetup(
         <div id="hs-ai-count-label" style="font-size:13px;color:#e8c170;margin-bottom:8px;">AI opponents</div>
         <div role="group" aria-labelledby="hs-ai-count-label" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
           ${Array.from(
-            { length: MAP_DIMENSIONS[selectedMapSize!].maxPlayers - playerCount },
+            { length: maxCivilizations() - playerCount },
             (_, index) => index + 1,
           ).map(count => `
             <button type="button" data-ai-count="${count}" style="min-height:44px;min-width:44px;padding:8px;background:rgba(255,255,255,0.08);color:white;border:1px solid rgba(255,255,255,0.2);border-radius:8px;">${count}</button>
@@ -430,7 +443,7 @@ export function showHotSeatSetup(
 
     aiCount = Math.max(1, Math.min(
       aiCount,
-      MAP_DIMENSIONS[selectedMapSize!].maxPlayers - playerCount,
+      maxCivilizations() - playerCount,
     ));
     const syncAICount = (): void => {
       panel.querySelectorAll<HTMLButtonElement>('[data-ai-count]').forEach(button => {
