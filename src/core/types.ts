@@ -7,6 +7,8 @@ import type { GovernancePolicyId } from '@/systems/governance-types';
 // Compatibility re-exports: the definitions live in bounded-context leaves (#1361). New production code imports
 // these from the leaf; docs/core-types-barrel-ratchet.json keeps the barrel shrink-only.
 import type { HexCoord } from './types/hex';
+import type { HomelandChoice } from './types/homeland';
+export type { HomelandChoice, HomelandOption } from './types/homeland';
 import type { ResourceType, ImprovementType, WorkerActionType } from './types/resources';
 import type { AiGameState, AIStrategicRole, OpponentChallenge } from './types/ai';
 import type {
@@ -1490,6 +1492,12 @@ export interface Civilization {
   name: string;
   color: string;
   isHuman: boolean;
+  /**
+   * The reserved starts this human may choose between on turn 1 (design 2026-11-25, Phase C). Absent when the
+   * homeland picker is off, for AI civilizations and on every save that predates it; every reader tolerates absence.
+   * Live only while `getActiveHomelandChoice` says so (turn 1, no city, units on the selected option).
+   */
+  homelandChoice?: HomelandChoice;
   civType: string;              // references CivDefinition.id, 'generic' for legacy
   cities: string[];          // city IDs
   units: string[];           // unit IDs
@@ -2264,6 +2272,11 @@ export interface GameSettings {
    * existing save and resolves to 'off' -- never read this field directly, use isCityStateGraduationEnabled.
    */
   cityStateGraduation?: 'off' | 'on';
+  /**
+   * Whether humans choose a homeland on turn 1 (design 2026-11-25, Phase C). Optional; an absent value reads as off
+   * until the choice panel ships, so every existing save and new game plays as before.
+   */
+  homelandPicker?: 'off' | 'on';
   advisorsEnabled: Record<AdvisorType, boolean>;
   councilTalkLevel: CouncilTalkLevel;
   customCivilizations?: CustomCivDefinition[];

@@ -14,7 +14,7 @@ const UNWORKABLE_TERRAINS = new Set([
  * Matches the isLandTerrain exclusion list used by map-generator.ts, extended
  * to also reject volcanic (lava field — unlivable).
  */
-export function isValidStartTile(tile: HexTile | undefined): boolean {
+export function isValidStartTile(tile: { terrain: string } | undefined): boolean {
   if (!tile) return false;
   return !INVALID_START_TERRAINS.has(tile.terrain as never);
 }
