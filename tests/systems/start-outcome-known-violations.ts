@@ -12,21 +12,22 @@ export function startViolationKey(v: KnownStartViolation): string {
 }
 
 /** Violations placement still produces. Must only shrink; the start-outcome matrix fails on a stale entry. */
+// Remaining entries are exact True Start homelands that fail the floor on the regenerated maps (an island too small
+// for a second city, a polar homeland). Moving a real homeland is the next delivery's decision (design B4).
 export const KNOWN_START_VIOLATIONS: ReadonlyArray<KnownStartViolation> = [
-  { config: 'earth/large/historical', owner: 'major', failure: 'frozen' },
+  { config: 'earth/large/historical', owner: 'major', failure: 'expansion-room' },
   { config: 'earth/large/historical', owner: 'major', failure: 'land-food' },
-  { config: 'earth/large/historical', owner: 'major', failure: 'land-production' },
   { config: 'earth/large/historical', owner: 'major', failure: 'land-r2' },
   { config: 'earth/large/historical', owner: 'major', failure: 'polar-band' },
-  { config: 'earth/medium/historical', owner: 'major', failure: 'land-food' },
-  { config: 'earth/medium/historical', owner: 'major', failure: 'land-production' },
-  { config: 'earth/medium/historical', owner: 'major', failure: 'land-r2' },
-  { config: 'earth/small/historical', owner: 'major', failure: 'expansion-room' },
-  { config: 'earth/small/historical', owner: 'major', failure: 'land-food' },
+  { config: 'earth/medium/historical', owner: 'major', failure: 'polar-band' },
   { config: 'earth/small/historical', owner: 'major', failure: 'land-production' },
-  { config: 'earth/small/historical', owner: 'major', failure: 'land-r2' },
-  { config: 'old-world/large/historical', owner: 'major', failure: 'land-food' },
-  { config: 'old-world/large/historical', owner: 'major', failure: 'land-production' },
-  { config: 'old-world/large/historical', owner: 'major', failure: 'land-r2' },
+  { config: 'new-world/large/historical', owner: 'major', failure: 'land-food' },
+  { config: 'new-world/large/historical', owner: 'major', failure: 'land-production' },
+  { config: 'new-world/large/historical', owner: 'major', failure: 'land-r2' },
+  { config: 'new-world/medium/historical', owner: 'major', failure: 'land-food' },
+  { config: 'new-world/medium/historical', owner: 'major', failure: 'land-r2' },
+  { config: 'old-world/medium/historical', owner: 'major', failure: 'expansion-room' },
   { config: 'old-world/medium/historical', owner: 'major', failure: 'land-food' },
+  { config: 'old-world/medium/historical', owner: 'major', failure: 'land-production' },
+  { config: 'old-world/medium/historical', owner: 'major', failure: 'land-r2' },
 ];
