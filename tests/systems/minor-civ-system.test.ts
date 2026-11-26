@@ -13,6 +13,10 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { processMinorCivRegionalGrievanceTurn } from '@/systems/minor-civ-coalition-system';
 import { advancePlayerCivToEra as setTargetCivEra } from './helpers/minor-civ-scenario-fixtures';
+import { createStartQualityIndex } from '@/systems/start-quality';
+import { getPolarRowBand } from '@/systems/geo-latitude';
+import { preloadGeoMapData } from '../helpers/geo-map-data';
+import type { GameState, TerrainType } from '@/core/types';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -143,6 +147,71 @@ describe('minor-civ relationship notification history', () => {
   });
 });
 
+const PATCH_TERRAIN: TerrainType[] = ['grassland', 'forest', 'hills', 'plains'];
+
+/** Paints a radius-2 patch of mixed, workable land (non-wrapping offsets clipped to the map). */
+function paintLandPatch(state: GameState, centre: { q: number; r: number }): void {
+  for (const tile of Object.values(state.map.tiles)) {
+    const dq = tile.coord.q - centre.q;
+    const dr = tile.coord.r - centre.r;
+    if ((Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2 <= 2) {
+      tile.terrain = PATCH_TERRAIN[(tile.coord.q * 7 + tile.coord.r * 13) % PATCH_TERRAIN.length];
+    }
+  }
+}
+
+function oceanWorld(seed: string): GameState {
+  const state = createNewGame(undefined, seed, 'small');
+  state.map.wrapsHorizontally = false;
+  state.units = { settler: createUnit('settler', 'player', { q: 0, r: 5 }, state.idCounters) };
+  state.cities = {};
+  state.civilizations.player.cities = [];
+  state.barbarianCamps = {};
+  for (const tile of Object.values(state.map.tiles)) {
+    tile.terrain = 'ocean';
+    tile.wonder = null;
+    tile.resource = null;
+  }
+  return state;
+}
+
+describe('minor civ placement: start-quality floor (design 2026-11-25, B5)', () => {
+  it('places a city-state on livable land, never on a one-tile island', () => {
+    const state = oceanWorld('mc-floor-islet');
+    paintLandPatch(state, { q: 15, r: 15 });
+    state.map.tiles['25,25'].terrain = 'plains';
+    const result = placeMinorCivs(state, 'small');
+    const index = createStartQualityIndex(state.map);
+    const cities = Object.values(result.minorCivs).map(mc => result.cities[mc.cityId]);
+    expect(cities.length).toBeGreaterThan(0);
+    for (const city of cities) {
+      expect(hexKey(city.position)).not.toBe('25,25');
+      expect(index.floorFailures(city.position, 'city-state')).toEqual([]);
+    }
+  });
+
+  it('places no city-state rather than a stranded one when only islets exist', () => {
+    const state = oceanWorld('mc-floor-none');
+    state.map.tiles['15,15'].terrain = 'plains';
+    state.map.tiles['25,25'].terrain = 'grassland';
+    const result = placeMinorCivs(state, 'small');
+    expect(Object.keys(result.minorCivs)).toEqual([]);
+  });
+
+  it('keeps Earth small True Start city-states off tiny landmasses', async () => {
+    await preloadGeoMapData();
+    const state = createNewGame({
+      civType: 'rome', seed: 'matrix-0', mapSize: 'small', opponentCount: 2,
+      mapScript: 'earth', startPlacementMode: 'historical', gameTitle: 't',
+    });
+    const index = createStartQualityIndex(state.map, { polarRows: getPolarRowBand('earth', state.map.height) });
+    for (const city of Object.values(state.cities)) {
+      expect(index.assess(city.position).landmassTiles).toBeGreaterThan(4);
+      expect(index.floorFailures(city.position, 'city-state')).toEqual([]);
+    }
+  });
+});
+
 describe('minor civ placement', () => {
   it('stamps foundedTurn with the creation turn on every placed city-state (#497)', () => {
     const state = createNewGame(undefined, 'mc-founded-turn', 'small');
@@ -191,7 +260,8 @@ describe('minor civ placement', () => {
       tile.terrain = 'ocean';
       tile.wonder = null;
     }
-    state.map.tiles[`${width - 1},5`].terrain = 'plains';
+    // A livable patch (the city-state floor, design 2026-11-25) around q=width-1, r=5.
+    paintLandPatch(state, { q: width - 1, r: 5 });
 
     const result = placeMinorCivs(state, 'small');
 

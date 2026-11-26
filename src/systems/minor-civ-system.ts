@@ -60,7 +60,9 @@ import {
 } from './minor-civ-league-system';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { settleStrandedUnits } from '@/systems/unit-spawn-placement';
-import { isFertileStart } from '@/systems/start-fertility';
+import { createStartQualityIndex } from '@/systems/start-quality';
+import { getPolarRowBand } from '@/systems/geo-latitude';
+import { isGeographicMapScript } from '@/systems/geo-map-data';
 import { createUnitForCiv, withNewOwner } from './unit-trained-movement-bonus';
 import { applyResearchGain } from './tech-completion-system';
 
@@ -113,6 +115,15 @@ export function placeMinorCivs(
     .map(t => t.coord)
     .sort(() => rng() - 0.5);
 
+  // Design 2026-11-25 (B5): the one start-quality floor. A city-state builds land units only (#952), so one on a
+  // tiny island or polar strip is stranded for the whole game.
+  const quality = createStartQualityIndex(state.map, {
+    polarRows: isGeographicMapScript(state.mapScript)
+      ? getPolarRowBand(state.mapScript, state.map.height)
+      : undefined,
+  });
+  const livable = (pos: HexCoord): boolean => quality.passesFloor(pos, 'city-state');
+
   const majorCivIds = Object.keys(state.civilizations);
   const placedPositions: HexCoord[] = [];
   const result: PlacementResult = {
@@ -124,6 +135,7 @@ export function placeMinorCivs(
   for (const def of selected) {
     const pos = findValidPosition(
       state.map,
+      livable,
       candidates,
       startPositions,
       cityPositions,
@@ -180,6 +192,7 @@ export function placeMinorCivs(
 
 function findValidPosition(
   map: GameMap,
+  livable: (pos: HexCoord) => boolean,
   candidates: HexCoord[],
   startPositions: HexCoord[],
   cityPositions: HexCoord[],
@@ -195,17 +208,13 @@ function findValidPosition(
     if (placedPositions.some(p => mapDistance(map, pos, p) < 10)) return false;
     return true;
   };
-  // #1692 G3: a city-state on polar snow can barely feed itself and is a weak neighbour for the whole game. The
-  // first separated candidate that can feed a young city wins (the same floor a major civilization's start gets);
-  // only when none can does the first separated candidate of any kind, as before. No extra random draws, so the
-  // stream and every placement that was already on fertile land are unchanged.
-  let fallback: HexCoord | null = null;
+  // The first separated candidate that passes the city-state start-quality floor (design 2026-11-25, B5). None
+  // passing means no city-state here: fewer city-states, never a stranded one. Walks the already-shuffled
+  // candidates, so the random stream is unchanged.
   for (const pos of candidates) {
-    if (!separated(pos)) continue;
-    if (isFertileStart(map, pos)) return pos;
-    fallback ??= pos;
+    if (separated(pos) && livable(pos)) return pos;
   }
-  return fallback;
+  return null;
 }
 
 // === Turn Processing ===
