@@ -27,6 +27,7 @@ import { hasMetCivilization } from '@/systems/discovery-system';
 import { buildDiplomaticStrengthEstimates } from '@/systems/diplomatic-strength';
 import { hasKnownStrategicCapability } from '@/systems/strategic-arsenal-system';
 import { getKnownSharedBorderOwners } from './ai-known-borders';
+import { isWarStalemated, WAR_STALEMATE_ROUNDS } from '@/systems/war-history-system';
 import type { MajorCivPerception } from './ai-perception';
 
 export interface DiplomaticDecision {
@@ -55,6 +56,8 @@ export interface DiplomaticContext {
    * has a real use exactly where two territories touch. Absent = not known to share one.
    */
   sharesKnownBorder?: boolean;
+  /** #1693: the war with this civ has gone `WAR_STALEMATE_ROUNDS` with no city changing hands. Absent = no. */
+  warStalemated?: boolean;
 }
 
 /**
@@ -105,9 +108,11 @@ export function evaluateDiplomacy(
       // means "keep fighting" -- the AI stops suing for peace on relationship
       // alone the instant it has something real to fight for (#988). With no
       // declared goal, the legacy relationship-only heuristic is unchanged.
-      const seeksPeace = goalStatus === 'none'
+      // #1693: a war that has stopped producing captures is ended from either side, goal or not.
+      const stalemated = contextByCiv[civId]?.warStalemated === true;
+      const seeksPeace = stalemated || (goalStatus === 'none'
         ? (outmatched || relationship > -20)
-        : (goalStatus !== 'active' || outmatched);
+        : (goalStatus !== 'active' || outmatched));
       if (seeksPeace) {
         decisions.push({ action: 'request_peace', targetCiv: civId });
       }
@@ -569,6 +574,7 @@ export function buildDiplomacyContexts(
       hasBorderPressure,
       targetHasKnownStrategicCapability: hasKnownStrategicCapability(state, civId, otherId),
       sharesKnownBorder: sharedKnownBorders.has(otherId),
+      warStalemated: isWarStalemated(state, civId, otherId),
     };
   }
   return contexts;
@@ -595,6 +601,10 @@ export function getPersonalityWarTargets(
   const armsControl = hasArmsControlTreaty(state, civId);
   for (const otherId of perception.knownCivIds) {
     if (classifyOwner(otherId) !== 'major' || isAtWar(civ.diplomacy, otherId)) continue;
+    // A peace this civ made in the last `WAR_STALEMATE_ROUNDS` is not reopened on personality alone: a stalemate
+    // peace improves relations by only 10, so without this the same war restarted the next round (#1693).
+    if (civ.diplomacy.events.some(event => event.type === 'peace_made' && event.otherCiv === otherId
+      && state.turn - event.turn < WAR_STALEMATE_ROUNDS)) continue;
     const context = contexts[otherId];
     if (!context?.hasMet) continue;
     const actions = getAvailableActions(civ.diplomacy, otherId, {

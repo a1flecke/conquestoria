@@ -75,6 +75,33 @@ export function findActiveWarBetween(state: GameState, civA: string, civB: strin
 }
 
 /**
+ * #1693: rounds a war may run with no city changing hands between the two sides before either counts it a stalemate.
+ * Long enough for a real campaign to land a capture (a siege takes at least five turns, `game-balance.md` #974),
+ * short of the long-horizon `stagnant-war` detector's 40.
+ */
+export const WAR_STALEMATE_ROUNDS = 30;
+
+/**
+ * #1693: has the war between `civA` and `civB` gone `WAR_STALEMATE_ROUNDS` with no city changing hands between them?
+ * Before this nothing could end such a war: an AI with a war goal kept it while the goal was merely unmet, and peace
+ * (proposing and accepting) needed a relationship above -20, which a war drives below and never restores. One
+ * lh-veteran-small war ran 148 rounds with no capture and no peace. Derived from the war record both sides share
+ * (start turn and captured-city events), so it reveals nothing hidden and adds nothing to the save.
+ */
+export function isWarStalemated(state: GameState, civA: string, civB: string): boolean {
+  const record = findActiveWarBetween(state, civA, civB);
+  if (!record) return false;
+  let lastChange = record.startTurn;
+  for (const event of record.events) {
+    if (event.type !== 'city-captured' || event.turn <= lastChange) continue;
+    const betweenPair = (event.fromCivId === civA && event.toCivId === civB)
+      || (event.fromCivId === civB && event.toCivId === civA);
+    if (betweenPair) lastChange = event.turn;
+  }
+  return state.turn - lastChange >= WAR_STALEMATE_ROUNDS;
+}
+
+/**
  * This war's ordinal among all wars ever fought between its original
  * aggressor/defender pair (in either role), counting only records that
  * started at or before it -- deterministic regardless of `state.wars`

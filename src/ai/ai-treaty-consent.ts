@@ -52,6 +52,8 @@ export interface TreatyConsentInput {
    */
   targetVisibleStrength?: number;
   proposerVisibleStrength?: number;
+  /** Peace-only: the war has gone `WAR_STALEMATE_ROUNDS` with no city changing hands (#1693). */
+  warStalemated?: boolean;
 }
 
 export function evaluateTreatyConsent(input: TreatyConsentInput): TreatyConsent {
@@ -109,7 +111,8 @@ export function evaluatePeaceConsent(input: TreatyConsentInput): TreatyConsent {
     input.targetVisibleStrength !== undefined
     && input.proposerVisibleStrength !== undefined
     && input.targetVisibleStrength < input.proposerVisibleStrength * OUTMATCHED_STRENGTH_RATIO;
-  return outmatched || input.relationship > -20
+  // #1693: a stalemated war is worth ending whatever the relationship; a war drives relations down and never up.
+  return outmatched || input.warStalemated === true || input.relationship > -20
     ? { accepted: true }
     : { accepted: false, reason: 'peace-not-acceptable' };
 }

@@ -482,6 +482,21 @@ describe('prepared major-civilization planning', () => {
       expect(prepared.traces[0]!.candidates.some(candidate => candidate.id === `capture:city:${targetCity.id}`)).toBe(false);
     });
 
+    it('staffs the capture through the target\'s closed border it is about to open (#1693)', () => {
+      // At peace the rival's territory is closed to armed units, so costing the units through it made every route
+      // infinite: nothing was assigned, the plan never advanced to declare the war, and its demand trained soldiers
+      // without end (111 units at 4 cities in lh-veteran-small).
+      const { state, civ, targetCity } = warIntentState('war-intent-closed-border', { civType: 'mongolia', relationship: -50 });
+      for (const coord of mapHexesInRange(state.map, targetCity.position, 1)) {
+        const tile = state.map.tiles[hexKey(coord)];
+        if (tile && hexKey(coord) !== hexKey(civ.cities.map(id => state.cities[id]!.position)[0]!)) tile.owner = 'player';
+      }
+      const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+      const plan = prepared.portfolio.primaryPlan;
+      expect(plan).toMatchObject({ objective: 'capture', target: { id: targetCity.id } });
+      expect(prepared.assignments.assignmentsByPlanId[plan!.id]!.length).toBeGreaterThan(0);
+    });
+
     it('a peaceful civilization facing a neighbour of equal strength does not', () => {
       const { state, civ, targetCity } = warIntentState('war-intent-peaceful', { civType: 'india', relationship: -50 });
       for (const index of [0, 1]) {
@@ -498,6 +513,16 @@ describe('prepared major-civilization planning', () => {
       const { state, civ, targetCity } = warIntentState('war-intent-friendly', { civType: 'mongolia', relationship: 40 });
       const prepared = prepareMajorCivStrategicPlan(state, civ.id);
       expect(prepared.portfolio.primaryPlan).not.toMatchObject({ objective: 'capture', target: { id: targetCity.id } });
+    });
+
+    it('does not reopen a war it made peace in within the stalemate window (#1693)', () => {
+      const { state, civ } = warIntentState('war-intent-after-peace', { civType: 'mongolia', relationship: -50 });
+      const targets = () => getPersonalityWarTargets(state, civ.id, buildMajorCivPerception(state, civ.id),
+        resolveCivDefinition(state, civ.civType)!.personality, NATIONAL_INTENT_POSTURE.develop);
+      civ.diplomacy.events.push({ type: 'peace_made', turn: state.turn - 5, otherCiv: 'player', weight: 1 } as never);
+      expect(targets().has('player')).toBe(false);
+      state.turn += 40;
+      expect(targets().has('player')).toBe(true);
     });
 
     it('a vassal, whose overlord decides its wars, has no war target', () => {

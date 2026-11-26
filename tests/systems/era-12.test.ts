@@ -134,7 +134,8 @@ function makeCombatState(units: Record<string, Partial<Unit>>, civUnits: Record<
   const cities: Record<string, Partial<City>> = {};
   for (const [civId, unitIds] of Object.entries(civUnits)) {
     const cityId = `city-${civId}`;
-    cities[cityId] = { id: cityId, owner: civId };
+    // A real city always has a position; capture now asks whether the captured unit stands on one (#1693).
+    cities[cityId] = { id: cityId, owner: civId, position: { q: 30 + Object.keys(cities).length * 5, r: 30 } };
     civilizations[civId] = {
       id: civId, name: civId, color: civId === 'p1' ? '#fff' : '#000',
       isHuman: civId === 'p1', civType: 'generic',
