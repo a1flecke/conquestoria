@@ -22,7 +22,7 @@ function makeGameState(): GameState {
 describe('placeWonders', () => {
   it('places up to 5 wonders on a small map', () => {
     const map = makeMap('small');
-    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'small');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'small', { seed: 'test' });
     const placed = placeWonders(map, starts, 'small', 'wonder-seed');
     expect(placed.length).toBeLessThanOrEqual(5);
     expect(placed.length).toBeGreaterThan(0);
@@ -30,7 +30,7 @@ describe('placeWonders', () => {
 
   it('places up to 8 wonders on a medium map', () => {
     const map = makeMap('medium');
-    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2'], 'procedural', 'medium');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2'], 'procedural', 'medium', { seed: 'test' });
     const placed = placeWonders(map, starts, 'medium', 'wonder-seed');
     expect(placed.length).toBeLessThanOrEqual(8);
     expect(placed.length).toBeGreaterThan(0);
@@ -38,7 +38,7 @@ describe('placeWonders', () => {
 
   it('places up to 15 wonders on a large map', () => {
     const map = makeMap('large');
-    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2', 'civ-3'], 'procedural', 'large');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2', 'civ-3'], 'procedural', 'large', { seed: 'test' });
     const placed = placeWonders(map, starts, 'large', 'wonder-seed');
     expect(placed.length).toBeLessThanOrEqual(15);
     expect(placed.length).toBeGreaterThan(0);
@@ -46,7 +46,7 @@ describe('placeWonders', () => {
 
   it('enforces minimum 8-hex distance between wonders, measured across the wrap seam', () => {
     const map = makeMap('large');
-    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'large');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'large', { seed: 'test' });
     placeWonders(map, starts, 'large', 'wonder-dist-test');
     const wonderTiles = Object.values(map.tiles).filter(t => t.wonder !== null);
     for (let i = 0; i < wonderTiles.length; i++) {
@@ -58,7 +58,7 @@ describe('placeWonders', () => {
 
   it('enforces minimum 6-hex distance from start positions, measured across the wrap seam', () => {
     const map = makeMap('medium');
-    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2'], 'procedural', 'medium');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2'], 'procedural', 'medium', { seed: 'test' });
     placeWonders(map, starts, 'medium', 'wonder-start-test');
     const wonderTiles = Object.values(map.tiles).filter(t => t.wonder !== null);
     for (const wt of wonderTiles) {
@@ -70,7 +70,7 @@ describe('placeWonders', () => {
 
   it('replaces tile resource when placing a wonder', () => {
     const map = makeMap('medium');
-    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'medium');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'medium', { seed: 'test' });
     placeWonders(map, starts, 'medium', 'wonder-resource-test');
     const wonderTiles = Object.values(map.tiles).filter(t => t.wonder !== null);
     for (const wt of wonderTiles) {

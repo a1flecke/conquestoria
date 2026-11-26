@@ -11,6 +11,11 @@ import { normalizeLoadedStateForTest } from '@/storage/save-manager';
 import { simTimeout } from '../helpers/sim-timeout';
 import { initializeScenario } from '../simulation/ai-playability-fixture';
 import { hexKey, getWrappedHexNeighbors } from '@/systems/hex-utils';
+import { createStartQualityIndex } from '@/systems/start-quality';
+
+/** Mixed workable land: food and production, as the start-quality floor requires (design 2026-11-25). */
+const MIXED_LAND = ['grassland', 'forest', 'hills', 'plains'] as const;
+const mixedLand = (q: number, r: number) => MIXED_LAND[(q * 7 + r * 13) % MIXED_LAND.length];
 
 const TERRAIN: Record<string, HexTile['terrain']> = {
   '~': 'ocean', c: 'coast', g: 'grassland', m: 'mountain',
@@ -196,9 +201,9 @@ describe('placement never offers an unviable start (#1453)', () => {
 
   function trapMap(): GameMap {
     const map = mapFrom(rows, false);
-    // A big grass block far from the trap, where every tile is a good start.
+    // A big block of mixed land far from the trap, where every interior tile is a good start.
     for (let r = 5; r <= 12; r++) {
-      for (let q = 16; q <= 29; q++) map.tiles[`${q},${r}`]!.terrain = 'grassland';
+      for (let q = 16; q <= 29; q++) map.tiles[`${q},${r}`]!.terrain = mixedLand(q, r);
     }
     return map;
   }
@@ -212,7 +217,7 @@ describe('placement never offers an unviable start (#1453)', () => {
   it('findStartPositions skips the trap even when it is the first candidate in scan order', () => {
     const map = trapMap();
     const candidates = new Set([hexKey(trapCenter), '18,8', '28,8']);
-    const positions = findStartPositions(map, ['a', 'b'], 'procedural', 'small', candidates);
+    const positions = findStartPositions(map, ['a', 'b'], 'procedural', 'small', { seed: 'test', candidateHexes: candidates });
     expect(positions.map(hexKey)).not.toContain(hexKey(trapCenter));
     const index = createStartViabilityIndex(map);
     expect(positions.every(position => index.isViable(position))).toBe(true);
@@ -238,7 +243,7 @@ describe('placement never offers an unviable start (#1453)', () => {
     const map = trapMap();
     const only = new Set([hexKey(trapCenter)]);
     // One civ, one candidate, and that candidate is a trap: no start exists.
-    expect(() => findStartPositions(map, ['a'], 'procedural', 'small', only)).toThrow(/Could not place/);
+    expect(() => findStartPositions(map, ['a'], 'procedural', 'small', { seed: 'test', candidateHexes: only })).toThrow(/Could not place/);
     expect(placeCivilizationStarts({
       map, civilizationTypeIds: ['a'], mapScript: 'procedural', mapSize: 'small',
       mode: 'balanced', seed: 'trap', candidateHexes: only,
@@ -247,7 +252,7 @@ describe('placement never offers an unviable start (#1453)', () => {
 
   it('several civilizations competing for the viable sites each get a distinct, separated, viable start', () => {
     const map = trapMap();
-    const positions = findStartPositions(map, ['a', 'b'], 'procedural', 'small');
+    const positions = findStartPositions(map, ['a', 'b'], 'procedural', 'small', { seed: 'test' });
     const index = createStartViabilityIndex(map);
     expect(new Set(positions.map(hexKey)).size).toBe(2);
     expect(getStartPositionDistance(map, positions[0], positions[1])).toBeGreaterThanOrEqual(MIN_MAJOR_CIV_START_DISTANCE);
@@ -296,12 +301,6 @@ describe('the original unrecoverable start from #1453', () => {
     }
   });
 
-  it('does not disturb the #1107 recoverable fixture seed', () => {
-    const state = createNewGame({ ...config, seed: 'lh-1107-search-0', gameTitle: 'x' });
-    const positions = Object.values(state.civilizations).map(civ =>
-      hexKey(state.units[civ.units.find(id => state.units[id]?.type === 'settler')!]!.position));
-    expect(positions).toEqual(['0,4', '7,40', '22,10', '35,32']);
-  });
 });
 
 describe('determinism, save/reload and variety (#1453)', () => {
@@ -437,18 +436,17 @@ describe('start fertility (#1692 E)', () => {
     expect(MIN_START_FOOD).toBe(9);
   });
 
-  it('greedy placement prefers a fertile start over a wider-spaced barren one, and still places when none is fertile', () => {
-    // Desert everywhere except a grassland pocket in one corner.
-    const pocket = flat((q, r) => (q >= 8 && r >= 5 && r <= 9 ? 'grassland' : 'desert'));
-    const withPocket = { ...pocket, width: 30 } as GameMap;
-    const [start] = findStartPositions(withPocket, ['a'], 'procedural', 'small');
-    expect(isFertileStart(withPocket, start!)).toBe(true);
+  it('placement picks the livable pocket in a desert, and refuses a map with no livable start', () => {
+    // Superseded the #1692 food preference (design 2026-11-25): a start must pass the start-quality floor.
+    const pocket = flat((q, r) => (q >= 4 && r >= 4 && r <= 9 ? mixedLand(q, r) : 'desert'));
+    const [start] = findStartPositions(pocket, ['a'], 'procedural', 'small', { seed: 'test' });
+    expect(createStartQualityIndex(pocket).passesFloor(start!, 'major')).toBe(true);
 
-    const barren = { ...flat(() => 'desert'), width: 30 } as GameMap;
-    expect(findStartPositions(barren, ['a'], 'procedural', 'small')).toHaveLength(1);
+    const barren = flat(() => 'desert');
+    expect(() => findStartPositions(barren, ['a'], 'procedural', 'small', { seed: 'test' })).toThrow(StartPlacementError);
   });
 
-  it('every generated start can feed a young city', () => {
+  it('every generated start passes the start-quality floor', () => {
     const below: string[] = [];
     for (const mapScript of ['balanced', 'procedural', 'single-continent'] as const) {
       for (let seed = 0; seed < 12; seed++) {
@@ -457,7 +455,7 @@ describe('start fertility (#1692 E)', () => {
         });
         for (const civ of Object.values(state.civilizations)) {
           const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler');
-          if (settler && !isFertileStart(state.map, settler.position)) below.push(`${mapScript} ${seed} ${civ.id}`);
+          if (settler && !createStartQualityIndex(state.map).passesFloor(settler.position, 'major')) below.push(`${mapScript} ${seed} ${civ.id}`);
         }
       }
     }
@@ -470,11 +468,11 @@ describe('a generated map that cannot hold every civilization (#1692)', () => {
     const only = new Set(['5,5']);
     const map = (() => {
       const tiles: Record<string, HexTile> = {};
-      for (let q = 0; q < 30; q++) for (let r = 0; r < 20; r++) tiles[`${q},${r}`] = { coord: { q, r }, terrain: 'grassland' } as unknown as HexTile;
+      for (let q = 0; q < 30; q++) for (let r = 0; r < 20; r++) tiles[`${q},${r}`] = { coord: { q, r }, terrain: mixedLand(q, r) } as unknown as HexTile;
       return { width: 30, height: 20, tiles, wrapsHorizontally: false, rivers: [] } as GameMap;
     })();
     let failure: unknown;
-    try { findStartPositions(map, ['a', 'b'], 'procedural', 'small', only); } catch (error) { failure = error; }
+    try { findStartPositions(map, ['a', 'b'], 'procedural', 'small', { seed: 'test', candidateHexes: only }); } catch (error) { failure = error; }
     expect(failure).toBeInstanceOf(StartPlacementError);
     expect((failure as StartPlacementError).requested).toBe(2);
     expect((failure as StartPlacementError).placed).toBe(1);
@@ -491,8 +489,8 @@ describe('a generated map that cannot hold every civilization (#1692)', () => {
   });
 });
 
-describe('city-states are placed where they can feed themselves (#1692 G3)', () => {
-  it('no generated city-state sits on land below the start food floor when fertile land was available', () => {
+describe('city-states are placed where they can feed themselves (#1692 G3, design 2026-11-25)', () => {
+  it('no generated city-state sits below the city-state start-quality floor', () => {
     const barren: string[] = [];
     let placed = 0;
     for (const mapScript of ['balanced', 'procedural'] as const) {
@@ -504,7 +502,7 @@ describe('city-states are placed where they can feed themselves (#1692 G3)', () 
           const city = state.cities[minor.cityId];
           if (!city) continue;
           placed++;
-          if (!isFertileStart(state.map, city.position)) barren.push(`${mapScript} ${seed} ${minor.id} @${city.position.q},${city.position.r}`);
+          if (!createStartQualityIndex(state.map).passesFloor(city.position, 'city-state')) barren.push(`${mapScript} ${seed} ${minor.id} @${city.position.q},${city.position.r}`);
         }
       }
     }

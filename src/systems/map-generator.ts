@@ -12,9 +12,8 @@ import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import { LEGENDARY_WONDER_DEFINITIONS } from './legendary-wonder-definitions';
 // Start anchors only: the bulk tile/river data is loaded on demand (geo-map-data.ts, #1456).
 import { EARTH_START_POSITIONS } from './earth-start-positions';
-import { isValidStartTile } from './map-validation';
-import { createStartViabilityIndex } from './start-viability';
-import { isFertileStart } from './start-fertility';
+import { createStartQualityIndex } from './start-quality';
+import { START_SELECTION, selectStartSites, type ScoredSite } from './start-site-selection';
 import { OLD_WORLD_START_POSITIONS } from './old-world-start-positions';
 import { NEW_WORLD_START_POSITIONS } from './new-world-start-positions';
 
@@ -445,141 +444,42 @@ export class StartPlacementError extends Error {
 }
 
 /**
- * Find start positions for all civs. Returns positions in the same order as civTypeIds.
+ * Start positions for a generated map (procedural, balanced, single-continent), in `civTypeIds` order.
  *
- * For geo scripts, precomputed historical starts are looked up first;
- * unknown civs fall back to the greedy spacing algorithm. Precomputed
- * positions bypass MIN_MAJOR_CIV_START_DISTANCE (e.g. Europe has many
- * civs in a small area). The greedy fallback respects candidateHexes if provided.
+ * Every candidate passes the major-civilization start-quality floor (`start-quality.ts`, design 2026-11-25) and lies
+ * outside the top and bottom four rows; single-continent maps also restrict candidates to `candidateHexes`. The
+ * shared selection (`start-site-selection.ts`) treats `MIN_MAJOR_CIV_START_DISTANCE` as a hard constraint and draws
+ * one of the near-best layouts from the campaign seed. When no layout fits, a typed `StartPlacementError` lets game
+ * creation try the next map; the floor is never relaxed.
  */
 export function findStartPositions(
   map: GameMap,
   civTypeIds: string[],
-  mapScript: MapScript,
-  size: 'small' | 'medium' | 'large',
-  candidateHexes?: Set<string>,
+  _mapScript: MapScript,
+  _size: 'small' | 'medium' | 'large',
+  options: { seed: string; candidateHexes?: Set<string> },
 ): HexCoord[] {
   const count = civTypeIds.length;
-  const positions: Array<HexCoord | null> = new Array(count).fill(null);
-
-  // Pass 1: fill in precomputed geo starts for known civs.
-  // Duplicate detection: if two civs map to the same hex, only the first keeps the
-  // precomputed slot; the second falls through to the greedy Pass 2.
-  const table = GEO_START_TABLES[mapScript]?.[size];
-  if (table) {
-    const claimedKeys = new Set<string>();
-    for (let i = 0; i < civTypeIds.length; i++) {
-      const precomputed = table[civTypeIds[i]];
-      const precomputedTile = precomputed ? map.tiles[hexKey(precomputed)] : undefined;
-      if (!precomputed || !precomputedTile || !isValidStartTile(precomputedTile)) {
-        if (precomputed) {
-          console.warn(
-            `[findStartPositions] ${civTypeIds[i]} precomputed start ${hexKey(precomputed)}` +
-            ` (${precomputedTile?.terrain ?? 'missing'}) is invalid — falling through to greedy Pass 2`,
-          );
-        }
-        continue;
-      }
-      const key = hexKey(precomputed);
-      if (!claimedKeys.has(key)) {
-        positions[i] = precomputed;
-        claimedKeys.add(key);
-      }
-    }
-  }
-
-  // Collect candidates for greedy fallback. Every candidate must also satisfy
-  // the minimum viable-start contract (#1453, `start-viability.ts`): a start
-  // with no legal second-city site and no sea route is never offered, in the
-  // strict pass or the relaxed one. If that leaves too few separated starts the
-  // existing explicit placement failure below fires -- never an invalid start.
-  const viability = createStartViabilityIndex(map);
-  const allCandidates: HexCoord[] = [];
+  const quality = createStartQualityIndex(map);
+  const candidates: ScoredSite[] = [];
   for (const tile of Object.values(map.tiles)) {
     if (!isLandTerrain(tile.terrain)) continue;
     if (tile.coord.r <= 3 || tile.coord.r >= map.height - 4) continue;
-    if (candidateHexes && !candidateHexes.has(hexKey(tile.coord))) continue;
-    if (!viability.isViable(tile.coord)) continue;
-    const nearby = getCandidateNeighborhood(map, tile.coord, 2);
-    const landCount = nearby.filter(n => {
-      const t = map.tiles[hexKey(n)];
-      return t && isLandTerrain(t.terrain);
-    }).length;
-    if (landCount >= 10) allCandidates.push(tile.coord);
+    if (options.candidateHexes && !options.candidateHexes.has(hexKey(tile.coord))) continue;
+    if (!quality.passesFloor(tile.coord, 'major')) continue;
+    candidates.push({ coord: tile.coord, score: quality.assess(tile.coord).score });
   }
 
-  if (allCandidates.length === 0) {
-    // Relaxed fallback: any non-ocean land tile.
-    for (const tile of Object.values(map.tiles)) {
-      if (!isLandTerrain(tile.terrain)) continue;
-      if (candidateHexes && !candidateHexes.has(hexKey(tile.coord))) continue;
-      if (!viability.isViable(tile.coord)) continue;
-      allCandidates.push(tile.coord);
-    }
-  }
-
-  // Pass 2: greedy for slots without precomputed positions.
   const minimumDistance = getMinimumStartDistance(map);
-  const fertilityByKey = new Map<string, boolean>();
-  const fertile = (coord: HexCoord): boolean => {
-    const key = hexKey(coord);
-    let known = fertilityByKey.get(key);
-    if (known === undefined) {
-      known = isFertileStart(map, coord);
-      fertilityByKey.set(key, known);
-    }
-    return known;
-  };
-
-  // One greedy pass over a copy of the precomputed slots. Returns how many it placed when it gets stuck.
-  const placeGreedy = (preferFertile: boolean): { positions: HexCoord[] } | { placed: number } => {
-    const placing = [...positions];
-    const used = new Set<string>(placing.filter(Boolean).map(p => hexKey(p!)));
-    const placedPositions = placing.filter(Boolean) as HexCoord[];
-    for (let i = 0; i < count; i++) {
-      if (placing[i] !== null) continue;
-
-      let bestCandidate: HexCoord | null = null;
-      let bestMinDist = -1;
-      let bestFertileCandidate: HexCoord | null = null;
-      let bestFertileMinDist = -1;
-
-      for (const c of allCandidates) {
-        if (used.has(hexKey(c))) continue;
-        const minDist = placedPositions.length === 0
-          ? Infinity
-          : Math.min(...placedPositions.map(p => getStartPositionDistance(map, c, p)));
-        if (minDist < minimumDistance) continue;
-
-        if (minDist > bestMinDist) {
-          bestMinDist = minDist;
-          bestCandidate = c;
-        }
-        if (preferFertile && minDist > bestFertileMinDist && fertile(c)) {
-          bestFertileMinDist = minDist;
-          bestFertileCandidate = c;
-        }
-      }
-
-      // The widest-spaced candidate, as before, unless it cannot feed a city and a fertile one exists: then the
-      // widest-spaced fertile candidate. A seed whose starts were already fertile is placed exactly as it was.
-      const selected = bestCandidate && bestFertileCandidate && !fertile(bestCandidate)
-        ? bestFertileCandidate
-        : bestCandidate;
-      if (!selected) return { placed: placedPositions.length };
-      placing[i] = selected;
-      used.add(hexKey(selected));
-      placedPositions.push(selected);
-    }
-    return { positions: placing as HexCoord[] };
-  };
-
-  // #1692 E: prefer starts a young city can feed (`start-fertility.ts`). Moving one pick can leave a later
-  // civilization with no separated site, so when the fertile pass gets stuck the original pass decides, and only
-  // if that fails too is the placement refused, exactly as before.
-  const preferred = placeGreedy(true);
-  if ('positions' in preferred) return preferred.positions;
-  const original = placeGreedy(false);
-  if ('positions' in original) return original.positions;
-  throw new StartPlacementError(count, original.placed, minimumDistance);
+  const selection = selectStartSites({
+    map,
+    candidates,
+    count,
+    minSeparation: minimumDistance,
+    minFromFixed: minimumDistance,
+    band: START_SELECTION.varietyBand,
+    rng: createRng(`${options.seed}-start-placement`),
+  });
+  if (!selection.ok) throw new StartPlacementError(count, selection.maximumPlaced, minimumDistance);
+  return selection.sites.map(site => ({ q: site.coord.q, r: site.coord.r }));
 }

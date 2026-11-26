@@ -102,12 +102,13 @@ export function createStartQualityIndex(
     const land: string[] = [];
     let freshWater = centre?.hasRiver === true;
     let coastal = false;
+    const adjacentKeys = new Set(range(coord, 1).map(hexKey));
     for (const nearby of range(coord, 2)) {
       const nearbyKey = hexKey(nearby);
       if (nearbyKey === key) continue;
       const tile = map.tiles[nearbyKey];
       if (!tile) continue;
-      const adjacent = range(coord, 1).some(c => hexKey(c) === nearbyKey);
+      const adjacent = adjacentKeys.has(nearbyKey);
       if (isWater(tile.terrain)) {
         if (adjacent) coastal = true;
         continue;

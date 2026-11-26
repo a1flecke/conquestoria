@@ -112,7 +112,7 @@ describe('civilization start placement', () => {
       requested: 2,
       available: 1,
     });
-    expect(() => findStartPositions(map, ['a', 'b'], 'procedural', 'small'))
+    expect(() => findStartPositions(map, ['a', 'b'], 'procedural', 'small', { seed: 'test' }))
       .toThrow(/at least 9 hexes apart/);
   });
 
