@@ -143,43 +143,37 @@ lastKnownHeadquarters` is optional for exactly this reason.
   to `normalizePirateIntel` must accept every shape `refreshPirateIntel` can actually
   produce, not just the shape that happens to appear in whatever fixture wrote the check.
 
-## Minimum viable start (#1453)
+## Start quality: one definition for every placer (design 2026-11-25)
 
-Every major civilization's start must have a credible, legal path toward a second city. The one definition is
-`src/systems/start-viability.ts` (`createStartViabilityIndex(map).isViable(coord)`): a start is viable when its
-connected landmass (any non-water tile, wrapping across the seam) holds a legal city-centre site
-(`isCityCenterTerrain`) at `>= MIN_CITY_CENTER_DISTANCE` from it, **or** a city there is coastal and a *different*
-landmass with such a site borders the same body of water. Landmass tile count is deliberately not the test, and the
-contract promises nothing about equal terrain, resources, ship tech or travel time (food has its own, separate floor:
-see "Start fertility and placement retry" below).
+A player once started on a one-tile Arctic island. Each earlier fix (#1453 viability, #1692 fertility) patched one
+placer, and the game had five; a food floor that counted coast (2 food) also rated water-ringed sites as fertile.
+Now there is one definition, and an outcome test that covers every placer.
 
-- **Both placers consume it:** `findStartPositions` (procedural, balanced, single-continent) filters its candidate
-  pool, and `placeCivilizationStarts` (geographic balanced/historical fallbacks) filters `collectCandidates`. A new
-  placement path must call the same index; do not re-derive "is this island big enough" anywhere.
-- **No silent fallback:** if too few viable, separated starts exist, the existing explicit failure fires
-  (`Could not place ...` / `insufficient-separated-sites`). Exact historical anchors are never filtered.
-- Built once per map from flat typed arrays; the rule imports the canonical founding terrain rule and separation
-  constant, so it cannot drift from `canFoundCityAt`. Pinned by `tests/systems/start-viability.test.ts`, including the
-  original unrecoverable `lh-late-era-medium` start. The `lh-1107-search-0` long-horizon fixture is a separate,
-  intentionally kept #1107 scenario.
-
-### Start fertility and placement retry (#1692)
-
-Viability says a start is not trapped; it says nothing about food, and about one generated start in ten had almost
-no farmland. `src/systems/start-fertility.ts` adds a deliberately low floor: the six best tiles within two hexes of a
-start must give at least `MIN_START_FOOD` (9) food from base terrain (`terrain-yields.ts`, the leaf `tile-yield.ts`
-re-exports). It promises nothing about production, resources or equality.
-
-- **Only `findStartPositions` applies it** (procedural, balanced, single-continent). Its greedy pass keeps the
-  widest-spaced candidate when that one is already fertile, so a seed with good starts is placed exactly as before;
-  otherwise it takes the widest-spaced fertile candidate. If preferring fertility leaves a later civilization with
-  no separated site, the original pass decides. The geographic placer ranks by its own quality score and is unchanged.
-- **A failed placement is typed and retried.** `findStartPositions` throws `StartPlacementError`.
-  `generateMapWithStarts` (`game-state.ts`) tries up to `GENERATED_MAP_ATTEMPTS` maps from seeds derived from the
-  campaign seed (`<seed>~map<n>`; attempt 0 is the seed itself, so a seed that worked yields the same map), then
-  raises the `GameCreationError` the setup screens display. Before this an untyped throw escaped the Start button's
-  handler and the click did nothing.
-- Pinned by the `#1692` blocks in `tests/systems/start-viability.test.ts`.
+- **`src/systems/start-quality.ts` is the one definition** (`createStartQualityIndex(map, { polarRows })`). It judges
+  a site from its own LAND (water never counts as farmland): land within 2, best-six land food and production,
+  frozen share, room for a second city on the same landmass, and, on real-world maps, the polar latitude band
+  (`geo-latitude.ts`, shared with the map generator). `START_FLOORS` has a `major` and a `city-state` row; a placed
+  start never fails its row. Tune numbers in that table only, never per map.
+- **`src/systems/start-site-selection.ts` is the one selection.** Distance is a hard constraint
+  (`MIN_MAJOR_CIV_START_DISTANCE` between free-placed starts), the objective is the weakest start's score, and the
+  seed draws among near-best layouts, so different seeds give different good starts. `findStartPositions`
+  (procedural, balanced, single-continent), `placeCivilizationStarts` (real-world Anywhere placement and True Start
+  fallbacks) and `placeMinorCivs` (city-state floor) consume them. A new placer must too.
+- **No silent fallback.** Generated maps throw `StartPlacementError`, and `generateMapWithStarts` tries up to
+  `GENERATED_MAP_ATTEMPTS` maps from seeds derived from the campaign seed (`<seed>~map<n>`; attempt 0 is the seed
+  itself) before the setup screens show `GameCreationError`. Real-world maps return `insufficient-separated-sites`.
+  A city-state with no livable site is skipped, never stranded.
+- **Real-world capacity is measured, not assumed.** `geo-start-capacity-data.ts` (generated by
+  `UPDATE_GEO_START_CAPACITY=1` on `tests/systems/geo-start-capacity.test.ts`) records how many separated, livable
+  starts each map holds; the setup screens cap the civilization count in Anywhere placement and offer True Start only
+  where two (hot seat: three) do not fit (Earth small, New World small).
+- **True Start** keeps exact homelands (anchor quality and spacing are the next delivery); a civilization without a
+  usable homeland is placed by the shared selection, at least `MIN_CITY_CENTER_DISTANCE` from every homeland.
+- **Enforced by** `tests/systems/start-outcome-matrix.test.ts` (every script x size x mode, solo and hot seat, a
+  two-way ratchet over `start-outcome-known-violations.ts`: a new violation fails, a fixed one must be deleted),
+  `start-quality.test.ts`, `start-site-selection.test.ts`, and the architecture rule limiting who imports the
+  selection. `start-viability.ts` remains the in-game "is this start trapped" definition; for placement it is a
+  building block of the floor, and its sea-route clause no longer makes a start acceptable.
 
 ## Geographic map data is loaded on demand (#1456)
 

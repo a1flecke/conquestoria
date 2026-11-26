@@ -5,6 +5,16 @@ import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-schema-version';
 import { foundCity } from '@/systems/city-system';
 import { getWrappedHexNeighbors, hexKey } from '@/systems/hex-utils';
 import { buildBaselineSave, buildHotSeatBaselineSave } from './baseline';
+import { isPositionCoastal } from '@/systems/city-system';
+
+function coastalPlayerBaseline(seed: string): GameState {
+  for (let attempt = 0; attempt < 32; attempt++) {
+    const baseline = buildBaselineSave(attempt === 0 ? seed : `${seed}-${attempt}`);
+    const city = baseline.state.cities[baseline.playerCityId];
+    if (city && isPositionCoastal(city.position, baseline.state.map)) return baseline.state;
+  }
+  throw new Error(`no coastal player city for ${seed} in 32 attempts`);
+}
 
 /**
  * #1006 — the save-compatibility matrix manifest.
@@ -288,7 +298,9 @@ const MALFORMED_CASES: SaveCompatCase[] = [
     focus: ['transport cargo', 'carrier aircraft', 'cargo reciprocity'],
     runRounds: 1,
     build: () => {
-      const raw = buildBaselineSave('save-compat-malformed-cargo-reciprocity').state as RawState;
+      // The transport stands in the player's own city, so that city must be a coastal port. Start placement
+      // decides that, so take the first seed in a fixed sequence whose player city is coastal.
+      const raw = coastalPlayerBaseline('save-compat-malformed-cargo-reciprocity') as RawState;
       const units = raw.units as RawState;
       const playerRoster = (raw.civilizations as RawState).player.units as string[];
       const anchor = Object.values(units).find((u: RawState) => u.owner === 'player') as RawState;

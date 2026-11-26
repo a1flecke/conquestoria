@@ -4,7 +4,7 @@ import { resolveMajorCityCapture, transferCapturedCityOwnership } from '@/system
 import { applyCitySiegeOutcome } from '@/systems/city-siege-system';
 import { foundCity } from '@/systems/city-lifecycle';
 import { EventBus } from '@/core/event-bus';
-import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { hexDistance, hexKey, hexNeighbors, mapDistance } from '@/systems/hex-utils';
 import { executeSettlement } from '@/systems/settlement-system';
 import { getNationalProjectCivYieldBonus } from '@/systems/national-project-system';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -24,8 +24,8 @@ function cededCityWithOccupants(seed: string) {
   const city = state.cities[cityId];
   const counters = state.idCounters;
   // The ceding civ keeps another city, so losing this one does not eliminate it.
-  const elsewhere = Object.values(state.map.tiles).find(tile => tile.terrain === 'grassland'
-    && Object.values(state.cities).every(other => hexDistance(other.position, tile.coord) >= 6))!;
+  const elsewhere = Object.values(state.map.tiles).find(tile => (tile.terrain === 'grassland' || tile.terrain === 'plains')
+    && Object.values(state.cities).every(other => mapDistance(state.map, other.position, tile.coord) >= 6))!;
   const second = foundCity('ai-1', elsewhere.coord, state.map, counters);
   state.cities[second.id] = second;
   state.civilizations['ai-1'].cities.push(second.id);

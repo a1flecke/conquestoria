@@ -387,7 +387,7 @@ describe('#1064 expansion determinism', () => {
   // a wide active window, not just past the first one. Do not guess these numbers if the
   // seeds, the exploration mechanism, or AI production/spending change -- re-derive them.
   const ROUNDS = 60;      // comfortably past every observed second/third-city round for both seeds
-  const MIDPOINT = 30;    // centered in expansion-save-reload's wide 26-35 active-plan window
+  const MIDPOINT = 27;    // centered in expansion-save-reload's 24-29 active-plan window (re-measured after start quality, design 2026-11-25)
 
   it('reaches equivalent state from the same seed with expansion active', () => {
     const a = advance(freshGame('expansion-determinism'), ROUNDS);
