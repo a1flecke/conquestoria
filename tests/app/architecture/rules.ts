@@ -478,9 +478,9 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     id: 'start-site-selection-has-the-placers-only',
     kind: 'only-imported-by',
     target: [`${S}/start-site-selection`],
-    importers: ['tests/**', `${S}/map-generator`, `${S}/start-placement-system`],
+    importers: ['tests/**', `${S}/map-generator`, `${S}/start-placement-system`, `${S}/homeland-options`],
     edges: 'all',
-    why: 'Start placement has one selection (design 2026-11-25): separation is a constraint and the weakest start is maximised. The two major-civilization placers own it; a third caller would be a placer outside the start-outcome matrix, which is how an Arctic-islet start shipped while five placers each had their own rules.',
+    why: 'Start placement has one selection (design 2026-11-25): separation is a constraint and the weakest start is maximised. The major-civilization placers and the homeland-choice alternates (Phase C, which the start outcome matrix also covers) own it; any other caller would be a placer outside the start-outcome matrix, which is how an Arctic-islet start shipped while five placers each had their own rules.',
   },
   {
     id: 'src-has-no-runtime-import-cycles',
