@@ -1,0 +1,122 @@
+{
+  "id": "crossbowman",
+  "family": "biped",
+  "prompt": {
+    "name": "Crossbowman",
+    "look": "A medieval crossbowman: a friendly adult man with a broad face, short brown hair, a short stubble beard, brown eyes and strong eyebrows, wearing a steel open-faced sallet helmet, a short bold red wool tunic that ends high on the thigh, well above the knee with a plain brown leather belt and brass buckle, a steel gorget at the neck, leather forearm bracers, a small leather quiver of bolts on his hip, fitted dark wool hose with the full knee and shin clearly visible, and low brown leather ankle boots that end just above the ankle. He holds a wooden-stocked crossbow with a steel prod (bow) in both hands, a short bolt loaded on its groove.",
+    "team_area": "his tunic",
+    "identity": "the same face, short brown hair and stubble beard, steel sallet helmet and gorget, red tunic, belt with brass buckle, bracers, hip quiver of bolts, dark hose, low brown ankle boots and wooden crossbow with steel prod",
+    "damage_gear": "a dented helmet, a scuffed tunic and a scratched crossbow stock",
+    "damage_gear_critical": "a cracked helmet, a torn tunic sleeve, a chipped crossbow stock and a slack string, still held in his hands",
+    "weapon_pose": "He holds the crossbow across his body at the ready: near hand gripping the stock just behind the trigger at chest height, far hand under the fore-end ahead of it, the prod pointing up and to the right, so the whole crossbow stays at or above his belt, completely clear of his legs and boots, with background visible between the crossbow and his legs. His legs are long and clearly visible from the hem of the tunic to the ankle boots: two separate straight legs with a visible gap between them, nothing hanging over them. LEG STANCE (critical, the walk animation is built from it): he stands at attention like a side-scrolling game sprite. Both legs are vertical, straight and parallel, directly under the hips, with a narrow gap between them no wider than one boot. There is no stride, no inverted-V, no leg angled forward or back. Both feet stand flat on the same ground line, both boots point to the right in exactly the same direction, and neither foot is turned toward the viewer.",
+    "attack_frames": 6,
+    "attack": "(1) ready stance, crossbow across the body; (2) anticipation: crossbow lifted toward the shoulder; (3) aiming: butt at the shoulder, crossbow levelled to the right, cheek on the stock; (4) the shot: crossbow level, a single bolt just leaving the groove to the right, string released; (5) lowering: crossbow coming down; (6) recover to the ready stance. No motion arc or trail.",
+    "defeat_prop": "the crossbow lying on the ground beside him",
+    "theme": "High medieval crossbow infantry (Era 3-4): clean hand-painted historical 2D strategy art matching the Pikeman, Musketeer and Swordsman sprites."
+  },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 140
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0,
+        0.045
+      ],
+      [
+        0.955,
+        1
+      ]
+    ],
+    "min_sat": 0.45,
+    "min_val": 0.18
+  },
+  "states": [
+    {
+      "state": "idle",
+      "file": "a",
+      "cells": 1,
+      "fps": 4,
+      "anchor": "center"
+    },
+    {
+      "state": "damage",
+      "file": "b",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 1,
+      "loop": false,
+      "note": "idle pose at damage tiers 0-3",
+      "anchor": "center"
+    },
+    {
+      "state": "walkrig",
+      "cells": 8,
+      "fps": 10,
+      "anchor": "center",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": {
+        "sources": [
+          "a",
+          "b#0",
+          "b#1",
+          "b#2",
+          "b#3"
+        ],
+        "shafts": 0,
+        "stride_deg": 24,
+        "knee_bend": 14,
+        "foot_level": 0.7
+      }
+    },
+    {
+      "state": "attack",
+      "file": "c",
+      "cells": 6,
+      "grid": [
+        3,
+        3
+      ],
+      "fps": 9,
+      "loop": false,
+      "restFrames": [
+        0,
+        5
+      ]
+    },
+    {
+      "state": "hit",
+      "file": "d",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 8,
+      "restFrames": [
+        0,
+        4
+      ],
+      "loop": false
+    },
+    {
+      "state": "defeat",
+      "file": "e",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 5,
+      "restFrames": [
+        0
+      ],
+      "loop": false
+    }
+  ]
+}
