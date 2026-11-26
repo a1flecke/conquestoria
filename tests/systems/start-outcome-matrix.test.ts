@@ -25,7 +25,7 @@ import { preloadGeoMapData } from '../helpers/geo-map-data';
 import { KNOWN_START_VIOLATIONS, startViolationKey } from './start-outcome-known-violations';
 
 type Size = 'small' | 'medium' | 'large';
-interface MatrixConfig { mapScript: MapScript; mapSize: Size; startPlacementMode?: StartPlacementMode; hotSeat?: boolean }
+interface MatrixConfig { mapScript: MapScript; mapSize: Size; startPlacementMode?: StartPlacementMode; hotSeat?: boolean; homelandPicker?: boolean }
 
 const SEEDS = 8;
 const CONFIGS: MatrixConfig[] = [];
@@ -39,9 +39,14 @@ for (const mapScript of ['earth', 'old-world', 'new-world'] as const) {
 }
 CONFIGS.push({ mapScript: 'balanced', mapSize: 'medium', hotSeat: true });
 CONFIGS.push({ mapScript: 'earth', mapSize: 'large', startPlacementMode: 'balanced', hotSeat: true });
+// Homeland choice (Phase C): every reserved option is a start, so each must pass the same minimum.
+CONFIGS.push({ mapScript: 'balanced', mapSize: 'medium', homelandPicker: true });
+CONFIGS.push({ mapScript: 'earth', mapSize: 'large', startPlacementMode: 'balanced', homelandPicker: true });
+CONFIGS.push({ mapScript: 'balanced', mapSize: 'large', hotSeat: true, homelandPicker: true });
+CONFIGS.push({ mapScript: 'earth', mapSize: 'large', startPlacementMode: 'balanced', hotSeat: true, homelandPicker: true });
 
 export function configLabel(config: MatrixConfig): string {
-  return `${config.hotSeat ? 'hotseat:' : ''}${config.mapScript}/${config.mapSize}/${config.startPlacementMode ?? '-'}`;
+  return `${config.homelandPicker ? 'homeland:' : ''}${config.hotSeat ? 'hotseat:' : ''}${config.mapScript}/${config.mapSize}/${config.startPlacementMode ?? '-'}`;
 }
 
 function civilizationsOffered(config: MatrixConfig): number {
@@ -60,6 +65,7 @@ function create(config: MatrixConfig, seed: string): GameState {
       mapSize: config.mapSize,
       mapScript: config.mapScript,
       startPlacementMode: config.startPlacementMode,
+      ...(config.homelandPicker ? { settingsOverrides: { homelandPicker: 'on' as const } } : {}),
       players: [
         { name: 'A', slotId: 'player-1', civType: 'rome', isHuman: true },
         { name: 'B', slotId: 'player-2', civType: 'egypt', isHuman: true },
@@ -77,6 +83,7 @@ function create(config: MatrixConfig, seed: string): GameState {
     mapScript: config.mapScript,
     startPlacementMode: config.startPlacementMode,
     gameTitle: 'matrix',
+    ...(config.homelandPicker ? { settingsOverrides: { homelandPicker: 'on' as const } } : {}),
   });
 }
 
@@ -100,6 +107,27 @@ function observe(config: MatrixConfig, seed: string): Observation[] {
   for (const start of starts) {
     for (const failure of index.floorFailures(start.coord, 'major')) {
       found.push({ key: startViolationKey({ config: label, owner: 'major', failure }), example: `${seed} ${start.owner}@${hexKey(start.coord)}` });
+    }
+  }
+  // Every reserved homeland option is a start a human may pick: it passes the same minimum, and a capital apart from
+  // every other civilization's start and every other civilization's options.
+  const optionsByCiv = Object.entries(state.civilizations)
+    .map(([civId, civ]) => ({ civId, coords: civ.homelandChoice?.options.map(option => option.coord) ?? [] }));
+  if (config.homelandPicker && !optionsByCiv.some(entry => entry.coords.length > 1)) {
+    found.push({ key: startViolationKey({ config: label, owner: 'major', failure: 'land-r2' }), example: `${seed} no homeland options were reserved` });
+  }
+  for (const { civId, coords } of optionsByCiv) {
+    for (const coord of coords) {
+      for (const failure of index.floorFailures(coord, 'major')) {
+        found.push({ key: startViolationKey({ config: label, owner: 'major', failure }), example: `${seed} ${civId} option ${hexKey(coord)}` });
+      }
+      const rivals = [
+        ...starts.filter(start => start.owner !== civId).map(start => start.coord),
+        ...optionsByCiv.filter(entry => entry.civId !== civId).flatMap(entry => entry.coords),
+      ];
+      if (rivals.some(rival => getStartPositionDistance(state.map, coord, rival) < MIN_CITY_CENTER_DISTANCE)) {
+        found.push({ key: startViolationKey({ config: label, owner: 'major', failure: 'capital-distance' }), example: `${seed} ${civId} option ${hexKey(coord)}` });
+      }
     }
   }
   for (const city of Object.values(state.cities)) {
