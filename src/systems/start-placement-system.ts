@@ -1,10 +1,16 @@
 import { fnv1a32 } from './deterministic-hash';
 import type {
   GameMap,
+  GameState,
   HexCoord,
+  HomelandChoice,
   MapScript,
   StartPlacementMode,
+  Unit,
 } from '@/core/types';
+import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
+import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
+import { isLegalSpawnTile } from '@/systems/unit-spawn-placement';
 import { hexKey } from '@/systems/hex-utils';
 import {
   createRng,
@@ -267,4 +273,84 @@ export function computeGeographicStartCapacity(
     rng: placementRng(input),
   });
   return selection.ok ? maxPlayers : selection.maximumPlaced;
+}
+
+export type ConfirmHomelandDenial = 'not-active' | 'bad-index' | 'occupied';
+
+export const CONFIRM_HOMELAND_MESSAGES: Record<ConfirmHomelandDenial, string> = {
+  'not-active': 'The choice of homeland is over: it is only open on the first turn, before your first city.',
+  'bad-index': 'That is not one of the homelands you were offered.',
+  occupied: 'Another civilization stands there, so that homeland cannot be taken.',
+};
+
+export type ConfirmHomelandResult =
+  | { ok: true; state: GameState }
+  | { ok: false; reason: ConfirmHomelandDenial; message: string };
+
+function deny(reason: ConfirmHomelandDenial): ConfirmHomelandResult {
+  return { ok: false, reason, message: CONFIRM_HOMELAND_MESSAGES[reason] };
+}
+
+function startersOf(state: GameState, civId: string): { settler: Unit; warrior: Unit } | null {
+  const units = (state.civilizations[civId]?.units ?? [])
+    .map(id => state.units[id])
+    .filter((unit): unit is Unit => unit != null);
+  const settler = units.find(unit => unit.type === 'settler');
+  const warrior = units.find(unit => unit.type === 'warrior');
+  return settler && warrior ? { settler, warrior } : null;
+}
+
+/**
+ * The turn-1 homeland choice a civilization may still make, or null. It is derived, not stored as a phase: it is live
+ * only on turn 1, while the civilization has no city, and its settler and warrior still stand together on the selected
+ * option. Anything else (a moved unit, a founded city, a later turn, an AI civilization) makes it inert, so a stale
+ * record in a save can never reopen a choice.
+ */
+export function getActiveHomelandChoice(state: GameState, civId: string): HomelandChoice | null {
+  const civ = state.civilizations[civId];
+  const choice = civ?.homelandChoice;
+  if (!civ || !choice || choice.options.length < 2 || state.turn !== 1) return null;
+  if (civ.cities.some(cityId => state.cities[cityId]?.owner === civId)) return null;
+  const starters = startersOf(state, civId);
+  const here = choice.options[choice.selected]?.coord;
+  if (!starters || !here) return null;
+  const standing = (unit: Unit) => unit.position.q === here.q && unit.position.r === here.r;
+  return standing(starters.settler) && standing(starters.warrior) ? choice : null;
+}
+
+/**
+ * Settle on one of the offered homelands: the settler and warrior move there, what the civilization sees is recomputed
+ * as if the game had started on it, and the choice records the selection. Returns a new state; the input is untouched.
+ */
+export function confirmHomeland(state: GameState, civId: string, index: number): ConfirmHomelandResult {
+  const choice = getActiveHomelandChoice(state, civId);
+  if (!choice) return deny('not-active');
+  if (!Number.isInteger(index) || index < 0 || index >= choice.options.length) return deny('bad-index');
+  const starters = startersOf(state, civId)!;
+  const target = choice.options[index].coord;
+  if (index !== choice.selected) {
+    for (const unit of [starters.settler, starters.warrior]) {
+      if (!isLegalSpawnTile(state, { ownerId: civId, unitType: unit.type, stacking: 'same-owner' }, target)) return deny('occupied');
+    }
+  }
+
+  const move = (unit: Unit): Unit => ({ ...unit, position: { q: target.q, r: target.r } });
+  const units = {
+    ...state.units,
+    [starters.settler.id]: move(starters.settler),
+    [starters.warrior.id]: move(starters.warrior),
+  };
+  const civ = state.civilizations[civId];
+  const civUnits = civ.units.map(id => units[id]).filter((unit): unit is Unit => unit != null);
+  const visibility = updateVisibility(createVisibilityMap(), civUnits, state.map).visibility;
+  let next: GameState = {
+    ...state,
+    units,
+    civilizations: {
+      ...state.civilizations,
+      [civId]: { ...civ, visibility, homelandChoice: { ...choice, selected: index } },
+    },
+  };
+  next = refreshLastSeenPresentationsForCiv(next, civId);
+  return { ok: true, state: next };
 }
