@@ -65,6 +65,7 @@ import {
   isVassalBlocked,
 } from '@/systems/diplomacy-vassal-rules';
 import { declareMajorWar, makeMajorPeace, resolveOpponentKind } from '@/systems/diplomacy-war';
+import { isWarStalemated } from '@/systems/war-history-system';
 import { acceptTributeDemand, demandTribute, getTributeDemandEligibility, refuseTributeDemand } from '@/systems/diplomacy-tribute';
 import {
   acceptWithdrawalDemand,
@@ -124,6 +125,7 @@ export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCi
       diplomacyFocus: resolveCivDefinition(state, target.civType)?.personality.diplomacyFocus ?? 0.5,
       targetHasKnownStrategicCapability: false,
       actorHasKnownStrategicCapability: false,
+      warStalemated: isWarStalemated(state, fromCivId, toCivId),
     });
     if (!consent.accepted) {
       // #1090: previously silent -- the computed refusal reason reached nobody.

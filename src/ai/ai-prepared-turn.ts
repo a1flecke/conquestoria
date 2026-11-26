@@ -1008,6 +1008,26 @@ export function prepareMajorCivStrategicPlan(
     const crossing = regionKey ? crossings.get(regionKey) : undefined;
     if (crossing) amphibiousCrossingByPlanId.set(plan.id, crossing);
   }
+  // #1693: a capture plan against a major civ this civ is at peace with exists to START that war, and the war is
+  // declared once the plan advances (`canDeclareWarForPreparedPlan`), which needs assigned units. Costing its units
+  // through the target's still-closed border made every route infinite, so none was ever assigned, the plan never
+  // advanced, and its unfilled demand trained soldiers without end (111 units at 4 cities). The target's own border
+  // counts as open for this estimate only; movement still refuses the crossing until the war exists.
+  const warStartingOwnerByPlanId = new Map<string, string>();
+  for (const plan of plans) {
+    if (plan.objective !== 'capture' || plan.target.kind !== 'city') continue;
+    const targetId = plan.target.id;
+    const owner = perception.knownCities.find(city => city.id === targetId)?.owner;
+    if (owner && classifyOwner(owner) === 'major' && !civ.diplomacy.atWarWith.includes(owner)) {
+      warStartingOwnerByPlanId.set(plan.id, owner);
+    }
+  }
+  const travelDeniedOwners = (unit: Parameters<typeof getDeniedTerritoryOwners>[1], plan: AIStrategicPlan): ReadonlySet<string> => {
+    const denied = getDeniedTerritoryOwners(state, unit);
+    const warTarget = warStartingOwnerByPlanId.get(plan.id);
+    if (!warTarget || !denied.has(warTarget)) return denied;
+    return new Set([...denied].filter(owner => owner !== warTarget));
+  };
   const assignments = assignUnitsToPortfolio({
     portfolio: portfolioResult.portfolio,
     units: perception.ownUnits.map(unit => ({
@@ -1035,7 +1055,7 @@ export function prepareMajorCivStrategicPlan(
               // #871: travel estimates use the executor's denied set (this civ's own relations over
               // the fog-bounded `knownMap`, which carries `owner` only for tiles it currently sees),
               // so a plan is never costed through a border its units cannot cross.
-              deniedOwnerIds: state.units[unit.id] ? getDeniedTerritoryOwners(state, state.units[unit.id]!) : undefined,
+              deniedOwnerIds: state.units[unit.id] ? travelDeniedOwners(state.units[unit.id]!, plan) : undefined,
             },
           );
           return path
