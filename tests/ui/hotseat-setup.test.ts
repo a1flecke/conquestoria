@@ -95,12 +95,23 @@ describe('hotseat-setup', () => {
       onCancel: vi.fn(),
     });
 
-    click('[data-size="small"]');
+    click('[data-size="medium"]');
     expect(document.querySelector('[data-placement-mode="balanced"]')?.getAttribute('data-selected'))
       .toBe('true');
     click('[data-map-script="balanced"]');
     expect((document.querySelector('[data-role="start-placement-options"]') as HTMLElement).hidden)
       .toBe(true);
+  });
+
+  it('offers True Start only when the real-world map is too small for separated starts (design 2026-11-25)', () => {
+    showHotSeatSetup(document.body, { onComplete: vi.fn(), onCancel: vi.fn() });
+    click('[data-size="small"]');
+    expect((document.querySelector('[data-placement-mode="balanced"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(document.querySelector('[data-placement-mode="historical"]')?.getAttribute('data-selected')).toBe('true');
+    expect(document.querySelector('[data-role="start-placement-description"]')?.textContent)
+      .toContain('too small for separated starts');
+    click('[data-map-script="old-world"]');
+    expect((document.querySelector('[data-placement-mode="balanced"]') as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('chooses AI count independently and previews exactly that many roster-aware opponents', () => {
@@ -235,7 +246,7 @@ describe('hotseat-setup', () => {
       { onComplete, onCancel: vi.fn() },
     );
 
-    click('[data-size="small"]');
+    click('[data-size="medium"]');
     click('#hs-map-type-next');
     expect(document.body.textContent).toContain('Choose Opponent Challenge');
     expect(document.body.textContent).not.toContain('Player Names');
@@ -582,7 +593,7 @@ describe('hotseat-setup', () => {
       onCancel: () => {},
     });
 
-    click('.map-size-card[data-size="small"]');
+    click('.map-size-card[data-size="medium"]');
     advanceThroughMapType();
     click('.count-card[data-count="2"]');
     setInputValue('.player-name-input[data-idx="0"]', 'Alice');
@@ -748,7 +759,7 @@ describe('hotseat-setup', () => {
       const onComplete = vi.fn();
       showHotSeatSetup(document.body, { onComplete, onCancel: () => {} });
 
-      click('[data-size="small"]');
+      click('[data-size="medium"]');
       // do not click any map type card — just advance
       advanceThroughMapType();
       click('[data-count="2"]');

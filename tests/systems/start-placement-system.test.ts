@@ -1,7 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import type { GameMap, HexTile } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
-import { readGeoMapDataFromDisk } from '../helpers/geo-map-data';
 import { loadGeoMap } from '@/systems/geo-map-loader';
 import {
   getGeographicStartAnchor,
@@ -10,6 +9,13 @@ import {
   MIN_MAJOR_CIV_START_DISTANCE,
 } from '@/systems/map-generator';
 import { placeCivilizationStarts } from '@/systems/start-placement-system';
+import { createNewGame } from '@/core/game-state';
+import { createStartQualityIndex } from '@/systems/start-quality';
+import { getPolarRowBand } from '@/systems/geo-latitude';
+import { MIN_CITY_CENTER_DISTANCE } from '@/systems/city-territory-system';
+import { hexKey } from '@/systems/hex-utils';
+import { getGeographicStartCapacity } from '@/systems/geo-start-capacity';
+import { preloadGeoMapData, readGeoMapDataFromDisk } from '../helpers/geo-map-data';
 
 const { tiles: EARTH_TILES, rivers: EARTH_RIVERS } = readGeoMapDataFromDisk('earth');
 const { tiles: OLD_WORLD_TILES, rivers: OLD_WORLD_RIVERS } = readGeoMapDataFromDisk('old-world');
@@ -85,15 +91,24 @@ describe('civilization start placement', () => {
   });
 
   it('returns an explicit failure rather than weakening spacing', () => {
-    // Eight tiles in a row: every tile is a viable start (a second city fits at
-    // distance >= 4, #1453) but no two are the required 9 apart, so the failure
-    // under test is spacing, not viability.
-    const tiles = Object.fromEntries(
-      [0, 1, 2, 3, 4, 5, 6, 7].map(q => tile(q, 0)).map(value => [`${value.coord.q},${value.coord.r}`, value]),
-    );
+    // A radius-4 island of mixed land in a 20x20 sea: its centre passes the start-quality floor (design
+    // 2026-11-25), but no two tiles are the required 9 apart, so the failure under test is spacing.
+    const MIXED = ['grassland', 'forest', 'hills', 'plains'] as const;
+    const tiles: Record<string, HexTile> = {};
+    for (let q = 0; q < 20; q++) {
+      for (let r = 0; r < 20; r++) {
+        const value = tile(q, r);
+        const dq = q - 10;
+        const dr = r - 10;
+        value.terrain = (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2 <= 4
+          ? MIXED[(q * 7 + r * 13) % MIXED.length]
+          : 'ocean';
+        tiles[`${q},${r}`] = value;
+      }
+    }
     const map: GameMap = {
-      width: 8,
-      height: 1,
+      width: 20,
+      height: 20,
       wrapsHorizontally: false,
       tiles,
       rivers: [],
@@ -153,10 +168,11 @@ describe('civilization start placement', () => {
           dimensions,
           script.wraps,
         );
+        const capacity = getGeographicStartCapacity(script.id, size);
         const result = placeCivilizationStarts({
           map,
           civilizationTypeIds: Array.from(
-            { length: dimensions.maxPlayers },
+            { length: capacity },
             (_, index) => `custom-${index}`,
           ),
           mapScript: script.id,
@@ -167,7 +183,7 @@ describe('civilization start placement', () => {
 
         expect(result.ok, `${script.id} ${size}`).toBe(true);
         if (!result.ok) continue;
-        expect(result.positions).toHaveLength(dimensions.maxPlayers);
+        expect(result.positions).toHaveLength(capacity);
         for (let i = 0; i < result.positions.length; i++) {
           for (let j = i + 1; j < result.positions.length; j++) {
             expect(getStartPositionDistance(map, result.positions[i], result.positions[j]))
@@ -177,4 +193,55 @@ describe('civilization start placement', () => {
       }
     }
   }, 20000);
+});
+
+describe('start quality on real-world maps (design 2026-11-25, B2)', () => {
+  beforeAll(async () => { await preloadGeoMapData(); });
+
+  it('never starts the reported game (Earth large, Balanced, 8 civilizations, Rome) on the Arctic islet', () => {
+    const state = createNewGame({
+      civType: 'rome', seed: 'game-160716449', mapSize: 'large', opponentCount: 7,
+      mapScript: 'earth', startPlacementMode: 'balanced', gameTitle: 'reported',
+    });
+    const index = createStartQualityIndex(state.map, { polarRows: getPolarRowBand('earth', state.map.height) });
+    const settlers = Object.values(state.units).filter(unit => unit.type === 'settler');
+    expect(settlers).toHaveLength(8);
+    for (const settler of settlers) {
+      expect(index.floorFailures(settler.position, 'major'), `${settler.owner}@${hexKey(settler.position)}`).toEqual([]);
+    }
+    const rome = settlers.find(settler => settler.owner === 'player')!;
+    expect(hexKey(rome.position)).not.toBe('46,6');
+  });
+
+  it('varies the chosen sites across seeds instead of reusing one layout', () => {
+    const layouts = new Set<string>();
+    for (let n = 0; n < 8; n++) {
+      const state = createNewGame({
+        civType: 'rome', seed: `variety-${n}`, mapSize: 'large', opponentCount: 7,
+        mapScript: 'earth', startPlacementMode: 'balanced', gameTitle: 'v',
+      });
+      layouts.add(Object.values(state.units).filter(u => u.type === 'settler').map(u => hexKey(u.position)).sort().join('|'));
+    }
+    expect(layouts.size).toBeGreaterThanOrEqual(3);
+  });
+
+  it('places True Start fallbacks on livable land, clear of every homeland', () => {
+    const data = readGeoMapDataFromDisk('old-world');
+    const map = loadGeoMap(data.tiles.small, data.rivers.small, MAP_DIMENSIONS.small, false);
+    const civs = ['rome', 'babylon', 'india'];
+    const result = placeCivilizationStarts({
+      map, civilizationTypeIds: civs, mapScript: 'old-world', mapSize: 'small', mode: 'historical', seed: 'fallback',
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.fallbackCivilizationTypeIds.length).toBeGreaterThan(0);
+    const index = createStartQualityIndex(map, { polarRows: getPolarRowBand('old-world', map.height) });
+    const anchors = result.assignments.filter(a => !a.usedFallback).map(a => a.position);
+    for (const assignment of result.assignments.filter(a => a.usedFallback)) {
+      expect(index.floorFailures(assignment.position, 'major')).toEqual([]);
+      for (const anchor of anchors) {
+        expect(getStartPositionDistance(map, assignment.position, anchor)).toBeGreaterThanOrEqual(MIN_CITY_CENTER_DISTANCE);
+      }
+    }
+  });
 });

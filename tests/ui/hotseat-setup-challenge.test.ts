@@ -33,7 +33,7 @@ describe('hotseat-setup per-player challenge picker', () => {
     const onComplete = vi.fn();
     showHotSeatSetup(document.body, { onComplete, onCancel: vi.fn() });
 
-    click('[data-size="small"]');
+    click('[data-size="medium"]');
     advanceThroughMapType();
     click('[data-count="2"]');
     click('#hs-names-next');

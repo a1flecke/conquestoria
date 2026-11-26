@@ -615,6 +615,23 @@ describe('map type selection', () => {
     expect(config.seed).toMatch(/^solo-setup-/);
   });
 
+  it('offers True Start only on a real-world map too small for separated starts (design 2026-11-25)', () => {
+    renderSetup();
+    // Earth is the default map; small Earth holds one separated, livable start.
+    click(document, '[data-size="small"]');
+    const anywhere = document.querySelector('[data-placement-mode="balanced"]') as HTMLButtonElement;
+    expect(anywhere.disabled).toBe(true);
+    expect(document.querySelector('[data-placement-mode="historical"]')?.getAttribute('data-selected')).toBe('true');
+    expect(document.querySelector('[data-role="campaign-placement-description"]')?.textContent)
+      .toContain('too small for separated starts');
+    expect(Array.from(document.querySelectorAll('[data-opponent-count]')).map(card => card.getAttribute('data-opponent-count')))
+      .toEqual(['1', '2']);
+
+    click(document, '[data-size="large"]');
+    expect((document.querySelector('[data-placement-mode="balanced"]') as HTMLButtonElement).disabled).toBe(false);
+    expect((document.querySelector('[data-role="campaign-capacity-note"]') as HTMLElement).hidden).toBe(true);
+  });
+
   it('passes an explicit true-start choice for geographic maps', async () => {
     const onStartSolo = vi.fn();
     showCampaignSetup(document.body, { onStartSolo, onCancel: vi.fn() });
