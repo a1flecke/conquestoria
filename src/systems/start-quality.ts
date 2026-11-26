@@ -1,5 +1,4 @@
 import type { HexCoord } from '@/core/types/hex';
-import { getWrappedHexesInRange, hexKey, hexesInRange } from '@/systems/hex-utils';
 import { TERRAIN_YIELDS } from '@/systems/terrain-yields';
 import { createStartViabilityIndex, type StartViabilityMap } from '@/systems/start-viability';
 import { isPolarRow, type PolarRowBand } from '@/systems/geo-latitude';
@@ -83,53 +82,120 @@ export interface StartQualityIndex {
 const isWater = (terrain: string | undefined): boolean => terrain === 'ocean' || terrain === 'coast';
 const isFrozen = (terrain: string): boolean => terrain === 'tundra' || terrain === 'snow';
 
+/** Axial offsets of every hex within `radius` of a tile, centre excluded. */
+function ringOffsets(radius: number): Array<readonly [number, number]> {
+  const offsets: Array<readonly [number, number]> = [];
+  for (let dq = -radius; dq <= radius; dq++) {
+    for (let dr = -radius; dr <= radius; dr++) {
+      if (dq === 0 && dr === 0) continue;
+      if (Math.max(Math.abs(dq), Math.abs(dr), Math.abs(dq + dr)) <= radius) offsets.push([dq, dr]);
+    }
+  }
+  return offsets;
+}
+
+const RADIUS_1 = ringOffsets(1);
+const RADIUS_2 = ringOffsets(2);
+const RADIUS_3 = ringOffsets(3);
+/** `expansionSites` is counted up to the largest number anything reads (the score cap), not exhaustively. */
+const EXPANSION_COUNT_LIMIT = Math.max(START_SCORE_WEIGHTS.expansionSiteCap, ...Object.values(START_FLOORS).map(f => f.minExpansionSites));
+
 export function createStartQualityIndex(
   map: StartQualityMap,
   options: { polarRows?: PolarRowBand } = {},
 ): StartQualityIndex {
   const viability = createStartViabilityIndex(map);
+  const { width, height } = map;
   const wraps = map.wrapsHorizontally === true;
-  const range = (coord: HexCoord, radius: number): HexCoord[] =>
-    wraps ? getWrappedHexesInRange(coord, radius, map.width) : hexesInRange(coord, radius);
-  const cache = new Map<string, StartSiteAssessment>();
+  const total = width * height;
+
+  // Flat per-tile facts, read by index: assessing every land tile of a large map allocates nothing per neighbour.
+  // (Building hex lists and string keys per tile made game creation four times slower.)
+  const PRESENT = 1;
+  const WATER = 2;
+  const FROZEN = 4;
+  const RIVER = 8;
+  const RESOURCE = 16;
+  const flags = new Uint8Array(total);
+  const food = new Int8Array(total);
+  const production = new Int8Array(total);
+  for (const tile of Object.values(map.tiles)) {
+    const { q, r } = tile.coord;
+    if (q < 0 || q >= width || r < 0 || r >= height) continue;
+    const i = r * width + q;
+    let f = PRESENT;
+    if (isWater(tile.terrain)) f |= WATER;
+    if (isFrozen(tile.terrain)) f |= FROZEN;
+    if (tile.hasRiver) f |= RIVER;
+    if (tile.resource) f |= RESOURCE;
+    flags[i] = f;
+    const yields = TERRAIN_YIELDS[tile.terrain];
+    food[i] = yields?.food ?? 0;
+    production[i] = yields?.production ?? 0;
+  }
+
+  /** Index of the tile at an offset from (q, r), or -1 off the map or where no tile exists. */
+  const at = (q: number, r: number, dq: number, dr: number): number => {
+    const nr = r + dr;
+    if (nr < 0 || nr >= height) return -1;
+    let nq = q + dq;
+    if (nq < 0 || nq >= width) {
+      if (!wraps) return -1;
+      nq = ((nq % width) + width) % width;
+    }
+    const i = nr * width + nq;
+    return flags[i] & PRESENT ? i : -1;
+  };
+
+  const cache = new Map<number, StartSiteAssessment>();
+  const foods = new Int8Array(RADIUS_2.length);
+  const productions = new Int8Array(RADIUS_2.length);
 
   const assess = (coord: HexCoord): StartSiteAssessment => {
-    const key = hexKey(coord);
-    const cached = cache.get(key);
+    const { q, r } = coord;
+    const inside = q >= 0 && q < width && r >= 0 && r < height;
+    const key = r * width + q;
+    const cached = inside ? cache.get(key) : undefined;
     if (cached) return cached;
 
-    const centre = map.tiles[key];
-    const land: string[] = [];
-    let freshWater = centre?.hasRiver === true;
+    const centre = inside ? flags[key] : 0;
+    let freshWater = (centre & RIVER) !== 0;
     let coastal = false;
-    const adjacentKeys = new Set(range(coord, 1).map(hexKey));
-    for (const nearby of range(coord, 2)) {
-      const nearbyKey = hexKey(nearby);
-      if (nearbyKey === key) continue;
-      const tile = map.tiles[nearbyKey];
-      if (!tile) continue;
-      const adjacent = adjacentKeys.has(nearbyKey);
-      if (isWater(tile.terrain)) {
-        if (adjacent) coastal = true;
-        continue;
-      }
-      if (adjacent && tile.hasRiver) freshWater = true;
-      land.push(tile.terrain);
+    for (const [dq, dr] of RADIUS_1) {
+      const i = at(q, r, dq, dr);
+      if (i < 0) continue;
+      if (flags[i] & WATER) coastal = true;
+      else if (flags[i] & RIVER) freshWater = true;
     }
-    const yields = land.map(terrain => TERRAIN_YIELDS[terrain] ?? { food: 0, production: 0 });
-    const bestBy = (pick: (y: { food: number; production: number }) => number): number =>
-      yields.map(pick).sort((a, b) => b - a).slice(0, 6).reduce((sum, value) => sum + value, 0);
-    const landFood6 = bestBy(y => y.food);
-    const landProduction6 = bestBy(y => y.production);
-    const frozenShare = land.length === 0 ? 0 : land.filter(isFrozen).length / land.length;
+
+    let landCount = 0;
+    let frozenCount = 0;
+    for (const [dq, dr] of RADIUS_2) {
+      const i = at(q, r, dq, dr);
+      if (i < 0 || flags[i] & WATER) continue;
+      foods[landCount] = food[i];
+      productions[landCount] = production[i];
+      landCount++;
+      if (flags[i] & FROZEN) frozenCount++;
+    }
+    const bestSix = (values: Int8Array): number => {
+      const taken = values.subarray(0, landCount).slice().sort(); // ascending
+      let sum = 0;
+      for (let k = taken.length - 1; k >= Math.max(0, taken.length - 6); k--) sum += taken[k];
+      return sum;
+    };
+    const landFood6 = bestSix(foods);
+    const landProduction6 = bestSix(productions);
+    const frozenShare = landCount === 0 ? 0 : frozenCount / landCount;
 
     let resourceCount = 0;
-    for (const nearby of range(coord, 3)) {
-      if (map.tiles[hexKey(nearby)]?.resource) resourceCount++;
+    for (const [dq, dr] of RADIUS_3) {
+      const i = at(q, r, dq, dr);
+      if (i >= 0 && flags[i] & RESOURCE) resourceCount++;
     }
 
     const landmassTiles = viability.assess(coord).landmassTiles;
-    const expansionSites = viability.countLandExpansionSites(coord);
+    const expansionSites = viability.countLandExpansionSites(coord, EXPANSION_COUNT_LIMIT);
     const polarBand = options.polarRows ? isPolarRow(options.polarRows, coord.r, map.height) : false;
 
     const w = START_SCORE_WEIGHTS;
@@ -141,10 +207,10 @@ export function createStartQualityIndex(
       - frozenShare * w.frozenPenalty;
 
     const result: StartSiteAssessment = {
-      coord: { q: coord.q, r: coord.r },
+      coord: { q, r },
       landmassTiles,
       expansionSites,
-      landTilesR2: land.length,
+      landTilesR2: landCount,
       landFood6,
       landProduction6,
       frozenShare,
@@ -154,7 +220,7 @@ export function createStartQualityIndex(
       resourceCount,
       score,
     };
-    cache.set(key, result);
+    if (inside) cache.set(key, result);
     return result;
   };
 

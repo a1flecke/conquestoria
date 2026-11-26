@@ -24,6 +24,7 @@ function buildMap(
   return { width, height, tiles, wrapsHorizontally, rivers: [] };
 }
 
+const WATER_TERRAIN = new Set(['ocean', 'coast']);
 const axial = (dq: number, dr: number) => (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
 const MIX: TerrainType[] = ['grassland', 'forest', 'hills', 'plains'];
 const mixed = (q: number, r: number): TerrainType => MIX[(q * 7 + r * 13) % MIX.length];
@@ -90,5 +91,31 @@ describe('start-quality floors (design 2026-11-25, B1)', () => {
     expect(START_FLOORS['city-state'].landR2).toBe(6);
     expect(START_FLOORS.major.minExpansionSites).toBe(2);
     expect(START_FLOORS['city-state'].minExpansionSites).toBe(0);
+  });
+});
+
+describe('start-quality cost (game creation must stay cheap)', () => {
+  it('assesses every land tile of a large generated map without per-tile allocation blowing up', async () => {
+    // Per-tile string-keyed hex lists made large-game creation four times slower (CI timed a pirate test out at 5.8 s,
+    // 5 large games in one test). Flat arrays do the whole map in a few tens of ms; the bound is generous for CI.
+    const { generateMap } = await import('@/systems/map-generator');
+    const map = generateMap(80, 80, 'start-quality-cost');
+    const index = createStartQualityIndex(map);
+    const started = performance.now();
+    let land = 0;
+    for (const tile of Object.values(map.tiles)) {
+      if (WATER_TERRAIN.has(tile.terrain)) continue;
+      index.passesFloor(tile.coord, 'major');
+      land++;
+    }
+    const elapsed = performance.now() - started;
+    expect(land).toBeGreaterThan(2000);
+    expect(elapsed, `${land} tiles took ${elapsed.toFixed(0)} ms`).toBeLessThan(250);
+  });
+
+  it('counts expansion sites only up to what the score and floors read', () => {
+    const index = createStartQualityIndex(buildMap(40, 40, 'grassland', mixed));
+    expect(index.assess({ q: 20, r: 20 }).expansionSites).toBeLessThanOrEqual(6);
+    expect(index.passesFloor({ q: 20, r: 20 }, 'major')).toBe(true);
   });
 });

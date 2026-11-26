@@ -51,7 +51,8 @@ export interface StartViabilityIndex {
    * landmass where a city may stand at >= `MIN_CITY_CENTER_DISTANCE`. O(sites):
    * for diagnostics and tests, never for the placement hot path.
    */
-  countLandExpansionSites(coord: HexCoord): number;
+  /** Legal second-city sites on the start's landmass; stops counting at `limit` when given. */
+  countLandExpansionSites(coord: HexCoord, limit?: number): number;
 }
 
 /**
@@ -214,13 +215,19 @@ export function createStartViabilityIndex(map: StartViabilityMap): StartViabilit
     return none(landmassTiles, coastal);
   };
 
-  const countLandExpansionSites = (coord: HexCoord): number => {
+  const countLandExpansionSites = (coord: HexCoord, limit = Infinity): number => {
     const { q, r } = coord;
     if (q < 0 || q >= width || r < 0 || r >= height) return 0;
     const start = r * width + q;
     const landId = landLabel[start];
     if (landId < 0) return 0;
-    return legalSites[landId].filter(site => distance(start, site) >= MIN_CITY_CENTER_DISTANCE).length;
+    // Stops counting at `limit` (start quality only needs "at least N"), so a huge landmass is not scanned in full
+    // for every candidate tile.
+    let count = 0;
+    for (const site of legalSites[landId]) {
+      if (distance(start, site) >= MIN_CITY_CENTER_DISTANCE && ++count >= limit) break;
+    }
+    return count;
   };
 
   return { assess, isViable: coord => assess(coord).viable, countLandExpansionSites };
