@@ -1,0 +1,105 @@
+import type { HexCoord } from '@/core/types/hex';
+import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
+
+/**
+ * Shared start-site selection (design 2026-11-25, "Start Quality Model and Homeland Choice", B2).
+ *
+ * Distance is a CONSTRAINT, not the goal. The old geographic placer maximised the distance between civilizations and
+ * used quality only to break ties, which on a real-world map sends someone to the remotest land: an Arctic islet.
+ * Here every candidate has already passed the start-quality floor; the routine maximises the weakest start's score
+ * (then the total) under hard distance rules, runs several seeded passes, and draws one of the near-best solutions,
+ * so different seeds give different, equally good starts.
+ */
+
+export interface ScoredSite {
+  coord: HexCoord;
+  score: number;
+}
+
+export const START_SELECTION = {
+  passes: 64,
+  candidateCap: 400,
+  firstPickPool: 32,
+  varietyBand: 0.15,
+} as const;
+
+export interface SiteSelectionInput {
+  map: { width: number; wrapsHorizontally?: boolean };
+  /** Candidates that already pass the floor. */
+  candidates: ScoredSite[];
+  /** Sites still to place. */
+  count: number;
+  /** Starts already placed (historical anchors). */
+  fixed?: HexCoord[];
+  /** Minimum distance between new sites. */
+  minSeparation: number;
+  /** Minimum distance between a new site and a fixed one. */
+  minFromFixed: number;
+  /** Solutions whose weakest score is within this fraction of the best qualify. */
+  band: number;
+  rng: () => number;
+}
+
+export type SiteSelectionResult =
+  | { ok: true; sites: ScoredSite[]; weakestScore: number }
+  | { ok: false; maximumPlaced: number };
+
+export function selectStartSites(input: SiteSelectionInput): SiteSelectionResult {
+  const { map, count, minSeparation, minFromFixed, band, rng } = input;
+  const fixed = input.fixed ?? [];
+  if (count <= 0) return { ok: true, sites: [], weakestScore: Infinity };
+
+  const distance = (a: HexCoord, b: HexCoord): number =>
+    map.wrapsHorizontally ? wrappedHexDistance(a, b, map.width) : hexDistance(a, b);
+
+  const pool = input.candidates
+    .filter(candidate => fixed.every(anchor => distance(candidate.coord, anchor) >= minFromFixed))
+    .map(candidate => ({ candidate, noise: rng() }))
+    .sort((a, b) => b.candidate.score - a.candidate.score || a.noise - b.noise)
+    .slice(0, START_SELECTION.candidateCap)
+    .map(entry => entry.candidate);
+
+  if (pool.length === 0) return { ok: false, maximumPlaced: 0 };
+
+  const solutions: Array<{ sites: ScoredSite[]; weakest: number; total: number; key: string }> = [];
+  let maximumPlaced = 0;
+  for (let pass = 0; pass < START_SELECTION.passes; pass++) {
+    const first = pool[Math.floor(rng() ** 2 * Math.min(START_SELECTION.firstPickPool, pool.length))];
+    const chosen: ScoredSite[] = [first];
+    while (chosen.length < count) {
+      let best: ScoredSite | null = null;
+      let bestValue = -Infinity;
+      for (const candidate of pool) {
+        if (chosen.some(site => distance(site.coord, candidate.coord) < minSeparation)) continue;
+        const value = candidate.score + 0.05 * rng();
+        if (value > bestValue) {
+          bestValue = value;
+          best = candidate;
+        }
+      }
+      if (!best) break;
+      chosen.push(best);
+    }
+    maximumPlaced = Math.max(maximumPlaced, chosen.length);
+    if (chosen.length === count) {
+      const key = chosen.map(site => hexKey(site.coord)).sort().join('|');
+      if (!solutions.some(solution => solution.key === key)) {
+        solutions.push({
+          sites: chosen,
+          weakest: Math.min(...chosen.map(site => site.score)),
+          total: chosen.reduce((sum, site) => sum + site.score, 0),
+          key,
+        });
+      }
+    }
+  }
+
+  if (solutions.length === 0) return { ok: false, maximumPlaced };
+  const bestWeakest = Math.max(...solutions.map(solution => solution.weakest));
+  const threshold = bestWeakest - Math.abs(bestWeakest) * band;
+  const qualifying = solutions
+    .filter(solution => solution.weakest >= threshold)
+    .sort((a, b) => b.weakest - a.weakest || b.total - a.total || (a.key < b.key ? -1 : 1));
+  const picked = qualifying[Math.floor(rng() * qualifying.length)];
+  return { ok: true, sites: picked.sites, weakestScore: picked.weakest };
+}
