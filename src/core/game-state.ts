@@ -15,7 +15,10 @@ import type { OpponentChallenge } from '@/core/types/ai';
 import { getMaxCivilizationsForSetup } from '@/systems/geo-start-capacity';
 import { generateMap, findStartPositions, StartPlacementError, createRng, guaranteeStartResources } from '@/systems/map-generator';
 import { loadGeoMap } from '@/systems/geo-map-loader';
-import { getLoadedGeoMapData, type GeographicMapScript } from '@/systems/geo-map-data';
+import { getLoadedGeoMapData, isGeographicMapScript, type GeographicMapScript } from '@/systems/geo-map-data';
+import { getPolarRowBand } from '@/systems/geo-latitude';
+import { selectHomelandOptions } from '@/systems/homeland-options';
+import type { HomelandChoice, HomelandOption } from '@/core/types/homeland';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { generateContinentMap } from '@/systems/continent-map-generator';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -147,6 +150,43 @@ function placeStartsOrThrow(
     throw new GameCreationError(result.requested, result.available);
   }
   return result.positions;
+}
+
+interface HomelandReservation {
+  /** Roster index -> the options a human chooses between (option 0 is the placed start). Empty when the picker is off. */
+  options: Map<number, HomelandOption[]>;
+  /** Every start-relative creation step sees these: the placed starts plus every human's alternates. */
+  reservedStarts: HexCoord[];
+}
+
+/**
+ * Homeland choice (design 2026-11-25, Phase C, C2): alternates are chosen at creation and reserved, so resource
+ * guarantees, wonders, villages, lairs, camps and city-states are all placed with every option in view and any choice
+ * leaves a legal, fair world. With the picker off the reserved list IS the placed starts, so nothing changes.
+ */
+function reserveHomelands(input: {
+  enabled: boolean;
+  map: GameMap;
+  mapScript: MapScript;
+  starts: HexCoord[];
+  humanIndices: number[];
+  seed: string;
+}): HomelandReservation {
+  if (!input.enabled) return { options: new Map(), reservedStarts: input.starts };
+  const options = selectHomelandOptions({
+    map: input.map,
+    starts: input.starts,
+    humanIndices: input.humanIndices,
+    seed: input.seed,
+    polarRows: isGeographicMapScript(input.mapScript) ? getPolarRowBand(input.mapScript, input.map.height) : undefined,
+  });
+  const alternates = [...options.values()].flatMap(list => list.slice(1).map(option => option.coord));
+  return { options, reservedStarts: [...input.starts, ...alternates] };
+}
+
+/** A choice exists only when there is more than the placed start to choose between. */
+function homelandChoiceFor(options: HomelandOption[] | undefined): HomelandChoice | undefined {
+  return options && options.length > 1 ? { options, selected: 0 } : undefined;
 }
 
 /** How many generated maps a campaign tries before giving up on placing every civilization. */
@@ -362,15 +402,21 @@ export function createNewGame(
       break;
   }
 
+  // Reserve the human's homeland options (when the picker is on), then place everything start-relative around them.
+  const homelands = reserveHomelands({
+    enabled: settings.homelandPicker === 'on', map, mapScript, starts: startPositions, humanIndices: [0], seed: gameSeed,
+  });
+  const reservedStarts = homelands.reservedStarts;
+
   // Place wonders and villages
-  guaranteeStartResources(map, startPositions, createRng(gameSeed + '-resource-guarantee'));
-  placeWonders(map, startPositions, actualSize, gameSeed);
-  placeLateResources(map.tiles, createRng(gameSeed + '-late-resources'), startPositions, civTypeIds.length);
-  const tribalVillages = placeVillages(map, startPositions, actualSize, gameSeed);
+  guaranteeStartResources(map, reservedStarts, createRng(gameSeed + '-resource-guarantee'));
+  placeWonders(map, reservedStarts, actualSize, gameSeed);
+  placeLateResources(map.tiles, createRng(gameSeed + '-late-resources'), reservedStarts, civTypeIds.length);
+  const tribalVillages = placeVillages(map, reservedStarts, actualSize, gameSeed);
   const beastsMode = settings.beastsMode ?? 'wild';
   const beastLairs = beastsMode === 'off'
     ? {}
-    : placeBeastLairs(map, startPositions, actualSize, gameSeed);
+    : placeBeastLairs(map, reservedStarts, actualSize, gameSeed);
 
   // Create player civilization
   const playerCiv: Civilization = {
@@ -390,6 +436,7 @@ export function createNewGame(
     // Solo has one human: the single challenge picker writes the same value to
     // both the civ (crisis/unrest knobs) and state.opponentChallenge (AI behavior).
     ...(config.opponentChallenge ? { challenge: config.opponentChallenge } : {}),
+    ...(homelandChoiceFor(homelands.options.get(0)) ? { homelandChoice: homelandChoiceFor(homelands.options.get(0)) } : {}),
   };
 
   const civilizations: Record<string, Civilization> = {
@@ -445,7 +492,7 @@ export function createNewGame(
 
   // Spawn initial barbarian camps
   const barbarianCamps: Record<string, any> = {};
-  const cityPositions = startPositions;
+  const cityPositions = reservedStarts;
   const barbSeedBase = hashSeed(gameSeed);
   for (let i = 0; i < 3; i++) {
     const camp = spawnBarbarianCamp(map, cityPositions, Object.values(barbarianCamps), barbSeedBase + i, idCounters);
@@ -580,15 +627,25 @@ export function createHotSeatGame(
   }
 
   // Place wonders and villages
-  guaranteeStartResources(map, startPositions, createRng(gameSeed + '-resource-guarantee'));
-  placeWonders(map, startPositions, config.mapSize, gameSeed);
-  placeLateResources(map.tiles, createRng(gameSeed + '-late-resources'), startPositions, civTypeIds.length);
-  const tribalVillages = placeVillages(map, startPositions, config.mapSize, gameSeed);
+  // Reserve each human's homeland options (when the picker is on) before placing anything start-relative.
+  const homelands = reserveHomelands({
+    enabled: config.settingsOverrides?.homelandPicker === 'on',
+    map,
+    mapScript,
+    starts: startPositions,
+    humanIndices: config.players.flatMap((player, index) => (player.isHuman ? [index] : [])),
+    seed: gameSeed,
+  });
+  const reservedStarts = homelands.reservedStarts;
+  guaranteeStartResources(map, reservedStarts, createRng(gameSeed + '-resource-guarantee'));
+  placeWonders(map, reservedStarts, config.mapSize, gameSeed);
+  placeLateResources(map.tiles, createRng(gameSeed + '-late-resources'), reservedStarts, civTypeIds.length);
+  const tribalVillages = placeVillages(map, reservedStarts, config.mapSize, gameSeed);
   const hotSeatSettings = createDefaultSettings(config.mapSize);
   const beastsModeHotSeat = hotSeatSettings.beastsMode ?? 'wild';
   const beastLairsHotSeat = beastsModeHotSeat === 'off'
     ? {}
-    : placeBeastLairs(map, startPositions, config.mapSize, gameSeed);
+    : placeBeastLairs(map, reservedStarts, config.mapSize, gameSeed);
 
   const allSlotIds = config.players.map(p => p.slotId);
   const settings = createDefaultSettings(config.mapSize, {
@@ -622,6 +679,7 @@ export function createHotSeatGame(
       score: 0,
       diplomacy: createDiplomacyState(allSlotIds, player.slotId, startBonus),
       ...(player.isHuman && player.challenge ? { challenge: player.challenge } : {}),
+      ...(homelandChoiceFor(homelands.options.get(i)) ? { homelandChoice: homelandChoiceFor(homelands.options.get(i)) } : {}),
     };
 
     const settler = createUnit('settler', player.slotId, startPositions[i], idCounters, civDef?.bonusEffect);
@@ -637,7 +695,7 @@ export function createHotSeatGame(
   const campCount = config.mapSize === 'large' ? 8 : config.mapSize === 'medium' ? 5 : 3;
   const hotSeatBarbSeed = hashSeed(gameSeed);
   for (let i = 0; i < campCount; i++) {
-    const camp = spawnBarbarianCamp(map, startPositions, Object.values(barbarianCamps), hotSeatBarbSeed + i, idCounters);
+    const camp = spawnBarbarianCamp(map, reservedStarts, Object.values(barbarianCamps), hotSeatBarbSeed + i, idCounters);
     if (camp) barbarianCamps[camp.id] = camp;
   }
 

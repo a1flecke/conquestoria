@@ -101,9 +101,12 @@ export function placeMinorCivs(
   const selected = shuffled.slice(0, count);
 
   // Get positions to avoid
-  const startPositions = Object.values(state.units)
-    .filter(u => u.type === 'settler')
-    .map(u => u.position);
+  // Placed starts plus every homeland a human may still choose (design 2026-11-25, Phase C): a city-state is kept clear
+  // of all of them, so whichever start a player picks has the same neighbours it was promised.
+  const startPositions = [
+    ...Object.values(state.units).filter(u => u.type === 'settler').map(u => u.position),
+    ...Object.values(state.civilizations).flatMap(civ => civ.homelandChoice?.options.map(option => option.coord) ?? []),
+  ];
   const cityPositions = Object.values(state.cities).map(c => c.position);
   // Camps are placed before city-states at game creation, and the city (and its garrison) must not
   // land on one: a unit on a camp tile is an illegal blocking occupancy (#1648).
