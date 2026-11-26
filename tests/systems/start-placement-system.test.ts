@@ -83,11 +83,13 @@ describe('civilization start placement', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.positions).toEqual(civs.map(civ =>
-      getGeographicStartAnchor('earth', 'large', civ),
-    ));
-    expect(result.minimumDistance).toBe(3);
-    expect(result.fallbackCivilizationTypeIds).toEqual([]);
+    // The first homeland is exact; a homeland closer than a capital may be founded to one already placed is placed
+    // by the shared selection instead (design 2026-11-25, B4). Close neighbours remain True Start's nature.
+    expect(result.positions[0]).toEqual(getGeographicStartAnchor('earth', 'large', civs[0]));
+    expect(result.minimumDistance).toBeGreaterThanOrEqual(MIN_CITY_CENTER_DISTANCE);
+    for (const assignment of result.assignments) {
+      if (!assignment.usedFallback) expect(assignment.position).toEqual(assignment.historicalAnchor);
+    }
   });
 
   it('returns an explicit failure rather than weakening spacing', () => {
@@ -228,7 +230,8 @@ describe('start quality on real-world maps (design 2026-11-25, B2)', () => {
   it('places True Start fallbacks on livable land, clear of every homeland', () => {
     const data = readGeoMapDataFromDisk('old-world');
     const map = loadGeoMap(data.tiles.small, data.rivers.small, MAP_DIMENSIONS.small, false);
-    const civs = ['rome', 'babylon', 'india'];
+    // Gondor has no Old World homeland, so it is placed by the shared selection.
+    const civs = ['rome', 'babylon', 'gondor'];
     const result = placeCivilizationStarts({
       map, civilizationTypeIds: civs, mapScript: 'old-world', mapSize: 'small', mode: 'historical', seed: 'fallback',
     });

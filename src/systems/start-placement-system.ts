@@ -143,11 +143,18 @@ function placeHistorical(
   input: StartPlacementInput,
   candidates: ScoredSite[],
 ): StartPlacementResult {
+  // A homeland is kept when a city can stand on it and it is at least the capital-founding distance from every
+  // homeland already kept (in roster order); otherwise that civilization is placed by the shared selection below,
+  // so every civilization can found its capital where it starts (design 2026-11-25, B4).
+  const kept: HexCoord[] = [];
   const positions: Array<HexCoord | null> = input.civilizationTypeIds.map(civ => {
     const anchor = isGeographicMapScript(input.mapScript)
       ? getGeographicStartAnchor(input.mapScript, input.mapSize, civ)
       : null;
-    return anchor && isValidStartTile(input.map.tiles[hexKey(anchor)]) ? anchor : null;
+    if (!anchor || !isValidStartTile(input.map.tiles[hexKey(anchor)])) return null;
+    if (kept.some(other => getStartPositionDistance(input.map, anchor, other) < MIN_CITY_CENTER_DISTANCE)) return null;
+    kept.push(anchor);
+    return anchor;
   });
   const fallbackIndices = positions.flatMap((position, index) => (position === null ? [index] : []));
   const anchors = positions.filter((coord): coord is HexCoord => coord !== null);

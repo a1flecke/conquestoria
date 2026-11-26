@@ -1,4 +1,11 @@
+import { afterEach, vi } from 'vitest';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
+import { EARTH_START_POSITIONS } from '@/systems/earth-start-positions';
+import { restoreGeoStartCapacity, shrinkGeoStartCapacity } from '../helpers/geo-start-capacity-override';
+vi.mock('@/systems/geo-start-capacity-data', async importActual => ({
+  GEO_START_CAPACITY: structuredClone((await importActual<typeof import('@/systems/geo-start-capacity-data')>()).GEO_START_CAPACITY),
+}));
+afterEach(() => restoreGeoStartCapacity());
 import type { CustomCivDefinition, GameState, HexCoord, HotSeatConfig, MapScript, ResourceType } from '@/core/types';
 import { getMinimumStartDistance, getStartPositionDistance } from '@/systems/map-generator';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
@@ -526,6 +533,8 @@ describe('createHotSeatGame — mapScript', () => {
   };
 
   it('uses True Start on a real-world map too small for separated starts, like the setup screens (design 2026-11-25)', () => {
+    shrinkGeoStartCapacity('earth', 'small', 1);
+    shrinkGeoStartCapacity('new-world', 'small', 1);
     const hotSeat = createHotSeatGame({ ...baseConfig, mapScript: 'earth', startPlacementMode: 'balanced' }, 'seed-small-earth');
     expect(hotSeat.startPlacementMode).toBe('historical');
     const solo = createNewGame({
@@ -605,8 +614,14 @@ describe('createHotSeatGame — mapScript', () => {
     }, 'issue-439-historical-creation');
 
     expect(state.startPlacementMode).toBe('historical');
-    expect(getStartingSettlerByOwner(state, 'player-1')).toEqual({ q: 41, r: 15 });
-    expect(getStartingSettlerByOwner(state, 'player-2')).toEqual({ q: 46, r: 14 });
-    expect(getStartingSettlerByOwner(state, 'ai-1')).toEqual({ q: 44, r: 17 });
+    // The first homeland is exact. A later one closer than a capital may be founded is placed elsewhere
+    // (design 2026-11-25, B4), so every civilization can found its capital where it stands.
+    expect(getStartingSettlerByOwner(state, 'player-1')).toEqual(EARTH_START_POSITIONS.large.england);
+    const starts = ['player-1', 'player-2', 'ai-1'].map(owner => getStartingSettlerByOwner(state, owner)!);
+    for (let i = 0; i < starts.length; i++) {
+      for (let j = i + 1; j < starts.length; j++) {
+        expect(getStartPositionDistance(state.map, starts[i], starts[j])).toBeGreaterThanOrEqual(4);
+      }
+    }
   });
 });

@@ -145,17 +145,35 @@ function hexToLatLon(
 
 // ── Terrain assignment ───────────────────────────────────────────────────────
 
+/**
+ * Dry belts where land is desert. Everything else follows latitude: rainforest near the equator, savanna (grassland
+ * and plains) in the outer tropics, temperate land, boreal forest, tundra and snow. Before this, any inland tile
+ * within 30 degrees of the equator was desert, so the Amazon, the Congo and West Africa were deserts.
+ */
+const DESERT_BELTS: ReadonlyArray<{ lonMin: number; lonMax: number; latMin: number; latMax: number }> = [
+  { lonMin: -17, lonMax: 35, latMin: 16, latMax: 29 },    // Sahara (the Mediterranean shore and Nile delta are not)
+  { lonMin: 35, lonMax: 60, latMin: 14, latMax: 32 },     // Arabian peninsula
+  { lonMin: 50, lonMax: 62, latMin: 27, latMax: 36 },     // Iranian plateau
+  { lonMin: 69, lonMax: 74, latMin: 24, latMax: 29 },     // Thar (the Indus valley is not)
+  { lonMin: 75, lonMax: 115, latMin: 37, latMax: 46 },    // Taklamakan and Gobi
+  { lonMin: 12, lonMax: 26, latMin: -28, latMax: -18 },   // Kalahari and Namib
+  { lonMin: 118, lonMax: 142, latMin: -32, latMax: -20 }, // Australian interior
+  { lonMin: -72, lonMax: -68, latMin: -27, latMax: -18 }, // Atacama
+  { lonMin: -117, lonMax: -104, latMin: 26, latMax: 36 }, // Sonoran and Mojave
+];
+
 function assignTerrain(
   lon: number,
   lat: number,
   landFlag: boolean,
-  isCoast: boolean,
+  waterTouchesLand: boolean,
   mountainRanges: MountainRange[],
   q: number,
   r: number,
 ): string {
-  if (!landFlag) return 'ocean';
-  if (isCoast) return 'coast';
+  // Water next to land is shallow coast; open water is ocean. Land is never `coast` (which the game treats as water):
+  // saving shoreline land as coast removed 40-70% of every real-world map's land.
+  if (!landFlag) return waterTouchesLand ? 'coast' : 'ocean';
 
   for (const range of mountainRanges) {
     if (pointInPolygon(lon, lat, range.polygon)) return 'mountain';
@@ -163,12 +181,14 @@ function assignTerrain(
   }
 
   const absLat = Math.abs(lat);
-
   if (absLat > 70) return 'snow';
   if (absLat > 65) return 'tundra';
 
-  if (absLat < 20 && isCoast) return 'jungle';
-  if (absLat < 30 && !isCoast) return 'desert';
+  if (DESERT_BELTS.some(belt => lon >= belt.lonMin && lon <= belt.lonMax && lat >= belt.latMin && lat <= belt.latMax)) {
+    return 'desert';
+  }
+  if (absLat < 12) return (q + r) % 3 === 0 ? 'grassland' : 'jungle';
+  if (absLat < 24) return (q + r) % 2 === 0 ? 'grassland' : 'plains';
 
   if (lat >= 35 && lat <= 55 && lon >= 50 && lon <= 100) return 'plains';
   if (lat >= 30 && lat <= 47 && lon >= -5 && lon <= 37) return 'grassland';
@@ -301,7 +321,7 @@ function placeResourceForTile(
 
 // ── Start positions ──────────────────────────────────────────────────────────
 
-const EARTH_HOMELAND_LATLON: Record<string, [number, number]> = {
+const HISTORICAL_HOMELAND_LATLON: Record<string, [number, number]> = {
   egypt:    [31.2, 30.0],
   rome:     [12.5, 41.9],
   greece:   [23.7, 37.9],
@@ -322,7 +342,27 @@ const EARTH_HOMELAND_LATLON: Record<string, [number, number]> = {
   aztec:    [-99.1, 19.4],
 };
 
-const OLD_WORLD_HOMELAND_LATLON: Record<string, [number, number]> = { ...EARTH_HOMELAND_LATLON };
+// Fantasy civilizations: Earth only. #251 placed them by hand on the large map; these are those positions' coordinates.
+const FANTASY_HOMELAND_LATLON: Record<string, [number, number]> = {
+  annuvin:    [105.8, 67.0],
+  atlantis:   [-83.2, 35.0],
+  avalon:     [-96.8, 39.0],
+  gondor:     [69.8, 27.0],
+  isengard:   [42.8, 53.0],
+  lothlorien: [56.2, 45.0],
+  narnia:     [123.8, 63.0],
+  prydain:    [-96.8, 51.0],
+  rohan:      [83.2, 51.0],
+  shire:      [47.2, 49.0],
+  wakanda:    [38.2, 1.0],
+};
+
+const EARTH_HOMELAND_LATLON: Record<string, [number, number]> = {
+  ...HISTORICAL_HOMELAND_LATLON,
+  ...FANTASY_HOMELAND_LATLON,
+};
+
+const OLD_WORLD_HOMELAND_LATLON: Record<string, [number, number]> = { ...HISTORICAL_HOMELAND_LATLON };
 delete (OLD_WORLD_HOMELAND_LATLON as Record<string, unknown>).aztec;
 
 const NEW_WORLD_COLONIZER_LATLON: Record<string, [number, number]> = {
@@ -434,23 +474,27 @@ function generateScript(
     }
   }
 
-  const isCoastGrid: boolean[][] = Array.from({ length: height }, () => new Array(width).fill(false));
+  // The game's axial hex directions (src/systems/hex-utils.ts), wrapping horizontally where the map wraps.
+  const AXIAL_DIRECTIONS: ReadonlyArray<readonly [number, number]> = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+  const neighbourCells = (q: number, r: number): Array<[number, number]> => {
+    const cells: Array<[number, number]> = [];
+    for (const [dq, dr] of AXIAL_DIRECTIONS) {
+      let nq = q + dq;
+      const nr = r + dr;
+      if (nr < 0 || nr >= height) continue;
+      if (nq < 0 || nq >= width) {
+        if (!bounds.wrapsHorizontally) continue;
+        nq = ((nq % width) + width) % width;
+      }
+      cells.push([nq, nr]);
+    }
+    return cells;
+  };
+  const waterTouchesLandGrid: boolean[][] = Array.from({ length: height }, () => new Array(width).fill(false));
   for (let r = 0; r < height; r++) {
     for (let q = 0; q < width; q++) {
-      if (!landGrid[r][q]) continue;
-      const neighbors = [
-        [q-1,r],[q+1,r],[q,r-1],[q,r+1],[q-1,r-1],[q+1,r-1],
-      ];
-      for (const [nq, nr] of neighbors) {
-        if (nq < 0 || nq >= width || nr < 0 || nr >= height) {
-          isCoastGrid[r][q] = true;
-          break;
-        }
-        if (!landGrid[nr][nq]) {
-          isCoastGrid[r][q] = true;
-          break;
-        }
-      }
+      if (landGrid[r][q]) continue;
+      waterTouchesLandGrid[r][q] = neighbourCells(q, r).some(([nq, nr]) => landGrid[nr][nq]);
     }
   }
 
@@ -460,39 +504,66 @@ function generateScript(
     for (let q = 0; q < width; q++) {
       const { lon, lat } = hexToLatLon(q, r, width, height, bounds);
       const landFlag  = landGrid[r][q];
-      const coastFlag = isCoastGrid[r][q];
-      const terrain = assignTerrain(lon, lat, landFlag, coastFlag, mountainRanges, q, r);
+      const terrain = assignTerrain(lon, lat, landFlag, waterTouchesLandGrid[r][q], mountainRanges, q, r);
       const resource = landFlag ? placeResourceForTile(lon, lat, terrain, SEED) : null;
       tiles.push({ q, r, terrain, resource });
     }
   }
 
-  const starts: Record<string, HexCoord> = {};
-  for (const [civId, [lon, lat]] of Object.entries(script.homelandLatLon)) {
-    if (lon < bounds.lonMin || lon > bounds.lonMax || lat < bounds.latMin || lat > bounds.latMax) continue;
-    const coord = latLonToHex(lon, lat, width, height, bounds);
-    const tileIdx = tiles.findIndex(t => t.q === coord.q && t.r === coord.r);
-    if (tileIdx < 0) continue;
-    const tile = tiles[tileIdx];
-    if (tile.terrain === 'ocean' || tile.terrain === 'mountain') {
-      let found = false;
-      for (const [dq, dr] of [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]]) {
-        const candidate = tiles.find(
-          t => t.q === coord.q + dq && t.r === coord.r + dr &&
-               t.terrain !== 'ocean' && t.terrain !== 'mountain',
-        );
-        if (candidate) {
-          starts[civId] = { q: candidate.q, r: candidate.r };
-          found = true;
-          break;
+  // Each homeland snaps to the nearest tile a city can stand on (never water, mountain, snow or volcanic), within
+  // three steps, preferring the tile with the most workable land around it (not desert, mountain or snow), one
+  // civilization per tile. A homeland with no such tile fails generation loudly instead of being skipped.
+  const terrainAt = new Map(tiles.map(tile => [`${tile.q},${tile.r}`, tile.terrain]));
+  const CITY_TERRAIN_BLOCKED = new Set(['ocean', 'coast', 'mountain', 'snow', 'volcanic']);
+  const UNWORKABLE = new Set(['ocean', 'coast', 'mountain', 'snow', 'volcanic', 'desert']);
+  const landAround = (q: number, r: number): number => {
+    const seen = new Set<string>([`${q},${r}`]);
+    let frontier: Array<[number, number]> = [[q, r]];
+    let land = 0;
+    for (let ring = 0; ring < 2; ring++) {
+      const next: Array<[number, number]> = [];
+      for (const [cq, cr] of frontier) {
+        for (const [nq, nr] of neighbourCells(cq, cr)) {
+          const key = `${nq},${nr}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          next.push([nq, nr]);
+          const terrain = terrainAt.get(key);
+          if (terrain !== undefined && !UNWORKABLE.has(terrain)) land++;
         }
       }
-      if (!found) {
-        console.warn(`  WARNING: could not place ${civId} on valid tile for ${script.name}/${size}`);
-      }
-    } else {
-      starts[civId] = coord;
+      frontier = next;
     }
+    return land;
+  };
+  const starts: Record<string, HexCoord> = {};
+  const claimed = new Set<string>();
+  for (const [civId, [lon, lat]] of Object.entries(script.homelandLatLon)) {
+    if (lon < bounds.lonMin || lon > bounds.lonMax || lat < bounds.latMin || lat > bounds.latMax) continue;
+    const origin = latLonToHex(lon, lat, width, height, bounds);
+    let best: { q: number; r: number; distance: number; land: number } | null = null;
+    const seen = new Set<string>([`${origin.q},${origin.r}`]);
+    let frontier: Array<[number, number]> = [[origin.q, origin.r]];
+    for (let distance = 0; distance <= 3; distance++) {
+      for (const [q, r] of frontier) {
+        const key = `${q},${r}`;
+        const terrain = terrainAt.get(key);
+        if (terrain === undefined || CITY_TERRAIN_BLOCKED.has(terrain) || claimed.has(key)) continue;
+        const land = landAround(q, r) - distance; // each step away costs one workable tile's worth
+        if (!best || land > best.land) best = { q, r, distance, land };
+      }
+      const next: Array<[number, number]> = [];
+      for (const [q, r] of frontier) {
+        for (const [nq, nr] of neighbourCells(q, r)) {
+          const key = `${nq},${nr}`;
+          if (!seen.has(key)) { seen.add(key); next.push([nq, nr]); }
+        }
+      }
+      frontier = next;
+    }
+    if (!best) throw new Error(`${script.name}/${size}: no land for ${civId}'s homeland within 3 tiles of ${lon},${lat}`);
+    claimed.add(`${best.q},${best.r}`);
+    starts[civId] = { q: best.q, r: best.r };
   }
 
   const rivers = buildRiverSegments(EARTH_NAMED_RIVERS, width, height, bounds);

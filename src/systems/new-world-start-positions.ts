@@ -7,42 +7,50 @@ export const NEW_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
   "small": {
     "england": {
       "q": 19,
-      "r": 8
-    },
-    "france": {
-      "q": 21,
       "r": 6
     },
+    "france": {
+      "q": 20,
+      "r": 5
+    },
     "spain": {
-      "q": 17,
-      "r": 12
+      "q": 16,
+      "r": 9
+    },
+    "viking": {
+      "q": 22,
+      "r": 6
     },
     "aztec": {
       "q": 15,
-      "r": 12
+      "r": 10
     }
   },
   "medium": {
     "england": {
       "q": 33,
-      "r": 13
+      "r": 11
     },
     "france": {
-      "q": 35,
+      "q": 34,
       "r": 10
     },
     "spain": {
       "q": 25,
-      "r": 20
+      "r": 18
+    },
+    "viking": {
+      "q": 40,
+      "r": 8
     },
     "aztec": {
       "q": 25,
-      "r": 20
+      "r": 17
     }
   },
   "large": {
     "england": {
-      "q": 53,
+      "q": 51,
       "r": 22
     },
     "france": {
@@ -50,7 +58,7 @@ export const NEW_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
       "r": 16
     },
     "spain": {
-      "q": 41,
+      "q": 40,
       "r": 32
     },
     "viking": {
@@ -58,8 +66,8 @@ export const NEW_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
       "r": 16
     },
     "aztec": {
-      "q": 40,
-      "r": 32
+      "q": 39,
+      "r": 31
     }
   }
 } as const;

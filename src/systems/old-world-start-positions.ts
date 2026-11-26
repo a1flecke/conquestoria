@@ -6,129 +6,129 @@ import type { HexCoord } from '@/core/types/hex';
 export const OLD_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Record<string, HexCoord>> = {
   "small": {
     "egypt": {
-      "q": 9,
-      "r": 10
+      "q": 10,
+      "r": 8
     },
     "rome": {
-      "q": 6,
-      "r": 7
+      "q": 7,
+      "r": 5
     },
     "greece": {
       "q": 8,
-      "r": 8
+      "r": 5
     },
     "babylon": {
-      "q": 10,
-      "r": 10
+      "q": 13,
+      "r": 7
     },
     "persia": {
-      "q": 12,
-      "r": 9
+      "q": 15,
+      "r": 6
     },
     "india": {
-      "q": 16,
+      "q": 17,
       "r": 12
     },
     "china": {
-      "q": 23,
-      "r": 9
-    },
-    "mongolia": {
-      "q": 22,
+      "q": 25,
       "r": 6
     },
+    "mongolia": {
+      "q": 24,
+      "r": 4
+    },
     "japan": {
-      "q": 27,
-      "r": 9
+      "q": 24,
+      "r": 10
     },
     "zulu": {
-      "q": 7,
-      "r": 27
+      "q": 8,
+      "r": 25
     },
     "england": {
-      "q": 2,
+      "q": 5,
       "r": 4
     },
     "france": {
-      "q": 3,
-      "r": 5
+      "q": 5,
+      "r": 3
     },
     "spain": {
-      "q": 2,
-      "r": 8
+      "q": 5,
+      "r": 5
     },
     "viking": {
-      "q": 4,
+      "q": 7,
       "r": 2
     },
     "germany": {
-      "q": 4,
-      "r": 5
+      "q": 7,
+      "r": 4
     },
     "russia": {
       "q": 9,
       "r": 3
     },
     "ottoman": {
-      "q": 8,
-      "r": 8
+      "q": 9,
+      "r": 5
     }
   },
   "medium": {
     "egypt": {
-      "q": 14,
-      "r": 18
+      "q": 16,
+      "r": 15
     },
     "rome": {
-      "q": 8,
-      "r": 12
+      "q": 11,
+      "r": 9
     },
     "greece": {
       "q": 11,
-      "r": 14
+      "r": 11
     },
     "babylon": {
-      "q": 19,
-      "r": 17
+      "q": 17,
+      "r": 15
     },
     "persia": {
-      "q": 20,
-      "r": 15
+      "q": 23,
+      "r": 12
     },
     "india": {
       "q": 25,
-      "r": 18
+      "r": 17
     },
     "china": {
       "q": 38,
-      "r": 16
+      "r": 17
     },
     "mongolia": {
-      "q": 36,
-      "r": 10
+      "q": 38,
+      "r": 8
     },
     "japan": {
       "q": 46,
       "r": 15
     },
     "zulu": {
-      "q": 13,
-      "r": 45
+      "q": 12,
+      "r": 44
     },
     "england": {
-      "q": 4,
-      "r": 7
+      "q": 6,
+      "r": 8
     },
     "france": {
-      "q": 5,
+      "q": 6,
       "r": 9
     },
     "spain": {
-      "q": 3,
-      "r": 13
+      "q": 4,
+      "r": 12
     },
     "viking": {
-      "q": 7,
+      "q": 8,
       "r": 4
     },
     "germany": {
@@ -140,53 +140,57 @@ export const OLD_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
       "r": 6
     },
     "ottoman": {
-      "q": 14,
+      "q": 16,
       "r": 13
     }
   },
   "large": {
     "egypt": {
-      "q": 22,
-      "r": 29
+      "q": 25,
+      "r": 26
     },
     "rome": {
-      "q": 13,
-      "r": 20
+      "q": 16,
+      "r": 17
     },
     "greece": {
       "q": 18,
-      "r": 23
+      "r": 20
     },
     "babylon": {
-      "q": 28,
-      "r": 27
+      "q": 27,
+      "r": 25
     },
     "persia": {
-      "q": 32,
-      "r": 24
+      "q": 35,
+      "r": 22
+    },
+    "india": {
+      "q": 43,
+      "r": 33
     },
     "china": {
       "q": 62,
       "r": 25
     },
     "mongolia": {
-      "q": 59,
-      "r": 16
+      "q": 61,
+      "r": 14
     },
     "japan": {
       "q": 73,
       "r": 24
     },
     "zulu": {
-      "q": 21,
+      "q": 20,
       "r": 72
     },
     "england": {
-      "q": 6,
-      "r": 12
+      "q": 7,
+      "r": 13
     },
     "france": {
-      "q": 8,
+      "q": 9,
       "r": 15
     },
     "spain": {
@@ -194,8 +198,8 @@ export const OLD_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
       "r": 21
     },
     "viking": {
-      "q": 12,
-      "r": 7
+      "q": 13,
+      "r": 5
     },
     "germany": {
       "q": 12,
@@ -207,7 +211,7 @@ export const OLD_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
     },
     "ottoman": {
       "q": 23,
-      "r": 21
+      "r": 22
     }
   }
 } as const;

@@ -45,3 +45,6 @@ Thumbs.db
 
 # Python bytecode from the dev-time sprite/portrait tools
 __pycache__/
+
+# Natural Earth outlines cached by scripts/generate-earth-maps.ts (public domain, re-downloaded on demand)
+scripts/data/ne_110m_admin_0_countries.geojson

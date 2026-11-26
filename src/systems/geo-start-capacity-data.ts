@@ -2,7 +2,7 @@
 // How many separated, livable major-civilization starts each real-world map holds (design 2026-11-25, B2).
 export const GEO_START_CAPACITY = {
   earth: {
-    small: 1,
+    small: 3,
     medium: 5,
     large: 8
   },
@@ -12,7 +12,7 @@ export const GEO_START_CAPACITY = {
     large: 8
   },
   'new-world': {
-    small: 1,
+    small: 3,
     medium: 5,
     large: 8
   }

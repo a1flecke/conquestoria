@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { restoreGeoStartCapacity, shrinkGeoStartCapacity } from '../helpers/geo-start-capacity-override';
+vi.mock('@/systems/geo-start-capacity-data', async importActual => ({
+  GEO_START_CAPACITY: structuredClone((await importActual<typeof import('@/systems/geo-start-capacity-data')>()).GEO_START_CAPACITY),
+}));
+afterEach(() => restoreGeoStartCapacity());
 import { showCampaignSetup } from '@/ui/campaign-setup';
 import type { CustomCivDefinition } from '@/core/types';
 import { createDefaultSettings } from '@/core/game-state';
@@ -616,6 +621,8 @@ describe('map type selection', () => {
   });
 
   it('offers True Start only on a real-world map too small for separated starts (design 2026-11-25)', () => {
+    // Simulate an undersized map: every real-world map now fits its full player count.
+    shrinkGeoStartCapacity('earth', 'small', 1);
     renderSetup();
     // Earth is the default map; small Earth holds one separated, livable start.
     click(document, '[data-size="small"]');
