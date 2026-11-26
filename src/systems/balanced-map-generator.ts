@@ -35,7 +35,7 @@ export function generateBalancedMap(
 
   const civIds = Array.from({ length: civCount }, (_, i) => `balanced-civ-${i}`);
   const size = width === 30 ? 'small' : width === 50 ? 'medium' : 'large';
-  const startPositions = findStartPositions(mapBase, civIds, 'balanced', size);
+  const startPositions = findStartPositions(mapBase, civIds, 'balanced', size, { seed });
 
   // Voronoi — assign each hex to nearest start
   const tileKeys = Object.keys(tiles);

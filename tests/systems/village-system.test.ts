@@ -33,7 +33,7 @@ function makeGameState(): GameState {
 describe('placeVillages', () => {
   it('places up to 8 villages on a small map', () => {
     const map = makeMap('small');
-    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'small');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'small', { seed: 'test' });
     const villages = placeVillages(map, starts, 'small', 'village-seed');
     expect(Object.keys(villages).length).toBeLessThanOrEqual(8);
     expect(Object.keys(villages).length).toBeGreaterThan(0);
@@ -41,7 +41,7 @@ describe('placeVillages', () => {
 
   it('places up to 12 villages on a medium map', () => {
     const map = makeMap('medium');
-    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2'], 'procedural', 'medium');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2'], 'procedural', 'medium', { seed: 'test' });
     const villages = placeVillages(map, starts, 'medium', 'village-seed');
     expect(Object.keys(villages).length).toBeLessThanOrEqual(12);
     expect(Object.keys(villages).length).toBeGreaterThan(0);
@@ -49,7 +49,7 @@ describe('placeVillages', () => {
 
   it('places up to 20 villages on a large map', () => {
     const map = makeMap('large');
-    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2', 'civ-3'], 'procedural', 'large');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2', 'civ-3'], 'procedural', 'large', { seed: 'test' });
     const villages = placeVillages(map, starts, 'large', 'village-seed');
     expect(Object.keys(villages).length).toBeLessThanOrEqual(20);
     expect(Object.keys(villages).length).toBeGreaterThan(0);
@@ -69,7 +69,7 @@ describe('placeVillages', () => {
 
   it('enforces distance from start positions (min 4)', () => {
     const map = makeMap('medium');
-    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2'], 'procedural', 'medium');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2'], 'procedural', 'medium', { seed: 'test' });
     const villages = placeVillages(map, starts, 'medium', 'village-dist-test');
     for (const v of Object.values(villages)) {
       for (const sp of starts) {
@@ -80,7 +80,7 @@ describe('placeVillages', () => {
 
   it('enforces distance between villages (min 3)', () => {
     const map = makeMap('medium');
-    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'medium');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'medium', { seed: 'test' });
     const villages = placeVillages(map, starts, 'medium', 'village-inter-test');
     const positions = Object.values(villages).map(v => v.position);
     for (let i = 0; i < positions.length; i++) {
@@ -95,7 +95,7 @@ describe('placeVillages', () => {
     const hillTile = Object.values(map.tiles).find(t => t.terrain === 'hills')!;
     hillTile.wonder = 'crystal_caverns';
 
-    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'medium');
+    const starts = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'medium', { seed: 'test' });
     const villages = placeVillages(map, starts, 'medium', 'village-wonder-test');
     for (const v of Object.values(villages)) {
       const tile = map.tiles[hexKey(v.position)];

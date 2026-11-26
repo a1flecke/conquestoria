@@ -167,7 +167,7 @@ function generateMapWithStarts(
         const result = generateContinentMap(dims.width, dims.height, mapSeed);
         return {
           map: result.map,
-          startPositions: findStartPositions(result.map, civTypeIds, 'single-continent', size, result.continentHexes),
+          startPositions: findStartPositions(result.map, civTypeIds, 'single-continent', size, { seed: mapSeed, candidateHexes: result.continentHexes }),
         };
       }
       const map = generateMap(dims.width, dims.height, mapSeed);
@@ -175,7 +175,7 @@ function generateMapWithStarts(
       // procedural map used to gain regionKeys only on its first load (normalizeLandmassKeys). Tag at creation so
       // a fresh game already matches its own save/reload (#1004).
       map.tiles = tagLandmassRegions(map);
-      return { map, startPositions: findStartPositions(map, civTypeIds, 'procedural', size) };
+      return { map, startPositions: findStartPositions(map, civTypeIds, 'procedural', size, { seed: mapSeed }) };
     } catch (error) {
       if (!(error instanceof StartPlacementError)) throw error;
       lastFailure = error;

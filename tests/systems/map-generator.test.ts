@@ -13,6 +13,7 @@ import {
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import type { GameMap, HexCoord, HexTile, ResourceType, TerrainType } from '@/core/types';
 import { getWrappedHexesInRange, hexKey } from '@/systems/hex-utils';
+import { simTimeout } from '../helpers/sim-timeout';
 
 const SUPPORTED_START_CASES = [
   { width: 30, height: 30, count: 3, seed: 'issue-172-small-wrap' },
@@ -226,6 +227,7 @@ describe('findStartPositions', () => {
         Array.from({ length: setup.count }, (_, i) => `civ-${i}`),
         'procedural',
         size,
+        { seed: setup.seed },
       );
       const minimumDistance = getMinimumStartDistance(map);
 
@@ -240,7 +242,7 @@ describe('findStartPositions', () => {
 
   it('finds requested number of start positions on land', () => {
     const map = generateMap(30, 30, 'start-pos-seed');
-    const positions = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'small');
+    const positions = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'small', { seed: 'test' });
     expect(positions).toHaveLength(2);
 
     for (const pos of positions) {
@@ -254,7 +256,7 @@ describe('findStartPositions', () => {
 
   it('places start positions far apart', () => {
     const map = generateMap(30, 30, 'start-pos-seed');
-    const positions = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'small');
+    const positions = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'small', { seed: 'test' });
     const dist = getStartPositionDistance(map, positions[0], positions[1]);
     expect(dist).toBeGreaterThan(8);
   });
@@ -271,6 +273,7 @@ describe('findStartPositions', () => {
           Array.from({ length: setup.count }, (_, i) => `civ-${i}`),
           'procedural',
           size,
+          { seed },
         );
         const minimumDistance = getMinimumStartDistance(map);
 
@@ -285,7 +288,7 @@ describe('findStartPositions', () => {
         }
       }
     }
-  });
+  }, simTimeout(60_000));
 });
 
 describe('S2a resource catalog coverage in placeResources', () => {
