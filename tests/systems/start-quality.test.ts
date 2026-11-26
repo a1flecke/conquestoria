@@ -113,6 +113,18 @@ describe('start-quality cost (game creation must stay cheap)', () => {
     expect(elapsed, `${land} tiles took ${elapsed.toFixed(0)} ms`).toBeLessThan(250);
   });
 
+  it('scores a start tile\'s resources within three hexes, the tile itself included', () => {
+    // Pinned because an optimisation once dropped the centre and moved every placement by 0.5 points of score.
+    const withResource = buildMap(20, 20, 'grassland', mixed);
+    withResource.tiles['10,10'].resource = 'iron' as never;
+    const without = buildMap(20, 20, 'grassland', mixed);
+    expect(createStartQualityIndex(withResource).assess({ q: 10, r: 10 }).resourceCount).toBe(1);
+    expect(createStartQualityIndex(without).assess({ q: 10, r: 10 }).resourceCount).toBe(0);
+    withResource.tiles['13,10'].resource = 'iron' as never; // exactly three hexes away: counted
+    withResource.tiles['14,10'].resource = 'iron' as never; // four hexes away: not counted
+    expect(createStartQualityIndex(withResource).assess({ q: 10, r: 10 }).resourceCount).toBe(2);
+  });
+
   it('counts expansion sites only up to what the score and floors read', () => {
     const index = createStartQualityIndex(buildMap(40, 40, 'grassland', mixed));
     expect(index.assess({ q: 20, r: 20 }).expansionSites).toBeLessThanOrEqual(6);

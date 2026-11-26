@@ -188,7 +188,8 @@ export function createStartQualityIndex(
     const landProduction6 = bestSix(productions);
     const frozenShare = landCount === 0 ? 0 : frozenCount / landCount;
 
-    let resourceCount = 0;
+    // Within 3 hexes, the start tile itself included (as the placement scores and pinned fixtures were built).
+    let resourceCount = (centre & RESOURCE) !== 0 ? 1 : 0;
     for (const [dq, dr] of RADIUS_3) {
       const i = at(q, r, dq, dr);
       if (i >= 0 && flags[i] & RESOURCE) resourceCount++;
