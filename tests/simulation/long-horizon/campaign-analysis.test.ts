@@ -338,6 +338,32 @@ describe('analyzeCampaign — detectors fire on injected stalls', () => {
     expect(codes(samples)).not.toContain('unit-count-runaway' as never);
   });
 
+  it('detects unit-count-runaway after the empire stopped growing (#1693: the ai-3 stranded-cargo shape)', () => {
+    const samples = series(250, round => [
+      // 1 -> 4 cities by round 60, then flat while units pile up (28 -> 330 in the real campaign)
+      healthyCiv('ai-1', round, {
+        cities: Math.min(4, 1 + Math.floor(round / 20)),
+        units: round < 80 ? 10 : 10 + (round - 80) * 2,
+        population: 40,
+        completedTechs: Math.floor(round / 5),
+      }),
+    ]);
+    const finding = analyzeCampaign(samples, CONFIG).findings.find(f => f.code === 'unit-count-runaway');
+    expect(finding).toBeDefined();
+    expect(finding!.detail).toContain('city count stayed at 4');
+  });
+
+  it('does not flag growth inside a flat-city stretch shorter than the minimum', () => {
+    const samples = series(250, round => [
+      healthyCiv('ai-1', round, {
+        cities: 1 + Math.floor(round / 30), // a new city every 30 rounds
+        units: 2 + round,
+        completedTechs: Math.floor(round / 5),
+      }),
+    ]);
+    expect(codes(samples)).not.toContain('unit-count-runaway' as never);
+  });
+
   it('does not flag unit-count-runaway for a stable one-city garrison', () => {
     const samples = series(250, round => [
       healthyCiv('ai-1', round, { cities: 1, units: 3, completedTechs: Math.floor(round / 5) }),

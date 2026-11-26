@@ -39,7 +39,7 @@ import { createSimulationRng } from '@/systems/simulation-rng';
 import { processWonderDiscovery } from '@/systems/wonder-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
-import { syncTransportCargoPositions } from '@/systems/transport-system';
+import { isNavalTransportUnit, syncTransportCargoPositions } from '@/systems/transport-system';
 import { syncCarrierBasedAircraft } from '@/systems/air-base-state';
 import { settleTechsCompletedSince } from './tech-completion-system';
 
@@ -163,7 +163,9 @@ export function executeValidatedUnitMove(
     };
   }
   nextState = recordFreightPassageTravel(nextState, moved, executedPath);
-  if (unit.type === 'transport') {
+  // #1693: every naval transport hull carries its cargo, not only the plain 'transport'. Testing the type name
+  // left a Carrack, Galleon, Steamship or Troop Transport sailing away from cargo still recorded at its old tile.
+  if (isNavalTransportUnit(unit)) {
     nextState = syncTransportCargoPositions(nextState, unitId);
   }
   // #582: any carrier-family hull, not just plain 'carrier' -- a moving

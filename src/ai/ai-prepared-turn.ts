@@ -9,7 +9,9 @@ import type {
   MajorCivPlanPortfolio,
   NationalIntentState,
 } from '@/core/types/ai';
-import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
+import { hexDistance, hexKey, mapNeighbors, wrappedHexDistance } from '@/systems/hex-utils';
+import { getMovementCostForUnit } from '@/systems/unit-movement-cost';
+import type { HexCoord } from '@/core/types/hex';
 import {
   civHasCoastalCity,
   cityFollowsOwnFaith,
@@ -44,7 +46,8 @@ import {
   getExpansionCitySoftCap,
   getKnownExpansionSites,
 } from './ai-expansion-sites';
-import { findRegionCrossings } from './ai-amphibious-routing';
+import { findRegionCrossings, type RegionCrossing } from './ai-amphibious-routing';
+import { getPersonalityWarTargets } from './ai-diplomacy';
 import {
   assignUnitsToPortfolio,
   type AIForceDemand,
@@ -393,14 +396,15 @@ function objectiveCandidates(
   personality: PersonalityTraits,
   trainableTypes: readonly (typeof TRAINABLE_UNITS)[number]['type'][],
   posture: NationalIntentPosture,
-): AIObjectiveCandidate[] {
+  personalityWarTargets: ReadonlySet<string>,
+): { candidates: AIObjectiveCandidate[]; crossings: ReadonlyMap<string, RegionCrossing> } {
   const actor = state.civilizations[civId];
   const operationalAnchors = perception.ownCities.length > 0
     ? perception.ownCities.map(city => city.position)
     : perception.ownUnits
         .filter(unit => !unit.transportId)
         .map(unit => unit.position);
-  if (!actor || operationalAnchors.length === 0) return [];
+  if (!actor || operationalAnchors.length === 0) return { candidates: [], crossings: new Map() };
   // #1107 -- a settler committed to an in-progress expand site must not get
   // redirected to a different one just because fog revealed a few more terrain
   // tiles this round and shifted the raw score ordering. Computed once, reused
@@ -477,9 +481,12 @@ function objectiveCandidates(
         hasArmsControlTreaty: hasArmsControlTreaty(state as GameState, civId),
       }).includes('declare_war');
     const expectedLossRatio = Math.min(2, rivalStrength / Math.max(1, ownStrength));
+    // #1693: a rival this civ's personality would go to war with is a capture target too. Without this the
+    // planner never consulted `shouldDeclareWar`, whose verdict diplomacy then discarded for want of a plan.
+    const personalityWarTarget = !minorTarget && personalityWarTargets.has(city.owner);
     if (!activeWar && (minorTarget
       ? expectedLossRatio > 1
-      : !recentAttack && (!peacefulDominationTarget || expectedLossRatio > 1))) continue;
+      : !recentAttack && (!(peacefulDominationTarget || personalityWarTarget) || expectedLossRatio > 1))) continue;
     const observedGarrison = intelligence.units.some(unit => unit.owner === city.owner && unit.position
       && hexKey(unit.position) === hexKey(city.position!));
     const hardened = city.defense === 'fortified' && observedGarrison && city.hpBand === 'healthy';
@@ -505,7 +512,7 @@ function objectiveCandidates(
         ? 75
         : recentAttack
           ? 45
-          : Math.min(100, 75 + doctrine.captureValueBonus)) + posture.captureBias)),
+          : Math.min(100, 75 + (peacefulDominationTarget ? doctrine.captureValueBonus : 0))) + posture.captureBias)),
       expectedLossRatio,
       supplyDistance: travelTurns,
       explicitDistantReasons: recentAttack
@@ -628,7 +635,21 @@ function objectiveCandidates(
       .filter((key): key is string => key !== undefined),
   );
   const crossings = findRegionCrossings(knownMap, originRegionKeys);
-  const resolved = resolveObjectiveTravelCandidates(knownMap, travelInputs, crossings);
+  // #1693: a capture that would START a war (a major civ this civ is at peace with and that has not just attacked it)
+  // must be worth more than doing nothing. The locality rule measures every candidate against the nearest one, so a
+  // lone 25-turn amphibious trip scoring -444 used to be eligible, was chosen, and its plan declared a war the civ then
+  // never fought (170 rounds, no capture). A war already under way is unaffected.
+  const startsWar = (candidate: AIObjectiveCandidate) => {
+    if (candidate.objective !== 'capture' || candidate.target.kind !== 'city') return false;
+    const targetId = candidate.target.id;
+    // The owner as this civ knows it (the same perception the candidate was built from), never the live record.
+    const owner = perception.knownCities.find(city => city.id === targetId)?.owner;
+    return owner !== undefined && classifyOwner(owner) === 'major'
+      && !actor.diplomacy.atWarWith.includes(owner)
+      && !candidate.explicitDistantReasons.includes('retaliate-recent-attack');
+  };
+  const resolved = resolveObjectiveTravelCandidates(knownMap, travelInputs, crossings)
+    .filter(candidate => !startsWar(candidate) || scoreObjectiveCandidate(candidate) > 0);
   // Exactly ONE expand candidate reaches the caller, so the decision trace grows by at
   // most 1 unconditionally -- assertLegalChoices hard-throws above 12 candidates. The
   // shortlist exists only so an unreachable best site falls back to a reachable one.
@@ -679,10 +700,13 @@ function objectiveCandidates(
   const biasedExpand = bestExpand
     ? { ...bestExpand, strategicValue: Math.max(0, Math.min(100, bestExpand.strategicValue + posture.expandBias)) }
     : bestExpand;
-  return [
-    ...resolved.filter(candidate => candidate.objective !== 'expand'),
-    ...(biasedExpand ? [biasedExpand] : []),
-  ];
+  return {
+    candidates: [
+      ...resolved.filter(candidate => candidate.objective !== 'expand'),
+      ...(biasedExpand ? [biasedExpand] : []),
+    ],
+    crossings,
+  };
 }
 
 function planTargetPosition(plan: AIStrategicPlan): { q: number; r: number } {
@@ -898,8 +922,9 @@ export function prepareMajorCivStrategicPlan(
     availableResources,
   );
   const counterplay = getDominationCounterplay(knowledge);
-  const candidates = objectiveCandidates(state, civId, perception, knownMap, doctrine, knowledge, personality,
-    trainable.map(entry => entry.type), posture);
+  const { candidates, crossings } = objectiveCandidates(state, civId, perception, knownMap, doctrine, knowledge,
+    personality, trainable.map(entry => entry.type), posture,
+    getPersonalityWarTargets(state, civId, perception, personality, posture));
   const availableRoles = availableRoleCounts(perception);
   // City-specific trainability is only relevant to an actual capture deficit. Most
   // peaceful/no-shortfall turns avoid this per-city production-legality pass entirely.
@@ -973,6 +998,16 @@ export function prepareMajorCivStrategicPlan(
     ...Object.values(portfolioResult.portfolio.defensePlansByCityId),
     ...(portfolioResult.portfolio.primaryPlan ? [portfolioResult.portfolio.primaryPlan] : []),
   ];
+  // #1693: plans whose target the scorer reached only across water (it then required a transport). Recomputed from
+  // this turn's crossings rather than stored on the plan, so a plan whose target became reachable by land, or whose
+  // crossing closed, is costed by the direct route again.
+  const amphibiousCrossingByPlanId = new Map<string, RegionCrossing>();
+  for (const plan of plans) {
+    if ((plan.requiredRoles.transport ?? 0) <= 0) continue;
+    const regionKey = knownMap.tiles[hexKey(planTargetPosition(plan))]?.regionKey;
+    const crossing = regionKey ? crossings.get(regionKey) : undefined;
+    if (crossing) amphibiousCrossingByPlanId.set(plan.id, crossing);
+  }
   const assignments = assignUnitsToPortfolio({
     portfolio: portfolioResult.portfolio,
     units: perception.ownUnits.map(unit => ({
@@ -987,29 +1022,37 @@ export function prepareMajorCivStrategicPlan(
         || portfolioResult.portfolio.upgradeRoutesByUnitId[unit.id],
       ),
       travelTurnsByPlanId: Object.fromEntries(plans.map(plan => {
-        const path = findPath(
-          unit.position,
-          plan.rallyPoint ?? planTargetPosition(plan),
-          knownMap,
-          UNIT_DEFINITIONS[unit.type].domain ?? 'land',
-          {
-            unit,
-            completedTechs: civ.techState.completed,
-            // #871: travel estimates use the executor's denied set (this civ's own relations over
-            // the fog-bounded `knownMap`, which carries `owner` only for tiles it currently sees),
-            // so a plan is never costed through a border its units cannot cross.
-            deniedOwnerIds: state.units[unit.id] ? getDeniedTerritoryOwners(state, state.units[unit.id]!) : undefined,
-          },
-        );
-        return [
-          plan.id,
-          path
-            ? Math.ceil(
-                Math.max(0, path.length - 1)
-                / Math.max(1, UNIT_DEFINITIONS[unit.type].movementPoints),
-              )
-            : Number.POSITIVE_INFINITY,
-        ];
+        const domain = UNIT_DEFINITIONS[unit.type].domain ?? 'land';
+        const pathTurns = (to: HexCoord): number => {
+          const path = findPath(
+            unit.position,
+            to,
+            knownMap,
+            domain,
+            {
+              unit,
+              completedTechs: civ.techState.completed,
+              // #871: travel estimates use the executor's denied set (this civ's own relations over
+              // the fog-bounded `knownMap`, which carries `owner` only for tiles it currently sees),
+              // so a plan is never costed through a border its units cannot cross.
+              deniedOwnerIds: state.units[unit.id] ? getDeniedTerritoryOwners(state, state.units[unit.id]!) : undefined,
+            },
+          );
+          return path
+            ? Math.ceil(Math.max(0, path.length - 1) / Math.max(1, UNIT_DEFINITIONS[unit.type].movementPoints))
+            : Number.POSITIVE_INFINITY;
+        };
+        const direct = pathTurns(plan.rallyPoint ?? planTargetPosition(plan));
+        const crossing = amphibiousCrossingByPlanId.get(plan.id);
+        if (Number.isFinite(direct) || !crossing) return [plan.id, direct];
+        // #1693: a plan the scorer routed across water is staffed along the same crossing: a land unit is costed
+        // to the embark tile, a transport to the water beside it. Costing both straight to the target (unreachable
+        // for either) meant no unit could ever be assigned, and the unfilled demand ordered more forever.
+        if (domain === 'land') return [plan.id, pathTurns(crossing.embarkTile)];
+        if (UNIT_DEFINITIONS[unit.type].cargoCapacity === undefined) return [plan.id, direct];
+        const berths = mapNeighbors(knownMap, crossing.embarkTile)
+          .filter(coord => getMovementCostForUnit(knownMap.tiles[hexKey(coord)]?.terrain ?? 'mountain', 'naval') !== Infinity);
+        return [plan.id, Math.min(Number.POSITIVE_INFINITY, ...berths.map(berth => pathTurns(berth)))];
       })),
     })),
     profile: getPreparedAssignmentProfile(state),
@@ -1031,7 +1074,7 @@ export function prepareMajorCivStrategicPlan(
       && deployedCombat.length === 1
       ? [deployedCombat[0].id]
       : [],
-    requiresEmbarkationByPlanId: {},
+    requiresEmbarkationByPlanId: Object.fromEntries([...amphibiousCrossingByPlanId.keys()].map(planId => [planId, true])),
   });
   const primaryCaptureRequiredRoles = portfolioResult.portfolio.primaryPlan?.objective === 'capture'
     ? portfolioResult.portfolio.primaryPlan.requiredRoles
