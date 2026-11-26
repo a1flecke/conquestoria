@@ -210,6 +210,8 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   });
   mapSection.content.appendChild(mapDescEl);
 
+  /** The placement the player chose; `selectedPlacementMode` is what the current map allows (design 2026-11-25). */
+  let chosenPlacementMode: StartPlacementMode = 'balanced';
   let selectedPlacementMode: StartPlacementMode = 'balanced';
   const placementRow = document.createElement('div');
   placementRow.dataset.role = 'campaign-placement-options';
@@ -235,12 +237,12 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
       || mapScriptSelect.value === 'new-world';
     placementRow.hidden = !geographic;
     placementHelp.hidden = !geographic;
-    if (!geographic) selectedPlacementMode = 'balanced';
-    // A real-world map that cannot hold two separated, livable starts offers True Start only (design 2026-11-25).
+    // A real-world map that cannot hold two separated, livable starts offers True Start only (design 2026-11-25),
+    // for as long as that map is selected; the player's own choice comes back with a map that fits.
     const anywhereFits = !geographic
       || getMaxCivilizationsForSetup(mapScriptSelect.value as MapScript, currentMapSize(), 'balanced') >= 2;
     setButtonDisabled(balancedPlacement, !anywhereFits);
-    if (!anywhereFits) selectedPlacementMode = 'historical';
+    selectedPlacementMode = !geographic ? 'balanced' : anywhereFits ? chosenPlacementMode : 'historical';
     syncChoiceButtonState(balancedPlacement, selectedPlacementMode === 'balanced');
     syncChoiceButtonState(historicalPlacement, selectedPlacementMode === 'historical');
     placementHelp.textContent = selectedPlacementMode === 'balanced'
@@ -252,11 +254,11 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     onCivilizationLimitChanged();
   };
   balancedPlacement.addEventListener('click', () => {
-    selectedPlacementMode = 'balanced';
+    chosenPlacementMode = 'balanced';
     syncPlacement();
   });
   historicalPlacement.addEventListener('click', () => {
-    selectedPlacementMode = 'historical';
+    chosenPlacementMode = 'historical';
     syncPlacement();
   });
 

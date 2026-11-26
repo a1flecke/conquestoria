@@ -630,6 +630,16 @@ describe('map type selection', () => {
     click(document, '[data-size="large"]');
     expect((document.querySelector('[data-placement-mode="balanced"]') as HTMLButtonElement).disabled).toBe(false);
     expect((document.querySelector('[data-role="campaign-capacity-note"]') as HTMLElement).hidden).toBe(true);
+    // The switch to True Start lasted only while the map was too small: the player never chose it.
+    expect(document.querySelector('[data-placement-mode="balanced"]')?.getAttribute('data-selected')).toBe('true');
+  });
+
+  it('keeps an explicit True Start choice when moving between sizes', () => {
+    renderSetup();
+    click(document, '[data-placement-mode="historical"]');
+    click(document, '[data-size="small"]');
+    click(document, '[data-size="large"]');
+    expect(document.querySelector('[data-placement-mode="historical"]')?.getAttribute('data-selected')).toBe('true');
   });
 
   it('passes an explicit true-start choice for geographic maps', async () => {
