@@ -475,6 +475,14 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     why: 'The atomic city-state conversion (#497) is called by the minor-civ-graduation round phase only, which owns the flag, the cadence and the one-per-round limit. Any other caller would convert a city-state outside them.',
   },
   {
+    id: 'start-site-selection-has-the-placers-only',
+    kind: 'only-imported-by',
+    target: [`${S}/start-site-selection`],
+    importers: ['tests/**', `${S}/map-generator`, `${S}/start-placement-system`],
+    edges: 'all',
+    why: 'Start placement has one selection (design 2026-11-25): separation is a constraint and the weakest start is maximised. The two major-civilization placers own it; a third caller would be a placer outside the start-outcome matrix, which is how an Arctic-islet start shipped while five placers each had their own rules.',
+  },
+  {
     id: 'src-has-no-runtime-import-cycles',
     kind: 'acyclic-group',
     members: 'src/**',

@@ -352,8 +352,10 @@ const EXPECTED_AFTER: ReadonlyArray<readonly [phase: string, calls: readonly str
     'tickLegendaryWonderProjects', 'reconcileLegendaryWonderAvailability', 'processWonderEffects',
   ]],
   ['barbarians', ['processPurposefulBarbarians', 'applyCityHpRegeneration']],
-  // A camp evolves in this fixture; the new city-state claims its land at once, under the founding rule.
-  ['minor-civs', ['processMinorCivTurn', 'checkCampEvolution', 'recalculateTerritory']],
+  // No camp evolves on this fixture's first turn since start quality (design 2026-11-25) moved the starts and
+  // city-states, so the founding-rule territory recalculation an evolution triggers is not entered. Same phase,
+  // same seams in the same order when a camp does evolve (pinned by barbarian-system.test.ts).
+  ['minor-civs', ['processMinorCivTurn', 'checkCampEvolution']],
   ['beasts', ['processBeasts']],
   ['threat-scheduling', [
     'processIndependentThreatPressure', 'processCrisisScheduler', 'processEventChainScheduler',
@@ -391,15 +393,21 @@ const EXPECTED_AFTER: ReadonlyArray<readonly [phase: string, calls: readonly str
 // Changed again when natural-wonder placement began following the horizontal seam: the re-rolled world no longer
 // puts a wonder on the first civ's opening move, so its early `wonder:discovered` is gone and the others shift
 // within the same per-civ blocks. Same phases, same positions in the sequence.
+// Changed for start quality (design 2026-11-25): every start and city-state moved to livable land, so which opening
+// moves reveal a wonder or meet a neighbour changed within the same per-civ blocks, no camp evolves on turn 1 (no
+// `minor-civ:evolved`), and a treasury-strain notice now fires in the economy phase. No phase moved.
 const EXPECTED_EVENT_TYPES_TURN_1: readonly string[] = [
-  'turn:end', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'city:production-disposition*', 'unit:move',
-  'fog:revealed', 'wonder:discovered', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*',
-  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered', 'city:production-disposition*', 'unit:move', 'fog:revealed',
-  'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*',
-  'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*',
-  'territory:tile-flipped', 'minor-civ:quest-issued*', 'minor-civ:evolved', 'threat:barbarian-resurgence*', 'eventchain:started*',
+  'turn:end', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*',
+  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered',
+  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered',
+  'city:production-disposition*', 'unit:move', 'civilization:first-contact', 'fog:revealed', 'wonder:discovered',
+  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*',
+  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*',
+  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*',
+  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered',
+  'territory:tile-flipped', 'minor-civ:quest-issued*', 'threat:barbarian-resurgence', 'eventchain:started*',
   'eventchain:choice-made', 'eventchain:started', 'eventchain:choice-made', 'eventchain:started', 'eventchain:choice-made',
-  'espionage:intel-extracted', 'era:advanced', 'turn:start',
+  'espionage:intel-extracted', 'era:advanced', 'economy:treasury-strain*', 'turn:start',
 ];
 
 function flatten(blocks: ReadonlyArray<readonly [string, readonly string[]]>): string[] {

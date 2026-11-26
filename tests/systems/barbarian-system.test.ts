@@ -1032,9 +1032,10 @@ describe('barbarian camp evolution', () => {
 
   it('an evolved camp leaves a valid world: its raiders leave the barbarian AI and its city claims its land', () => {
     const state = createNewGame(undefined, 'evolve-probe', 'small');
-    const far = Object.values(state.map.tiles).find(tile => tile.terrain === 'grassland' && tile.owner === null
-      && Object.values(state.cities).every(city => hexDistance(city.position, tile.coord) >= 8)
-      && Object.values(state.units).every(unit => hexDistance(unit.position, tile.coord) >= 7))!;
+    // Wrap-aware distances: the map wraps, and camp evolution measures across the seam.
+    const far = Object.values(state.map.tiles).find(tile => (tile.terrain === 'grassland' || tile.terrain === 'plains') && tile.owner === null
+      && Object.values(state.cities).every(city => mapDistance(state.map, city.position, tile.coord) >= 8)
+      && Object.values(state.units).every(unit => mapDistance(state.map, unit.position, tile.coord) >= 7))!;
     state.barbarianCamps = { 'camp-evolve': { id: 'camp-evolve', position: far.coord, strength: 8, spawnCooldown: 2 } };
     const raider = createUnit('warrior', 'barbarian', far.coord, state.idCounters);
     state.units[raider.id] = raider;
