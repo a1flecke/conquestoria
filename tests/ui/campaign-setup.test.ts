@@ -135,12 +135,13 @@ describe('campaign-setup', () => {
     }));
   });
 
-  function startSoloAndGetOverrides(chooseGraduation: 'off' | 'on' | null): Record<string, unknown> {
+  function startSoloAndGetOverrides(chooseGraduation: 'off' | 'on' | null, alsoClick?: string): Record<string, unknown> {
     const onStartSolo = vi.fn();
     const panel = showCampaignSetup(document.body, { onStartSolo, onCancel: vi.fn() });
     if (chooseGraduation) {
       panel.querySelector<HTMLButtonElement>(`[data-city-state-graduation="${chooseGraduation}"]`)!.click();
     }
+    if (alsoClick) panel.querySelector<HTMLButtonElement>(alsoClick)!.click();
     clickButtonWithText('Choose civilization');
     (document.querySelector('.civ-card') as HTMLElement)
       .dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -177,6 +178,24 @@ describe('campaign-setup', () => {
     document.body.innerHTML = '';
 
     expect(startSoloAndGetOverrides(null)).toMatchObject({ homelandPicker: 'on' });
+  });
+
+  it('offers Varied starts by default, explains each style, and sends the choice (#1837)', () => {
+    const panel = showCampaignSetup(document.body, { onStartSolo: vi.fn(), onCancel: vi.fn() });
+    expect(panel.querySelector('[data-start-style="varied"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel.textContent).toContain('Civilizations lean a little toward land that suits them');
+    panel.querySelector<HTMLButtonElement>('[data-start-style="fair"]')!.click();
+    expect(panel.querySelector('[data-start-style="fair"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel.querySelector('[data-start-style="varied"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(panel.textContent).toContain('as even as the map allows');
+    panel.querySelector<HTMLButtonElement>('[data-start-style="wild"]')!.click();
+    expect(panel.textContent).toContain('Any start that meets the minimum');
+    panel.remove();
+    document.body.innerHTML = '';
+
+    expect(startSoloAndGetOverrides(null)).toMatchObject({ startStyle: 'varied' });
+    document.body.innerHTML = '';
+    expect(startSoloAndGetOverrides(null, '[data-start-style="wild"]')).toMatchObject({ startStyle: 'wild', homelandPicker: 'on' });
   });
 
   it('updates the visible map-size and opponent cards together, preserving valid counts and snapping invalid ones', () => {

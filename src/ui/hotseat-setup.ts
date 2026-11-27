@@ -4,6 +4,7 @@ import type {
   HotSeatPlayer,
   MapScript,
   StartPlacementMode,
+  StartStyle,
 } from '@/core/types';
 import type { OpponentChallenge } from '@/core/types/ai';
 import { GameCreationError, MAP_DIMENSIONS } from '@/core/game-state';
@@ -19,6 +20,7 @@ import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selecto
 import { createGameButton, setButtonDisabled, VARIANT_STYLES } from '@/ui/ui-kit';
 import { getMaxCivilizationsForSetup } from '@/systems/geo-start-capacity';
 import { selectAIRoster } from '@/systems/ai-roster-selection';
+import { START_STYLE_DESCRIPTIONS, START_STYLE_LABELS, START_STYLE_ORDER } from '@/ui/start-style-copy';
 
 export interface HotSeatSetupCallbacks {
   /** May return a promise while geographic map data loads (#1456); the review screen shows the busy/error state. */
@@ -61,11 +63,14 @@ export function showHotSeatSetup(
   let superweaponsSelected: 'off' | 'on' = 'on';
   let graduationSelected: 'off' | 'on' = 'off';
   let homelandSelected: 'off' | 'on' = 'on';
+  /** Family members compete on one device, so hot seat starts default to Fair (design 2026-11-25, B3). */
+  let startStyleSelected: StartStyle = 'fair';
   /** The one place the creation-time switches are assembled, so no writer can drop one of them. */
   const currentSettingsOverrides = () => ({
     superweapons: superweaponsSelected,
     cityStateGraduation: graduationSelected,
     homelandPicker: homelandSelected,
+    startStyle: startStyleSelected,
   });
   let playerCount = 0;
   let aiCount = 1;
@@ -838,6 +843,41 @@ export function showHotSeatSetup(
     homelandSection.appendChild(homelandRow);
     homelandSection.appendChild(homelandHelpText);
     panel.appendChild(homelandSection);
+
+    // Start style (design 2026-11-25, B3): how even the starting land is. Every start is livable in every style.
+    const startStyleSection = document.createElement('div');
+    startStyleSection.style.cssText = 'max-width:520px;width:100%;margin-top:12px;';
+    const startStyleLabel = document.createElement('p');
+    startStyleLabel.textContent = 'Start Style';
+    startStyleLabel.style.cssText = 'margin:0 0 6px;font-size:12px;opacity:0.7;';
+    startStyleSection.appendChild(startStyleLabel);
+    const startStyleRow = document.createElement('div');
+    startStyleRow.style.cssText = 'display:flex;gap:6px;';
+    const startStyleHelpText = document.createElement('p');
+    Object.assign(startStyleHelpText.style, { margin: '6px 0 0', fontSize: '11px', opacity: '0.65', lineHeight: '1.4' });
+    const startStyleButtons = new Map<StartStyle, HTMLButtonElement>();
+    const refreshStartStyleButtons = (): void => {
+      for (const [value, button] of startStyleButtons) {
+        Object.assign(button.style, value === startStyleSelected ? VARIANT_STYLES.primary : VARIANT_STYLES.secondary);
+        button.setAttribute('aria-pressed', String(value === startStyleSelected));
+      }
+      startStyleHelpText.textContent = START_STYLE_DESCRIPTIONS[startStyleSelected];
+    };
+    for (const value of START_STYLE_ORDER) {
+      const button = createGameButton(START_STYLE_LABELS[value], value === startStyleSelected ? 'primary' : 'secondary');
+      button.dataset.startStyleOption = value;
+      button.addEventListener('click', () => {
+        startStyleSelected = value;
+        refreshStartStyleButtons();
+        review.config.settingsOverrides = currentSettingsOverrides();
+      });
+      startStyleButtons.set(value, button);
+      startStyleRow.appendChild(button);
+    }
+    refreshStartStyleButtons();
+    startStyleSection.appendChild(startStyleRow);
+    startStyleSection.appendChild(startStyleHelpText);
+    panel.appendChild(startStyleSection);
 
     const start = createGameButton(
       crowded ? 'Review Crowding Risk' : 'Start Game',

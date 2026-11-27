@@ -3,6 +3,7 @@ import type { CivDefinition } from '@/core/types';
 export const CIV_DEFINITIONS: CivDefinition[] = [
   {
     id: 'egypt',
+    startPreferences: ['river', 'desert-tolerant'],
     name: 'Egypt',
     color: '#c4a94d',
     cityNames: ['Thebes', 'Memphis', 'Heliopolis', 'Elephantine', 'Alexandria', 'Pi-Ramesses', 'Giza', 'Byblos', 'Amarna', 'Abydos', 'Hermopolis', 'Naukratis', 'Sais', 'Tanis', 'Bubastis', 'Coptos'],
@@ -33,6 +34,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'greece',
+    startPreferences: ['coastal', 'hills'],
     name: 'Greece',
     color: '#4a90d9',
     cityNames: ['Athens', 'Sparta', 'Corinth', 'Argos', 'Delphi', 'Rhodes', 'Knossos', 'Mycenae', 'Thessaloniki', 'Olympia', 'Eretria', 'Miletus', 'Chalcis', 'Syracuse', 'Heraklion', 'Patras'],
@@ -63,6 +65,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'babylon',
+    startPreferences: ['river', 'desert-tolerant'],
     name: 'Babylon',
     color: '#9b4ad9',
     cityNames: ['Babylon', 'Nineveh', 'Ur', 'Nippur', 'Eridu', 'Uruk', 'Lagash', 'Kish', 'Assur', 'Mari', 'Akkad', 'Sippar', 'Eshnunna', 'Umma', 'Kultepe', 'Adab'],
@@ -93,6 +96,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'china',
+    startPreferences: ['river'],
     name: 'China',
     color: '#d94a7b',
     cityNames: ['Beijing', 'Shanghai', 'Guangzhou', 'Nanjing', 'Xian', 'Chengdu', 'Hangzhou', 'Tianjin', 'Wuhan', 'Suzhou', 'Luoyang', 'Kunming', 'Quanzhou', 'Kaifeng', 'Zhengzhou', 'Yangzhou'],
@@ -108,6 +112,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'persia',
+    startPreferences: ['desert-tolerant', 'hills'],
     name: 'Persia',
     color: '#d9c44a',
     cityNames: ['Persepolis', 'Pasargadae', 'Susa', 'Ecbatana', 'Tarsus', 'Gordion', 'Bactra', 'Sardis', 'Ctesiphon', 'Artaxata', 'Zadrakarta', 'Rhagae', 'Hecatompylos', 'Dura-Europos', 'Hamadan', 'Soltaniyeh'],
@@ -123,6 +128,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'england',
+    startPreferences: ['coastal'],
     name: 'England',
     color: '#4a6ad9',
     cityNames: ['London', 'York', 'Canterbury', 'Nottingham', 'Dover', 'Hastings', 'Oxford', 'Liverpool', 'Bristol', 'Birmingham', 'Winchester', 'Durham', 'Leicester', 'Coventry', 'Chester', 'Bath'],
@@ -153,6 +159,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'japan',
+    startPreferences: ['coastal'],
     name: 'Japan',
     color: '#f0f0f0',
     cityNames: ['Kyoto', 'Osaka', 'Edo', 'Nagoya', 'Nara', 'Kamakura', 'Sapporo', 'Nagasaki', 'Hiroshima', 'Fukuoka', 'Kobe', 'Sendai', 'Niigata', 'Kanazawa', 'Hakodate', 'Yokohama'],
@@ -168,6 +175,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'india',
+    startPreferences: ['river'],
     name: 'India',
     color: '#d97a4a',
     cityNames: ['Delhi', 'Mumbai', 'Kolkata', 'Chennai', 'Bengaluru', 'Varanasi', 'Madurai', 'Ujjain', 'Agra', 'Hyderabad', 'Vijayanagara', 'Hampi', 'Kanchipuram', 'Nalanda', 'Mathura', 'Bodh Gaya'],
@@ -214,6 +222,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'gondor',
+    startPreferences: ['hills'],
     name: 'Gondor',
     color: '#f5f5f4',
     cityNames: ['Minas Tirith', 'Osgiliath', 'Dol Amroth', 'Pelargir', 'Anfalas', 'Edhellond', 'Calembel', 'Linhir', 'Cair Andros', 'Amon Din', 'Pinnath Gelin', 'Tumladen', 'Lossarnach', 'Ethring', 'Belfalas', 'Morthond'],
@@ -245,6 +254,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   // === M4b1 New Civilizations ===
   {
     id: 'russia',
+    startPreferences: ['frozen-tolerant', 'forest'],
     name: 'Russia',
     color: '#1e3a5f',
     cityNames: ['Moscow', 'St Petersburg', 'Novgorod', 'Kazan', 'Rostov', 'Yaroslavl', 'Vladivostok', 'Tver', 'Pskov', 'Ryazan', 'Suzdal', 'Vladimir', 'Murom', 'Smolensk', 'Saratov', 'Perm'],
@@ -260,6 +270,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'ottoman',
+    startPreferences: ['coastal'],
     name: 'Ottoman Empire',
     color: '#b91c1c',
     cityNames: ['Istanbul', 'Edirne', 'Bursa', 'Konya', 'Izmir', 'Ankara', 'Trabzon', 'Gaziantep', 'Iznik', 'Bolu', 'Eskisehir', 'Sivas', 'Erzurum', 'Diyarbakir', 'Manisa', 'Sarajevo'],
@@ -306,6 +317,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   // === M4c New Civilizations ===
   {
     id: 'spain',
+    startPreferences: ['coastal'],
     name: 'Spain',
     color: '#c2410c',
     cityNames: ['Madrid', 'Barcelona', 'Seville', 'Toledo', 'Granada', 'Valencia', 'Cordoba', 'Salamanca', 'Zaragoza', 'Bilbao', 'Valladolid', 'Murcia', 'Burgos', 'Pamplona', 'Santiago', 'Segovia'],
@@ -321,6 +333,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'viking',
+    startPreferences: ['coastal', 'frozen-tolerant'],
     name: 'Viking',
     color: '#0f766e',
     cityNames: ['Nidaros', 'Hedeby', 'Uppsala', 'Ribe', 'Birka', 'Kaupang', 'Jorvik', 'Skiringssal', 'Staraja Ladoga', 'Sigtuna', 'Aarhus', 'Roskilde', 'Reykjavik', 'Lund', 'Dublin', 'Lindisfarne'],
@@ -382,6 +395,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'avalon',
+    startPreferences: ['coastal'],
     name: 'Avalon',
     color: '#4a8fd9',
     leaderName: 'Arthur',
@@ -399,6 +413,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   // === M4d New Civilizations ===
   {
     id: 'lothlorien',
+    startPreferences: ['forest'],
     name: 'Lothlorien',
     color: '#4d7c0f',
     cityNames: ['Caras Galadhon', 'Lorien Ford', 'Galadhmere', 'Mallorn Rest', 'Cerin Amroth', 'Nimrodel', 'Celebrant Ford', 'Silverlode', 'Naith', 'Egladil', 'Lorinand', 'Lindorinand', 'Golden Wood', 'Tindómiel'],
@@ -414,6 +429,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'narnia',
+    startPreferences: ['forest'],
     name: 'Narnia',
     color: '#60a5fa',
     cityNames: ['Cair Paravel', 'Lantern Waste', 'Beaversdam', 'Archenland Gate', 'Beruna', 'Dancing Lawn', 'Ettinsmoor', 'Stone Table', 'Redhaven', 'Galma', 'Terebinthia', 'Lone Islands', 'Anvard', 'Seven Isles'],
@@ -429,6 +445,7 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
   },
   {
     id: 'atlantis',
+    startPreferences: ['coastal'],
     name: 'Atlantis',
     color: '#0b7285',
     cityNames: ['Poseidonis', 'Aigera', 'Thalassar', 'Nereia', 'Blue Vault', 'Coral Crown', 'Abyssal Keep', 'Tidemark', 'Pelagius', 'Brine Gate', 'Crystal Spire', 'Neptunion', 'Seahaven', 'Deepwatch'],

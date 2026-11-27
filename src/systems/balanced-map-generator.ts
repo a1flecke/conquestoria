@@ -29,13 +29,16 @@ export function generateBalancedMap(
   height: number,
   seed: string,
   civCount: number,
+  band?: number,
+  pickNoise?: number,
+  preferEven?: boolean,
 ): { map: GameMap; startPositions: HexCoord[] } {
   const tiles = generateBaseTerrain(width, height, seed);
   const mapBase: GameMap = { width, height, tiles, wrapsHorizontally: true, rivers: [] };
 
   const civIds = Array.from({ length: civCount }, (_, i) => `balanced-civ-${i}`);
   const size = width === 30 ? 'small' : width === 50 ? 'medium' : 'large';
-  const startPositions = findStartPositions(mapBase, civIds, 'balanced', size, { seed });
+  const startPositions = findStartPositions(mapBase, civIds, 'balanced', size, { seed, band, pickNoise, preferEven });
 
   // Voronoi — assign each hex to nearest start
   const tileKeys = Object.keys(tiles);

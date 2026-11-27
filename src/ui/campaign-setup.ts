@@ -4,6 +4,7 @@ import type {
   SoloSetupConfig,
   MapScript,
   StartPlacementMode,
+  StartStyle,
 } from '@/core/types';
 import type { OpponentChallenge } from '@/core/types/ai';
 import { GameCreationError, MAP_DIMENSIONS } from '@/core/game-state';
@@ -20,6 +21,7 @@ import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selector';
 import { selectAIRoster } from '@/systems/ai-roster-selection';
 import { getMaxCivilizationsForSetup } from '@/systems/geo-start-capacity';
+import { START_STYLE_DESCRIPTIONS, START_STYLE_LABELS, START_STYLE_ORDER } from '@/ui/start-style-copy';
 
 export interface CampaignSetupCallbacks {
   /** May return a promise while geographic map data loads (#1456); the screen shows the busy/error state. */
@@ -557,6 +559,38 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   }
   syncHomelandCards();
 
+  // Start style (design 2026-11-25, B3): how even the starting land is. Every start is livable in every style.
+  let startStyleSelected: StartStyle = 'varied';
+  const startStyleSection = createSetupSection({
+    title: 'Start Style',
+    description: 'How even the starting land is between civilizations. Every start is livable land in every style.',
+  });
+  hero.appendChild(startStyleSection.section);
+  const startStyleRow = document.createElement('div');
+  Object.assign(startStyleRow.style, { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' });
+  startStyleSection.content.appendChild(startStyleRow);
+  const startStyleHelp = document.createElement('p');
+  Object.assign(startStyleHelp.style, { margin: '8px 0 0', fontSize: '12px', opacity: '0.72', lineHeight: '1.45' });
+  startStyleSection.content.appendChild(startStyleHelp);
+  const startStyleCards = new Map<StartStyle, HTMLButtonElement>();
+  const syncStartStyleCards = (): void => {
+    for (const [value, button] of startStyleCards.entries()) {
+      syncChoiceButtonState(button, startStyleSelected === value);
+    }
+    startStyleHelp.textContent = START_STYLE_DESCRIPTIONS[startStyleSelected];
+  };
+  for (const value of START_STYLE_ORDER) {
+    const button = createChoiceButton(START_STYLE_LABELS[value]);
+    button.dataset.startStyle = value;
+    button.addEventListener('click', () => {
+      startStyleSelected = value;
+      syncStartStyleCards();
+    });
+    startStyleCards.set(value, button);
+    startStyleRow.appendChild(button);
+  }
+  syncStartStyleCards();
+
   let selectedCivId: string | null = null;
   let customCivilizations: CustomCivDefinition[] = [...(options?.initialCustomCivilizations ?? [])];
   let civDefinitions = getPlayableCivDefinitions({ customCivilizations });
@@ -687,7 +721,12 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
         mapScript,
         startPlacementMode: selectedPlacementMode,
         opponentChallenge: selectedOpponentChallenge,
-        settingsOverrides: { beastsMode: beastsModeSelected, cityStateGraduation: graduationSelected, homelandPicker: homelandSelected },
+        settingsOverrides: {
+          beastsMode: beastsModeSelected,
+          cityStateGraduation: graduationSelected,
+          homelandPicker: homelandSelected,
+          startStyle: startStyleSelected,
+        },
       }), () => panel.remove());
     } catch (error) {
       if (!(error instanceof GameCreationError)) throw error;
