@@ -22,6 +22,7 @@ import { findPath } from '@/systems/unit-pathfinding';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { getIdleExplorerUnitIds, computeAdministrativeExploreLeash } from './ai-exploration';
 import { planHomeGuardStations } from './ai-home-guard';
+import { planSideSettlementOrder } from './ai-side-settlement';
 import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
 import {
   getTransportCargo,
@@ -875,6 +876,8 @@ function processAITurnInternal(
       civ = newState.civilizations[civId];
     }
   }
+  newState = sendIdleSettlerToSite(newState, civId, preparedForTurn, recoveryUnitIds);
+  civ = newState.civilizations[civId];
 
   // Boon choice (#591 MR4) is administrative, not plan-driven -- an AI civ with a
   // founded-but-boonless religion decides immediately, every turn it hasn't yet.
@@ -2231,4 +2234,24 @@ export function applyAiCityLevyPolicy(state: GameState, civId: string): GameStat
     if (result.ok) nextState = result.state;
   }
   return nextState;
+}
+
+/** #1693: `planSideSettlementOrder` (ai-side-settlement.ts) as the `journey` standing order. */
+function sendIdleSettlerToSite(
+  state: GameState,
+  civId: string,
+  prepared: PreparedMajorCivPlan,
+  recoveryUnitIds: ReadonlySet<string>,
+): GameState {
+  const order = planSideSettlementOrder(state, civId, prepared.settlementSite, new Set([
+    ...Object.values(prepared.assignments.assignmentsByPlanId).flat(),
+    ...prepared.assignments.recoveryUnitIds,
+    ...recoveryUnitIds,
+  ]));
+  const settler = order ? state.units[order.unitId] : undefined;
+  if (!order || !settler) return state;
+  return {
+    ...state,
+    units: { ...state.units, [settler.id]: { ...settler, automation: { mode: 'journey', destination: order.destination } } },
+  };
 }

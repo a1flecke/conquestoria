@@ -97,6 +97,12 @@ export interface PreparedMajorCivPlan {
   forceDemands: AIForceDemand[];
   traces: AIDecisionTrace[];
   nationalIntent: NationalIntentState;
+  /**
+   * #1693: the best expansion site this civ knows of when the primary plan is something else. A settler is
+   * no combat asset, so it must not wait for the single primary slot: an idle settler is sent here
+   * (`basic-ai.ts`). Null when the primary plan is the expansion itself, or no site is known.
+   */
+  settlementSite?: { id: string; anchor: HexCoord } | null;
 }
 
 export interface ProcessMajorCivStrategicTurnResult {
@@ -1216,5 +1222,26 @@ export function prepareMajorCivStrategicPlan(
     forceDemands,
     traces: [choice.trace, intentTrace],
     nationalIntent,
+    settlementSite: sideSettlementSite(candidates, preparedAssignments.portfolio.primaryPlan),
   };
+}
+
+/**
+ * #1693: expansion needs only a settler, which no other plan uses, yet it competed for the one primary plan.
+ * ai-3 in `lh-late-era-medium` kept a settler idle beside its one city for ~150 rounds while a resource plan and
+ * then a 35-round `repel` held the slot, so the city never grew and research stalled. The site comes from the
+ * same fog-bounded candidate list the primary choice reads; legality is still `canFoundCityAt` on arrival.
+ */
+export function sideSettlementSite(
+  candidates: readonly AIObjectiveCandidate[],
+  primaryPlan: AIStrategicPlan | null,
+): { id: string; anchor: HexCoord } | null {
+  if (primaryPlan?.objective === 'expand') return null;
+  const expand = candidates.find(candidate =>
+    candidate.objective === 'expand'
+    && candidate.target.kind === 'region'
+    && Number.isFinite(candidate.travelTurns));
+  return expand && expand.target.kind === 'region'
+    ? { id: expand.target.id, anchor: { ...expand.target.anchor } }
+    : null;
 }
