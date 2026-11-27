@@ -6,6 +6,7 @@ import type {
   HomelandChoice,
   MapScript,
   StartPlacementMode,
+  StartPreference,
   Unit,
 } from '@/core/types';
 import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
@@ -22,8 +23,10 @@ import {
 import { isValidStartTile } from '@/systems/map-validation';
 import { createStartQualityIndex } from '@/systems/start-quality';
 import { getPolarRowBand } from '@/systems/geo-latitude';
-import { START_SELECTION, selectStartSites, type ScoredSite } from '@/systems/start-site-selection';
+import { selectStartSites, type ScoredSite } from '@/systems/start-site-selection';
 import { MIN_CITY_CENTER_DISTANCE } from '@/systems/city-territory-system';
+import { LEGACY_START_STYLE_RULES, type StartStyleRules } from '@/systems/start-style';
+import { assignStartsByPreference } from '@/systems/start-preferences';
 
 export interface StartAssignment {
   civilizationTypeId: string;
@@ -55,6 +58,10 @@ export interface StartPlacementInput {
   mode: StartPlacementMode;
   seed: string;
   candidateHexes?: Set<string>;
+  /** Start style (design 2026-11-25, B3); absent places starts as before the setting existed. */
+  style?: StartStyleRules;
+  /** One entry per civilization in `civilizationTypeIds` order. */
+  startPreferences?: ReadonlyArray<readonly StartPreference[] | undefined>;
 }
 
 function isGeographicMapScript(script: MapScript): script is GeographicMapScript {
@@ -100,6 +107,10 @@ function minimumDistance(positions: HexCoord[], map: GameMap): number | null {
   return result;
 }
 
+function styleOf(input: StartPlacementInput): StartStyleRules {
+  return input.style ?? LEGACY_START_STYLE_RULES;
+}
+
 function assignBalancedSites(
   input: StartPlacementInput,
   sites: ScoredSite[],
@@ -109,6 +120,23 @@ function assignBalancedSites(
       ? getGeographicStartAnchor(input.mapScript, input.mapSize, civ)
       : null,
   );
+  const { preferenceWeight } = styleOf(input);
+  if (preferenceWeight > 0) {
+    // With a start style, preferences join the homeland distance in one assignment (design 2026-11-25, B3).
+    const siteIndexOf = assignStartsByPreference({
+      map: input.map,
+      sites: sites.map(site => site.coord),
+      preferences: input.civilizationTypeIds.map((_, index) => input.startPreferences?.[index]),
+      weight: preferenceWeight,
+      anchors,
+    });
+    return input.civilizationTypeIds.map((civilizationTypeId, index) => ({
+      civilizationTypeId,
+      position: { ...sites[siteIndexOf[index]].coord },
+      historicalAnchor: anchors[index],
+      usedFallback: anchors[index] === null,
+    }));
+  }
   let bestPositions: HexCoord[] | null = null;
   let bestCost = Infinity;
   let bestTie = Infinity;
@@ -178,7 +206,9 @@ function placeHistorical(
       fixed: anchors,
       minSeparation,
       minFromFixed: MIN_CITY_CENTER_DISTANCE,
-      band: START_SELECTION.varietyBand,
+      band: styleOf(input).band,
+      pickNoise: styleOf(input).pickNoise,
+      preferEven: styleOf(input).preferEven,
       rng: placementRng(input),
     });
     const spaced = select(MIN_MAJOR_CIV_START_DISTANCE);
@@ -225,7 +255,9 @@ export function placeCivilizationStarts(input: StartPlacementInput): StartPlacem
     count: input.civilizationTypeIds.length,
     minSeparation: MIN_MAJOR_CIV_START_DISTANCE,
     minFromFixed: MIN_MAJOR_CIV_START_DISTANCE,
-    band: START_SELECTION.varietyBand,
+    band: styleOf(input).band,
+      pickNoise: styleOf(input).pickNoise,
+      preferEven: styleOf(input).preferEven,
     rng: placementRng(input),
   });
   if (!selection.ok) {

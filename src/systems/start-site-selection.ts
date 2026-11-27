@@ -21,6 +21,9 @@ export const START_SELECTION = {
   candidateCap: 400,
   firstPickPool: 32,
   varietyBand: 0.15,
+  pickNoise: 0.05,
+  /** With `preferEven`, the share of qualifying layouts (the most even ones) the draw is made from. */
+  evenShare: 0.25,
 } as const;
 
 export interface SiteSelectionInput {
@@ -35,8 +38,15 @@ export interface SiteSelectionInput {
   minSeparation: number;
   /** Minimum distance between a new site and a fixed one. */
   minFromFixed: number;
-  /** Solutions whose weakest score is within this fraction of the best qualify. */
+  /** Solutions whose weakest score is within this fraction of the best qualify (`Infinity`: every solution). */
   band: number;
+  /** Seeded noise added to each greedy pick, in score points; more noise explores more different layouts. */
+  pickNoise?: number;
+  /**
+   * Fair start style: among the qualifying layouts, draw only from the most even ones (the smallest gap between the
+   * strongest and the weakest start), so the band lifts the weakest start and this reins in the strongest.
+   */
+  preferEven?: boolean;
   rng: () => number;
 }
 
@@ -46,6 +56,7 @@ export type SiteSelectionResult =
 
 export function selectStartSites(input: SiteSelectionInput): SiteSelectionResult {
   const { map, count, minSeparation, minFromFixed, band, rng } = input;
+  const pickNoise = input.pickNoise ?? START_SELECTION.pickNoise;
   const fixed = input.fixed ?? [];
   if (count <= 0) return { ok: true, sites: [], weakestScore: Infinity };
 
@@ -67,7 +78,7 @@ export function selectStartSites(input: SiteSelectionInput): SiteSelectionResult
 
   function run(pool: ScoredSite[]): SiteSelectionResult {
 
-  const solutions: Array<{ sites: ScoredSite[]; weakest: number; total: number; key: string }> = [];
+  const solutions: Array<{ sites: ScoredSite[]; weakest: number; strongest: number; total: number; key: string }> = [];
   let maximumPlaced = 0;
   for (let pass = 0; pass < START_SELECTION.passes; pass++) {
     const first = pool[Math.floor(rng() ** 2 * Math.min(START_SELECTION.firstPickPool, pool.length))];
@@ -77,7 +88,7 @@ export function selectStartSites(input: SiteSelectionInput): SiteSelectionResult
       let bestValue = -Infinity;
       for (const candidate of pool) {
         if (chosen.some(site => distance(site.coord, candidate.coord) < minSeparation)) continue;
-        const value = candidate.score + 0.05 * rng();
+        const value = candidate.score + pickNoise * rng();
         if (value > bestValue) {
           bestValue = value;
           best = candidate;
@@ -93,6 +104,7 @@ export function selectStartSites(input: SiteSelectionInput): SiteSelectionResult
         solutions.push({
           sites: chosen,
           weakest: Math.min(...chosen.map(site => site.score)),
+          strongest: Math.max(...chosen.map(site => site.score)),
           total: chosen.reduce((sum, site) => sum + site.score, 0),
           key,
         });
@@ -102,11 +114,17 @@ export function selectStartSites(input: SiteSelectionInput): SiteSelectionResult
 
   if (solutions.length === 0) return { ok: false, maximumPlaced };
   const bestWeakest = Math.max(...solutions.map(solution => solution.weakest));
-  const threshold = bestWeakest - Math.abs(bestWeakest) * band;
+  // An unbounded band (Wild) admits every layout; `0 * Infinity` would be NaN, so it is not computed.
+  const threshold = Number.isFinite(band) ? bestWeakest - Math.abs(bestWeakest) * band : -Infinity;
   const qualifying = solutions
     .filter(solution => solution.weakest >= threshold)
     .sort((a, b) => b.weakest - a.weakest || b.total - a.total || (a.key < b.key ? -1 : 1));
-  const picked = qualifying[Math.floor(rng() * qualifying.length)];
+  const drawFrom = input.preferEven
+    ? [...qualifying]
+      .sort((a, b) => (a.strongest - a.weakest) - (b.strongest - b.weakest) || (a.key < b.key ? -1 : 1))
+      .slice(0, Math.max(1, Math.ceil(qualifying.length * START_SELECTION.evenShare)))
+    : qualifying;
+  const picked = drawFrom[Math.floor(rng() * drawFrom.length)];
   return { ok: true, sites: picked.sites, weakestScore: picked.weakest };
   }
 }

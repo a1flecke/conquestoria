@@ -9,6 +9,8 @@ import type { GovernancePolicyId } from '@/systems/governance-types';
 import type { HexCoord } from './types/hex';
 import type { HomelandChoice } from './types/homeland';
 export type { HomelandChoice, HomelandOption } from './types/homeland';
+import type { StartPreference, StartStyle } from './types/start-style';
+export type { StartPreference, StartStyle } from './types/start-style';
 import type { ResourceType, ImprovementType, WorkerActionType } from './types/resources';
 import type { AiGameState, AIStrategicRole, OpponentChallenge } from './types/ai';
 import type {
@@ -1220,6 +1222,11 @@ export interface CivDefinition {
   bonusDescription: string;
   bonusEffect: CivBonusEffect;
   personality: PersonalityTraits;
+  /**
+   * Land this civilization leans toward when starts are assigned (design 2026-11-25, B3). Data only: it changes which
+   * civilization gets which already-chosen start, never which sites are chosen and never the start floor.
+   */
+  startPreferences?: StartPreference[];
 }
 
 export type CustomCivPrimaryTraitId =
@@ -2277,6 +2284,13 @@ export interface GameSettings {
    * until the choice panel ships, so every existing save and new game plays as before.
    */
   homelandPicker?: 'off' | 'on';
+  /**
+   * Start style (design 2026-11-25, B3): how close to the best layout starts must be, how strongly civilizations lean
+   * toward land that suits them, and whether weak starts are topped up. Chosen at creation only. Optional: absent on
+   * every existing save and on a game created without it, which places starts exactly as before this setting
+   * existed; the setup screens send it (solo Varied, hot seat Fair). Read it through `resolveStartStyleRules`.
+   */
+  startStyle?: StartStyle;
   advisorsEnabled: Record<AdvisorType, boolean>;
   councilTalkLevel: CouncilTalkLevel;
   customCivilizations?: CustomCivDefinition[];

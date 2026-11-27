@@ -178,7 +178,7 @@ describe('hotseat-setup', () => {
     click('#hs-review-start');
 
     const config = onComplete.mock.calls[0]![0];
-    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'off', homelandPicker: 'on' });
+    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'off', homelandPicker: 'on', startStyle: 'fair' });
   });
 
   it('offers city-state graduation off by default and threads an On choice into settingsOverrides (#497)', () => {
@@ -206,7 +206,39 @@ describe('hotseat-setup', () => {
     click('#hs-review-start');
 
     const config = onComplete.mock.calls[0]![0];
-    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'on', homelandPicker: 'on' });
+    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'on', homelandPicker: 'on', startStyle: 'fair' });
+  });
+
+  it('offers Fair starts by default and threads a Wild choice without dropping the others (#1837)', () => {
+    const onComplete = vi.fn();
+    showHotSeatSetup(document.body, { onComplete, onCancel: vi.fn() });
+
+    click('[data-size="medium"]');
+    advanceThroughMapType();
+    click('[data-count="2"]');
+    click('[data-ai-count="2"]');
+    click('#hs-names-next');
+    chooseCiv('england');
+    click('#hs-civ-ready');
+    click('.civ-card[data-civ-id="germany"]');
+    click('#civ-start');
+    click('#hs-personal-challenge-next');
+
+    expect(document.querySelector('[data-start-style-option="fair"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.querySelector('[data-start-style-option="varied"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(document.body.textContent).toContain('as even as the map allows');
+    click('[data-start-style-option="wild"]');
+    expect(document.querySelector('[data-start-style-option="wild"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.querySelector('[data-start-style-option="fair"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(document.body.textContent).toContain('Any start that meets the minimum');
+    // Every other card rewrites the override object from the same builder; none may drop the start style.
+    click('[data-homeland-option="off"]');
+    click('[data-graduation-option="on"]');
+    click('[data-superweapons-option="off"]');
+    click('#hs-review-start');
+
+    const config = onComplete.mock.calls[0]![0];
+    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'on', homelandPicker: 'off', startStyle: 'wild' });
   });
 
   it('offers the turn-1 homeland choice on by default and threads an Off choice without dropping the others (#1837)', () => {
@@ -235,7 +267,7 @@ describe('hotseat-setup', () => {
     click('#hs-review-start');
 
     const config = onComplete.mock.calls[0]![0];
-    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'on', homelandPicker: 'off' });
+    expect(config.settingsOverrides).toEqual({ superweapons: 'off', cityStateGraduation: 'on', homelandPicker: 'off', startStyle: 'fair' });
   });
 
   it('reserves capacity for an explicitly chosen AI instead of offering every seat to humans', () => {
