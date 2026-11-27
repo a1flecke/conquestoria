@@ -223,7 +223,6 @@ describe('isV2NativeUnit', () => {
 describe('#708 mounted and beast native sprites', () => {
   const ISSUE_708_NATIVE = {
     beast_handler: 'hound',
-    war_elephant: 'animal',
   } as const;
   const FACTIONS = ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate'];
 
@@ -243,10 +242,6 @@ describe('#708 mounted and beast native sprites', () => {
       'cq-command-staff', 'cq-command-leash', 'cq-hound-body', 'cq-hound-head', 'cq-hound-tail',
       'cq-hound-ears', 'cq-leg-fl', 'cq-leg-fr', 'cq-leg-bl', 'cq-leg-br',
     ],
-    war_elephant: [
-      'cq-elephant-body', 'cq-elephant-head', 'cq-elephant-ear', 'cq-elephant-trunk', 'cq-elephant-tusks',
-      'cq-howdah', 'cq-howdah-crew', 'cq-howdah-standard', 'cq-leg-fl', 'cq-leg-fr', 'cq-leg-bl', 'cq-leg-br',
-    ],
   };
 
   it.each(Object.entries(REQUIRED_READABLE_HOOKS))('%s exposes every readable-anatomy hook for every faction', (type, hooks) => {
@@ -258,12 +253,10 @@ describe('#708 mounted and beast native sprites', () => {
     }
   });
 
-  it('removes the arbitrary handler targeting sigil and the detached elephant standard', () => {
+  it('removes the arbitrary handler targeting sigil', () => {
     const handler = getUnitSpriteV2('beast_handler', 'imperials')!;
-    const elephant = getUnitSpriteV2('war_elephant', 'imperials')!;
 
     expect(handler).not.toContain('cq-command-sigil');
-    expect(elephant).not.toContain('cq-rune-standard');
   });
 
   it('anchors the handler staff at the visible hand rather than its ground tip', () => {
@@ -534,7 +527,7 @@ describe('full building coverage — every type returns a cq-sprite-wrap for imp
 // (tinted spritesheets) and live-fallback units are separate follow-ups.
 const COMBAT_UNITS_AWAITING_WOUND_ART: readonly string[] = [
   'galley', 'trireme', 'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative',
-  'spy_hacker', 'scout_hound', 'shadow_warden', 'war_hound', 'beast_handler', 'war_elephant',
+  'spy_hacker', 'scout_hound', 'shadow_warden', 'war_hound', 'beast_handler',
   'armored_car', 'catapult', 'trebuchet', 'ballista', 'rocket_artillery',
   'battleship', 'missile_cruiser', 'main_battle_tank',
   'supercarrier', 'naval_strike_aircraft', 'combat_drone', 'autonomous_frigate', 'exosuit_infantry',

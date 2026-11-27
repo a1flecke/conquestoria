@@ -1,0 +1,118 @@
+{
+ "id": "war_elephant",
+ "family": "mounted",
+ "prompt": {
+  "name": "War Elephant",
+  "look": "a large grey-skinned war elephant in a hand-painted historical strategy style, with curved ivory tusks fitted with bronze caps, a bronze-studded leather head guard, a red cloth blanket over its back and a wooden howdah tower on top with a mahout driving at the neck and an archer standing in the howdah holding a recurve bow upright in his left hand with the bowstring toward him, and a nocked arrow resting on the string; the elephant stands in side view facing right",
+  "team_area": "the red blanket under the howdah and the howdah banner",
+  "identity": "the same elephant, tusk caps, head guard, howdah, mahout, archer and red blanket",
+  "damage_gear": "a scuffed blanket, scratched head guard and a few arrows stuck in the howdah",
+  "damage_gear_critical": "a torn blanket, a cracked head guard, a splintered howdah and a broken bow",
+  "theme": "ancient war elephant with a howdah, mahout and archer crew",
+  "coat": "The elephant has a mid grey skin with no red or brown tones, so it does not trigger the red team-colour key.",
+  "weapon_pose": "The archer stands in the howdah holding the bow upright and vertical in his left hand, the limbs curving forward, with an arrow nocked on the string and pointing forward and slightly up. The bow is never pointed down.",
+  "attack_frames": 6,
+  "attack": "(1) ready; (2) the elephant lifts its trunk; (3) rears its head back; (4) swings its head and tusks forward as the archer draws; (5) follow-through with the archer releasing; (6) recover to ready. No arrow is drawn flying away.",
+  "defeat_prop": "the broken bow lying beside the resting elephant"
+ },
+ "frame": {
+  "height": 192,
+  "baseline": 176,
+  "restHeight": 144
+ },
+ "tint": {
+  "hue_ranges": [
+   [
+    0,
+    0.045
+   ],
+   [
+    0.955,
+    1
+   ]
+  ],
+  "min_sat": 0.45,
+  "min_val": 0.18
+ },
+ "states": [
+  {
+   "state": "idle",
+   "file": "a",
+   "cells": 1,
+   "fps": 4,
+   "anchor": "torso"
+  },
+  {
+   "state": "damage",
+   "file": "b",
+   "cells": 4,
+   "grid": [
+    2,
+    2
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "torso"
+  },
+  {
+   "state": "walkrig",
+   "cells": 8,
+   "fps": 10,
+   "anchor": "torso",
+   "rig": {
+    "kind": "mounted",
+    "sources": [
+     "a",
+     "b#0",
+     "b#1",
+     "b#2",
+     "b#3"
+    ]
+   }
+  },
+  {
+   "state": "attack",
+   "file": "c",
+   "cells": 6,
+   "grid": [
+    3,
+    3
+   ],
+   "fps": 9,
+   "loop": false,
+   "restFrames": [
+    0,
+    5
+   ]
+  },
+  {
+   "state": "hit",
+   "file": "d",
+   "cells": 4,
+   "grid": [
+    2,
+    2
+   ],
+   "fps": 8,
+   "restFrames": [
+    0,
+    3
+   ],
+   "loop": false
+  },
+  {
+   "state": "defeat",
+   "file": "e",
+   "cells": 4,
+   "grid": [
+    2,
+    2
+   ],
+   "fps": 5,
+   "restFrames": [
+    0
+   ],
+   "loop": false
+  }
+ ]
+}
