@@ -190,7 +190,12 @@ describe('sprite load scheduling (#1439 phase 4)', () => {
     const failing = initSprites({ a: '#4a90d9' }, allSpriteDemand(['a']));
     const outcome = failing.then(() => 'resolved', () => 'rejected');
     await flush();
-    await settle(1, 'error');
+    // Fail a sprite image specifically: PNG-baked units also load a spritesheet, and a failed sheet does not reject the load.
+    const failedSprite = pending.findIndex(image => (image as unknown as Record<symbol, unknown>)[Symbol.for('conquestoria.spriteDiagnostic')]);
+    expect(failedSprite).toBeGreaterThanOrEqual(0);
+    const [broken] = pending.splice(failedSprite, 1);
+    broken.onerror?.(new Event('error'));
+    await flush();
     expect(await outcome).toBe('rejected');
     await settleAll();
 
