@@ -138,21 +138,23 @@ test('moving a member out of the crowded stack preserves its rendered size', asy
   expect(moved.box.height).toBeCloseTo(before.height, 1);
 });
 
-test('with motion allowed, DOM sprites run their idle animations', async ({ page }) => {
-  // The suite defaults to reduced motion (playwright.config.ts); this is the one spec that proves
-  // the sprite animation stylesheets are actually loaded and applied in a real browser. They were
-  // silently dropped from the app entry in #787 phase 10 (fixed by #1438), freezing every sprite.
+test('with motion allowed, painted sprites are styled by the loaded PNG player stylesheet', async ({ page }) => {
+  // The suite defaults to reduced motion (playwright.config.ts); this spec proves the sprite stylesheets are actually
+  // loaded and applied in a real browser. They were silently dropped from the app entry in #787 phase 10 (fixed by #1438),
+  // freezing every sprite. Every unit in this save is a painted strip unit, and a strip unit's idle is one held frame, so
+  // the observable proof is the player's own layer rules (absolute cell, no-repeat sheet) and its static-clip rule,
+  // not a running animation.
   test.slow();
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await installFixture(page);
   await continueFixture(page);
 
   await expect(page.locator('#sprite-overlay')).toHaveAttribute('data-reduced-motion', 'false');
-  // Every unit in this save is a painted strip unit now, so the stylesheet that has to be live is the PNG player's.
-  const figure = page.locator('#unit-sprites .cq-png-layer').first();
-  await expect(figure).toHaveCSS('animation-name', /^cq-png-play-/);
-  const duration = await figure.evaluate(element => getComputedStyle(element).animationDuration);
-  expect(Number.parseFloat(duration)).toBeGreaterThan(0);
+  const layer = page.locator('#unit-sprites .cq-png-layer').first();
+  await expect(layer).toHaveCSS('position', 'absolute');
+  await expect(layer).toHaveCSS('background-repeat', 'no-repeat');
+  await expect(page.locator('#unit-sprites .cq-png[data-png-static="true"]').first()).toBeAttached();
+  await expect(layer).toHaveCSS('animation-name', 'none');
 });
 
 test('mobile reduced motion keeps static DOM sprites and the crowded map usable', async ({ page }, testInfo) => {
