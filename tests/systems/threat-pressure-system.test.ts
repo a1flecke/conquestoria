@@ -455,6 +455,37 @@ describe('independent threat pressure governor', () => {
       .toEqual(['pirate:pirate-1', 'pirate:pirate-2']);
   });
 
+  it('does not count a camp defending itself against someone else as a threat to a nearby human (#1693)', () => {
+    // Found by the long-horizon matrix: a resurgent camp 7 tiles from a human capital switched from patrol to
+    // defending itself against a city-state's axeman, and became a third independent threat to the human.
+    let state = makePressureState('standard');
+    addPirateThreat(state, 'pirate-1', 'player-1');
+    addPirateThreat(state, 'pirate-2', 'player-2');
+    state = reserveIndependentThreatForHumans(state, 'pirate:pirate-2', ['player-1']);
+    const camp = { id: 'camp-7', position: { q: 6, r: 0 }, strength: 6, spawnCooldown: 2 };
+    state.barbarianCamps[camp.id] = camp;
+    const garrison = createUnit('warrior', 'barbarian', camp.position, state.idCounters);
+    state.units[garrison.id] = garrison;
+    const intruder = createUnit('warrior', 'player-2', { q: 7, r: 0 }, state.idCounters);
+    state.units[intruder.id] = intruder;
+    state.civilizations['player-2'].units.push(intruder.id);
+
+    const barbarians = processPurposefulBarbarians(state);
+    expect(barbarians.opponentAI.barbarianCamps[camp.id]).toMatchObject({
+      objective: 'defend',
+      target: { kind: 'unit', id: intruder.id },
+    });
+    state.opponentAI = barbarians.opponentAI;
+
+    const result = processIndependentThreatPressure(state, new EventBus());
+
+    expect(result.opponentAI!.pressureByCiv['player-1'].activeIndependentThreatIds)
+      .toEqual(['pirate:pirate-1', 'pirate:pirate-2']);
+    // The camp is aimed at player-2's unit, so it is player-2's threat.
+    expect(result.opponentAI!.pressureByCiv['player-2'].activeIndependentThreatIds)
+      .toContain(`barbarian:${camp.id}`);
+  });
+
   it('starts a shared resurgence only when every newly affected human has cap room', () => {
     const makeEligible = () => {
       const state = makePressureState('explorer');
