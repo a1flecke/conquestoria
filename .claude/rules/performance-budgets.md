@@ -74,6 +74,14 @@ count on `96fb08e9` — see the #1007 follow-up issues. Those guards only catch 
 *further* regression; the follow-ups own tightening them once the underlying
 `getMovementRangeDetails` / world-phase pathfinding cost is reduced.
 
+### AI-round search cost is per search, not a fixture ratio (#1837)
+
+`aiRound` heap pops are guarded two ways: the absolute budget on the larger fixture (volume, which
+the AI's choices legitimately move) and GUARD 3b's per-search cost on each fixture, read from the
+`findPath` spy: heap pops per step of the routes found, and heap pops per search that found nothing.
+Do not reintroduce an e2/e1 ratio of total heap pops: the larger fixture closes more land to passage,
+so its searches include real long detours, and a ratio of totals measures that, not search cost.
+
 ### Storage key-existence rule (#1830)
 
 Never call `dbGet<GameState>()` just to test whether a persisted save exists (`listLoadableAutosaveMetas`, `hasAutoSave`, `rewriteLoadedSaveEntryNow`). Check presence against `dbGetAllKeys()` so autosave listing and per-turn housekeeping never deserialize full multi-megabyte `GameState` payloads. Pinned by `tests/storage/save-manager.test.ts`.
