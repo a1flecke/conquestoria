@@ -928,7 +928,8 @@
     "tests/systems/wonder-codex/related.test.ts": 4.41748046875,
     "tests/systems/wonder-codex/sources.test.ts": 50.800048828125,
     "tests/systems/wonder-spectacle/presentation.test.ts": 1.162353515625,
-    "tests/systems/wonder-spectacle/recipes.test.ts": 15.56201171875
+    "tests/systems/wonder-spectacle/recipes.test.ts": 15.56201171875,
+    "tests/systems/war-stalemate.test.ts": 210.69287109375
   },
   "shards": {
     "test-suite-shard-a": [
@@ -1580,6 +1581,7 @@
       "tests/systems/viewer-intel.test.ts",
       "tests/systems/village-visit-rng-983.test.ts",
       "tests/systems/war-history-system.test.ts",
+      "tests/systems/war-stalemate.test.ts",
       "tests/systems/wonder-definitions.test.ts",
       "tests/systems/world-pressure-eligibility.test.ts",
       "tests/systems/world-pressure-presentation.test.ts",
