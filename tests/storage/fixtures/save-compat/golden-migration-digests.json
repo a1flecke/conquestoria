@@ -2638,7 +2638,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "real archived save — issue #365 crowded map, turn 42, unversioned": {
-    "__whole": "1e1429304404",
+    "__whole": "acc05c2d1630",
     "autonomyByCiv": "d1687a2059af",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "951e103a4b9b",
@@ -2654,7 +2654,7 @@
     "discoveredWonders": "44136fa355b3",
     "dominationIntel": "44136fa355b3",
     "embargoes": "4f53cda18c2b",
-    "era": "4e07408562be",
+    "era": "6b86b273ff34",
     "espionage": "edc2afffcf48",
     "gameId": "61a3a4b184c9",
     "gameOver": "fcbcf165908d",
@@ -2684,7 +2684,7 @@
     "tribalVillages": "cde301326d80",
     "turn": "73475cb40a56",
     "tutorial": "af2243419f53",
-    "units": "e35341845dac",
+    "units": "b7b04083ff8f",
     "winner": "74234e98afe7",
     "wonderDiscoverers": "44136fa355b3"
   },
