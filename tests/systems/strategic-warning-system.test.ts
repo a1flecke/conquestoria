@@ -177,6 +177,46 @@ describe('strategic warning transition derivation', () => {
     expect(warning.targetLabel).toBeUndefined();
   });
 
+  it('warns once when a visible force is already advancing on one of our cities (#1693)', () => {
+    // Found by the long-horizon matrix: a war-continuing capture plan starts in 'advancing' and never passes through
+    // 'mobilizing', so the human lost a city to crossbowmen in plain view with no warning at all.
+    const { before, after, aiId, aiUnitId } = fixture();
+    const unit = after.units[aiUnitId];
+    setVisibility(after, 'player', unit.position, 'visible');
+    const playerCity = Object.values(after.cities).find(city => city.owner === 'player')!;
+    const target = { kind: 'city' as const, id: playerCity.id, lastKnownPosition: playerCity.position };
+    after.opponentAI!.majorCivs[aiId].primaryPlan = makePlan(aiId, aiUnitId, target, 'advancing');
+
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([
+      expect.objectContaining({ kind: 'advancing', evidence: 'visible', targetLabel: playerCity.name }),
+    ]);
+    expect(presentStrategicWarning(deriveStrategicWarningTransitions(before, after, 'player')[0]!).message)
+      .toContain(`advancing on ${playerCity.name}`);
+
+    // The next round the same visible advance (even re-planned under a new id) is old news.
+    const later = structuredClone(after);
+    later.turn += 1;
+    later.opponentAI!.majorCivs[aiId].primaryPlan = { ...makePlan(aiId, aiUnitId, target, 'attacking'), id: 'replanned' };
+    expect(deriveStrategicWarningTransitions(after, later, 'player')).toEqual([]);
+  });
+
+  it('does not warn about an advance aimed at someone else, or one the viewer cannot see', () => {
+    const { before, after, aiId, aiUnitId } = fixture();
+    const aiCity = Object.values(after.cities).find(city => city.owner === aiId)!;
+    setVisibility(after, 'player', after.units[aiUnitId].position, 'visible');
+    after.opponentAI!.majorCivs[aiId].primaryPlan = makePlan(aiId, aiUnitId, {
+      kind: 'city', id: aiCity.id, lastKnownPosition: aiCity.position,
+    }, 'advancing');
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
+
+    const playerCity = Object.values(after.cities).find(city => city.owner === 'player')!;
+    setVisibility(after, 'player', after.units[aiUnitId].position, 'fog');
+    after.opponentAI!.majorCivs[aiId].primaryPlan = makePlan(aiId, aiUnitId, {
+      kind: 'city', id: playerCity.id, lastKnownPosition: playerCity.position,
+    }, 'advancing');
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
+  });
+
   it('includes an exact target only when that target is viewer-safe', () => {
     const { before, after, aiId, aiUnitId } = fixture();
     const unit = after.units[aiUnitId];
