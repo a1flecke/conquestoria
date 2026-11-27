@@ -296,4 +296,28 @@ describe('TouchHandler pinch transitions', () => {
     expect(th.isPinching).toBe(false);
     th.destroy();
   });
+
+  it('#1830: treats a slow single-finger pan (small per-event deltas totaling > 5px) as panning, never a tap or long-press', () => {
+    vi.useFakeTimers();
+    const canvas = document.createElement('canvas');
+    const camera = makeSpyCamera();
+    const onHexTap = vi.fn();
+    const onHexLongPress = vi.fn();
+    const th = new TouchHandler(canvas, camera, { onHexTap, onHexLongPress });
+
+    const start = touchAt(100, 100);
+    dispatchTouch(canvas, 'touchstart', { touches: [start], changedTouches: [start], timeStamp: 100 });
+    for (let step = 1; step <= 8; step++) {
+      const moved = touchAt(100 + step * 2, 100);
+      dispatchTouch(canvas, 'touchmove', { touches: [moved], changedTouches: [moved], timeStamp: 100 + step * 15 });
+    }
+    vi.advanceTimersByTime(600);
+    const end = touchAt(116, 100);
+    dispatchTouch(canvas, 'touchend', { touches: [], changedTouches: [end], timeStamp: 240 });
+
+    expect(onHexTap).not.toHaveBeenCalled();
+    expect(onHexLongPress).not.toHaveBeenCalled();
+    expect(camera.pans.reduce((sum: number, p: PanCall) => sum + p.dx, 0)).toBe(16);
+    th.destroy();
+  });
 });

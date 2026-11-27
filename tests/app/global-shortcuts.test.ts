@@ -90,4 +90,23 @@ describe('installGlobalShortcuts', () => {
 
     expect(router.toggle).not.toHaveBeenCalled();
   });
+
+  it('#1830: ignores modified backtick shortcuts (e.g. Cmd+`) and typing inside form fields', () => {
+    const selection = createSelectionStub(() => ({ kind: 'none' }));
+    const router: PanelRouter = {
+      toggle: vi.fn(), open: vi.fn(), close: vi.fn(), closeGroup: vi.fn(), isOpen: vi.fn(() => false),
+    };
+    const notifier = { toast: vi.fn() } as unknown as Notifier;
+    const target = document.createElement('div');
+    const input = document.createElement('input');
+    target.appendChild(input);
+
+    installGlobalShortcuts({ target, selection, router, notifier });
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: '`', metaKey: true, bubbles: true }));
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: '`', ctrlKey: true, bubbles: true }));
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: '`', altKey: true, bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: '`', bubbles: true }));
+
+    expect(router.toggle).not.toHaveBeenCalled();
+  });
 });

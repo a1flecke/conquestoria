@@ -18,7 +18,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
   }
-  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
 }
 
 /** A control inside an open dialog owns the keyboard: a letter must not end the turn behind it (#1459). */
@@ -32,6 +32,9 @@ export function installKeyboardShortcuts(
   options: KeyboardShortcutOptions = {},
 ): void {
   target.addEventListener('keydown', event => {
+    if (event.metaKey || event.ctrlKey || event.altKey) {
+      return;
+    }
     if (isTypingTarget(event.target) || isInsideDialog(event.target)) {
       return;
     }

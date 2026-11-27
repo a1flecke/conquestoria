@@ -26,17 +26,30 @@ export interface GlobalShortcutsDeps {
   readonly notifier: Notifier;
 }
 
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (typeof HTMLElement === 'undefined' || !(target instanceof HTMLElement)) {
+    return false;
+  }
+  return target.tagName === 'INPUT'
+    || target.tagName === 'TEXTAREA'
+    || target.tagName === 'SELECT'
+    || target.isContentEditable;
+}
+
 export function installGlobalShortcuts(deps: GlobalShortcutsDeps): () => void {
   const { target, selection, router, notifier } = deps;
 
   const handler = (event: Event): void => {
     const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.metaKey || keyboardEvent.ctrlKey || keyboardEvent.altKey) {
+      return;
+    }
     if (keyboardEvent.key === 'Escape' && selection.getPendingIntent().kind === 'journey') {
       selection.setPendingIntent({ kind: 'none' });
       notifier.toast('Journey cancelled.', 'info');
       return;
     }
-    if (keyboardEvent.key !== '`') {
+    if (keyboardEvent.key !== '`' || isTypingTarget(keyboardEvent.target)) {
       return;
     }
     router.toggle('pacing-debug');
