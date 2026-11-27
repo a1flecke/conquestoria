@@ -79,16 +79,15 @@ export function getEntitledTradeDestinations(
   if (!unit || !isTradeTraderType(unit.type)) return [];
 
   const rows: EntitledTradeDestination[] = [];
-  // The trader's current origin is context, not a destination: a route needs two different cities.
-  const originCityId = resolveTradeOrigin(state, unit)?.id;
-  const selectedOriginId = options.originCityId ?? originCityId;
+  // A route needs two different cities, so exclude the chosen origin or the default if none was chosen.
+  const selectedOriginId = options.originCityId ?? resolveTradeOrigin(state, unit)?.id;
   const positioningTurns = selectedOriginId && state.cities[selectedOriginId]?.owner === unit.owner
     ? getRouteLegRounds(state, unit, selectedOriginId) ?? 0
     : 0;
   for (const city of Object.values(state.cities)) {
     // Entitlement: an undiscovered destination does not exist for this viewer.
     if (!hasDiscoveredCity(state, viewerCivId, city.id)) continue;
-    if (city.id === originCityId) continue;
+    if (city.id === selectedOriginId) continue;
 
     const decision = getTradeRouteEligibility(state, {
       caravanUnitId,
