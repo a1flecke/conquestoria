@@ -38,6 +38,26 @@ describe('withPerfProbe', () => {
     expect(counts.pathQueries).toBe(1);
   });
 
+  it('#1837: attributes each search\'s heap pops to its own outcome', () => {
+    const map = tinyMap();
+    const keys = Object.keys(map.tiles).sort();
+    const [aq, ar] = keys[0]!.split(',').map(Number);
+    const [bq, br] = keys[keys.length - 1]!.split(',').map(Number);
+    const from = { q: aq!, r: ar! };
+
+    const { result: route, counts } = withPerfProbe(() => {
+      const found = findPath(from, { q: bq!, r: br! }, map, 'land');
+      findPath(from, { q: 999, r: 999 }, map, 'land'); // off the map: no route
+      return found;
+    });
+
+    expect(route).not.toBeNull();
+    expect(counts.routedSearchSteps).toBe(route!.length);
+    expect(counts.routedSearchPops).toBeGreaterThan(0);
+    expect(counts.failedSearches).toBe(1);
+    expect(counts.routedSearchPops + counts.failedSearchPops).toBe(counts.heapPops);
+  });
+
   it('counts nothing for an empty operation', () => {
     const { counts } = withPerfProbe(() => 42);
     expect(counts).toEqual({
@@ -50,6 +70,10 @@ describe('withPerfProbe', () => {
       blockingEntityAtCalls: 0,
       blockingMapEntityLookupBuilds: 0,
       pathQueries: 0,
+      routedSearchPops: 0,
+      routedSearchSteps: 0,
+      failedSearchPops: 0,
+      failedSearches: 0,
       visibilityPasses: 0,
       cityYieldCalls: 0,
       civEconomyCalls: 0,

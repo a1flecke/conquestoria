@@ -1,6 +1,6 @@
 /**
- * Start outcome matrix (design 2026-11-25, B7): every map script x size x placement mode, solo and hot seat, fixed
- * seeds. Every major-civilization start must pass the `major` start-quality floor (with the real-world polar band on
+ * Start outcome matrix (design 2026-11-25, B7): every map script x size x placement mode, solo and hot seat, plus each
+ * start style (Fair / Varied / Wild) on a generated, a single-continent and two real-world maps, fixed seeds. Every major-civilization start must pass the `major` start-quality floor (with the real-world polar band on
  * geographic maps), every city-state the `city-state` floor, and any two major starts must be at least
  * MIN_CITY_CENTER_DISTANCE apart so every civilization can found its capital.
  *
@@ -12,7 +12,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import type { GameState, HexCoord, MapScript, StartPlacementMode } from '@/core/types';
+import type { GameSettings, GameState, HexCoord, MapScript, StartPlacementMode, StartStyle } from '@/core/types';
 import { createHotSeatGame, createNewGame } from '@/core/game-state';
 import { isGeographicMapScript } from '@/systems/geo-map-data';
 import { getPolarRowBand } from '@/systems/geo-latitude';
@@ -25,7 +25,14 @@ import { preloadGeoMapData } from '../helpers/geo-map-data';
 import { KNOWN_START_VIOLATIONS, startViolationKey } from './start-outcome-known-violations';
 
 type Size = 'small' | 'medium' | 'large';
-interface MatrixConfig { mapScript: MapScript; mapSize: Size; startPlacementMode?: StartPlacementMode; hotSeat?: boolean; homelandPicker?: boolean }
+interface MatrixConfig {
+  mapScript: MapScript;
+  mapSize: Size;
+  startPlacementMode?: StartPlacementMode;
+  hotSeat?: boolean;
+  homelandPicker?: boolean;
+  startStyle?: StartStyle;
+}
 
 const SEEDS = 8;
 const CONFIGS: MatrixConfig[] = [];
@@ -44,9 +51,18 @@ CONFIGS.push({ mapScript: 'balanced', mapSize: 'medium', homelandPicker: true })
 CONFIGS.push({ mapScript: 'earth', mapSize: 'large', startPlacementMode: 'balanced', homelandPicker: true });
 CONFIGS.push({ mapScript: 'balanced', mapSize: 'large', hotSeat: true, homelandPicker: true });
 CONFIGS.push({ mapScript: 'earth', mapSize: 'large', startPlacementMode: 'balanced', hotSeat: true, homelandPicker: true });
+// Start style (design 2026-11-25, B3): the floor and distance rules are identical in every style.
+for (const startStyle of ['fair', 'varied', 'wild'] as const) {
+  CONFIGS.push({ mapScript: 'procedural', mapSize: 'large', startStyle });
+  CONFIGS.push({ mapScript: 'single-continent', mapSize: 'medium', startStyle });
+  CONFIGS.push({ mapScript: 'earth', mapSize: 'large', startPlacementMode: 'balanced', startStyle });
+  CONFIGS.push({ mapScript: 'old-world', mapSize: 'medium', startPlacementMode: 'historical', startStyle });
+}
+CONFIGS.push({ mapScript: 'balanced', mapSize: 'medium', hotSeat: true, homelandPicker: true, startStyle: 'fair' });
+CONFIGS.push({ mapScript: 'earth', mapSize: 'large', startPlacementMode: 'balanced', homelandPicker: true, startStyle: 'wild' });
 
 export function configLabel(config: MatrixConfig): string {
-  return `${config.homelandPicker ? 'homeland:' : ''}${config.hotSeat ? 'hotseat:' : ''}${config.mapScript}/${config.mapSize}/${config.startPlacementMode ?? '-'}`;
+  return `${config.startStyle ? `${config.startStyle}:` : ''}${config.homelandPicker ? 'homeland:' : ''}${config.hotSeat ? 'hotseat:' : ''}${config.mapScript}/${config.mapSize}/${config.startPlacementMode ?? '-'}`;
 }
 
 function civilizationsOffered(config: MatrixConfig): number {
@@ -58,6 +74,14 @@ function offered(config: MatrixConfig): boolean {
   return civilizationsOffered(config) >= (config.hotSeat ? 3 : 2);
 }
 
+function overrides(config: MatrixConfig): { settingsOverrides?: Partial<GameSettings> } {
+  const settingsOverrides: Partial<GameSettings> = {
+    ...(config.homelandPicker ? { homelandPicker: 'on' as const } : {}),
+    ...(config.startStyle ? { startStyle: config.startStyle } : {}),
+  };
+  return Object.keys(settingsOverrides).length > 0 ? { settingsOverrides } : {};
+}
+
 function create(config: MatrixConfig, seed: string): GameState {
   if (config.hotSeat) {
     return createHotSeatGame({
@@ -65,7 +89,7 @@ function create(config: MatrixConfig, seed: string): GameState {
       mapSize: config.mapSize,
       mapScript: config.mapScript,
       startPlacementMode: config.startPlacementMode,
-      ...(config.homelandPicker ? { settingsOverrides: { homelandPicker: 'on' as const } } : {}),
+      ...overrides(config),
       players: [
         { name: 'A', slotId: 'player-1', civType: 'rome', isHuman: true },
         { name: 'B', slotId: 'player-2', civType: 'egypt', isHuman: true },
@@ -83,7 +107,7 @@ function create(config: MatrixConfig, seed: string): GameState {
     mapScript: config.mapScript,
     startPlacementMode: config.startPlacementMode,
     gameTitle: 'matrix',
-    ...(config.homelandPicker ? { settingsOverrides: { homelandPicker: 'on' as const } } : {}),
+    ...overrides(config),
   });
 }
 

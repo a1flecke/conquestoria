@@ -12,7 +12,7 @@ import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import { LEGENDARY_WONDER_DEFINITIONS } from './legendary-wonder-definitions';
 // Start anchors only: the bulk tile/river data is loaded on demand (geo-map-data.ts, #1456).
 import { EARTH_START_POSITIONS } from './earth-start-positions';
-import { createStartQualityIndex } from './start-quality';
+import { createStartQualityIndex, START_SCORE_WEIGHTS } from './start-quality';
 import { START_SELECTION, selectStartSites, type ScoredSite } from './start-site-selection';
 import { OLD_WORLD_START_POSITIONS } from './old-world-start-positions';
 import { NEW_WORLD_START_POSITIONS } from './new-world-start-positions';
@@ -288,6 +288,57 @@ export function guaranteeStartResources(
   guaranteeSpecificWonderResources(map, startPositions, terrainResourceMap, rng);
 }
 
+/**
+ * Fair start style (design 2026-11-25, B3): the early resources that add food or production, read from the resource
+ * data (today cattle and sheep), so a new one is picked up without editing this list.
+ */
+export const FAIR_TOP_UP_RESOURCE_IDS: ReadonlySet<ResourceType> = new Set(
+  RESOURCE_DEFINITIONS
+    .filter(def => (def.effect?.type === 'food' || def.effect?.type === 'production') && !LATE_STRATEGIC_RESOURCE_IDS.has(def.id))
+    .map(def => def.id),
+);
+
+/** At most this many resources are added to one start. */
+export const FAIR_TOP_UP_MAX_PER_START = 2;
+
+/**
+ * Fair start style: every start scoring below the median placed start gets food or production resources within two
+ * hexes (a settler can work them from the capital), one at a time, until it reaches the median, the score stops
+ * counting more resources, or `FAIR_TOP_UP_MAX_PER_START` were added. Scores are read once, before anything is
+ * placed. `placedStarts` set the median; `sites` are topped up (the placed starts plus any reserved homeland
+ * options). Its own seeded stream, so it moves no other placement. Returns how many resources were added.
+ */
+export function normaliseFairStarts(
+  map: GameMap,
+  placedStarts: HexCoord[],
+  sites: HexCoord[],
+  rng: () => number,
+): number {
+  if (placedStarts.length < 2 || FAIR_TOP_UP_RESOURCE_IDS.size === 0) return 0;
+  const quality = createStartQualityIndex(map);
+  const scores = placedStarts.map(start => quality.assess(start).score).sort((a, b) => a - b);
+  const middle = Math.floor(scores.length / 2);
+  const median = scores.length % 2 === 1 ? scores[middle] : (scores[middle - 1] + scores[middle]) / 2;
+  const before = sites.map(site => quality.assess(site));
+  const terrainResourceMap = buildTerrainResourceMap();
+  let added = 0;
+  sites.forEach((site, index) => {
+    let { score, resourceCount } = before[index];
+    const neighbourhood = getCandidateNeighborhood(map, site, 2)
+      .filter(coord => hexKey(coord) !== hexKey(site))
+      .map(coord => ({ coord, tile: map.tiles[hexKey(coord)] }))
+      .filter((item): item is { coord: HexCoord; tile: HexTile } => item.tile !== undefined);
+    for (let placedHere = 0; placedHere < FAIR_TOP_UP_MAX_PER_START; placedHere++) {
+      if (score >= median || resourceCount >= START_SCORE_WEIGHTS.resourceCap) break;
+      if (!guaranteePlaceResource(neighbourhood, new Set(FAIR_TOP_UP_RESOURCE_IDS), terrainResourceMap, site, map, rng)) break;
+      score += START_SCORE_WEIGHTS.resource;
+      resourceCount++;
+      added++;
+    }
+  });
+  return added;
+}
+
 // Specific resource ids (not just "any luxury"/"any strategic") required by any
 // legendary wonder. Derived from wonder data, not hardcoded, so a future wonder
 // introducing a new required resource is picked up automatically.
@@ -457,7 +508,7 @@ export function findStartPositions(
   civTypeIds: string[],
   _mapScript: MapScript,
   _size: 'small' | 'medium' | 'large',
-  options: { seed: string; candidateHexes?: Set<string> },
+  options: { seed: string; candidateHexes?: Set<string>; band?: number; pickNoise?: number; preferEven?: boolean },
 ): HexCoord[] {
   const count = civTypeIds.length;
   const quality = createStartQualityIndex(map);
@@ -477,7 +528,9 @@ export function findStartPositions(
     count,
     minSeparation: minimumDistance,
     minFromFixed: minimumDistance,
-    band: START_SELECTION.varietyBand,
+    band: options.band ?? START_SELECTION.varietyBand,
+    pickNoise: options.pickNoise,
+    preferEven: options.preferEven,
     rng: createRng(`${options.seed}-start-placement`),
   });
   if (!selection.ok) throw new StartPlacementError(count, selection.maximumPlaced, minimumDistance);

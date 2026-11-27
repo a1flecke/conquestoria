@@ -189,7 +189,30 @@ Now there is one definition, and an outcome test that covers every placer.
   selection. `start-viability.ts` remains the in-game "is this start trapped" definition; for placement it is a
   building block of the floor, and its sea-route clause no longer makes a start acceptable.
 
-## Turn-1 homeland choice (#1837, design 2026-11-25 Phase C)
+## Start style: Fair / Varied / Wild (#1837, PR #1847)
+
+- **One table, `START_STYLE_RULES` (`src/systems/start-style.ts`).** Per style: the selection band (Fair 5%, Varied 15%,
+  Wild any legal layout), the greedy pick noise (Wild explores more layouts), `preferEven` (Fair draws only from the
+  most even qualifying layouts, `START_SELECTION.evenShare`), the preference weight and whether weak starts are topped
+  up. The start floor and distance rules are identical in every style; difficulty never changes placement.
+- **Opt-in at the engine, chosen in setup**: `GameSettings.startStyle` is absent on every older save and on
+  `createNewGame`/`createHotSeatGame` without the override, which resolves to `LEGACY_START_STYLE_RULES` (pinned equal
+  to `START_SELECTION`): byte-identical placement, so no fixture moved. The solo setup sends Varied
+  (`data-start-style`), the hot seat review screen Fair (`data-start-style-option`, through `currentSettingsOverrides`).
+  Copy: `src/ui/start-style-copy.ts`.
+- **Civilization preferences** (`CivDefinition.startPreferences`, data only) change which civilization gets which chosen
+  start, never which sites are chosen and never the floor. `assignStartsByPreference` (`start-preferences.ts`) solves
+  one min-cost assignment (`min-cost-assignment.ts`): on generated maps each moved civilization costs `1 / weight`
+  points, on real-world Anywhere placement the homeland distance is the other term. Tolerant tags only cancel the
+  frozen/desert penalty every other civilization pays. True Start homelands are not reassigned.
+- **Fair top-up**: `normaliseFairStarts` (`map-generator.ts`, own seeded stream, after the resource guarantee) gives every
+  start or reserved homeland option scoring below the median placed start up to `FAIR_TOP_UP_MAX_PER_START` food or
+  production resources within two hexes (`FAIR_TOP_UP_RESOURCE_IDS`, read from the resource data).
+- Pinned by `start-style.test.ts`, `start-preferences.test.ts`, `fair-start-top-up.test.ts`,
+  `tests/core/start-style-creation.test.ts` (Fair < Varied < Wild in start spread; preferences reach the assignment)
+  and the style configs of `start-outcome-matrix.test.ts`.
+
+## Turn-1 homeland choice (#1837, PRs #1841 and #1842)
 
 A human may be offered up to three homelands on turn 1 (the placed start plus up to two alternates), solo and hot seat. The AI never chooses.
 
@@ -199,6 +222,20 @@ A human may be offered up to three homelands on turn 1 (the placed start plus up
 - **The choice is derived, never a phase.** `getActiveHomelandChoice` (`start-placement-system.ts`) is live only on turn 1, while the civilization has no city, and while its settler and warrior stand together on `options[selected]`. A stale `Civilization.homelandChoice` in a save is therefore inert; no clearing code or new round phase exists (the phase order is pinned).
 - **One executor.** `confirmHomeland(state, civId, index)` re-runs the active check, validates the index and that the tile is a legal spawn tile, moves both units immutably, rebuilds the civilization's visibility as if the game had started there, and returns a typed `ConfirmHomelandDenial` (`not-active` | `bad-index` | `occupied`) with copy in `CONFIRM_HOMELAND_MESSAGES`. It touches no other seat.
 - Pinned by `tests/systems/homeland-options.test.ts`, `tests/core/homeland-reservation.test.ts`, `tests/systems/homeland-choice.test.ts` and the `homeland:` configs of `start-outcome-matrix.test.ts`. Descriptions (`describeHomelandSite`) read only the land within two hexes, i.e. what a settler sees.
+
+## Start placement: decisions that still hold (#1837)
+
+The design behind the three sections above was deleted once it shipped (git history has it). These calls outlive it:
+
+- **No "re-roll my start" button.** It would regenerate the whole world (or break every start-relative placement), only
+  swap one random start for another, and in hot seat change everyone's game. Player agency is the turn-1 homeland
+  choice instead.
+- **Out of scope by design:** rebalancing terrain yields (the start model simply never counts water as farmland),
+  changing `canFoundCityAt` or the minimum city distance, and touching existing saves (placement runs only at creation,
+  so no migration). The AI never chooses a homeland; it keeps the placer's pick.
+- **Fair is not "identical".** Every style keeps seeded variety (Fair narrows the spread, it never copies one layout),
+  and no style may relax the floor or the distance rules. If the floor cannot be met, the typed failure or map retry
+  fires; there is never a silent fallback to an invalid start.
 
 ## Geographic map data is loaded on demand (#1456)
 

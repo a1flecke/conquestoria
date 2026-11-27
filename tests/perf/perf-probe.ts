@@ -41,6 +41,15 @@ export interface PerfCounts {
   blockingMapEntityLookupBuilds: number;
   /** `findPath` calls (cross-module; internal `findPathToCity`→`findPath` is only in `heapPops`) */
   pathQueries: number;
+  /**
+   * #1837 — per-search cost, independent of how many or how long the searches are:
+   * heap pops spent inside the `findPath` calls that returned a route, and those routes' total steps.
+   */
+  routedSearchPops: number;
+  routedSearchSteps: number;
+  /** heap pops spent inside the `findPath` calls that found no route, and how many there were */
+  failedSearchPops: number;
+  failedSearches: number;
   /** `updateVisibility` calls — full fog recomputations */
   visibilityPasses: number;
   /** `calculateCityYields` calls — per-city economic recompute */
@@ -72,6 +81,10 @@ function emptyCounts(): PerfCounts {
     blockingEntityAtCalls: 0,
     blockingMapEntityLookupBuilds: 0,
     pathQueries: 0,
+    routedSearchPops: 0,
+    routedSearchSteps: 0,
+    failedSearchPops: 0,
+    failedSearches: 0,
     visibilityPasses: 0,
     cityYieldCalls: 0,
     civEconomyCalls: 0,
@@ -193,7 +206,17 @@ export function withPerfProbe<T>(fn: () => T): { result: T; counts: PerfCounts }
   spies.push(
     vi.spyOn(pathfinding, 'findPath').mockImplementation((...args: Parameters<typeof findPathOrig>) => {
       counts.pathQueries += 1;
-      return findPathOrig(...args);
+      const popsBefore = counts.heapPops;
+      const route = findPathOrig(...args);
+      const pops = counts.heapPops - popsBefore;
+      if (route) {
+        counts.routedSearchPops += pops;
+        counts.routedSearchSteps += route.length;
+      } else {
+        counts.failedSearchPops += pops;
+        counts.failedSearches += 1;
+      }
+      return route;
     }),
   );
 

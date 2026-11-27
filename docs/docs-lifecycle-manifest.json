@@ -2,12 +2,6 @@
  "schema": 1,
  "policy": "Every markdown file under docs/superpowers/{plans,specs} must be classified here. entries = files that earn a place in the active tree (active: owned by an open issue; durable-reference: cited by source, tests or rules for rationale not restated there). deleted = delivered-stale | superseded | abandoned files removed from the tree; git history is the archive, and the guard fails if one reappears. Run `node scripts/docs-lifecycle.mjs refresh` to update issue-state snapshots; `check` is offline.",
  "entries": {
-  "docs/superpowers/specs/2026-11-25-start-quality-and-homeland-choice-design.md": {
-   "category": "active",
-   "reason": "Approved start-quality and homeland-choice design; the start style setting and civilization preferences remain for open issue #1837.",
-   "issues": [1837],
-   "issueStates": {"1837": "OPEN"}
-  },
   "docs/superpowers/specs/2026-11-16-issue-1125-engineering-passage-design.md": {
    "category": "active",
    "reason": "Proposed engineering passage design and shared Legacy decisions for open issue #1125.",
@@ -202,6 +196,13 @@
   }
  },
  "deleted": {
+  "docs/superpowers/specs/2026-11-25-start-quality-and-homeland-choice-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered by the #1837 PRs (#1838, #1839, #1841, #1842, #1847, #1851). The durable contract lives in start-quality.ts, start-site-selection.ts, start-style.ts, start-preferences.ts, homeland-options.ts, their tests and .claude/rules/game-systems.md (including the decisions that outlive the design); git history is the design archive.",
+   "issues": [
+    1837
+   ]
+  },
   "docs/superpowers/plans/2026-11-26-homeland-choice.md": {
    "category": "delivered-stale",
    "reason": "Delivered by the #1837 Phase C PRs (homeland options, reservation and executor; then the panel and setup toggles). The durable contract lives in homeland-options.ts, start-placement-system.ts, homeland-panel-controller.ts, their tests and .claude/rules/game-systems.md; git history is the plan archive.",

@@ -10,10 +10,15 @@ import type {
   GameMap,
   HexCoord,
   StartPlacementMode,
+  StartPreference,
+  StartStyle,
+  CustomCivDefinition,
 } from './types';
 import type { OpponentChallenge } from '@/core/types/ai';
 import { getMaxCivilizationsForSetup } from '@/systems/geo-start-capacity';
-import { generateMap, findStartPositions, StartPlacementError, createRng, guaranteeStartResources } from '@/systems/map-generator';
+import { generateMap, findStartPositions, StartPlacementError, createRng, guaranteeStartResources, normaliseFairStarts } from '@/systems/map-generator';
+import { resolveStartStyleRules, type StartStyleRules } from '@/systems/start-style';
+import { assignStartsByPreference } from '@/systems/start-preferences';
 import { loadGeoMap } from '@/systems/geo-map-loader';
 import { getLoadedGeoMapData, isGeographicMapScript, type GeographicMapScript } from '@/systems/geo-map-data';
 import { getPolarRowBand } from '@/systems/geo-latitude';
@@ -128,6 +133,24 @@ function loadLoadedGeoMap(
   return loadGeoMap(data.tiles[size], data.rivers[size], dims, wrapsHorizontally);
 }
 
+/** What the start style changes at creation (design 2026-11-25, B3), resolved once per game. */
+interface StartStyleInputs {
+  rules: StartStyleRules;
+  /** One entry per civilization, in roster order. */
+  preferences: Array<StartPreference[] | undefined>;
+}
+
+function resolveStartStyleInputs(
+  style: StartStyle | undefined,
+  civTypeIds: string[],
+  customCivilizations: CustomCivDefinition[] | undefined,
+): StartStyleInputs {
+  return {
+    rules: resolveStartStyleRules(style),
+    preferences: civTypeIds.map(id => resolveCivDefinition({ settings: { customCivilizations } }, id)?.startPreferences),
+  };
+}
+
 function placeStartsOrThrow(
   map: GameMap,
   civilizationTypeIds: string[],
@@ -135,7 +158,7 @@ function placeStartsOrThrow(
   mapSize: 'small' | 'medium' | 'large',
   placementMode: StartPlacementMode,
   seed: string,
-  candidateHexes?: Set<string>,
+  style: StartStyleInputs,
 ): HexCoord[] {
   const result = placeCivilizationStarts({
     map,
@@ -144,7 +167,8 @@ function placeStartsOrThrow(
     mapSize,
     mode: placementMode,
     seed,
-    candidateHexes,
+    style: style.rules,
+    startPreferences: style.preferences,
   });
   if (!result.ok) {
     throw new GameCreationError(result.requested, result.available);
@@ -206,28 +230,36 @@ function generateMapWithStarts(
   gameSeed: string,
   civTypeIds: string[],
   size: 'small' | 'medium' | 'large',
+  style: StartStyleInputs,
 ): { map: GameMap; startPositions: HexCoord[] } {
+  const { band, pickNoise, preferEven, preferenceWeight } = style.rules;
+  // The chosen sites stay as placed; preferences only decide which civilization gets which (design 2026-11-25, B3).
+  const assigned = (map: GameMap, starts: HexCoord[]) => ({
+    map,
+    startPositions: assignStartsByPreference({ map, sites: starts, preferences: style.preferences, weight: preferenceWeight })
+      .map(siteIndex => starts[siteIndex]),
+  });
   let lastFailure: StartPlacementError | undefined;
   for (let attempt = 0; attempt < GENERATED_MAP_ATTEMPTS; attempt += 1) {
     const mapSeed = attempt === 0 ? gameSeed : `${gameSeed}~map${attempt}`;
     try {
       if (mapScript === 'balanced') {
-        const result = generateBalancedMap(dims.width, dims.height, mapSeed, civTypeIds.length);
-        return { map: result.map, startPositions: result.startPositions };
+        const result = generateBalancedMap(dims.width, dims.height, mapSeed, civTypeIds.length, band, pickNoise, preferEven);
+        return assigned(result.map, result.startPositions);
       }
       if (mapScript === 'single-continent') {
         const result = generateContinentMap(dims.width, dims.height, mapSeed);
-        return {
-          map: result.map,
-          startPositions: findStartPositions(result.map, civTypeIds, 'single-continent', size, { seed: mapSeed, candidateHexes: result.continentHexes }),
-        };
+        return assigned(
+          result.map,
+          findStartPositions(result.map, civTypeIds, 'single-continent', size, { seed: mapSeed, candidateHexes: result.continentHexes, band, pickNoise, preferEven }),
+        );
       }
       const map = generateMap(dims.width, dims.height, mapSeed);
       // The balanced and single-continent generators tag landmass regions themselves; generateMap does not, so a
       // procedural map used to gain regionKeys only on its first load (normalizeLandmassKeys). Tag at creation so
       // a fresh game already matches its own save/reload (#1004).
       map.tiles = tagLandmassRegions(map);
-      return { map, startPositions: findStartPositions(map, civTypeIds, 'procedural', size, { seed: mapSeed }) };
+      return assigned(map, findStartPositions(map, civTypeIds, 'procedural', size, { seed: mapSeed, band, pickNoise, preferEven }));
     } catch (error) {
       if (!(error instanceof StartPlacementError)) throw error;
       lastFailure = error;
@@ -383,6 +415,7 @@ export function createNewGame(
   const playerStartBonus = getDiplomacyStartBonus(settings, config.civType);
 
   const civTypeIds = [config.civType ?? 'generic', ...aiCivDefs.map(d => d.id)];
+  const startStyle = resolveStartStyleInputs(settings.startStyle, civTypeIds, config.customCivilizations);
 
   // Generate map and start positions based on map script
   let map: GameMap;
@@ -391,18 +424,18 @@ export function createNewGame(
   switch (mapScript) {
     case 'earth':
       map = loadLoadedGeoMap('earth', actualSize, dims, true);
-      startPositions = placeStartsOrThrow(map, civTypeIds, 'earth', actualSize, startPlacementMode, gameSeed);
+      startPositions = placeStartsOrThrow(map, civTypeIds, 'earth', actualSize, startPlacementMode, gameSeed, startStyle);
       break;
     case 'old-world':
       map = loadLoadedGeoMap('old-world', actualSize, dims, false);
-      startPositions = placeStartsOrThrow(map, civTypeIds, 'old-world', actualSize, startPlacementMode, gameSeed);
+      startPositions = placeStartsOrThrow(map, civTypeIds, 'old-world', actualSize, startPlacementMode, gameSeed, startStyle);
       break;
     case 'new-world':
       map = loadLoadedGeoMap('new-world', actualSize, dims, false);
-      startPositions = placeStartsOrThrow(map, civTypeIds, 'new-world', actualSize, startPlacementMode, gameSeed);
+      startPositions = placeStartsOrThrow(map, civTypeIds, 'new-world', actualSize, startPlacementMode, gameSeed, startStyle);
       break;
     default: // 'balanced', 'single-continent', 'procedural' and old saves
-      ({ map, startPositions } = generateMapWithStarts(mapScript, dims, gameSeed, civTypeIds, actualSize));
+      ({ map, startPositions } = generateMapWithStarts(mapScript, dims, gameSeed, civTypeIds, actualSize, startStyle));
       break;
   }
 
@@ -414,6 +447,9 @@ export function createNewGame(
 
   // Place wonders and villages
   guaranteeStartResources(map, reservedStarts, createRng(gameSeed + '-resource-guarantee'));
+  if (startStyle.rules.topUpWeakStarts) {
+    normaliseFairStarts(map, startPositions, reservedStarts, createRng(gameSeed + '-fair-start-top-up'));
+  }
   placeWonders(map, reservedStarts, actualSize, gameSeed);
   placeLateResources(map.tiles, createRng(gameSeed + '-late-resources'), reservedStarts, civTypeIds.length);
   const tribalVillages = placeVillages(map, reservedStarts, actualSize, gameSeed);
@@ -609,6 +645,7 @@ export function createHotSeatGame(
     mapScript, config.startPlacementMode, config.mapSize, config.players.length,
   );
   const civTypeIds = config.players.map(p => p.civType);
+  const startStyle = resolveStartStyleInputs(config.settingsOverrides?.startStyle, civTypeIds, config.customCivilizations);
 
   let map: GameMap;
   let startPositions: HexCoord[];
@@ -616,18 +653,18 @@ export function createHotSeatGame(
   switch (mapScript) {
     case 'earth':
       map = loadLoadedGeoMap('earth', config.mapSize, dims, true);
-      startPositions = placeStartsOrThrow(map, civTypeIds, 'earth', config.mapSize, startPlacementMode, gameSeed);
+      startPositions = placeStartsOrThrow(map, civTypeIds, 'earth', config.mapSize, startPlacementMode, gameSeed, startStyle);
       break;
     case 'old-world':
       map = loadLoadedGeoMap('old-world', config.mapSize, dims, false);
-      startPositions = placeStartsOrThrow(map, civTypeIds, 'old-world', config.mapSize, startPlacementMode, gameSeed);
+      startPositions = placeStartsOrThrow(map, civTypeIds, 'old-world', config.mapSize, startPlacementMode, gameSeed, startStyle);
       break;
     case 'new-world':
       map = loadLoadedGeoMap('new-world', config.mapSize, dims, false);
-      startPositions = placeStartsOrThrow(map, civTypeIds, 'new-world', config.mapSize, startPlacementMode, gameSeed);
+      startPositions = placeStartsOrThrow(map, civTypeIds, 'new-world', config.mapSize, startPlacementMode, gameSeed, startStyle);
       break;
     default: // 'balanced', 'single-continent', 'procedural' and old saves
-      ({ map, startPositions } = generateMapWithStarts(mapScript, dims, gameSeed, civTypeIds, config.mapSize));
+      ({ map, startPositions } = generateMapWithStarts(mapScript, dims, gameSeed, civTypeIds, config.mapSize, startStyle));
       break;
   }
 
@@ -643,6 +680,9 @@ export function createHotSeatGame(
   });
   const reservedStarts = homelands.reservedStarts;
   guaranteeStartResources(map, reservedStarts, createRng(gameSeed + '-resource-guarantee'));
+  if (startStyle.rules.topUpWeakStarts) {
+    normaliseFairStarts(map, startPositions, reservedStarts, createRng(gameSeed + '-fair-start-top-up'));
+  }
   placeWonders(map, reservedStarts, config.mapSize, gameSeed);
   placeLateResources(map.tiles, createRng(gameSeed + '-late-resources'), reservedStarts, civTypeIds.length);
   const tribalVillages = placeVillages(map, reservedStarts, config.mapSize, gameSeed);
