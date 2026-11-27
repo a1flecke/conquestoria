@@ -11,6 +11,7 @@ import {
   WORKER_SOFT_CAP,
   TRADE_ROUTES_PER_CITIES,
   buildKnownPathMap,
+  sideSettlementSite,
 } from '@/ai/ai-prepared-turn';
 import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
@@ -2382,5 +2383,72 @@ describe('#1086 national intent integration', () => {
     expect(state.opponentAI?.nationalIntentByCiv[civ.id]).toBeUndefined();
     expect(() => applyAIProduction(state, civ.id, [], { traits: [], warLikelihood: 0.5, diplomacyFocus: 0.5, expansionDrive: 0.5 }))
       .not.toThrow();
+  });
+});
+
+// #1693: expansion needs only a settler, but it competed for the one primary plan, so a settler sat idle while a
+// resource or `repel` plan held the slot (ai-3, lh-late-era-medium: ~150 rounds with one city and no research).
+describe('a settler does not wait for the primary plan (#1693)', () => {
+  function stateWithSpareSettler(seed: string) {
+    const state = createNewGame(undefined, seed, 'small');
+    const civ = state.civilizations['ai-1'];
+    addSpacedCities(state, civ.id, 0);
+    for (const unitId of [...civ.units]) {
+      if (state.units[unitId]?.type === 'settler') {
+        delete state.units[unitId];
+        civ.units = civ.units.filter(id => id !== unitId);
+      }
+    }
+    const home = state.cities[civ.cities[0]!]!;
+    const settler = createUnit('settler', civ.id, home.position, state.idCounters);
+    state.units[settler.id] = settler;
+    civ.units.push(settler.id);
+    return { state, civ, settler };
+  }
+
+  it('names the best known site only while another plan holds the primary slot', () => {
+    const { state, civ } = stateWithSpareSettler('expand-assigns-settler');
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+    const expandTrace = prepared.traces
+      .find(entry => entry.decision === 'objective')
+      ?.candidates.find(entry => entry.id.startsWith('expand:'));
+    expect(expandTrace?.eligible).toBe(true);
+    const site = prepared.portfolio.primaryPlan?.objective === 'expand'
+      ? prepared.portfolio.primaryPlan.target
+      : undefined;
+    const anchor = site?.kind === 'region' ? site.anchor : prepared.settlementSite?.anchor;
+    expect(anchor).toBeDefined();
+
+    const candidate = {
+      objective: 'expand' as const,
+      target: { kind: 'region' as const, id: `settle:${hexKey(anchor!)}`, anchor: anchor! },
+      theaterId: 'local', travelTurns: 2, strategicValue: 50, expectedLossRatio: 0, supplyDistance: 2,
+      explicitDistantReasons: [], requiredRoles: { settlement: 1 },
+    };
+    const otherPlan = { ...prepared.portfolio.primaryPlan!, objective: 'secure-resource' as const };
+    expect(sideSettlementSite([candidate], otherPlan)).toEqual({ id: candidate.target.id, anchor });
+    expect(sideSettlementSite([candidate], null)).toEqual({ id: candidate.target.id, anchor });
+    expect(sideSettlementSite([candidate], { ...otherPlan, objective: 'expand' })).toBeNull();
+    expect(sideSettlementSite([{ ...candidate, travelTurns: Number.POSITIVE_INFINITY }], null)).toBeNull();
+  });
+
+  it('sends the idle settler to that site with a journey order', () => {
+    const { state, civ, settler } = stateWithSpareSettler('expand-assigns-settler');
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+    const target = prepared.portfolio.primaryPlan?.target;
+    const anchor = target?.kind === 'region' ? target.anchor : prepared.settlementSite!.anchor;
+    // Another plan holds the slot, as a `repel` against a stampede did for ai-3: the settler is assigned nowhere.
+    const sidelined = {
+      ...prepared,
+      portfolio: { ...prepared.portfolio, primaryPlan: null },
+      assignments: { ...prepared.assignments, assignmentsByPlanId: {} },
+      settlementSite: { id: `settle:${hexKey(anchor)}`, anchor },
+    };
+
+    const after = processPreparedAITurn(structuredClone(state), sidelined, new EventBus()).state;
+    expect(after.units[settler.id]?.automation).toEqual({ mode: 'journey', destination: anchor });
+
+    const withoutSite = processPreparedAITurn(structuredClone(state), { ...sidelined, settlementSite: null }, new EventBus()).state;
+    expect(withoutSite.units[settler.id]?.automation?.mode).not.toBe('journey');
   });
 });
