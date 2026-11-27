@@ -303,4 +303,29 @@ describe('campaign ending: the all-humans-eliminated path and solo elimination (
     const result = processTurn(state, new EventBus());
     expect(result).toMatchObject({ gameOver: true, winner: 'ai-1', gameOverReason: 'domination' });
   });
+
+  it('ends a solo campaign as a defeat when its only human falls and no AI has won yet (#1693)', () => {
+    // Before this, the defeated player kept the turn with nothing left until some AI eventually won by Domination,
+    // which with several rivals alive could be never. Found once AI wars actually conquered a solo player.
+    const created = createNewGame({
+      civType: 'egypt', mapSize: 'small', opponentCount: 3, gameTitle: 'Solo defeat', seed: 'solo-defeat-1693',
+    });
+    expect(Object.keys(created.civilizations).length).toBeGreaterThanOrEqual(3);
+    for (const civId of Object.keys(created.civilizations)) {
+      const founder = Object.values(created.units).find(unit => unit.owner === civId)!;
+      const city = foundCity(civId, founder.position, created.map, created.idCounters);
+      created.cities[city.id] = city;
+      created.civilizations[civId].cities.push(city.id);
+    }
+    const state = withoutOwnedAssets(created, 'player');
+
+    const result = processTurn(state, new EventBus());
+
+    expect(result).toMatchObject({ gameOver: true, winner: null, gameOverReason: 'all-humans-eliminated' });
+  });
+
+  it('does not end a solo campaign while its human is alive', () => {
+    const state = makeLivenessGame();
+    expect(processTurn(state, new EventBus()).gameOver).toBeFalsy();
+  });
 });

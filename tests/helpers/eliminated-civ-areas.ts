@@ -135,8 +135,8 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
   // --- teardown: eliminateCivilization must keep these clean -----------------
   currentPlayer: {
     kind: 'teardown',
-    why: 'turn cycling must never hand the turn to an eliminated civ',
-    scan: (state, ctx) => isEliminatedId(state.currentPlayer, ctx) ? [`currentPlayer is the eliminated civ "${state.currentPlayer}"`] : [],
+    why: 'turn cycling must never hand the turn to an eliminated civ; a finished game has no turn to hand, and its defeat is shown to the viewer who lost (#1693)',
+    scan: (state, ctx) => !state.gameOver && isEliminatedId(state.currentPlayer, ctx) ? [`currentPlayer is the eliminated civ "${state.currentPlayer}"`] : [],
   },
   winner: {
     kind: 'teardown',
