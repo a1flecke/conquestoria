@@ -118,4 +118,36 @@ describe('new unit hotkeys', () => {
     expect(cb.onNextUnit).not.toHaveBeenCalled();
     input.remove();
   });
+
+  it('#1830: ignores modified OS/browser shortcuts (Cmd/Ctrl/Alt) and does not preventDefault', () => {
+    const cb = makeCallbacks({ getSelectedUnitId: vi.fn(() => 'unit-1') });
+    installKeyboardShortcuts(document, cb);
+
+    for (const modifier of ['metaKey', 'ctrlKey', 'altKey'] as const) {
+      for (const key of ['t', 'e', 'c', 'n', 'f', 'b', 'g']) {
+        const event = new KeyboardEvent('keydown', { key, [modifier]: true, bubbles: true, cancelable: true });
+        document.dispatchEvent(event);
+        expect(event.defaultPrevented, `${modifier}+${key}`).toBe(false);
+      }
+    }
+
+    expect(cb.onOpenTech).not.toHaveBeenCalled();
+    expect(cb.onEndTurn).not.toHaveBeenCalled();
+    expect(cb.onOpenCouncil).not.toHaveBeenCalled();
+    expect(cb.onCenterUnit).not.toHaveBeenCalled();
+    expect(cb.onNextUnit).not.toHaveBeenCalled();
+    expect(cb.onFortify).not.toHaveBeenCalled();
+    expect(cb.onSettle).not.toHaveBeenCalled();
+    expect(cb.onStartJourney).not.toHaveBeenCalled();
+  });
+
+  it('#1830: does not fire when focus is inside a select element', () => {
+    const cb = makeCallbacks({ getSelectedUnitId: vi.fn(() => 'unit-1') });
+    installKeyboardShortcuts(document, cb);
+    const select = document.createElement('select');
+    document.body.appendChild(select);
+    select.dispatchEvent(new KeyboardEvent('keydown', { key: 'e', bubbles: true }));
+    expect(cb.onEndTurn).not.toHaveBeenCalled();
+    select.remove();
+  });
 });

@@ -13,6 +13,7 @@ export class TouchHandler {
 
   private lastTouchDistance = 0;
   private lastTouchCenter = { x: 0, y: 0 };
+  private touchStartPos = { x: 0, y: 0 };
   private touchStartTime = 0;
   private longPressTimer: number | null = null;
   private isPanning = false;
@@ -58,6 +59,7 @@ export class TouchHandler {
     if (e.touches.length === 1) {
       const touch = e.touches[0];
       this.touchStartTime = e.timeStamp;
+      this.touchStartPos = { x: touch.clientX, y: touch.clientY };
       this.lastTouchCenter = { x: touch.clientX, y: touch.clientY };
       this.isPanning = false;
       this.tapCandidate = true;
@@ -93,8 +95,10 @@ export class TouchHandler {
       const touch = e.touches[0];
       const dx = touch.clientX - this.lastTouchCenter.x;
       const dy = touch.clientY - this.lastTouchCenter.y;
+      const totalDx = touch.clientX - this.touchStartPos.x;
+      const totalDy = touch.clientY - this.touchStartPos.y;
 
-      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      if (Math.abs(totalDx) > 5 || Math.abs(totalDy) > 5) {
         this.isPanning = true;
         this.tapCandidate = false;
         this.clearLongPress();
@@ -171,6 +175,7 @@ export class TouchHandler {
   private rebaseAfterMultiTouch(touches: TouchList): void {
     if (touches.length !== 1) return;
     const remaining = touches[0];
+    this.touchStartPos = { x: remaining.clientX, y: remaining.clientY };
     this.lastTouchCenter = { x: remaining.clientX, y: remaining.clientY };
     this.camera.vx = 0;
     this.camera.vy = 0;

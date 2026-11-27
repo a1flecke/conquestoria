@@ -74,6 +74,10 @@ count on `96fb08e9` — see the #1007 follow-up issues. Those guards only catch 
 *further* regression; the follow-ups own tightening them once the underlying
 `getMovementRangeDetails` / world-phase pathfinding cost is reduced.
 
+### Storage key-existence rule (#1830)
+
+Never call `dbGet<GameState>()` just to test whether a persisted save exists (`listLoadableAutosaveMetas`, `hasAutoSave`, `rewriteLoadedSaveEntryNow`). Check presence against `dbGetAllKeys()` so autosave listing and per-turn housekeeping never deserialize full multi-megabyte `GameState` payloads. Pinned by `tests/storage/save-manager.test.ts`.
+
 ## 2. Wall-clock report — LOCAL only, never a gate
 
 `yarn perf:report` (`scripts/run-perf-report.sh` → `vitest.perf.config.ts` →

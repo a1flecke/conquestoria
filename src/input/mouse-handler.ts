@@ -6,7 +6,9 @@ export class MouseHandler {
   private callbacks: InputCallbacks;
   private canvas: HTMLCanvasElement;
   private canInteract: () => boolean;
+  private isPointerDown = false;
   private isDragging = false;
+  private mouseDownPos = { x: 0, y: 0 };
   private lastMouse = { x: 0, y: 0 };
 
   constructor(
@@ -37,35 +39,47 @@ export class MouseHandler {
 
   private onMouseDown = (e: MouseEvent): void => {
     if (e.button === 0) {
+      this.isPointerDown = true;
       this.isDragging = false;
+      this.mouseDownPos = { x: e.clientX, y: e.clientY };
       this.lastMouse = { x: e.clientX, y: e.clientY };
     }
   };
 
   private onMouseMove = (e: MouseEvent): void => {
-    if (e.buttons & 1) {
-      const dx = e.clientX - this.lastMouse.x;
-      const dy = e.clientY - this.lastMouse.y;
-
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-        this.isDragging = true;
-      }
-
-      this.camera.pan(dx, dy);
-      this.lastMouse = { x: e.clientX, y: e.clientY };
+    if (!(e.buttons & 1)) {
+      this.isPointerDown = false;
+      return;
     }
+    if (!this.isPointerDown) {
+      return;
+    }
+
+    const dx = e.clientX - this.lastMouse.x;
+    const dy = e.clientY - this.lastMouse.y;
+    const totalDx = e.clientX - this.mouseDownPos.x;
+    const totalDy = e.clientY - this.mouseDownPos.y;
+
+    if (Math.abs(totalDx) > 3 || Math.abs(totalDy) > 3) {
+      this.isDragging = true;
+    }
+
+    this.camera.pan(dx, dy);
+    this.lastMouse = { x: e.clientX, y: e.clientY };
   };
 
   private onMouseUp = (e: MouseEvent): void => {
+    const wasPointerDown = this.isPointerDown;
+    const wasDragging = this.isDragging;
+    this.isPointerDown = false;
+    this.isDragging = false;
     if (!this.canInteract()) {
-      this.isDragging = false;
       return;
     }
-    if (e.button === 0 && !this.isDragging) {
+    if (e.button === 0 && wasPointerDown && !wasDragging) {
       const coord = this.camera.screenToHex(e.clientX, e.clientY);
       this.callbacks.onHexTap(coord);
     }
-    this.isDragging = false;
   };
 
   private onWheel = (e: WheelEvent): void => {

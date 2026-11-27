@@ -1077,8 +1077,9 @@ function isAutoSaveId(id: string): boolean {
   return id.startsWith(AUTO_SAVE_PREFIX) || id === LEGACY_AUTO_SAVE_KEY;
 }
 
-async function listPersistedMetas(): Promise<SaveSlotMeta[]> {
+async function listPersistedMetasWithKeys(): Promise<{ metas: SaveSlotMeta[]; keySet: Set<string> }> {
   const allKeys = await dbGetAllKeys();
+  const keySet = new Set(allKeys);
   const metaKeys = allKeys.filter(key => key.startsWith(META_PREFIX));
   const metas: SaveSlotMeta[] = [];
   for (const key of metaKeys) {
@@ -1087,7 +1088,11 @@ async function listPersistedMetas(): Promise<SaveSlotMeta[]> {
       metas.push(meta);
     }
   }
-  return metas.sort(compareSaveMeta);
+  return { metas: metas.sort(compareSaveMeta), keySet };
+}
+
+async function listPersistedMetas(): Promise<SaveSlotMeta[]> {
+  return (await listPersistedMetasWithKeys()).metas;
 }
 
 async function loadLegacyAutoSave(): Promise<NormalizedGameState | undefined> {
@@ -1158,12 +1163,12 @@ async function pruneAutosavesForGame(gameId: string): Promise<void> {
 }
 
 async function listLoadableAutosaveMetas(pruneInvalid: boolean = true): Promise<SaveSlotMeta[]> {
-  const metas = (await listPersistedMetas()).filter(meta => meta.kind === 'autosave');
+  const { metas, keySet } = await listPersistedMetasWithKeys();
+  const autosaveMetas = metas.filter(meta => meta.kind === 'autosave');
   const valid: SaveSlotMeta[] = [];
 
-  for (const meta of metas) {
-    const payload = await dbGet<GameState>(getSaveStorageKey(meta.id, 'autosave'));
-    if (payload) {
+  for (const meta of autosaveMetas) {
+    if (keySet.has(getSaveStorageKey(meta.id, 'autosave'))) {
       valid.push(meta);
       continue;
     }
@@ -1287,7 +1292,7 @@ async function rewriteLoadedSaveEntryNow(
   }
 
   const storageKey = getSaveStorageKey(source.id, source.kind);
-  if (!await dbGet<GameState>(storageKey)) {
+  if (!(await dbGetAllKeys()).includes(storageKey)) {
     throw new Error('Save entry no longer exists.');
   }
 
@@ -1309,7 +1314,20 @@ export async function loadAutoSave(): Promise<GameState | undefined> {
 }
 
 export async function hasAutoSave(): Promise<boolean> {
-  return (await loadMostRecentAutoSave()) !== undefined;
+  const { metas, keySet } = await listPersistedMetasWithKeys();
+  const hasRealAutosave = metas.some(
+    meta => meta.kind === 'autosave' && keySet.has(getSaveStorageKey(meta.id, 'autosave')),
+  );
+  if (hasRealAutosave || keySet.has(LEGACY_AUTO_SAVE_KEY)) {
+    return true;
+  }
+  try {
+    const raw = localStorage.getItem(LOCALSTORAGE_AUTOSAVE_KEY);
+    if (!raw) return false;
+    return isRecord(JSON.parse(raw));
+  } catch {
+    return false;
+  }
 }
 
 export async function deleteAutoSave(): Promise<void> {

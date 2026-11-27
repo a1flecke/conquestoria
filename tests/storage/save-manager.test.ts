@@ -21,6 +21,7 @@ import { createDefaultSettings, createNewGame } from '@/core/game-state';
 import {
   autoSave,
   deleteSaveEntry,
+  hasAutoSave,
   listSaveEpics,
   listSaves,
   loadGame,
@@ -340,16 +341,14 @@ describe('save-manager autosave listing', () => {
     localStorage.setItem('conquestoria-autosave', JSON.stringify(legacy));
 
     const originalDbGet = vi.mocked(dbGet).getMockImplementation()!;
-    let concreteReads = 0;
     vi.mocked(dbGet).mockImplementation(async key => {
+      const value = dbState.get(key);
       if (key === 'autosave:concurrent:7') {
-        concreteReads += 1;
-        if (concreteReads === 3) {
-          dbState.delete(key);
-          return undefined;
-        }
+        // Simulate concurrent deletion right after the concrete payload is loaded,
+        // before retireLegacyAutosaveIfRealAutosavesExist() runs.
+        dbState.delete(key);
       }
-      return dbState.get(key);
+      return value;
     });
 
     try {
@@ -998,5 +997,74 @@ describe('#1807 — a Seize the Moment grant survives save/reload', () => {
     // The walking budget the marker's presence grants still reloads (movement money),
     // so the loaded unit can finish its reposition but never buy the attack.
     expect(getUnitMovementBudget(loaded.units['granted-1']!, loaded.turn)).toBe(1);
+  });
+});
+
+describe('#1830 — autosave existence and listing checks use key lookups without deserializing GameState payloads', () => {
+  beforeEach(() => {
+    dbState.clear();
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  it('listSaves, hasAutoSave, and autoSave never call dbGet on autosave payload keys', async () => {
+    const first = createNewGame(undefined, 'key-only-check', 'small');
+    first.playthroughId = 'key-only-pt';
+    first.turn = 3;
+    await autoSave(first);
+
+    const second = createNewGame(undefined, 'key-only-check', 'small');
+    second.playthroughId = 'key-only-pt';
+    second.turn = 4;
+    await autoSave(second);
+
+    // Seed an orphaned autosave meta (no payload key) to ensure pruning still works without dbGet on payloads.
+    dbState.set('meta:autosave:orphan:1', {
+      id: 'autosave:orphan:1',
+      name: 'Autosave Turn 1',
+      turn: 1,
+      civName: 'Rome',
+      timestamp: new Date().toISOString(),
+      kind: 'autosave',
+      gameId: 'orphan',
+    });
+
+    vi.mocked(dbGet).mockClear();
+
+    const listed = await listSaves({ includeAutoSave: true });
+    expect(listed.map(s => s.id)).toEqual(['autosave:key-only-pt:4', 'autosave:key-only-pt:3']);
+    expect(dbState.has('meta:autosave:orphan:1')).toBe(false);
+
+    expect(await hasAutoSave()).toBe(true);
+
+    const third = createNewGame(undefined, 'key-only-check', 'small');
+    third.playthroughId = 'key-only-pt';
+    third.turn = 5;
+    await autoSave(third);
+
+    const autosavePayloadReads = vi.mocked(dbGet).mock.calls
+      .map(([key]) => key)
+      .filter(key => key.startsWith('autosave:'));
+    expect(autosavePayloadReads).toEqual([]);
+  });
+
+  it('hasAutoSave returns false when only orphaned autosave metadata exists and true for legacy fallbacks', async () => {
+    dbState.set('meta:autosave:orphan-only:1', {
+      id: 'autosave:orphan-only:1',
+      name: 'Autosave Turn 1',
+      turn: 1,
+      civName: 'Rome',
+      timestamp: new Date().toISOString(),
+      kind: 'autosave',
+      gameId: 'orphan-only',
+    });
+    expect(await hasAutoSave()).toBe(false);
+
+    localStorage.setItem('conquestoria-autosave', JSON.stringify({ turn: 2 }));
+    expect(await hasAutoSave()).toBe(true);
+
+    localStorage.removeItem('conquestoria-autosave');
+    dbState.set('autosave', createNewGame(undefined, 'legacy-check', 'small'));
+    expect(await hasAutoSave()).toBe(true);
   });
 });

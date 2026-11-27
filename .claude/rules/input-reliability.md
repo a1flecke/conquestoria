@@ -37,6 +37,7 @@ paths:
 - `touchcancel` is cleanup only. It must clear timers and candidate state and must never call tap,
   long-press, movement, or other gameplay callbacks.
 - Starting a pinch or crossing the pan threshold cancels the tap candidate explicitly.
+- Measure drag/pan thresholds against total displacement from pointer/touch start (`mouseDownPos` / `touchStartPos`), never per-event deltas — slow smooth drags must never leak into hex taps or long-presses (#1830). On mouse handlers, require an owned `mousedown` on the canvas before panning or tapping so drags entering from outside never jump using stale coordinates.
 - Add negative regressions for cancellation and delayed processing whenever touch lifecycle code
   changes.
 
@@ -78,7 +79,7 @@ paths:
 - A new screen or panel is checked the way the existing ones are: add it to the keyboard specs (`issue-1459-*`) so
   focus entry, the Tab loop, axe-core (`auditWithAxe`) and the pointer-only detector run on it. A dialog without an
   accessible name or a button below 4.5:1 contrast fails there.
-- Keyboard shortcuts must stay inert inside `[role="dialog"]`/`[aria-modal]` and text fields.
+- Keyboard shortcuts must stay inert inside `[role="dialog"]`/`[aria-modal]`, text/form fields (`INPUT`, `TEXTAREA`, `SELECT`, `isContentEditable`), and whenever OS/browser modifiers (`metaKey`, `ctrlKey`, `altKey`) are held (#1830). Never call `event.preventDefault()` on modified shortcuts.
 - Map keyboard access goes through `installKeyboardMapCursor` and ends in the same tap handler a
   pointer uses, so legality is shared. It describes only what the viewer's own visibility allows
   (`resolveTilePresentationForViewer`, `visibleUnitEntriesAtKey`) and is cleared on a viewer change.
