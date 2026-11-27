@@ -163,16 +163,17 @@ export function mountFreightReplayPanel(
     const forecastTrip = createTripRow('With passage', 'forecast');
     trip.append(tripTitle, currentTrip.row, forecastTrip.row);
     const passageStatus = textElement('p', 'freight-project-status');
-    passage.details.append(passageStatus, trip);
+    const passageFunds = textElement('p', 'freight-project-status');
+    passage.details.append(passageStatus, trip, passageFunds);
 
-    const harborStatus = textElement('p', 'freight-project-status', 'Harbor completed');
+    const harborStatus = textElement('p', 'freight-completed');
     const harborBenefits = textElement('div', 'freight-harbor-benefits');
     const yields = textElement('div', 'freight-yields');
     const goldYield = createHarborYield('💰', 'net gold');
     const foodYield = createHarborYield('🌾', 'food');
     yields.append(goldYield.tile, foodYield.tile);
     harborBenefits.append(textElement('p', 'freight-muted', 'Per round after completion'), yields);
-    harbor.details.append(harborStatus, harborBenefits);
+    harbor.details.append(harborBenefits);
 
     const reviewDetails = textElement('dl', 'freight-review-details');
     const onPurchase = document.createElement('dd');
@@ -205,8 +206,8 @@ export function mountFreightReplayPanel(
         modal.remove();
         return;
       }
-      budget.textContent = `${model.freeGold} gold available`;
-      reserves.textContent = `${model.protectedGold} gold reserved · Expedition funded`;
+      budget.textContent = `${model.freeGold} spendable gold`;
+      reserves.textContent = `${model.treasuryGold} gold in treasury · ${model.protectedGold} gold kept in reserve`;
 
       passage.place.textContent = model.passageKnown ? 'Westport Strait' : '';
       passage.cost.textContent = model.passageKnown && !model.passageOpened ? `${FREIGHT_REPLAY.passageCost} gold` : '';
@@ -219,11 +220,13 @@ export function mountFreightReplayPanel(
       const longest = Math.max(model.currentRounds ?? 0, model.openRounds ?? 0, 1);
       currentTrip.update(model.currentRounds, longest);
       forecastTrip.update(model.openRounds, longest);
+      passageFunds.textContent = model.passageGoldShortfall > 0
+        ? `Need ${model.passageGoldShortfall} more spendable gold.` : '';
 
       harbor.place.textContent = model.northName;
       harbor.cost.textContent = model.harborBuilt || model.harborCost === undefined ? '' : `${model.harborCost} gold`;
-      harborStatus.hidden = !model.harborBuilt;
-      harborBenefits.hidden = model.harborBuilt;
+      harborStatus.textContent = `Harbor completed in ${model.northName}`;
+      harborStatus.hidden = !model.harborBuilt || Boolean(reviewed);
       const harborYields = BUILDINGS.harbor.yields;
       const netGold = harborYields.gold - model.harborUpkeep;
       goldYield.value.textContent = `${netGold > 0 ? '+' : ''}${netGold}`;
@@ -241,7 +244,7 @@ export function mountFreightReplayPanel(
       reviewPassage.hidden = Boolean(reviewed);
       reviewHarbor.hidden = Boolean(reviewed);
       passage.card.hidden = reviewed?.choice === 'Harbor';
-      harbor.card.hidden = reviewed?.choice === 'passage';
+      harbor.card.hidden = model.harborBuilt || reviewed?.choice === 'passage';
       stock.hidden = Boolean(reviewed);
       defer.hidden = Boolean(reviewed);
       defer.textContent = model.passageOpened || model.harborBuilt ? 'Close' : 'Defer';
@@ -299,7 +302,7 @@ export function mountFreightReplayPanel(
     });
     actions.append(back, confirm, defer);
     footer.append(status, actions);
-    card.append(header, options, stock, footer);
+    card.append(header, options, harborStatus, stock, footer);
     modal.append(card);
     markModal(modal, { cancel: defer, initialFocus: defer });
     paint();

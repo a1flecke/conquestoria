@@ -213,6 +213,12 @@
   font-weight: 700;
 }
 
+.freight-completed {
+  color: #edcc88;
+  font-weight: 700;
+}
+
+.freight-completed,
 .freight-factory {
   display: flex;
   align-items: center;
