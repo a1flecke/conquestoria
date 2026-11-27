@@ -113,6 +113,8 @@ test.describe('pre-game screens are keyboard-complete', () => {
     await assertScreen(page, 'hotseat-setup', { tabs: 6 });
     // Escape is Back (the wizard's own back step), never "close the whole wizard".
     await page.keyboard.press('Escape');
+    await expect(page.locator('#hotseat-setup')).toHaveAttribute('aria-label', 'Choose Opponent Challenge');
+    await page.keyboard.press('Escape');
     await expect(page.locator('#hotseat-setup')).toHaveAttribute('aria-label', 'Choose Map Type');
     await activate(page, 'Next');
     await activate(page, 'Next');
