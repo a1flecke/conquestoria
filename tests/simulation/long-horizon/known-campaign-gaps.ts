@@ -155,7 +155,8 @@ export interface AcceptedOccurrence {
  * `lh-late-era-medium`) were fixed by #1793, which ties a city-state war to a viable capture plan. Re-run on `main`
  * `baf75877c`, none of the three scenarios reports a `stagnant-war` finding, so the entry is removed.
  *
- * `tech-frozen` no longer reproduces on this base, so its scoped entry is removed.
+ * `tech-frozen` returned for `lh-late-era-medium` ai-3 on main `2ad8206a5` (124 rounds) and this branch (154);
+ * see its entry for the idle-settler root cause.
  *
  * `lh-late-era-medium` uses `mapSeed: 'lh-1107-search-0'`; why that map was chosen (a recoverable 43-tile landmass
  * for `ai-1`) is in `docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md`.
@@ -178,13 +179,20 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
     code: 'gold-hoard',
     issue: '#1693',
-    why: 'AIs kept net treasury growth after maturation: lh-explorer-small ai-2 60 rounds (213-272, +4,128), lh-late-era-medium ai-1 100 (150-249, +49,747), ai-2 108 (142-249, +73,093) and ai-3 111 (139-249, +56,338). Re-measured on the full matrix after #1693\'s AI fixes (expedition/transport runaway, personality wars, stalemate peace): ai-3 no longer spends its income on ~300 idle expeditions and transports, so its streak grew from 105 to 111 rounds while ai-1 and ai-2 shrank. The structural cause is unchanged: late-era production finishes every item, so rush-buy has nothing to buy (see #1693).',
-    scenarios: ['lh-explorer-small', 'lh-late-era-medium'],
+    why: 'AIs kept net treasury growth after maturation in lh-late-era-medium: ai-1 144 rounds (106-249, +62,408) and ai-2 113 (107-219, +28,567), measured on the full matrix at 7974203e6. ai-3 and lh-explorer-small ai-2 no longer hoard. With the expedition/transport runaway fixed, mature AIs no longer spend income on hundreds of idle expeditions, so ai-1 starts saving earlier (main 2ad8206a5: ai-1 113 rounds, ai-2 109). The structural cause is unchanged: late-era production finishes every item, so rush-buy has nothing to buy (see #1693).',
+    scenarios: ['lh-late-era-medium'],
     accepted: [
-      { scenario: 'lh-explorer-small', civId: 'ai-2', maxRounds: 60 },
-      { scenario: 'lh-late-era-medium', civId: 'ai-1', maxRounds: 100 },
-      { scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 108 },
-      { scenario: 'lh-late-era-medium', civId: 'ai-3', maxRounds: 111 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-1', maxRounds: 144 },
+      { scenario: 'lh-late-era-medium', civId: 'ai-2', maxRounds: 113 },
+    ],
+  },
+  {
+    code: 'tech-frozen',
+    issue: '#1693',
+    why: 'lh-late-era-medium ai-3 completes no technology for 154 rounds (0-153), measured at 7974203e6; main 2ad8206a5 shows the same stall for 124 rounds (0-123), so it predates this branch. Root cause (round-by-round probe, temporary, not committed): ai-3 starts as one population-1 city on desert with a spare settler and several legal sites within two tiles, but the settler only founds where it stands and expansion only happens through the single primary plan, which secure-resource and then a 35-round repel plan against a stampede hold instead. One small city cannot afford era-9 technology costs until it finally expands around round 150.',
+    scenarios: ['lh-late-era-medium'],
+    accepted: [
+      { scenario: 'lh-late-era-medium', civId: 'ai-3', maxRounds: 154 },
     ],
   },
 ];
