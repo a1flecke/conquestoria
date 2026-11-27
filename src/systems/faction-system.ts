@@ -5,7 +5,7 @@
 // the unrest state machine. It is imported only by the round-phase that runs it.
 import type { GameState, City, UnitType } from '../core/types';
 import type { EventBus } from '../core/event-bus';
-import { createRng } from './map-generator';
+import { createSimulationRng } from './simulation-rng';
 import { createUnit } from './unit-lifecycle';
 import { REBEL_SPAWN_OFFSETS, filterLegalSpawnTiles, spawnNeighbours } from './unit-spawn-placement';
 import { mapDistance } from './hex-utils';
@@ -34,8 +34,11 @@ import {
 // legitimacy/breakaway mechanic, which does not exist in this codebase) is written out in full in
 // docs/superpowers/specs/2026-09-22-issue-1089-nonmajor-archetypes-design.md §6.
 
-function spawnRebelUnits(city: City, state: GameState, seed: string): Pick<GameState, 'units' | 'idCounters'> {
-  const rng = createRng(seed);
+function spawnRebelUnits(city: City, state: GameState): Pick<GameState, 'units' | 'idCounters'> {
+  const rng = createSimulationRng(state, {
+    domain: 'revolt-spawn',
+    targetId: city.id,
+  });
   const unitType: UnitType = city.population >= 4 ? 'swordsman' : 'warrior';
   const spawnCount = 1 + Math.floor(rng() * 2); // 1-2 rebels
   // Only tiles a rebel band could legally stand on: land it can enter, no camp/enclave/foreign
@@ -155,7 +158,7 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
           };
           nextState = {
             ...nextState,
-            ...spawnRebelUnits(updated, nextState, `revolt-${cityId}-${nextState.turn}`),
+            ...spawnRebelUnits(updated, nextState),
           };
           bus.emit('faction:revolt-started', { cityId, owner: city.owner });
         } else {

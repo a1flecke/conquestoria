@@ -56,7 +56,7 @@ export function createEspionageCommands(
       const preview = `Infiltrate ${targetCity.name}?\n\nSuccess chance: ${Math.round(chance * 100)}%\nCity CI: ${cityCI}\n\nIf caught, spy may be lost permanently.`;
       if (!window.confirm(preview)) return;
 
-      const seed = `infiltrate-${uid}-${session.getState().turn}`;
+      const seed = `infiltrate-${session.getState().gameId ?? 'legacy'}-${uid}-${session.getState().turn}`;
       const result = attemptInfiltration(
         civEsp, uid, unit.type as UnitType, targetCity.id, targetCity.position, cityCI, seed,
       );

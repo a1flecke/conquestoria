@@ -3,7 +3,7 @@ import type { GameState, Unit } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { mapDistance } from './hex-utils';
-import { createRng } from './map-generator';
+import { createSimulationRng } from './simulation-rng';
 import { isSpyUnitType } from './spy-unit-types';
 
 export function getPassiveDetectionChance(cityPopulation: number): number {
@@ -11,8 +11,10 @@ export function getPassiveDetectionChance(cityPopulation: number): number {
 }
 
 export function processDetection(state: GameState, bus: EventBus): GameState {
-  const seed = `detection-${state.turn}`;
-  const rng = createRng(seed);
+  const rng = createSimulationRng(state, {
+    domain: 'spy-detection',
+    eventId: 'detection-turn',
+  });
   let nextState = state;
 
   for (const [spyUnitId, spyUnit] of Object.entries(state.units)) {

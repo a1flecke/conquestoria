@@ -110,7 +110,7 @@ export function completeUnitProduction(
   let spy: Spy | undefined;
   const civEspionage = next.espionage?.[civId];
   if (isSpyUnitType(unitType) && civEspionage) {
-    const created = createSpyFromUnit(civEspionage, unit.id, civId, unitType, `spy-unit-${unit.id}-${next.turn}`);
+    const created = createSpyFromUnit(civEspionage, unit.id, civId, unitType, `spy-unit-${next.gameId ?? 'legacy'}-${unit.id}-${next.turn}`);
     spy = created.spy;
     next = { ...next, espionage: { ...next.espionage, [civId]: created.state } };
   }

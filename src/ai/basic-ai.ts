@@ -87,7 +87,7 @@ import {
 import { startMissionForCiv } from '@/systems/espionage-remote-targets';
 import { getAiGrudgeBonuses, applyAiGoPublic } from './ai-espionage-grudges';
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
-import { createRng } from '@/systems/map-generator';
+import { createSimulationRng } from '@/systems/simulation-rng';
 import { appeaseFaction } from '@/systems/faction-commands';
 import { setFederalismStance, canToggleFederalism, FEDERALISM_TECH_ID } from '@/systems/faction-federalism';
 import { getUnrestPressureBreakdown, computeUnrestPressure } from '@/systems/faction-pressure';
@@ -1635,7 +1635,10 @@ function processAITurnInternal(
     // Cheap guard first: skip doctrine work entirely for the many civs with
     // no launch platform.
     if (getEligibleStrategicLaunchPlatforms(newState, civId).length > 0) {
-      const launchRng = createRng(`ai-strategic-launch-${civId}-${newState.turn}`);
+      const launchRng = createSimulationRng(newState, {
+        domain: 'ai-strategic-launch',
+        actorId: civId,
+      });
       const targetCityId = evaluateStrategicLaunchDecision(
         newState, civId, resolveOpponentChallenge(newState), launchRng,
       );
@@ -1755,7 +1758,7 @@ function processAITurnInternal(
       if (!spyRec || spyRec.status !== 'idle') continue;
       if (hasSpyInsideCity(civEspNow, cityHere.id)) continue;
       const cityCI = newState.espionage?.[cityHere.owner]?.counterIntelligence[cityHere.id] ?? 0;
-      const infSeed = `ai-infiltrate-${spyUnitId}-${newState.turn}`;
+      const infSeed = `ai-infiltrate-${newState.gameId ?? 'legacy'}-${spyUnitId}-${newState.turn}`;
       const result = attemptInfiltration(civEspNow, spyUnitId, spyUnit.type as UnitType, cityHere.id, cityHere.position, cityCI, infSeed);
       const spyAfterAttempt = result.civEsp.spies[spyUnitId];
       newState.espionage![civId] = {
@@ -1874,7 +1877,10 @@ function processAITurnInternal(
   // AI capture verdicts: find enemy spies we (civId) captured
   // They live in other civs' spy lists with targetCivId === civId and status === 'captured'
   {
-    const captureRng = createRng(`ai-capture-${civId}-${newState.turn}`);
+    const captureRng = createSimulationRng(newState, {
+      domain: 'ai-capture',
+      actorId: civId,
+    });
     for (const [victimCivId, victimEsp] of Object.entries(newState.espionage ?? {})) {
       if (victimCivId === civId) continue;
       const capturedByMe = Object.values(victimEsp.spies).filter(

@@ -16,11 +16,16 @@
  *    reproduces the same subsequent draw, since every input is a persisted field
  */
 import { describe, expect, it } from 'vitest';
+import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
+import { foundCity } from '@/systems/city-system';
 import { computeCyberDrainRoll } from '@/systems/cyber-warfare-system';
+import { resolveMissionResult } from '@/systems/espionage-missions';
 import { placeMinorCivs } from '@/systems/minor-civ-system';
 import { createSimulationRng, type SimulationDomainKey } from '@/systems/simulation-rng';
+import { completeUnitProduction } from '@/systems/unit-production-completion';
+import { processDetection } from '@/systems/detection-system';
 
 function makeState(seed: string, turn = 1): GameState {
   const state = createNewGame(undefined, seed, 'small');
@@ -117,6 +122,18 @@ describe('#982 — determinism matrix for converted call sites', () => {
       { label: 'marketplace-fashion-cycle', domain: 'marketplace-fashion-cycle', eventId: 'fashion-cycle' },
       { label: 'beast-tick', domain: 'beast-tick', eventId: 'beast-tick' },
       { label: 'barbarian-tick', domain: 'barbarian-tick', eventId: 'barbarian-tick' },
+      { label: 'ai-strategic-launch', domain: 'ai-strategic-launch', actorId: 'ai-1' },
+      { label: 'ai-capture', domain: 'ai-capture', actorId: 'ai-1' },
+      { label: 'wonder-eruption', domain: 'wonder-eruption', eventId: 'wonders-market' },
+      { label: 'spy-detection', domain: 'spy-detection', eventId: 'detection-turn' },
+      { label: 'espionage-steal-tech', domain: 'espionage-steal-tech', actorId: 'spy-1', targetId: 'ai-1/city-1' },
+      { label: 'espionage-sabotage-production', domain: 'espionage-sabotage-production', actorId: 'spy-1', targetId: 'city-1' },
+      { label: 'espionage-assassinate-advisor', domain: 'espionage-assassinate-advisor', actorId: 'spy-1', targetId: 'ai-1' },
+      { label: 'espionage-forge-documents', domain: 'espionage-forge-documents', actorId: 'spy-1', targetId: 'ai-1' },
+      { label: 'espionage-arms-smuggling', domain: 'espionage-arms-smuggling', actorId: 'spy-1', targetId: 'city-1' },
+      { label: 'sabotage-relief-detect', domain: 'sabotage-relief-detect', actorId: 'spy-1', eventId: 'crisis-1' },
+      { label: 'spy-passive-detect', domain: 'spy-passive-detect', actorId: 'player' },
+      { label: 'revolt-spawn', domain: 'revolt-spawn', targetId: 'city-1' },
     ];
 
     for (const { label, ...key } of cases) {
@@ -137,5 +154,129 @@ describe('#982 — determinism matrix for converted call sites', () => {
         }
       });
     }
+  });
+
+  describe('#1830 — espionage, detection, and spy recruitment diverge across gameIds at the same turn', () => {
+    it('resolveMissionResult (assassinate_advisor) reproduces per gameId and diverges across campaigns', () => {
+      const base = makeState('esp-assassin-base', 10);
+      const first = resolveMissionResult('assassinate_advisor', 'ai-1', 'city-1', base, 'player', 'spy-1');
+      const repeat = resolveMissionResult('assassinate_advisor', 'ai-1', 'city-1', base, 'player', 'spy-1');
+      expect(repeat).toEqual(first);
+
+      const distinctAdvisors = new Set<string>();
+      for (let i = 0; i < 20; i++) {
+        const variant = { ...base, gameId: `campaign-assassin-${i}` };
+        const res = resolveMissionResult('assassinate_advisor', 'ai-1', 'city-1', variant, 'player', 'spy-1');
+        if (res.assassinatedAdvisor) distinctAdvisors.add(res.assassinatedAdvisor);
+      }
+      expect(distinctAdvisors.size).toBeGreaterThan(1);
+    });
+
+    it('resolveMissionResult (steal_tech) diverges across campaigns with identical tech lists', () => {
+      const base = makeState('esp-steal-base', 10);
+      base.civilizations['ai-1'].techState.completed = [
+        'writing', 'archery', 'currency', 'engineering', 'philosophy', 'astronomy',
+      ];
+      base.civilizations.player.techState.completed = [];
+
+      const distinctTechs = new Set<string>();
+      for (let i = 0; i < 20; i++) {
+        const variant = { ...base, gameId: `campaign-steal-${i}` };
+        const res = resolveMissionResult('steal_tech', 'ai-1', 'city-1', variant, 'player', 'spy-1');
+        if (res.stolenTechId) distinctTechs.add(res.stolenTechId);
+      }
+      expect(distinctTechs.size).toBeGreaterThan(1);
+    });
+
+    it('completeUnitProduction gives spies campaign-keyed names rather than identical names per turn', () => {
+      const base = makeState('spy-name-base', 6);
+      const pos = base.units[base.civilizations.player.units[0]!]!.position;
+      base.units = {};
+      base.civilizations.player.units = [];
+      const cap = foundCity('player', pos, base.map, base.idCounters);
+      base.cities[cap.id] = cap;
+      base.civilizations.player.cities = [cap.id];
+
+      const names = new Set<string>();
+      for (let i = 0; i < 20; i++) {
+        const variant = structuredClone(base);
+        variant.gameId = `campaign-spy-${i}`;
+        const result = completeUnitProduction(variant, {
+          civId: 'player',
+          cityId: cap.id,
+          unitType: 'spy_scout',
+        });
+        expect(result.ok).toBe(true);
+        if (result.ok && result.spy) names.add(result.spy.name);
+      }
+      expect(names.size).toBeGreaterThan(1);
+    });
+
+    it('processDetection varies detection outcomes across campaigns at the same turn', () => {
+      const base = makeState('detect-base', 8);
+      const tile = Object.values(base.map.tiles).find(t => t.terrain === 'plains' || t.terrain === 'grassland')!;
+      const pos = tile.coord;
+      base.units = {
+        'spy-1': {
+          id: 'spy-1',
+          type: 'spy_scout',
+          owner: 'player',
+          position: pos,
+          health: 100,
+          movementPointsLeft: 2,
+          hasMoved: false,
+          hasActed: false,
+          isResting: false,
+          experience: 0,
+        },
+        'hound-1': {
+          id: 'hound-1',
+          type: 'scout_hound',
+          owner: 'ai-1',
+          position: pos,
+          health: 100,
+          movementPointsLeft: 2,
+          hasMoved: false,
+          hasActed: false,
+          isResting: false,
+          experience: 0,
+        },
+      };
+      base.espionage = {
+        ...base.espionage,
+        player: {
+          ...base.espionage!.player,
+          spies: {
+            'spy-1': {
+              id: 'spy-1',
+              owner: 'player',
+              name: 'Agent Test',
+              unitType: 'spy_scout',
+              targetCivId: null,
+              targetCityId: null,
+              status: 'idle',
+              position: pos,
+              currentMission: null,
+              experience: 0,
+              promotion: undefined,
+              promotionAvailable: false,
+              cooldownTurns: 0,
+            },
+          },
+        },
+        'ai-1': {
+          ...base.espionage!['ai-1'],
+          recentDetections: [],
+        },
+      };
+
+      const outcomes = new Set<number>();
+      for (let i = 0; i < 30; i++) {
+        const variant = { ...base, gameId: `campaign-detect-${i}` };
+        const next = processDetection(variant, new EventBus());
+        outcomes.add(next.espionage!['ai-1'].recentDetections?.length ?? 0);
+      }
+      expect(outcomes.size).toBe(2);
+    });
   });
 });

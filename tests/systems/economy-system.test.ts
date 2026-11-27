@@ -7,14 +7,20 @@ import {
   calculateCivEconomy,
   calculateCivUnitMaintenance,
   calculateMaintenance,
+  ECONOMY_RULES,
   emitEconomyStrainIfNeeded,
   formatGoldHudText,
+  getBuildingUpkeep,
   getEconomyStatusForCiv,
   getRushBuyQuote,
+  getUnitUpkeep,
   normalizeEconomyStatus,
   projectCivGrossGold,
   settleGoldTransfers,
 } from '@/systems/economy-system';
+import { BUILDINGS } from '@/systems/city-building-catalog';
+import { TRAINABLE_UNITS } from '@/systems/city-unit-catalog';
+import { TECH_TREE } from '@/systems/tech-definitions';
 import { addGoldBonuses } from '@/core/round-phases/per-civ/gold-bonuses';
 import type { CivTurn } from '@/core/round-phases/per-civ/types';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -789,5 +795,75 @@ describe('Imperial Levy gold (#1338)', () => {
     const base = projectCivGrossGold(state, 'player');
     state.cities.capital = { ...state.cities.capital, levy: 'light' };
     expect(projectCivGrossGold(state, 'player') - base).toBe(CITY_LEVY_GOLD_BONUS);
+  });
+});
+
+describe('late-era unit and building upkeep scaling (#1830)', () => {
+  const techEraById = new Map(TECH_TREE.map(tech => [tech.id, tech.era]));
+  const unlockEraOf = (techRequired?: string | null, requiredTechs?: readonly string[], homeEra?: number): number => {
+    let era = Math.max(1, homeEra ?? 1, techRequired ? (techEraById.get(techRequired) ?? 1) : 1);
+    for (const req of requiredTechs ?? []) {
+      era = Math.max(era, techEraById.get(req) ?? 1);
+    }
+    return era;
+  };
+
+  it('charges advanced upkeep for every Era 4+ trainable unit (never cheaper than a Swordsman)', () => {
+    const swordsmanUpkeep = getUnitUpkeep('swordsman');
+    expect(swordsmanUpkeep).toBe(ECONOMY_RULES.unitUpkeep.advanced);
+
+    for (const sample of [
+      'tank',
+      'main_battle_tank',
+      'battleship',
+      'supercarrier',
+      'stealth_bomber',
+      'jet_fighter',
+      'rocket_artillery',
+      'missile_submarine',
+      'spy_intelligence_officer',
+      'spy_station_chief',
+      'cyber_unit',
+    ] as const) {
+      expect(getUnitUpkeep(sample), `${sample} must pay advanced upkeep`).toBe(ECONOMY_RULES.unitUpkeep.advanced);
+    }
+
+    for (const unit of TRAINABLE_UNITS) {
+      if (ECONOMY_RULES.freeUnitTypes.has(unit.type)) continue;
+      if (unlockEraOf(unit.techRequired, unit.requiredTechs) >= ECONOMY_RULES.advancedMinEra) {
+        expect(getUnitUpkeep(unit.type), `Era 4+ unit ${unit.type} must not drop to default upkeep`)
+          .toBeGreaterThanOrEqual(swordsmanUpkeep);
+      }
+    }
+  });
+
+  it('charges advanced upkeep for every Era 4+ building outside coreFreeBuildings', () => {
+    const forgeUpkeep = getBuildingUpkeep('forge');
+    expect(forgeUpkeep).toBe(ECONOMY_RULES.buildingUpkeep.advanced);
+
+    for (const building of Object.values(BUILDINGS)) {
+      if (ECONOMY_RULES.coreFreeBuildings.has(building.id)) continue;
+      if (unlockEraOf(building.techRequired, building.requiredTechs, building.nationalProject?.homeEra) >= ECONOMY_RULES.advancedMinEra) {
+        expect(getBuildingUpkeep(building.id), `Era 4+ building ${building.id} must not drop to default upkeep`)
+          .toBeGreaterThanOrEqual(forgeUpkeep);
+      }
+    }
+  });
+
+  it('bills paid late-era units and buildings at advanced upkeep in city/civ maintenance breakdowns', () => {
+    const state = makeState();
+    // Fill free unit slots (2 basic defenders + 4 general slots = 6) so modern units are paid.
+    addUnits(state, 6, 'warrior');
+    addUnitOfType(state, 'tank', 'modern-tank');
+    addUnitOfType(state, 'stealth_bomber', 'modern-bomber');
+    const unitBreakdown = calculateCivUnitMaintenance(state, 'player');
+    expect(unitBreakdown.paidUnits).toContainEqual(expect.objectContaining({ id: 'modern-tank', upkeep: 2 }));
+    expect(unitBreakdown.paidUnits).toContainEqual(expect.objectContaining({ id: 'modern-bomber', upkeep: 2 }));
+
+    // Fill the 1 free building slot with marketplace, then check modern buildings pay 2 gold each.
+    city(state).buildings = ['marketplace', 'bank', 'stock_exchange'];
+    const buildingBreakdown = calculateCityBuildingMaintenance(state, 'capital');
+    expect(buildingBreakdown.paidBuildings).toContainEqual(expect.objectContaining({ id: 'bank', upkeep: 2 }));
+    expect(buildingBreakdown.paidBuildings).toContainEqual(expect.objectContaining({ id: 'stock_exchange', upkeep: 2 }));
   });
 });
