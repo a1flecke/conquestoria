@@ -103,6 +103,29 @@ function terrainCostForParams(params: MovementStepCostParams, terrain: string): 
   return getMovementCost(terrain);
 }
 
+const LAND_TERRAINS_FOR_STEP_BOUND = [
+  'grassland', 'plains', 'desert', 'tundra', 'forest', 'hills', 'snow',
+  'jungle', 'swamp', 'volcanic', 'mountain',
+] as const;
+
+/**
+ * The most a single finite step can cost this mover (#1837): the dearest enterable terrain plus
+ * the unbridged-river surcharge `getMovementStepCostFor` adds. Roads and GPS Navigation only ever
+ * lower a step, so they never raise this bound. `findPath`'s `maxSteps` relies on it being an
+ * upper bound; `unit-pathfinding-cost.test.ts` checks the bounded search against the unbounded one.
+ */
+export function maxFiniteMovementStepCost(params: MovementStepCostParams): number {
+  if (params.domain !== 'land') return 1;
+  let dearest = 1;
+  const terrains = [...LAND_TERRAINS_FOR_STEP_BOUND, ...Object.keys(params.terrainCostOverrides ?? {})];
+  for (const terrain of terrains) {
+    const cost = terrainCostForParams(params, terrain);
+    if (cost !== Infinity && cost > dearest) dearest = cost;
+  }
+  const riverSurcharge = (params.completedTechs ?? []).includes('bridge-building') ? 0 : 1;
+  return dearest + riverSurcharge;
+}
+
 export function isPassableForParams(params: MovementStepCostParams, terrain: string): boolean {
   return terrainCostForParams(params, terrain) < Infinity;
 }
