@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { processPurposefulBarbarians } from '@/systems/barbarian-system';
+import { resolveBarbarianArchetype } from '@/systems/barbarian-archetype';
 import { generateContinentMap } from '@/systems/continent-map-generator';
 import { mapDistance } from '@/systems/hex-utils';
 import { areTaggedLandmassesConnected, tagLandmassRegions } from '@/systems/landmass-tagger';
@@ -453,6 +454,35 @@ describe('independent threat pressure governor', () => {
 
     expect(result.opponentAI!.pressureByCiv['player-1'].activeIndependentThreatIds)
       .toEqual(['pirate:pirate-1', 'pirate:pirate-2']);
+  });
+
+  it('a passive camp does not turn its raids on a human who is already at the cap (#1693)', () => {
+    // A camp counts against a human only once it targets them, and nothing asked the cap when it did, so a camp that
+    // had been patrolling could become a third threat. With room under the cap the same raid goes ahead.
+    const raidPlanFor = (pirateCount: number) => {
+      let state = makePressureState('standard');
+      addPirateThreat(state, 'pirate-1', 'player-1');
+      if (pirateCount > 1) {
+        addPirateThreat(state, 'pirate-2', 'player-2');
+        state = reserveIndependentThreatForHumans(state, 'pirate:pirate-2', ['player-1']);
+      }
+      state = processIndependentThreatPressure(state, new EventBus());
+      const campId = Array.from({ length: 40 }, (_, index) => `camp-raid-${index}`)
+        .find(id => resolveBarbarianArchetype(state, id) === 'raider')!;
+      const camp = { id: campId, position: { q: 6, r: 0 }, strength: 6, spawnCooldown: 2 };
+      state.barbarianCamps[camp.id] = camp;
+      const garrison = createUnit('warrior', 'barbarian', camp.position, state.idCounters);
+      state.units[garrison.id] = garrison;
+      const worker = createUnit('worker', 'player-1', { q: 3, r: 0 }, state.idCounters);
+      state.units[worker.id] = worker;
+      state.civilizations['player-1'].units.push(worker.id);
+      return { plan: processPurposefulBarbarians(state).opponentAI.barbarianCamps[camp.id], worker };
+    };
+
+    const withRoom = raidPlanFor(1);
+    expect(withRoom.plan).toMatchObject({ objective: 'raid', target: { kind: 'unit', id: withRoom.worker.id } });
+    const atCap = raidPlanFor(2);
+    expect(atCap.plan?.target.kind === 'unit' && atCap.plan.target.id === atCap.worker.id).toBe(false);
   });
 
   it('does not count a camp defending itself against someone else as a threat to a nearby human (#1693)', () => {

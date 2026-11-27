@@ -15,6 +15,7 @@ import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-sy
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { isTradeUnitTypeInDomain } from './trade-role-targeting';
 import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
+import { canTurnIndependentThreatOn } from './threat-pressure-system';
 import { recordHuntCampKillerIfApplicable } from './hunt-crisis-linkage';
 import { resolveCivilizationEra } from './tech-definitions';
 import { classifyOwner } from '@/core/owner-kind';
@@ -394,12 +395,17 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
       plan = { ...plan, phase: 'advancing', reasonCodes: ['nearby-opportunity'] };
     }
 
+    // #1693: a camp turning on a human is where it starts counting against that human's pressure cap, so a target
+    // owned by a human already at the cap is not offered (camp defense above is self-defense and is not gated).
+    const mayTurnOn = (ownerId: string | null | undefined): boolean =>
+      !ownerId || canTurnIndependentThreatOn(state, ownerId, `barbarian:${camp.id}`);
+
     const tryRaidUnitPlan = (): typeof plan => {
       // #1503 MR06: any *land* trade tier counts, not just the first caravan — the roster comes from
       // the shared trade-role query, so a new wagon is raid-able without editing this system. Traders
       // outrank workers, exactly as the old `caravan`-first priority did.
       const raidUnit = sensedUnits
-        .filter(unit => unit.type === 'worker' || isTradeUnitTypeInDomain(unit.type, 'land'))
+        .filter(unit => (unit.type === 'worker' || isTradeUnitTypeInDomain(unit.type, 'land')) && mayTurnOn(unit.owner))
         .sort((a, b) => {
           const priority = (unit: Unit) => isTradeUnitTypeInDomain(unit.type, 'land') ? 0 : 1;
           return priority(a) - priority(b)
@@ -426,6 +432,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
           && tile.improvementTurnsLeft === 0
           && tile.owner !== null
           && tile.owner !== 'barbarian'
+          && mayTurnOn(tile.owner)
           && sensedByCamp(state, camp, assigned, tile.coord))
         .sort((a, b) =>
           barbarianDistance(state, camp.position, a.coord) - barbarianDistance(state, camp.position, b.coord)
@@ -447,7 +454,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
         state,
         camp.position,
         sensedUnits,
-        unit => UNIT_DEFINITIONS[unit.type].strength > 0,
+        unit => UNIT_DEFINITIONS[unit.type].strength > 0 && mayTurnOn(unit.owner),
       );
       return target
         ? makeBarbarianPlan(
@@ -485,6 +492,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
       const city = Object.values(state.cities)
         .filter(city =>
           city.owner !== 'barbarian'
+          && mayTurnOn(city.owner)
           && sensedByCamp(state, camp, assigned, city.position)
           && (city.hp ?? 100) <= Math.max(40, camp.strength * 10))
         .sort((a, b) =>

@@ -31,6 +31,7 @@ import { isTradeUnitTypeInDomain } from './trade-role-targeting';
 import { moveUnitWithZoneOfControl } from './unit-low-level-move';
 import { getMovementStepCost } from './unit-movement-cost';
 import { findPath } from './unit-pathfinding';
+import { canTurnIndependentThreatOn } from './threat-pressure-system';
 
 export type PirateIntent = PirateIntentState;
 
@@ -156,7 +157,9 @@ function contractAllowsTarget(state: GameState, factionId: string, ownerId: stri
 function isEligibleVictim(state: GameState, factionId: string, ownerId: string): boolean {
   return Boolean(state.civilizations[ownerId])
     && !isProtected(state, factionId, ownerId)
-    && contractAllowsTarget(state, factionId, ownerId);
+    && contractAllowsTarget(state, factionId, ownerId)
+    // #1693: aiming a raid at a human is where the faction starts counting against that human's pressure cap.
+    && canTurnIndependentThreatOn(state, ownerId, `pirate:${factionId}`);
 }
 
 function isCoastalCity(state: GameState, cityId: string): boolean {
