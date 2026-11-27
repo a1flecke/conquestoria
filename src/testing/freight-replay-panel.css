@@ -1,0 +1,220 @@
+.freight-investment-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  background: #080d16c9;
+  padding: 12px;
+  overflow: auto;
+}
+
+.freight-investment-card {
+  --freight-muted: #bfcbd8;
+  display: grid;
+  gap: 16px;
+  width: min(100%, 640px);
+  max-height: 100%;
+  box-sizing: border-box;
+  overflow: auto;
+  padding: clamp(14px, 3vw, 24px);
+  background: #172130;
+  color: #f5f1e8;
+  border: 1px solid #a28a55;
+  border-radius: 14px;
+  box-shadow: 0 20px 70px #04080db3;
+  line-height: 1.35;
+}
+
+.freight-investment-card :is(h2, h3, p) {
+  margin: 0;
+}
+
+.freight-investment-card [hidden] {
+  display: none;
+}
+
+.freight-investment-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.freight-investment-title {
+  flex: 1 1 auto;
+  font-size: 1.5rem;
+}
+
+.freight-budget {
+  padding: 5px 10px;
+  color: #ffe0a0;
+  background: #e8c1701a;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.freight-budget-detail {
+  flex-basis: 100%;
+}
+
+.freight-muted {
+  color: var(--freight-muted);
+  font-size: 0.875rem;
+}
+
+.freight-investment-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(235px, 100%), 1fr));
+  gap: 12px;
+}
+
+.freight-choice {
+  --freight-accent: #8aded7;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #394b5d;
+  border-top: 2px solid var(--freight-accent);
+  border-radius: 10px;
+  background: #101b29;
+}
+
+.freight-choice--harbor {
+  --freight-accent: #edcc88;
+}
+
+.freight-choice-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.freight-choice-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #ffffff10;
+  color: var(--freight-accent);
+  font-size: 1.25rem;
+}
+
+.freight-choice-title {
+  font-size: 1.125rem;
+}
+
+.freight-choice-cost {
+  color: #ffe0a0;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.freight-choice-cost:empty,
+.freight-project-status:empty {
+  display: none;
+}
+
+.freight-choice-details {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.freight-project-status {
+  color: var(--freight-accent);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.freight-trip,
+.freight-harbor-benefits {
+  display: grid;
+  gap: 6px;
+}
+
+.freight-trip-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  font-size: 0.875rem;
+}
+
+.freight-trip-track {
+  grid-column: 1 / -1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #2b3c4e;
+}
+
+.freight-trip-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #8297ad;
+}
+
+.freight-trip-row--forecast :is(.freight-trip-value, .freight-trip-fill) {
+  color: var(--freight-accent);
+}
+
+.freight-trip-row--forecast .freight-trip-fill {
+  background: currentColor;
+}
+
+.freight-yields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.freight-yield {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 6px;
+  color: var(--freight-accent);
+  background: #e8c17010;
+  font-size: 0.875rem;
+}
+
+.freight-yield-value {
+  font-size: 1.125rem;
+}
+
+.freight-factory {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #ffffff0b;
+  font-size: 0.875rem;
+}
+
+.freight-investment-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.freight-investment-footer .freight-investment-status {
+  margin-inline-end: auto;
+  font-size: 0.875rem;
+}
+
+.freight-investment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
