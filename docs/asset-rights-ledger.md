@@ -30,7 +30,7 @@ changes.
 | ChatGPT image generation (codex illustrations) | 42 | `design/wonder-codex-images/*.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
 | ChatGPT image generation (building sprites) | 167 | `design/building-art/*.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
 | ChatGPT image generation (unit strips) | 21 | `design/png-sprites/previews/<unit>/provenance.json` of each strip unit in the catalog | Sufficient evidence recorded (owner's statement of a paid plan) |
-| Nano Banana (unit strips) | 6 | `design/png-sprites/previews/<unit>/provenance.json` of each Nano Banana strip unit in the catalog | Sufficient evidence recorded (owner's Gemini API account; non-commercial posture) |
+| Nano Banana (unit strips) | 7 | `design/png-sprites/previews/<unit>/provenance.json` of each Nano Banana strip unit in the catalog | Sufficient evidence recorded (owner's Gemini API account; non-commercial posture) |
 | Public-domain artwork (General portraits) | 8 | `design/general-portraits/*.provenance.json` | Sufficient evidence recorded |
 | Kenney CC0 and credited audio | not counted here | `AUDIO-CREDITS.md`, `src/audio/*-audio-sources.ts` | Sufficient where reviewed; not re-audited here |
 | Original crisis and loss stingers (#616) | 9 | [Synthesis and shipped hashes](audio/crisis-stingers.md) | Sufficient evidence recorded (project-authored synthesis with no external source material) |

@@ -1,0 +1,120 @@
+{
+  "id": "cuirassier",
+  "family": "mounted",
+  "prompt": {
+    "name": "Cuirassier",
+    "look": "A gunpowder-era heavy cavalry cuirassier, imposing and heavily armed, on a very dark horse with a black mane and tail. The rider wears a full polished steel cuirass (breastplate and backplate) with brass rivets and a brass-trimmed gorget, a red coat with brass buttons and a red sash, a steel pot helmet with a wide peak and a tall black plume, steel pauldrons and gauntlets, buff breeches and tall black riding boots. He holds a large long-barrelled flintlock pistol with a brass-trimmed wooden grip raised in his right hand as his main weapon, with a sheathed broadsword at his hip. Twin pistol holsters and a short carbine are strapped to the front of the saddle. The horse wears a red saddle cloth edged in cream and brass under a brown leather saddle, and a brown leather bridle with brass rings.",
+    "team_area": "the rider's coat and the saddle cloth",
+    "coat": "The horse is a very dark cool brown-black (about #2E2A2A) with a black mane and tail (about #151515) and dark legs. It must not look red: no reddish, mahogany, rust or bay tones anywhere on the horse, because the game recolours red.",
+    "identity": "the same rider, steel cuirass with brass rivets, pot helmet with tall black plume, red coat and sash, boots, large flintlock pistol and sheathed broadsword, and the same very dark horse with its black mane and tail, saddle holsters and carbine, red saddle cloth and bridle",
+    "weapon_pose": "He holds the large flintlock pistol upright in his right hand, the barrel pointing up and slightly forward, the pistol clearly large and prominent.",
+    "attack_frames": 6,
+    "attack": "(1) ready, pistol upright; (2) he lowers the pistol to point forward and right at shoulder height, arm extended; (3) aiming: arm fully extended forward, pistol level, body leaning slightly into it; (4) the shot: a small puff of grey smoke at the muzzle and the pistol kicking up slightly, the pistol still in his hand; (5) recoil: pistol raised and the arm drawn back, smoke thinning; (6) recover to ready, pistol upright. No bullet or flash is drawn flying away, and the pistol never leaves his hand.",
+    "damage_gear": "a dented helmet and a scratched cuirass",
+    "damage_gear_critical": "a cracked cuirass, a broken pistol grip and a torn bridle",
+    "defeat_prop": "the pistol lying beside him"
+  },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 144
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0,
+        0.045
+      ],
+      [
+        0.955,
+        1
+      ]
+    ],
+    "min_sat": 0.45,
+    "min_val": 0.18
+  },
+  "states": [
+    {
+      "state": "idle",
+      "file": "a",
+      "cells": 1,
+      "fps": 4,
+      "anchor": "torso",
+      "note": "anchored on the torso like the walk, so the unit does not jump when it starts to move"
+    },
+    {
+      "state": "damage",
+      "file": "b",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 1,
+      "loop": false,
+      "anchor": "torso",
+      "note": "idle pose at damage tiers 0-3, anchored on the torso like the walk"
+    },
+    {
+      "state": "walkrig",
+      "cells": 8,
+      "fps": 10,
+      "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the four legs alternate by construction",
+      "rig": {
+        "kind": "mounted",
+        "sources": [
+          "a",
+          "b#0",
+          "b#1",
+          "b#2",
+          "b#3"
+        ]
+      }
+    },
+    {
+      "state": "attack",
+      "file": "c",
+      "cells": 6,
+      "grid": [
+        3,
+        3
+      ],
+      "fps": 9,
+      "loop": false,
+      "restFrames": [
+        0,
+        5
+      ]
+    },
+    {
+      "state": "hit",
+      "file": "d",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 8,
+      "restFrames": [
+        0,
+        3
+      ],
+      "loop": false
+    },
+    {
+      "state": "defeat",
+      "file": "e",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 5,
+      "restFrames": [
+        0
+      ],
+      "loop": false
+    }
+  ]
+}
