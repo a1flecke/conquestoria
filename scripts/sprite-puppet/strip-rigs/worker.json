@@ -1,0 +1,122 @@
+{
+ "id": "worker",
+ "family": "biped",
+ "prompt": {
+  "name": "Worker",
+  "look": "a rugged quarry labourer in a hand-painted historical strategy style: bare-headed with short dark hair and a red cloth headband, a plain cream linen tunic with short sleeves and a red cloth belt, rough brown trousers and leather boots, and nothing else carried; he holds one realistic short-handled iron pickaxe in his right hand, the wooden handle only about as long as his arm and a half (roughly from his hip to his shoulder), held upright at chest height with the curved iron pick head at the top, nothing like a staff; facing right, legs clearly apart in a wide stance with a visible gap between the feet, both legs straight and not touching",
+  "team_area": "the red headband and the belt",
+  "identity": "the same labourer, headband, tunic, belt, boots and pickaxe",
+  "damage_gear": "a dusty torn tunic and a nicked pickaxe head",
+  "damage_gear_critical": "a ripped tunic, a bloodless torn sleeve and a split pickaxe handle",
+  "theme": "ancient labourer with a pickaxe and tool pack",
+  "weapon_pose": "He grips the short pickaxe handle at chest height in his right hand with the pick head pointing up near his shoulder, well clear of the boots; the whole tool is shorter than half his body height.",
+  "attack_frames": 6,
+  "attack": "(1) ready stance; (2) lifts the pickaxe up to shoulder height; (3) draws it back over his shoulder; (4) swings the pick forward and down to the right; (5) follow-through with the pick low in front of him; (6) back to ready. Both his hands may grip the handle during the swing. No one else is drawn.",
+  "defeat_prop": "the short pickaxe lying beside him"
+ },
+ "frame": {
+  "height": 192,
+  "baseline": 176,
+  "restHeight": 140
+ },
+ "tint": {
+  "hue_ranges": [
+   [
+    0,
+    0.045
+   ],
+   [
+    0.955,
+    1
+   ]
+  ],
+  "min_sat": 0.45,
+  "min_val": 0.18
+ },
+ "states": [
+  {
+   "state": "idle",
+   "file": "a",
+   "cells": 1,
+   "fps": 4,
+   "anchor": "center"
+  },
+  {
+   "state": "damage",
+   "file": "b",
+   "cells": 4,
+   "grid": [
+    2,
+    2
+   ],
+   "fps": 1,
+   "loop": false,
+   "note": "idle pose at damage tiers 0-3",
+   "anchor": "center"
+  },
+  {
+   "state": "walkrig",
+   "cells": 8,
+   "fps": 10,
+   "anchor": "center",
+   "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+   "rig": {
+    "sources": [
+     "a",
+     "b#0",
+     "b#1",
+     "b#2",
+     "b#3"
+    ],
+    "shafts": 0,
+    "stride_deg": 24,
+    "knee_bend": 14,
+    "foot_level": 0.7
+   }
+  },
+  {
+   "state": "attack",
+   "file": "c",
+   "cells": 6,
+   "grid": [
+    3,
+    3
+   ],
+   "fps": 9,
+   "loop": false,
+   "restFrames": [
+    0,
+    5
+   ]
+  },
+  {
+   "state": "hit",
+   "file": "d",
+   "cells": 5,
+   "grid": [
+    3,
+    2
+   ],
+   "fps": 8,
+   "restFrames": [
+    0,
+    4
+   ],
+   "loop": false
+  },
+  {
+   "state": "defeat",
+   "file": "e",
+   "cells": 5,
+   "grid": [
+    3,
+    2
+   ],
+   "fps": 5,
+   "restFrames": [
+    0
+   ],
+   "loop": false
+  }
+ ]
+}
