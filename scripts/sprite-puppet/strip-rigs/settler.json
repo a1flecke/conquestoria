@@ -1,0 +1,122 @@
+{
+ "id": "settler",
+ "family": "biped",
+ "prompt": {
+  "name": "Settler",
+  "look": "a hardy pioneer in a hand-painted historical strategy style: a short cream linen tunic that ends at the hip with a clean straight hem well above the knees (no long skirt, no hanging tails), a red cloth sash at the waist and a red neckerchief, rough brown trousers and leather boots with both legs fully visible, a bare head with short hair, a compact canvas travel pack high on his back that ends at the waist, with a rolled bedroll on top and a tin cooking pot tied on its upper side, and a short-handled hatchet held in his right hand at hip height with the head pointing forward, the whole tool no longer than his forearm and well clear of his legs; facing right, legs clearly apart in a wide stance with a visible gap between the feet, both legs straight and not touching",
+  "team_area": "the red sash and the neckerchief",
+  "identity": "the same pioneer, travel pack with bedroll and pot, short hatchet, sash and neckerchief",
+  "damage_gear": "a dusty torn tunic and a scuffed pack",
+  "damage_gear_critical": "a ripped tunic, a torn pack strap and a chipped hatchet",
+  "theme": "ancient settler",
+  "weapon_pose": "He holds the short hatchet in his right hand at hip height, close to his body, never touching or crossing his legs, boots or tunic. His body size, head size and height stay exactly the same in every frame.",
+  "attack_frames": 6,
+  "attack": "(1) ready stance; (2) raises the hatchet to shoulder height; (3) draws it back; (4) chops forward and down to the right; (5) follow-through with the hatchet low in front; (6) back to ready. Same character size and standing height in all six frames; he only steps a little and never grows or shrinks. He is only defending himself; no one else is drawn.",
+  "defeat_prop": "the hatchet lying beside him"
+ },
+ "frame": {
+  "height": 192,
+  "baseline": 176,
+  "restHeight": 140
+ },
+ "tint": {
+  "hue_ranges": [
+   [
+    0,
+    0.045
+   ],
+   [
+    0.955,
+    1
+   ]
+  ],
+  "min_sat": 0.45,
+  "min_val": 0.18
+ },
+ "states": [
+  {
+   "state": "idle",
+   "file": "a",
+   "cells": 1,
+   "fps": 4,
+   "anchor": "center"
+  },
+  {
+   "state": "damage",
+   "file": "b",
+   "cells": 4,
+   "grid": [
+    2,
+    2
+   ],
+   "fps": 1,
+   "loop": false,
+   "note": "idle pose at damage tiers 0-3",
+   "anchor": "center"
+  },
+  {
+   "state": "walkrig",
+   "cells": 8,
+   "fps": 10,
+   "anchor": "center",
+   "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+   "rig": {
+    "sources": [
+     "a",
+     "b#0",
+     "b#1",
+     "b#2",
+     "b#3"
+    ],
+    "shafts": 0,
+    "stride_deg": 24,
+    "knee_bend": 14,
+    "foot_level": 0.7
+   }
+  },
+  {
+   "state": "attack",
+   "file": "c",
+   "cells": 6,
+   "grid": [
+    3,
+    3
+   ],
+   "fps": 9,
+   "loop": false,
+   "restFrames": [
+    0,
+    5
+   ]
+  },
+  {
+   "state": "hit",
+   "file": "d",
+   "cells": 5,
+   "grid": [
+    3,
+    2
+   ],
+   "fps": 8,
+   "restFrames": [
+    0,
+    4
+   ],
+   "loop": false
+  },
+  {
+   "state": "defeat",
+   "file": "e",
+   "cells": 5,
+   "grid": [
+    3,
+    2
+   ],
+   "fps": 5,
+   "restFrames": [
+    0
+   ],
+   "loop": false
+  }
+ ]
+}
