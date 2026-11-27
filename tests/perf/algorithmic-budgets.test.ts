@@ -119,7 +119,13 @@ function computeBaseline(runs: Record<PerfArea, AreaSample[]>, priorAuditedCommi
       // the #1007 follow-ups; the guard's job here is only "do not get worse".
       turnHeapPops: Number((ratio(a['turn@e2'].heapPops!, a['turn@e1'].heapPops!) * RATIO_SLACK).toFixed(2)),
       aiRoundPathQueries: Number((ratio(a['aiRound@e2'].pathQueries!, a['aiRound@e1'].pathQueries!) * RATIO_SLACK).toFixed(2)),
-      aiRoundHeapPops: Number((ratio(a['aiRound@e2'].heapPops!, a['aiRound@e1'].heapPops!) * RATIO_SLACK).toFixed(2)),
+      // #1837: per-search cost, measured on each fixture against its own results. It replaced the
+      // e2/e1 total heap-pop ratio, which measured the AI's choices (how many searches, how long the
+      // routes) as much as search cost. Main's value per fixture × slack.
+      aiRoundE1PopsPerRouteStep: Number((ratio(a['aiRound@e1'].routedSearchPops!, a['aiRound@e1'].routedSearchSteps!) * RATIO_SLACK).toFixed(2)),
+      aiRoundE2PopsPerRouteStep: Number((ratio(a['aiRound@e2'].routedSearchPops!, a['aiRound@e2'].routedSearchSteps!) * RATIO_SLACK).toFixed(2)),
+      aiRoundE1PopsPerFailedSearch: Number((ratio(a['aiRound@e1'].failedSearchPops!, a['aiRound@e1'].failedSearches!) * RATIO_SLACK).toFixed(2)),
+      aiRoundE2PopsPerFailedSearch: Number((ratio(a['aiRound@e2'].failedSearchPops!, a['aiRound@e2'].failedSearches!) * RATIO_SLACK).toFixed(2)),
       aiRoundCityYieldCalls: Number((ratio(a['aiRound@e2'].cityYieldCalls!, a['aiRound@e1'].cityYieldCalls!) * RATIO_SLACK).toFixed(2)),
       // #1235: clone-volume and projection / road-BFS shape guards (main's ratio × slack).
       aiRoundCloneBytes: Number((ratio(a['aiRound@e2'].structuredCloneWholeStateBytes!, a['aiRound@e1'].structuredCloneWholeStateBytes!) * RATIO_SLACK).toFixed(2)),
@@ -326,8 +332,33 @@ describe('#1007 algorithmic budgets', () => {
       expect(e2.pathQueries! / e1.pathQueries!, 'AI round path work must not get MORE super-linear')
         .toBeLessThanOrEqual(base.ratios.aiRoundPathQueries!);
     }
-    if (e1.heapPops! > 0) {
-      expect(e2.heapPops! / e1.heapPops!).toBeLessThanOrEqual(base.ratios.aiRoundHeapPops!);
+  });
+
+  it('GUARD 3b — #1837: each path search in an AI round costs what its own result warrants', () => {
+    // Per-search cost, not volume: heap pops per step of the routes found, and heap pops per search
+    // that found nothing (those must stop early, not flood the map). How many searches the AI makes and
+    // how long their routes are is the AI's choice and is bounded by GUARD 3's absolute budgets.
+    //
+    // Why not an e2/e1 ratio: the larger fixture has twice the cities, so more land is closed to
+    // passage and three upgrade journeys there are real 74-85 step detours (~2,000 pops each) where the
+    // smaller fixture's same trip is 11 steps. A ratio of totals moved for that reason alone (#1838).
+    //
+    // Sabotage: in unit-pathfinding.ts findPath, drop the heuristic term (Dijkstra) → pops per route
+    // step jumps well past both fixtures' values.
+    for (const [area, perStep, perFailure] of [
+      ['aiRound@e1', 'aiRoundE1PopsPerRouteStep', 'aiRoundE1PopsPerFailedSearch'],
+      ['aiRound@e2', 'aiRoundE2PopsPerRouteStep', 'aiRoundE2PopsPerFailedSearch'],
+    ] as const) {
+      const s = S(area);
+      expect(s.routedSearchSteps!, `${area}: the AI round must route some units`).toBeGreaterThan(0);
+      const popsPerStep = s.routedSearchPops! / s.routedSearchSteps!;
+      expect(popsPerStep, `${area}: heap pops per route step ${popsPerStep.toFixed(2)}`)
+        .toBeLessThanOrEqual(base.ratios[perStep]!);
+      if (s.failedSearches! > 0) {
+        const popsPerFailure = s.failedSearchPops! / s.failedSearches!;
+        expect(popsPerFailure, `${area}: heap pops per failed search ${popsPerFailure.toFixed(2)}`)
+          .toBeLessThanOrEqual(base.ratios[perFailure]!);
+      }
     }
   });
 
