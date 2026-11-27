@@ -363,18 +363,40 @@ function rankWithdrawals(
     return [ranked(withdrawalFallbackAction(unit), 1_100, true)];
   }
 
-  const healingDistance = (position: HexCoord) =>
-    Math.min(...healingPositions.map(healing => distance(context.state, position, healing)));
+  const healingDistance = (position: HexCoord): number => {
+    let best = Infinity;
+    for (const healing of healingPositions) {
+      const d = distance(context.state, position, healing);
+      if (d < best) {
+        best = d;
+        if (best === 0) return 0;
+      }
+    }
+    return best;
+  };
   const currentDistance = healingDistance(unit.position);
-  const destination = movementRange(context.state, context.actorId, unit)
-    .filter(coord =>
-      healingDistance(coord) < currentDistance
-      && !isBlockedMoveDestination(context.state, unit, coord))
-    .sort((left, right) =>
-      healingDistance(left) - healingDistance(right)
-      || distance(context.state, unit.position, right)
-        - distance(context.state, unit.position, left)
-      || hexKey(left).localeCompare(hexKey(right)))[0];
+  let destination: HexCoord | undefined;
+  let bestHealDist = Infinity;
+  let bestMoveDist = -Infinity;
+  let bestKey = '';
+  for (const coord of movementRange(context.state, context.actorId, unit)) {
+    if (isBlockedMoveDestination(context.state, unit, coord)) continue;
+    const healDist = healingDistance(coord);
+    if (healDist >= currentDistance) continue;
+    const moveDist = distance(context.state, unit.position, coord);
+    const key = hexKey(coord);
+    if (
+      destination === undefined
+      || healDist < bestHealDist
+      || (healDist === bestHealDist && moveDist > bestMoveDist)
+      || (healDist === bestHealDist && moveDist === bestMoveDist && key.localeCompare(bestKey) < 0)
+    ) {
+      destination = coord;
+      bestHealDist = healDist;
+      bestMoveDist = moveDist;
+      bestKey = key;
+    }
+  }
   return destination
     ? [ranked({ kind: 'withdraw', unitId: unit.id, destination }, 1_100, true)]
     : [ranked(withdrawalFallbackAction(unit), 1_100, true)];
@@ -954,27 +976,26 @@ function rankCivilianAndTransportActions(
       || visibleThreatCount(context, transport, transport.position) > 0;
     // A landing with no land route to the target only strands the unit: it would have to
     // re-embark next turn (#1434). An endangered ship may still evacuate anywhere.
-    const destinations = getUnloadDestinations(context.state, unit.transportId, unit.id)
+    const planTarget = targetPosition(context.plan);
+    const scoredDestinations = getUnloadDestinations(context.state, unit.transportId, unit.id)
       .filter(destination => endangered || hasLandRouteToTarget(context, unit, destination))
+      .map(destination => ({
+        destination,
+        threats: visibleThreatCount(context, unit, destination),
+        targetDist: distance(context.state, destination, planTarget),
+        key: hexKey(destination),
+      }))
       .sort((left, right) =>
-        visibleThreatCount(context, unit, left)
-        - visibleThreatCount(context, unit, right)
-        || distance(context.state, left, targetPosition(context.plan))
-        - distance(context.state, right, targetPosition(context.plan))
-        || hexKey(left).localeCompare(hexKey(right)));
-    const hasSafeDestination = destinations.some(destination =>
-      visibleThreatCount(context, unit, destination) === 0);
-    return destinations.length > 0
-      ? destinations.map(destination => ranked({
+        left.threats - right.threats
+        || left.targetDist - right.targetDist
+        || left.key.localeCompare(right.key));
+    const hasSafeDestination = scoredDestinations.some(entry => entry.threats === 0);
+    return scoredDestinations.length > 0
+      ? scoredDestinations.map(({ destination, threats, targetDist }) => ranked({
           kind: 'unload',
           unitId: unit.id,
           destination,
-        }, 650
-          - visibleThreatCount(context, unit, destination) * 100
-          - distance(context.state, destination, targetPosition(context.plan)),
-        endangered
-          && hasSafeDestination
-          && visibleThreatCount(context, unit, destination) === 0))
+        }, 650 - threats * 100 - targetDist, endangered && hasSafeDestination && threats === 0))
       : [];
   }
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createCityPanel } from '@/ui/city-panel';
+import { createCityPanel, createCityPanelView } from '@/ui/city-panel';
 import { getProductionIconForItem, PRODUCTION_ICON_FALLBACK } from '@/systems/city-production-presentation';
 import { getUnpaintedBuildingId } from '../helpers/unpainted-buildings';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
@@ -2149,6 +2149,94 @@ describe('city-panel locked frustration tip', () => {
     // Timer should be cleared; advancing past 5s should not fire the tip
     vi.advanceTimersByTime(6000);
     expect(tips).toHaveLength(0);
+  });
+
+  it('cancels frustration timer on view.close(), city-prev/city-next, and wonders-tab transitions (#1830)', () => {
+    vi.useFakeTimers();
+
+    // 1. Programmatic view.close()
+    {
+      const { container, city, state } = makeLockedForFrustration();
+      const tips: string[] = [];
+      const view = createCityPanelView(container, city, state, {
+        onBuild: () => {},
+        onOpenWonderPanel: () => {},
+        onClose: () => {},
+        onTip: (msg) => tips.push(msg),
+      });
+      expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
+      view.close();
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersByTime(6000);
+      expect(tips).toHaveLength(0);
+    }
+
+    // 2. City prev / next buttons
+    for (const selector of ['[id="city-prev"]', '[id="city-next"]']) {
+      const { container, city, state } = makeLockedForFrustration();
+      const tips: string[] = [];
+      const panel = createCityPanel(container, city, state, {
+        onBuild: () => {},
+        onOpenWonderPanel: () => {},
+        onClose: () => {},
+        onPrevCity: () => {},
+        onNextCity: () => {},
+        onTip: (msg) => tips.push(msg),
+      });
+      expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
+      const btn = panel.querySelector<HTMLElement>(selector);
+      expect(btn).toBeTruthy();
+      btn!.click();
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersByTime(6000);
+      expect(tips).toHaveLength(0);
+    }
+
+    // 3. Wonders tab navigation
+    {
+      const { container, city, state } = makeLockedForFrustration();
+      const tips: string[] = [];
+      const panel = createCityPanel(container, city, state, {
+        onBuild: () => {},
+        onOpenWonderPanel: () => {},
+        onClose: () => {},
+        onTip: (msg) => tips.push(msg),
+      });
+      expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
+      const wondersTab = panel.querySelector<HTMLElement>('[id="tab-wonders"]');
+      expect(wondersTab).toBeTruthy();
+      wondersTab!.click();
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersByTime(6000);
+      expect(tips).toHaveLength(0);
+    }
+  });
+
+  it('renders famine display name using currentCivEra rather than global state.era (#1830)', () => {
+    const { container, city, state } = makeLockedForFrustration();
+    // Global world age is Era 5, while this civilization is still in Era 1/2 (< 5).
+    state.era = 5;
+    state.activeCrises = {
+      'famine-1': {
+        id: 'famine-1',
+        flavorId: 'locust-swarm',
+        archetype: 'famine',
+        targetCivId: city.owner,
+        cityIds: [city.id],
+        tileKeys: [],
+        startedTurn: state.turn,
+        stage: 'active',
+        turnsInStage: 1,
+      },
+    };
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const famineHeader = panel.querySelector('[data-text="famine-stage-0"]')?.textContent ?? '';
+    expect(famineHeader).toContain('The Devouring Cloud');
+    expect(famineHeader).not.toContain('The Locust Storm');
   });
 
   it('does NOT fire if onTip callback is omitted', () => {

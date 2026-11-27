@@ -416,7 +416,7 @@ export function showHotSeatSetup(
     });
 
     panel.querySelector('#hs-back-size')?.addEventListener('click', () => {
-      showMapTypeStage();
+      showOpponentChallengeStage();
     });
     stageReady({
       title: 'How Many Players?',

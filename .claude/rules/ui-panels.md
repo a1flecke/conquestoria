@@ -176,3 +176,8 @@ The unit-vs-unit attack preview (`combat-preview` tap intent) is a *forecast*, n
   changed the new one is shown instead of striking, and a spent/illegal strike gets the typed denial.
 - **Not covered (follow-ups, not promised):** city assault/bombardment keep their own truthful
   `resolveCityInteraction` preview.
+
+## Panel Teardown, Era-Scoped Copy, and Wizard Navigation (#1830)
+- **Centralize timer/listener teardown:** Any panel that registers a `setTimeout` / `setInterval` or document listener (e.g. `frustrationRef.timer` in `src/ui/city-panel.ts`) MUST funnel every removal path (`view.close()`, close button, city prev/next switches, tab-to-other-panel transitions, rerenders) through one `teardownPanel()` helper that cancels pending timers before `panel.remove()`. Never scatter raw `panel.remove()` calls that bypass cleanup.
+- **Civilization-scoped crisis names:** When calling `getCrisisDisplayName(flavor, era)` for a city or civilization panel, pass the owning civilization's era (`currentCivEra` / `resolveCivilizationEra(...)`), never the global world age `state.era`.
+- **Symmetric wizard Back navigation:** In multi-stage setup flows (`src/ui/hotseat-setup.ts`, solo setup), inserting a stage between A and B must update B's Back handler to return to the new stage (preserving prior selections) and be covered by a forward+back click-through test.

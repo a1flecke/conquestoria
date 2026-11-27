@@ -800,7 +800,7 @@ describe('hotseat-setup', () => {
       expect(document.querySelector('[data-map-script="earth"]')).toBeFalsy();
     });
 
-    it('returns to map type stage (not map size) when Back is clicked from player count', () => {
+    it('returns to opponent challenge, then map type (not map size), when clicking Back from player count', () => {
       showHotSeatSetup(document.body, { onComplete: () => {}, onCancel: () => {} });
 
       click('[data-size="small"]');
@@ -808,7 +808,10 @@ describe('hotseat-setup', () => {
       expect(document.querySelector('.count-card[data-count="2"]')).toBeTruthy();
 
       click('#hs-back-size');
+      expect(document.querySelector('#hs-challenge-back')).toBeTruthy();
+      expect(document.querySelector('[data-map-script="earth"]')).toBeFalsy();
 
+      click('#hs-challenge-back');
       expect(document.querySelector('[data-map-script="earth"]')).toBeTruthy();
       expect(document.querySelector('[data-size="small"]')).toBeFalsy();
     });
@@ -895,6 +898,27 @@ describe('hot-seat setup keyboard and focus contract (#1459)', () => {
     for (const button of Array.from(panel.querySelectorAll<HTMLButtonElement>('[data-ai-count]'))) {
       expect(button.getAttribute('aria-pressed')).toBe(button.dataset.selected);
     }
+  });
+
+  it('returns to Choose Opponent Challenge (not Map Type) when clicking Back on How Many Players (#1830)', () => {
+    showHotSeatSetup(document.body, { onComplete: vi.fn(), onCancel: vi.fn() });
+    const panel = document.getElementById('hotseat-setup')!;
+
+    click('.map-size-card[data-size="small"]');
+    click('#hs-map-type-next');
+    expect(panel.getAttribute('aria-label')).toBe('Choose Opponent Challenge');
+    click('[data-challenge="veteran"]');
+    click('#hs-challenge-next');
+    expect(panel.getAttribute('aria-label')).toBe('How Many Players?');
+
+    // Back from How Many Players must return to Opponent Challenge and preserve selection.
+    click('#hs-back-size');
+    expect(panel.getAttribute('aria-label')).toBe('Choose Opponent Challenge');
+    expect(panel.querySelector('[data-challenge="veteran"]')?.getAttribute('aria-pressed')).toBe('true');
+
+    // Back from Opponent Challenge then returns to Choose Map Type.
+    click('#hs-challenge-back');
+    expect(panel.getAttribute('aria-label')).toBe('Choose Map Type');
   });
 
   it('opens the civilization picker beside the wizard so it is managed as the top screen', () => {

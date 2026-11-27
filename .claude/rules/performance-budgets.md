@@ -82,6 +82,10 @@ the AI's choices legitimately move) and GUARD 3b's per-search cost on each fixtu
 Do not reintroduce an e2/e1 ratio of total heap pops: the larger fixture closes more land to passage,
 so its searches include real long detours, and a ratio of totals measures that, not search cost.
 
+### Precompute sort keys outside `.sort()` comparators (#1830)
+
+Never scan an array (`Math.min(...positions.map(...))`, `visibleThreatCount()`, etc.) inside an `Array.prototype.sort` comparator. Precompute the numeric/string key once per candidate (or use a single linear min-scan when only the single best element `[0]` is needed, as in `rankWithdrawals` in `src/ai/ai-tactics.ts`) so ranking stays O(R × T) with zero per-comparison allocations.
+
 ### Storage key-existence rule (#1830)
 
 Never call `dbGet<GameState>()` just to test whether a persisted save exists (`listLoadableAutosaveMetas`, `hasAutoSave`, `rewriteLoadedSaveEntryNow`). Check presence against `dbGetAllKeys()` so autosave listing and per-turn housekeeping never deserialize full multi-megabyte `GameState` payloads. Pinned by `tests/storage/save-manager.test.ts`.
