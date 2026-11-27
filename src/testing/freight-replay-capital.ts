@@ -52,7 +52,8 @@ export function getCapitalComparison(state: ScenarioState, viewer: string) {
     || west?.owner !== viewer || north?.owner !== viewer || channel?.id !== replay.passageId) return undefined;
 
   const protectedGold = getMarketProcurementPolicy(state, viewer).treasuryFloor;
-  const freeGold = Math.max(0, viewerCiv.gold - protectedGold);
+  const treasuryGold = viewerCiv.gold;
+  const freeGold = Math.max(0, treasuryGold - protectedGold);
   const trader = state.units[replay.trader];
   const supplier = state.cities[replay.supplier];
   const route = state.marketplace?.tradeRoutes.find(candidate => candidate.id === trader?.committedToRouteId);
@@ -65,8 +66,9 @@ export function getCapitalComparison(state: ScenarioState, viewer: string) {
   const currentRounds = serviceKnown ? knownTrip(state, trader) : undefined;
   const openRounds = serviceKnown && !channel.open ? knownTrip(openPassage(state), trader) : undefined;
   const harborQuote = getRushBuyQuote(state, viewer, north.id);
-  const passage: CapitalOffer | undefined = currentRounds !== undefined && openRounds !== undefined
-    && openRounds < currentRounds && freeGold >= replay.passageCost
+  const passageImprovesRoute = currentRounds !== undefined && openRounds !== undefined && openRounds < currentRounds;
+  const passageGoldShortfall = passageImprovesRoute ? Math.max(0, replay.passageCost - freeGold) : 0;
+  const passage: CapitalOffer | undefined = passageImprovesRoute && passageGoldShortfall === 0
     ? { choice: 'passage', round: state.turn, cost: replay.passageCost, currentRounds, openRounds }
     : undefined;
   const harbor: CapitalOffer | undefined = harborQuote.available && harborQuote.itemId === 'harbor' && harborQuote.cost <= freeGold
@@ -80,7 +82,7 @@ export function getCapitalComparison(state: ScenarioState, viewer: string) {
     ...north, buildings: [...north.buildings, 'harbor'],
   }).upkeep - calculateCityBuildingMaintenance(state, north).upkeep;
   return {
-    protectedGold, freeGold, westName: west.name, northName: north.name,
+    treasuryGold, protectedGold, freeGold, passageGoldShortfall, westName: west.name, northName: north.name,
     coalSupplierName: serviceKnown ? supplier.name : undefined,
     currentRounds, openRounds, passage, harbor, coal,
     passageKnown: siteKnown,

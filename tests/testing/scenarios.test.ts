@@ -122,6 +122,26 @@ describe('#1125 freight replay', () => {
     expect(getCityFuelStatus(state, state.cities[home.id])).toContainEqual(expect.objectContaining({ powered: true }));
   });
 
+  it('reports the passage shortfall when only treasury gold covers the price after buying Harbor', () => {
+    const state = buildScenario(SCENARIOS['freight-strait-b']);
+    const viewer = state.currentPlayer;
+    const harbor = getCapitalComparison(state, viewer)?.harbor;
+    expect(harbor).toMatchObject({ choice: 'Harbor', cost: 45 });
+    const purchase = applyCapitalOffer(state, viewer, harbor!, new EventBus());
+    if (!purchase.ok) throw new Error(purchase.message);
+    const treasury = purchase.state.civilizations[viewer];
+
+    treasury.gold = 60;
+    expect(getCapitalComparison(purchase.state, viewer)).toMatchObject({
+      treasuryGold: 60, protectedGold: 30, freeGold: 30, passageGoldShortfall: 15,
+      harborBuilt: true, passage: undefined,
+    });
+    treasury.gold = 75;
+    expect(getCapitalComparison(purchase.state, viewer)).toMatchObject({
+      passageGoldShortfall: 0, passage: { choice: 'passage', cost: 45 },
+    });
+  });
+
   it('withholds the passage forecast from an unsurveyed viewer and ignores a foreign stock change', () => {
     const state = buildScenario(SCENARIOS['freight-strait-a']);
     const viewer = state.currentPlayer;
@@ -138,7 +158,7 @@ describe('#1125 freight replay', () => {
     expect(getCapitalComparison(state, viewer)?.currentRounds).toBe(8);
     delete state.civilizations[viewer].visibility.tiles['4,5'];
     expect(getCapitalComparison(state, viewer)).toMatchObject({
-      passage: undefined, openRounds: undefined, passageKnown: false, coalSupplierName: undefined,
+      passage: undefined, openRounds: undefined, passageKnown: false, coalSupplierName: undefined, passageGoldShortfall: 0,
     });
   });
 });
