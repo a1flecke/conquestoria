@@ -95,7 +95,11 @@ describe('sprite load scheduling (#1439 phase 4)', () => {
     void initSprites({ a: '#4a90d9' }, allSpriteDemand(['a'])).then(() => { resolved = true; });
     await flush();
     expect(pending.length).toBeGreaterThan(0);
-    expect(pending.length).toBeLessThanOrEqual(SPRITE_LOAD_CONCURRENCY);
+    // Only sprite images count against the limit: every PNG-baked unit also loads its spritesheet through an Image,
+    // so the unfiltered length grows with each strip unit shipped.
+    const spriteDiagnostic = Symbol.for('conquestoria.spriteDiagnostic');
+    const spritesInFlight = pending.filter(image => (image as unknown as Record<symbol, unknown>)[spriteDiagnostic]);
+    expect(spritesInFlight.length).toBeLessThanOrEqual(SPRITE_LOAD_CONCURRENCY);
 
     await settleAll();
 

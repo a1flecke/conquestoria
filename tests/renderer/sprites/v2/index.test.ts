@@ -29,18 +29,18 @@ describe('getUnitSpriteV2', () => {
   });
 
   it('falls back to a live-rendered sprite for a known unit type with an unrecognized faction (e.g. a minor civ)', () => {
-    // Before #755's fix this silently returned null (static Canvas fallback forever) — 'knight'
+    // Before #755's fix this silently returned null (static Canvas fallback forever) — 'catapult'
     // is a v2-native type, but 'unknownfaction' isn't one of the 6 baked archetype-family keys,
     // which is exactly what happens for any minor-civ-owned unit today (getFaction() returns the
     // raw owner id for any owner not in state.civilizations).
-    const result = getUnitSpriteV2('knight', 'unknownfaction', '#7a5a16');
+    const result = getUnitSpriteV2('catapult', 'unknownfaction', '#7a5a16');
     expect(result).not.toBeNull();
     expect(result).toContain('cq-sprite-wrap');
     expect(result).toContain('cq-v2');
   });
 
-  it('returns a cq-sprite-wrap string for knight/imperials', () => {
-    const r = getUnitSpriteV2('knight', 'imperials');
+  it('returns a cq-sprite-wrap string for catapult/imperials', () => {
+    const r = getUnitSpriteV2('catapult', 'imperials');
     expect(r).not.toBeNull();
     expect(r!).toContain('cq-sprite-wrap');
     expect(r!).toContain('cq-v2');
@@ -224,7 +224,6 @@ describe('#708 mounted and beast native sprites', () => {
   const ISSUE_708_NATIVE = {
     beast_handler: 'hound',
     war_elephant: 'animal',
-    cuirassier: 'animal',
   } as const;
   const FACTIONS = ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate'];
 
@@ -247,11 +246,6 @@ describe('#708 mounted and beast native sprites', () => {
     war_elephant: [
       'cq-elephant-body', 'cq-elephant-head', 'cq-elephant-ear', 'cq-elephant-trunk', 'cq-elephant-tusks',
       'cq-howdah', 'cq-howdah-crew', 'cq-howdah-standard', 'cq-leg-fl', 'cq-leg-fr', 'cq-leg-bl', 'cq-leg-br',
-    ],
-    cuirassier: [
-      'cq-horse-body', 'cq-horse-head', 'cq-horse-ears', 'cq-horse-mane', 'cq-horse-tail', 'cq-saddle',
-      'cq-rider', 'cq-rider-arm-rein', 'cq-rider-arm-sabre', 'cq-rider-leg-l', 'cq-rider-leg-r', 'cq-weapon',
-      'cq-hit-spark', 'cq-leg-fl', 'cq-leg-fr', 'cq-leg-bl', 'cq-leg-br',
     ],
   };
 
@@ -278,18 +272,13 @@ describe('#708 mounted and beast native sprites', () => {
     expect(handler).toContain('class="cq-command-staff" transform="translate(50 66)"');
   });
 
-  it('keeps Handler placement outside animated joints and layers the Cuirassier rider correctly', () => {
+  it('keeps Handler placement outside animated joints', () => {
     const handler = getUnitSpriteV2('beast_handler', 'imperials')!;
-    const cuirassier = getUnitSpriteV2('cuirassier', 'imperials')!;
 
     expect(handler).toContain('class="cq-handler-leg-l" transform="translate(35 78)"');
     expect(handler).toContain('class="cq-handler-leg-r" transform="translate(44 78)"');
     expect(handler).toContain('cq-handler-leg-l-joint');
     expect(handler).toContain('cq-handler-leg-r-joint');
-    expect(cuirassier.indexOf('cq-rider-leg-r')).toBeLessThan(cuirassier.indexOf('cq-horse-body'));
-    expect(cuirassier.indexOf('cq-rider-leg-l')).toBeGreaterThan(cuirassier.indexOf('cq-horse-body'));
-    expect(cuirassier).toContain('M-27,-7 C-40,-9 -45,2 -42,15');
-    expect(cuirassier).not.toContain('Q-39,-1 -40,13');
   });
 
   it('ships a distinct palette-derived native illustration for every supported faction', () => {
@@ -546,7 +535,7 @@ describe('full building coverage — every type returns a cq-sprite-wrap for imp
 const COMBAT_UNITS_AWAITING_WOUND_ART: readonly string[] = [
   'galley', 'trireme', 'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative',
   'spy_hacker', 'scout_hound', 'shadow_warden', 'war_hound', 'beast_handler', 'war_elephant',
-  'armored_car', 'knight', 'cuirassier', 'catapult', 'trebuchet', 'ballista', 'rocket_artillery',
+  'armored_car', 'catapult', 'trebuchet', 'ballista', 'rocket_artillery',
   'battleship', 'missile_cruiser', 'main_battle_tank',
   'supercarrier', 'naval_strike_aircraft', 'combat_drone', 'autonomous_frigate', 'exosuit_infantry',
 ];

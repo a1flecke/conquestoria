@@ -130,7 +130,6 @@ describe('#708 mounted and beast overlay accessibility', () => {
   it.each([
     ['beast_handler', 'hound'],
     ['war_elephant', 'animal'],
-    ['cuirassier', 'animal'],
   ])('%s keeps its native body plan and player information layers under reduced motion', (subtype, kind) => {
     const { overlay, mount } = mountOverlay();
     overlay.sync(cam({ zoom: 1 }), [entity({ subtype, damage: 2, health: 50, selected: true })], MAP, {
@@ -356,7 +355,7 @@ describe('sync() wrapper sizing', () => {
   it('wrapper has overflow:hidden to prevent label bleed', () => {
     const { overlay, mount } = mountOverlay();
     // A strip unit (a painted PNG, e.g. the warrior) deliberately uses overflow:visible, so use an SVG-only unit here.
-    overlay.sync(cam({ zoom: 1 }), [entity({ subtype: 'knight' })], MAP, OPTS);
+    overlay.sync(cam({ zoom: 1 }), [entity({ subtype: 'catapult' })], MAP, OPTS);
     const wrapper = mount.querySelector('.cq-sprite-wrap')?.parentElement as HTMLElement | null;
     expect(wrapper).not.toBeNull();
     expect(wrapper!.style.overflow).toBe('hidden');
