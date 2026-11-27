@@ -1,15 +1,15 @@
 {
   "e1": {
     "state": {
-      "__whole": "796bdcf42547",
+      "__whole": "63e5daf7ed86",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "34850e7edaca",
       "beasts": "4d23f95a7a7f",
       "borderConfrontations": "4f53cda18c2b",
-      "cities": "192fbc937b61",
+      "cities": "256559897889",
       "cityFaith": "44136fa355b3",
-      "civilizations": "e297f835af1e",
+      "civilizations": "f1ca0dd723a1",
       "commerceMarket": "0c60e1c5df37",
       "commercePermissions": "b053f8ba4051",
       "crisisForces": "44136fa355b3",
@@ -17,7 +17,7 @@
       "defensiveLeagues": "4f53cda18c2b",
       "discoveredWonders": "a22c72d025fe",
       "dominationIntel": "44136fa355b3",
-      "economyStatusByCiv": "c8cc3b4ceedc",
+      "economyStatusByCiv": "f269d9577e8b",
       "embargoes": "4f53cda18c2b",
       "era": "6b86b273ff34",
       "espionage": "5b5a2bb386e8",
