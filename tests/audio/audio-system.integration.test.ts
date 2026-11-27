@@ -583,8 +583,27 @@ describe('AudioSystem integration', () => {
 
     system.start(makeState({ era: 1 }), busHelper.bus);
     expect(registered).toContain('pointerdown');
+    expect(registered).toContain('keydown');
 
     vi.unstubAllGlobals();
+  });
+
+  it('resumes a suspended AudioContext on keydown and disarms both pointerdown and keydown (#1830)', async () => {
+    const doc = makeMockDocument();
+    vi.stubGlobal('document', doc);
+    ctx.resume.mockRejectedValueOnce(new Error('not activated'));
+
+    system.start(makeState({ era: 3 }), busHelper.bus);
+    await flushPromises();
+    expect(ctx.state).toBe('suspended');
+    expect(doc.listenerCount('pointerdown')).toBe(1);
+    expect(doc.listenerCount('keydown')).toBe(1);
+
+    doc.dispatch('keydown');
+    await flushPromises();
+    expect(ctx.state).toBe('running');
+    expect(doc.listenerCount('pointerdown')).toBe(0);
+    expect(doc.listenerCount('keydown')).toBe(0);
   });
 
   it('keeps the solo-load gesture recovery armed after resume rejects, then disarms after a later successful gesture', async () => {
@@ -629,6 +648,7 @@ describe('AudioSystem integration', () => {
     system.start(makeState({ era: 2, currentPlayer: 'egypt' }), busHelper.bus);
 
     expect(doc.listenerCount('pointerdown')).toBe(1);
+    expect(doc.listenerCount('keydown')).toBe(1);
     expect(doc.listenerCount('visibilitychange')).toBe(1);
   });
 
@@ -642,6 +662,7 @@ describe('AudioSystem integration', () => {
     system.dispose();
 
     expect(doc.listenerCount('pointerdown')).toBe(0);
+    expect(doc.listenerCount('keydown')).toBe(0);
     expect(doc.listenerCount('visibilitychange')).toBe(0);
   });
 
