@@ -3,13 +3,14 @@
  * must see every option a human may choose, so any choice leaves a legal, fair world. With the picker off nothing
  * changes (the rest of the suite's pinned fixtures prove that byte for byte).
  */
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import type { GameState, HexCoord } from '@/core/types';
 import { createHotSeatGame, createNewGame } from '@/core/game-state';
 import { mapDistance, getWrappedHexesInRange, hexKey } from '@/systems/hex-utils';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { createStartQualityIndex } from '@/systems/start-quality';
 import { assertSaveStateInvariants } from '../helpers/save-state-invariants';
+import { preloadGeoMapData } from '../helpers/geo-map-data';
 
 const LUXURY = new Set(RESOURCE_DEFINITIONS.filter(def => def.type === 'luxury').map(def => def.id));
 
@@ -87,6 +88,40 @@ describe('homeland reservation (solo)', () => {
 
   it('is deterministic for a seed', () => {
     expect(reserved(soloOn('reserve-7'), 'player')).toEqual(reserved(soloOn('reserve-7'), 'player'));
+  });
+});
+
+describe('homeland reservation: a human boxed in on New World trades starts for room (assignHomelandRoom)', () => {
+  beforeAll(async () => { await preloadGeoMapData(); });
+
+  function newWorld(seed: string, opponentCount: number, picker: boolean, mode: 'balanced' | 'historical' = 'balanced'): GameState {
+    return createNewGame({
+      civType: 'rome', seed, mapSize: 'large', opponentCount, mapScript: 'new-world', startPlacementMode: mode,
+      gameTitle: 't', ...(picker ? { settingsOverrides: { homelandPicker: 'on' as const } } : {}),
+    });
+  }
+  const settlerAt = (state: GameState, civId: string): string => hexKey(
+    state.civilizations[civId].units.map(id => state.units[id]).find(unit => unit.type === 'settler')!.position,
+  );
+  const startSet = (state: GameState): string[] => Object.keys(state.civilizations).map(civId => settlerAt(state, civId)).sort();
+
+  // Seeds that left the player squeezed between the sea and a neighbour, with no alternate (found on main, 2026-11-27).
+  for (const [seed, opponents] of [['matrix-4', 7], ['matrix-5', 3], ['matrix-6', 3]] as const) {
+    it(`${seed} with ${opponents} opponents: a full choice, on one of the same starts the placer chose`, () => {
+      const on = newWorld(seed, opponents, true);
+      const off = newWorld(seed, opponents, false);
+      expect(options(on, 'player')).toHaveLength(3);
+      // No start moved: the human only traded places with an AI civilization.
+      expect(startSet(on)).toEqual(startSet(off));
+      expect(settlerAt(on, 'player')).not.toBe(settlerAt(off, 'player'));
+      assertSaveStateInvariants(on);
+    });
+  }
+
+  it('never trades a True Start homeland', () => {
+    const on = newWorld('matrix-5', 3, true, 'historical');
+    const off = newWorld('matrix-5', 3, false, 'historical');
+    for (const civId of Object.keys(off.civilizations)) expect(settlerAt(on, civId), civId).toBe(settlerAt(off, civId));
   });
 });
 

@@ -51,6 +51,9 @@ CONFIGS.push({ mapScript: 'balanced', mapSize: 'medium', homelandPicker: true })
 CONFIGS.push({ mapScript: 'earth', mapSize: 'large', startPlacementMode: 'balanced', homelandPicker: true });
 CONFIGS.push({ mapScript: 'balanced', mapSize: 'large', hotSeat: true, homelandPicker: true });
 CONFIGS.push({ mapScript: 'earth', mapSize: 'large', startPlacementMode: 'balanced', hotSeat: true, homelandPicker: true });
+// New World squeezes starts between the sea and a neighbour; a boxed-in human trades starts for room (assignHomelandRoom).
+CONFIGS.push({ mapScript: 'new-world', mapSize: 'large', startPlacementMode: 'balanced', homelandPicker: true });
+CONFIGS.push({ mapScript: 'new-world', mapSize: 'large', startPlacementMode: 'balanced', hotSeat: true, homelandPicker: true });
 // Start style (design 2026-11-25, B3): the floor and distance rules are identical in every style.
 for (const startStyle of ['fair', 'varied', 'wild'] as const) {
   CONFIGS.push({ mapScript: 'procedural', mapSize: 'large', startStyle });

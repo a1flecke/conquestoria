@@ -22,7 +22,7 @@ import { assignStartsByPreference } from '@/systems/start-preferences';
 import { loadGeoMap } from '@/systems/geo-map-loader';
 import { getLoadedGeoMapData, isGeographicMapScript, type GeographicMapScript } from '@/systems/geo-map-data';
 import { getPolarRowBand } from '@/systems/geo-latitude';
-import { selectHomelandOptions } from '@/systems/homeland-options';
+import { assignHomelandRoom } from '@/systems/homeland-options';
 import type { HomelandChoice, HomelandOption } from '@/core/types/homeland';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { generateContinentMap } from '@/systems/continent-map-generator';
@@ -177,6 +177,11 @@ function placeStartsOrThrow(
 }
 
 interface HomelandReservation {
+  /**
+   * The start of every civilization, by roster index. The placed starts, except that a human with no room for a choice
+   * may have traded starts with an AI civilization (`assignHomelandRoom`); always use these from here on.
+   */
+  starts: HexCoord[];
   /** Roster index -> the options a human chooses between (option 0 is the placed start). Empty when the picker is off. */
   options: Map<number, HomelandOption[]>;
   /** Every start-relative creation step sees these: the placed starts plus every human's alternates. */
@@ -192,20 +197,25 @@ function reserveHomelands(input: {
   enabled: boolean;
   map: GameMap;
   mapScript: MapScript;
+  startPlacementMode: StartPlacementMode;
   starts: HexCoord[];
   humanIndices: number[];
   seed: string;
 }): HomelandReservation {
-  if (!input.enabled) return { options: new Map(), reservedStarts: input.starts };
-  const options = selectHomelandOptions({
+  if (!input.enabled) return { starts: input.starts, options: new Map(), reservedStarts: input.starts };
+  const { mapScript } = input;
+  const geographic = isGeographicMapScript(mapScript);
+  const { starts, options } = assignHomelandRoom({
     map: input.map,
     starts: input.starts,
     humanIndices: input.humanIndices,
     seed: input.seed,
-    polarRows: isGeographicMapScript(input.mapScript) ? getPolarRowBand(input.mapScript, input.map.height) : undefined,
+    polarRows: isGeographicMapScript(mapScript) ? getPolarRowBand(mapScript, input.map.height) : undefined,
+    // True Start homelands belong to their civilizations; every other start is any civilization's.
+    canTradeStarts: !(geographic && input.startPlacementMode === 'historical'),
   });
   const alternates = [...options.values()].flatMap(list => list.slice(1).map(option => option.coord));
-  return { options, reservedStarts: [...input.starts, ...alternates] };
+  return { starts, options, reservedStarts: [...starts, ...alternates] };
 }
 
 /** A choice exists only when there is more than the placed start to choose between. */
@@ -441,8 +451,9 @@ export function createNewGame(
 
   // Reserve the human's homeland options (when the picker is on), then place everything start-relative around them.
   const homelands = reserveHomelands({
-    enabled: settings.homelandPicker === 'on', map, mapScript, starts: startPositions, humanIndices: [0], seed: gameSeed,
+    enabled: settings.homelandPicker === 'on', map, mapScript, startPlacementMode, starts: startPositions, humanIndices: [0], seed: gameSeed,
   });
+  startPositions = homelands.starts;
   const reservedStarts = homelands.reservedStarts;
 
   // Place wonders and villages
@@ -674,10 +685,12 @@ export function createHotSeatGame(
     enabled: config.settingsOverrides?.homelandPicker === 'on',
     map,
     mapScript,
+    startPlacementMode,
     starts: startPositions,
     humanIndices: config.players.flatMap((player, index) => (player.isHuman ? [index] : [])),
     seed: gameSeed,
   });
+  startPositions = homelands.starts;
   const reservedStarts = homelands.reservedStarts;
   guaranteeStartResources(map, reservedStarts, createRng(gameSeed + '-resource-guarantee'));
   if (startStyle.rules.topUpWeakStarts) {
