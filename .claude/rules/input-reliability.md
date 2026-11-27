@@ -80,6 +80,7 @@ paths:
   focus entry, the Tab loop, axe-core (`auditWithAxe`) and the pointer-only detector run on it. A dialog without an
   accessible name or a button below 4.5:1 contrast fails there.
 - Keyboard shortcuts must stay inert inside `[role="dialog"]`/`[aria-modal]`, text/form fields (`INPUT`, `TEXTAREA`, `SELECT`, `isContentEditable`), and whenever OS/browser modifiers (`metaKey`, `ctrlKey`, `altKey`) are held (#1830). Never call `event.preventDefault()` on modified shortcuts.
+- Browser gesture unlock hooks (such as `AudioContext.resume()` in `src/audio/audio-system.ts`) must listen on BOTH `pointerdown` and `keydown`, and disarm both listeners once activation succeeds or on disposal, so keyboard-only players never play silently (#1830).
 - Map keyboard access goes through `installKeyboardMapCursor` and ends in the same tap handler a
   pointer uses, so legality is shared. It describes only what the viewer's own visibility allows
   (`resolveTilePresentationForViewer`, `visibleUnitEntriesAtKey`) and is cleared on a viewer change.

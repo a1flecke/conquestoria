@@ -502,9 +502,13 @@ export class AudioSystem {
     });
   }
 
+  private static readonly GESTURE_RESUME_EVENTS = ['pointerdown', 'keydown'] as const;
+
   private disarmGestureResume(): void {
     if (!this.gestureResumeHandler || typeof document === 'undefined') return;
-    document.removeEventListener('pointerdown', this.gestureResumeHandler);
+    for (const eventName of AudioSystem.GESTURE_RESUME_EVENTS) {
+      document.removeEventListener(eventName, this.gestureResumeHandler);
+    }
     this.gestureResumeHandler = null;
   }
 
@@ -517,10 +521,13 @@ export class AudioSystem {
     document.addEventListener('visibilitychange', visHandler);
 
     // Gesture resume: AudioContext created before the first user interaction is
-    // suspended by the browser. Keep retrying on pointerdown until an awaited
-    // resume attempt confirms that the context is running.
+    // suspended by the browser. Keep retrying on pointerdown and keydown until
+    // an awaited resume attempt confirms that the context is running (so
+    // keyboard-only players also unlock audio, #1830).
     this.gestureResumeHandler = () => this.resumeAndDisarmGestureOnSuccess();
-    document.addEventListener('pointerdown', this.gestureResumeHandler);
+    for (const eventName of AudioSystem.GESTURE_RESUME_EVENTS) {
+      document.addEventListener(eventName, this.gestureResumeHandler);
+    }
   }
 
   private disarmIosResume(): void {
