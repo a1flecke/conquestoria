@@ -3,6 +3,7 @@ import { finalizeDominationVictory, finalizeScienceVictory } from '@/systems/vic
 import { applyPendingOpponentChallenge } from '@/core/opponent-challenge';
 import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { emitCivilizationLivenessTransitions, reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';
+import { finalizeSoloDefeat } from '@/core/hotseat-outcome';
 import type { RoundPhase, RoundPhaseContext } from './types';
 
 export function finalizeOpponentRoundState(state: GameState): GameState {
@@ -24,7 +25,8 @@ export function finalizeOpponentRoundState(state: GameState): GameState {
 
 /**
  * Closes the round: reconcile civilization liveness once more (everything above can end a civ), settle the AI
- * container's round state, advance the turn counter, then resolve the victories that depend on the finished round.
+ * container's round state, advance the turn counter, then resolve the victories that depend on the finished round and,
+ * failing those, a solo defeat.
  * `turn:start` is announced last, for the NEW turn.
  */
 function runFinalization(state: GameState, context: RoundPhaseContext): GameState {
@@ -38,6 +40,7 @@ function runFinalization(state: GameState, context: RoundPhaseContext): GameStat
   newState.turn += 1;
   newState = finalizeDominationVictory(newState, bus);
   newState = finalizeScienceVictory(newState, bus);
+  newState = finalizeSoloDefeat(newState);
   bus.emit('turn:start', { turn: newState.turn, playerId: newState.currentPlayer });
   return newState;
 }
