@@ -157,6 +157,7 @@ function executeMinorCityCapture(
     || attacker.owner !== civId
     || !canUnitOccupyCity(attacker)
     || distance(state, attacker.position, city.position) !== 1
+    || !state.minorCivs?.[city.owner]
     || getUnitIdsAtCoord(
       buildUnitOccupancy(state.units),
       city.position,
@@ -164,9 +165,8 @@ function executeMinorCityCapture(
   ) {
     return { state, succeeded: false };
   }
-  const next = structuredClone(state);
   const movement = executeUnitMove(
-    next,
+    state,
     action.unitId,
     city.position,
     {
@@ -309,9 +309,14 @@ function executeAction(
       ) {
         return { state, succeeded: false, followUps: [] };
       }
-      const next = structuredClone(state);
-      next.units[action.unitId] = { ...attacker, hasMoved: true, hasActed: true, movementPointsLeft: 0 };
-      const destroyed = applyCampDestructionAtTarget(next, civId, camp.position, next.turn);
+      const withMovedUnit: GameState = {
+        ...state,
+        units: {
+          ...state.units,
+          [action.unitId]: { ...attacker, hasMoved: true, hasActed: true, movementPointsLeft: 0 },
+        },
+      };
+      const destroyed = applyCampDestructionAtTarget(withMovedUnit, civId, camp.position, withMovedUnit.turn);
       if (!destroyed.campId) return { state, succeeded: false, followUps: [] };
       emitMinorCivQuestTransitions(bus, destroyed.questTransitions, destroyed.state);
       bus.emit('barbarian:camp-destroyed', { campId: destroyed.campId, reward: destroyed.reward });
@@ -319,9 +324,8 @@ function executeAction(
     }
     case 'move':
     case 'withdraw': {
-      const next = structuredClone(state);
       const movement = executeUnitMove(
-        next,
+        state,
         action.unitId,
         action.destination,
         { actor: 'ai', civId, bus },

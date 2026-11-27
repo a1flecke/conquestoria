@@ -76,4 +76,36 @@ describe('runCompletedRound', () => {
       expect(result.state.turn).toBe(1);
     },
   );
+
+  it('#1830: clones GameState only once per completed round while keeping beforeRound immutable', () => {
+    const state = createNewGame(undefined, 'round-single-clone', 'small');
+    const originalClone = globalThis.structuredClone;
+    let cloneCalls = 0;
+    globalThis.structuredClone = ((value: unknown, options?: StructuredSerializeOptions) => {
+      cloneCalls += 1;
+      return originalClone(value, options);
+    }) as typeof structuredClone;
+
+    try {
+      let seenBeforeTurn = -1;
+      const result = runCompletedRound(state, new EventBus(), {
+        improvements: current => {
+          current.turn = 99;
+          return current;
+        },
+        majors: current => current,
+        world: current => current,
+        postprocess: (before, current) => {
+          seenBeforeTurn = before.turn;
+          return current;
+        },
+      });
+      expect(result.ok).toBe(true);
+      expect(cloneCalls).toBe(1);
+      expect(seenBeforeTurn).toBe(1);
+      expect(state.turn).toBe(1);
+    } finally {
+      globalThis.structuredClone = originalClone;
+    }
+  });
 });

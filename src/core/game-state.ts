@@ -268,6 +268,10 @@ function generateMapWithStarts(
   throw new GameCreationError(civTypeIds.length, lastFailure?.placed ?? 0);
 }
 
+function getInitialBarbarianCampCount(mapSize: 'small' | 'medium' | 'large'): number {
+  return mapSize === 'large' ? 8 : mapSize === 'medium' ? 5 : 3;
+}
+
 export function createDefaultSettings(
   actualSize: 'small' | 'medium' | 'large',
   overrides: Partial<GameSettings> = {},
@@ -526,11 +530,12 @@ export function createNewGame(
     civilizations[civId].visibility = updateVisibility(civilizations[civId].visibility, aiUnits, map).visibility;
   }
 
-  // Spawn initial barbarian camps
+  // Spawn initial barbarian camps scaled by map size (shared with Hot Seat, #1830)
   const barbarianCamps: Record<string, any> = {};
   const cityPositions = reservedStarts;
+  const campCount = getInitialBarbarianCampCount(actualSize);
   const barbSeedBase = hashSeed(gameSeed);
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < campCount; i++) {
     const camp = spawnBarbarianCamp(map, cityPositions, Object.values(barbarianCamps), barbSeedBase + i, idCounters);
     if (camp) barbarianCamps[camp.id] = camp;
   }
@@ -681,18 +686,17 @@ export function createHotSeatGame(
   placeWonders(map, reservedStarts, config.mapSize, gameSeed);
   placeLateResources(map.tiles, createRng(gameSeed + '-late-resources'), reservedStarts, civTypeIds.length);
   const tribalVillages = placeVillages(map, reservedStarts, config.mapSize, gameSeed);
-  const hotSeatSettings = createDefaultSettings(config.mapSize);
-  const beastsModeHotSeat = hotSeatSettings.beastsMode ?? 'wild';
-  const beastLairsHotSeat = beastsModeHotSeat === 'off'
-    ? {}
-    : placeBeastLairs(map, reservedStarts, config.mapSize, gameSeed);
-
-  const allSlotIds = config.players.map(p => p.slotId);
   const settings = createDefaultSettings(config.mapSize, {
     tutorialEnabled: false,
     ...config.settingsOverrides,
     customCivilizations: config.customCivilizations,
   });
+  const beastsModeHotSeat = settings.beastsMode ?? 'wild';
+  const beastLairsHotSeat = beastsModeHotSeat === 'off'
+    ? {}
+    : placeBeastLairs(map, reservedStarts, config.mapSize, gameSeed);
+
+  const allSlotIds = config.players.map(p => p.slotId);
 
   const civilizations: Record<string, Civilization> = {};
   const units: Record<string, Unit> = {};
@@ -732,7 +736,7 @@ export function createHotSeatGame(
   }
 
   const barbarianCamps: Record<string, any> = {};
-  const campCount = config.mapSize === 'large' ? 8 : config.mapSize === 'medium' ? 5 : 3;
+  const campCount = getInitialBarbarianCampCount(config.mapSize);
   const hotSeatBarbSeed = hashSeed(gameSeed);
   for (let i = 0; i < campCount; i++) {
     const camp = spawnBarbarianCamp(map, reservedStarts, Object.values(barbarianCamps), hotSeatBarbSeed + i, idCounters);

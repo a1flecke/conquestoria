@@ -86,6 +86,10 @@ so its searches include real long detours, and a ratio of totals measures that, 
 
 Never call `dbGet<GameState>()` just to test whether a persisted save exists (`listLoadableAutosaveMetas`, `hasAutoSave`, `rewriteLoadedSaveEntryNow`). Check presence against `dbGetAllKeys()` so autosave listing and per-turn housekeeping never deserialize full multi-megabyte `GameState` payloads. Pinned by `tests/storage/save-manager.test.ts`.
 
+### Whole-state `structuredClone` discipline (#1830)
+
+Never call `structuredClone(state)` on hot paths that either already own a dedicated working clone (`runCompletedRound` keeps the input `state` as `beforeRound` and clones once for `working`; `processMajorCivStrategicTurnInPlace` already owns its per-civ clone) or only mutate one narrow slice (e.g. `applySatelliteSurveillance` / `applyMassSurveillanceReveal` shallow-copy only `civilizations[viewerCivId].visibility.tiles`). Pinned by `tests/systems/fog-of-war.test.ts` and `tests/perf/algorithmic-budgets.test.ts`.
+
 ## 2. Wall-clock report — LOCAL only, never a gate
 
 `yarn perf:report` (`scripts/run-perf-report.sh` → `vitest.perf.config.ts` →

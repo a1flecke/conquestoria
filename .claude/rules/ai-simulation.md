@@ -16,6 +16,8 @@ Stored losses are separate from the current turn's output accounting. Use identi
 on both revisions and compare workers, defenses, expansion, research, treasury and idle streaks.
 Break down losses by item and campaign phase to catch shifts from one kind of loss to another.
 
+AI tactical evaluators (`src/ai/ai-tactics.ts`) must never scan raw `state.units` or `state.cities` for enemy threats or targets without checking the actor's fog-of-war visibility and concealment (`getObservedUnitForViewer` / `getObservedAirStrikeUnit` / `getVisibility === 'visible'`, #1830). Pinned by `tests/ai/ai-tactics.test.ts`.
+
 ## The long-horizon campaign suite (`yarn test:ai-long`, #1005)
 
 `tests/simulation/ai-playability.test.ts` verifies the AI over 30 turns by

@@ -251,17 +251,32 @@ export function applySatelliteSurveillance(
   viewerCivId: string,
   targetCivId: string,
 ): GameState {
-  const nextState = structuredClone(state);
-  const visibility = nextState.civilizations[viewerCivId]?.visibility;
-  if (!visibility) return nextState;
+  const viewer = state.civilizations[viewerCivId];
+  const visibility = viewer?.visibility;
+  if (!visibility) return state;
 
-  for (const [key, tile] of Object.entries(nextState.map.tiles)) {
-    if (tile.owner === targetCivId) {
-      visibility.tiles[key] = 'visible';
+  let nextTiles: Record<string, VisibilityState> | null = null;
+  for (const [key, tile] of Object.entries(state.map.tiles)) {
+    if (tile.owner === targetCivId && visibility.tiles[key] !== 'visible') {
+      nextTiles ??= { ...visibility.tiles };
+      nextTiles[key] = 'visible';
     }
   }
+  if (!nextTiles) return state;
 
-  return nextState;
+  return {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [viewerCivId]: {
+        ...viewer,
+        visibility: {
+          ...visibility,
+          tiles: nextTiles,
+        },
+      },
+    },
+  };
 }
 
 /**
@@ -270,25 +285,39 @@ export function applySatelliteSurveillance(
  * civs it isn't at war with.
  */
 export function applyMassSurveillanceReveal(state: GameState, viewerCivId: string): GameState {
-  const nextState = structuredClone(state);
-  const viewer = nextState.civilizations[viewerCivId];
+  const viewer = state.civilizations[viewerCivId];
   const visibility = viewer?.visibility;
-  if (!visibility || !viewer.diplomacy) return nextState;
+  if (!visibility || !viewer.diplomacy) return state;
 
   const atWarWith = new Set(viewer.diplomacy.atWarWith);
-  if (atWarWith.size === 0) return nextState;
+  if (atWarWith.size === 0) return state;
 
-  for (const unit of Object.values(nextState.units)) {
+  let nextTiles: Record<string, VisibilityState> | null = null;
+  for (const unit of Object.values(state.units)) {
     if (unit.owner === viewerCivId) continue;
     if (!atWarWith.has(unit.owner)) continue;
-    const coord = canonicalVisibilityCoord(unit.position, nextState.map);
+    const coord = canonicalVisibilityCoord(unit.position, state.map);
     const key = hexKey(coord);
-    if (nextState.map.tiles[key]) {
-      visibility.tiles[key] = 'visible';
+    if (state.map.tiles[key] && visibility.tiles[key] !== 'visible') {
+      nextTiles ??= { ...visibility.tiles };
+      nextTiles[key] = 'visible';
     }
   }
+  if (!nextTiles) return state;
 
-  return nextState;
+  return {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [viewerCivId]: {
+        ...viewer,
+        visibility: {
+          ...visibility,
+          tiles: nextTiles,
+        },
+      },
+    },
+  };
 }
 
 export function isForestConcealedUnit(

@@ -75,7 +75,7 @@ import { isAIHostileOwner, isAIHostileUnit } from './ai-hostility';
 import { getNavalEnduranceStatus } from '@/systems/naval-endurance';
 import { getNavalPorts } from '@/systems/naval-operations';
 import { AIR_RECOVERY_PER_ROUND, getAirBaseSupport, getAirMissionDenial, getAirReadinessStatus } from '@/systems/air-readiness';
-import { getObservedAirStrikeUnit, getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, resolvePatrolMission, getLegalAirMissionTargets, rebaseAircraft, startIntercept, getAirBaseRoster } from '@/systems/air-operations-system';
+import { getObservedAirStrikeUnit, getLegalRebaseDestinations, predictAirStrikeCityDamage, resolveAirStrike, resolveReconMission, resolvePatrolMission, getLegalAirMissionTargets, rebaseAircraft, startIntercept, getAirBaseRoster } from '@/systems/air-operations-system';
 import { getParadropTargets, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, executeAirAssault } from '@/systems/airborne-system';
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
@@ -578,12 +578,36 @@ function rankAirStrikes(
   if (context.allowOffensiveActions === false || !operation?.missions.includes('strike') || !unit.airBase || unit.hasActed) return [];
   // #884: the same readiness gate the player's target list and the executor use (own unit only).
   if (getAirMissionDenial(context.state, unit.id, 'strike')) return [];
-  return Object.values(context.state.units)
+  const observedUnits = Object.values(context.state.units)
     .filter(target => distance(context.state, unit.position, target.position) <= operation.operationalRange)
     .map(target => getObservedAirStrikeUnit(context.state, unit, target))
     .filter((target): target is Unit => target !== undefined)
-    .sort((left, right) => UNIT_DEFINITIONS[right.type].productionCost - UNIT_DEFINITIONS[left.type].productionCost || left.id.localeCompare(right.id))
+    .sort((left, right) => UNIT_DEFINITIONS[right.type].productionCost - UNIT_DEFINITIONS[left.type].productionCost || left.id.localeCompare(right.id));
+  const unitTargets = observedUnits
     .map(target => ranked({ kind: 'air-strike', unitId: unit.id, target: { ...target.position } }, 650 + UNIT_DEFINITIONS[target.type].productionCost / 10));
+
+  const unitCoordKeys = new Set(observedUnits.map(target => hexKey(target.position)));
+  const actorVisibility = context.state.civilizations[context.actorId]?.visibility;
+  const cityTargets = Object.values(context.state.cities)
+    .filter(city =>
+      city.owner !== context.actorId
+      && Boolean(context.state.civilizations[city.owner])
+      && isAIHostileOwner(context.state, context.actorId, city.owner)
+      && distance(context.state, unit.position, city.position) <= operation.operationalRange
+      && getVisibility(actorVisibility, city.position) === 'visible'
+      && !unitCoordKeys.has(hexKey(city.position)))
+    .map(city => ({ city, predicted: predictAirStrikeCityDamage(context.state, unit, city) }))
+    .filter(entry => entry.predicted.hpLost > 0)
+    .sort((left, right) => right.predicted.hpLost - left.predicted.hpLost || left.city.id.localeCompare(right.city.id))
+    .map(({ city, predicted }) => {
+      const planBonus = context.plan.target.kind === 'city' && context.plan.target.id === city.id ? 60 : 0;
+      return ranked(
+        { kind: 'air-strike', unitId: unit.id, target: { ...city.position } },
+        620 + predicted.hpLost * 2 + planBonus,
+      );
+    });
+
+  return [...unitTargets, ...cityTargets];
 }
 
 function rankAirSupport(
@@ -610,9 +634,11 @@ function rankAirSupport(
     }
   }
   if (operation.missions.includes('intercept')) {
+    // Only react to hostile units the actor can actually observe (respects fog of war and concealment, #1830).
     const threatened = Object.values(context.state.units).some(candidate =>
       candidate.owner !== context.actorId
       && isAIHostileOwner(context.state, context.actorId, candidate.owner)
+      && getObservedUnitForViewer(context.state, context.actorId, candidate) !== undefined
       && distance(context.state, candidate.position, unit.position) <= operation.operationalRange);
     if (threatened) actions.push(ranked({ kind: 'air-intercept', unitId: unit.id }, 460));
   }
