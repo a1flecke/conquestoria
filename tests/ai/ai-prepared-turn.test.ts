@@ -39,6 +39,7 @@ import { findPath } from '@/systems/unit-pathfinding';
 import type { GameState, HexCoord, TerrainType, UnitType } from '@/core/types';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { createEspionageCivState, createSpyFromUnit, isSpyUnitType } from '@/systems/espionage-system';
+import { simTimeout } from '../helpers/sim-timeout';
 import { enqueueCityProduction } from '@/systems/planning-system';
 
 /** #1704 (B7): a civ answers a pirate fleet only when it owns a warship to send. */
@@ -687,7 +688,9 @@ describe('prepared major-civilization planning', () => {
     expect(captureScore(10)).toBeCloseTo(captureScore(1));
   });
 
-  it('scores from the nearest friendly city regardless of roster order', { timeout: 15000 }, () => {
+  // #608/#1693: builds two full games. Measured 5.7-8.7 s run alone on a loaded host (load 38-76) and 17 s inside a
+  // full-suite run at load 76, the same on main, which timed out a hand-picked 15 s; sized from the solo worst case.
+  it('scores from the nearest friendly city regardless of roster order', { timeout: simTimeout(5_000) }, () => {
     function captureScore(nearFirst: boolean): number {
       const state = createNewGame(undefined, 'prepared-nearest-city', 'medium');
       const civ = state.civilizations['ai-1'];
