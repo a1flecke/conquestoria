@@ -1,0 +1,122 @@
+{
+  "id": "scout",
+  "family": "biped",
+  "prompt": {
+    "name": "Scout",
+    "look": "A lean, quick wilderness scout: a friendly young adult man with a narrow face, short messy dark-brown hair, light stubble, bright brown eyes and a watchful expression, wearing a plain leather headband, a short bold red wool tunic ending high on the thigh with a rope belt, a small leather satchel on one hip, leather forearm wraps, bare legs with simple leather ankle wraps and low soft brown leather moccasin boots. He carries a short light hunting javelin with a leaf-shaped flint head in his right hand.",
+    "team_area": "his tunic",
+    "identity": "the same face, messy dark-brown hair and stubble, leather headband, red tunic with rope belt, hip satchel, forearm wraps, bare legs with ankle wraps, moccasin boots and short flint-headed javelin",
+    "damage_gear": "a scuffed tunic, a frayed headband and a chipped flint head",
+    "damage_gear_critical": "a torn tunic, a loose headband, a bandaged forearm and a cracked javelin shaft, still in his hand",
+    "weapon_pose": "He holds the javelin angled up and forward across his body in his near hand at chest height, the flint head rising up and to the right and the butt end held at his hip, well above his knees, so the whole javelin stays clear of his legs and boots, with background visible between the javelin and his legs. His far hand is relaxed at his side, clear of his legs.",
+    "attack_frames": 6,
+    "attack": "(1) ready stance, javelin across the body; (2) anticipation: javelin drawn back over the shoulder, weight shifting back; (3) wind-up: stepping forward with the javelin held back at full arm length; (4) the throw: arm thrust forward and the javelin released, still held at the fingertips, pointing right; (5) follow-through: arm extended to the right, body leaning forward, front knee bent; (6) recover to the ready stance. The javelin never leaves his hand and nothing flies away. No motion arc or trail.",
+    "defeat_prop": "the javelin lying on the ground beside him",
+    "theme": "Early-era wilderness scout (Era 1): clean hand-painted historical 2D strategy art matching the Warrior and Axeman sprites."
+  },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 140
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0,
+        0.045
+      ],
+      [
+        0.955,
+        1
+      ]
+    ],
+    "min_sat": 0.45,
+    "min_val": 0.18
+  },
+  "states": [
+    {
+      "state": "idle",
+      "file": "a",
+      "cells": 1,
+      "fps": 4,
+      "anchor": "center"
+    },
+    {
+      "state": "damage",
+      "file": "b",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 1,
+      "loop": false,
+      "note": "idle pose at damage tiers 0-3",
+      "anchor": "center"
+    },
+    {
+      "state": "walkrig",
+      "cells": 8,
+      "fps": 10,
+      "anchor": "center",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": {
+        "sources": [
+          "a",
+          "b#0",
+          "b#1",
+          "b#2",
+          "b#3"
+        ],
+        "shafts": 0,
+        "stride_deg": 24,
+        "knee_bend": 14,
+        "foot_level": 0.7
+      }
+    },
+    {
+      "state": "attack",
+      "file": "c",
+      "cells": 6,
+      "grid": [
+        3,
+        3
+      ],
+      "fps": 9,
+      "loop": false,
+      "restFrames": [
+        0,
+        5
+      ]
+    },
+    {
+      "state": "hit",
+      "file": "d",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 8,
+      "restFrames": [
+        0,
+        4
+      ],
+      "loop": false
+    },
+    {
+      "state": "defeat",
+      "file": "e",
+      "cells": 5,
+      "grid": [
+        3,
+        2
+      ],
+      "fps": 5,
+      "restFrames": [
+        0
+      ],
+      "loop": false
+    }
+  ]
+}
