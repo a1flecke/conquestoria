@@ -250,6 +250,27 @@ function derivePirateWarnings(
   return warnings;
 }
 
+function barbarianPlanEvidence(
+  state: GameState,
+  viewerId: string,
+  campId: string,
+  plan: AIStrategicPlan,
+): 'visible' | 'remembered' | undefined {
+  const camp = state.barbarianCamps[campId];
+  return camp && isVisible(state, viewerId, camp.position)
+    ? 'visible'
+    : planEvidence(state, viewerId, plan, 'barbarian')?.evidence;
+}
+
+function isBarbarianPlanAimedAt(state: GameState, plan: AIStrategicPlan, viewerId: string): boolean {
+  switch (plan.target.kind) {
+    case 'resource': return state.map.tiles[hexKey(plan.target.position)]?.owner === viewerId;
+    case 'city': return state.cities[plan.target.id]?.owner === viewerId;
+    case 'unit': return state.units[plan.target.id]?.owner === viewerId;
+    default: return false;
+  }
+}
+
 function deriveBarbarianWarnings(
   before: GameState,
   after: GameState,
@@ -259,9 +280,14 @@ function deriveBarbarianWarnings(
   for (const campId of Object.keys(after.opponentAI?.barbarianCamps ?? {}).sort()) {
     const plan = after.opponentAI!.barbarianCamps[campId];
     const previous = before.opponentAI?.barbarianCamps[campId];
+    if (plan.objective !== 'raid') continue;
+    // An unchanged plan is old news, unless it is aimed at the viewer and the viewer only now sees it (#1693):
+    // raiders that set out unseen used never to warn at all.
     if (
-      plan.objective !== 'raid'
-      || previous?.id === plan.id && previous.phase === plan.phase
+      previous?.id === plan.id && previous.phase === plan.phase
+      && !(isBarbarianPlanAimedAt(after, plan, viewerId)
+        && !barbarianPlanEvidence(before, viewerId, campId, previous)
+        && barbarianPlanEvidence(after, viewerId, campId, plan))
     ) continue;
     const coord = plan.target.kind === 'resource'
       ? plan.target.position
@@ -269,10 +295,7 @@ function deriveBarbarianWarnings(
         ? plan.target.lastKnownPosition
         : null;
     if (!coord) continue;
-    const camp = after.barbarianCamps[campId];
-    const evidence = camp && isVisible(after, viewerId, camp.position)
-      ? 'visible'
-      : planEvidence(after, viewerId, plan, 'barbarian')?.evidence;
+    const evidence = barbarianPlanEvidence(after, viewerId, campId, plan);
     if (!evidence) continue;
     const targetIsSafe = after.map.tiles[hexKey(coord)]?.owner === viewerId
       || isVisible(after, viewerId, coord)
