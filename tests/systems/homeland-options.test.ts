@@ -3,7 +3,7 @@ import type { GameMap, HexTile, TerrainType } from '@/core/types';
 import { generateMap, findStartPositions, MIN_MAJOR_CIV_START_DISTANCE } from '@/systems/map-generator';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createStartQualityIndex } from '@/systems/start-quality';
-import { describeHomelandSite, selectHomelandOptions } from '@/systems/homeland-options';
+import { assignHomelandRoom, describeHomelandSite, selectHomelandOptions } from '@/systems/homeland-options';
 
 function buildMap(
   width: number,
@@ -96,6 +96,53 @@ describe('selectHomelandOptions (design 2026-11-25, Phase C)', () => {
     const { map, starts } = world('homeland-6');
     const result = selectHomelandOptions({ map, starts, humanIndices: [0], seed: 'homeland-6' });
     expect([...result.keys()]).toEqual([0]);
+  });
+});
+
+describe('assignHomelandRoom: a human boxed in gets a start with room to choose', () => {
+  // A small island (no alternate six hexes away) and a wide continent with room for several.
+  const hexRadius = (q: number, r: number, cq: number, cr: number) => (Math.abs(q - cq) + Math.abs(r - cr) + Math.abs(q - cq + r - cr)) / 2;
+  const islandAndContinent = buildMap(70, 40, 'coast', (q, r) => {
+    if (hexRadius(q, r, 8, 20) <= 4) return mixed(q, r);
+    if (q >= 30 && q <= 68 && r >= 3 && r <= 36) return mixed(q, r);
+    return undefined;
+  });
+  const ISLAND = { q: 8, r: 20 };
+  const CONTINENT = { q: 49, r: 20 };
+
+  it('trades the boxed-in human\'s start with an AI start that has room, keeping the same set of starts', () => {
+    const before = selectHomelandOptions({ map: islandAndContinent, starts: [ISLAND, CONTINENT], humanIndices: [0], seed: 'room' });
+    expect(before.get(0)!.length).toBe(1);
+
+    const result = assignHomelandRoom({ map: islandAndContinent, starts: [ISLAND, CONTINENT], humanIndices: [0], seed: 'room', canTradeStarts: true });
+    expect(result.starts).toEqual([CONTINENT, ISLAND]);
+    expect(result.options.get(0)!.length).toBe(3);
+    expect(result.options.get(0)![0].coord).toEqual(CONTINENT);
+    // Exactly what selectHomelandOptions gives for the traded starts: one definition of the options.
+    expect(result.options).toEqual(selectHomelandOptions({ map: islandAndContinent, starts: result.starts, humanIndices: [0], seed: 'room' }));
+  });
+
+  it('never trades when starts are bound to civilizations (True Start)', () => {
+    const result = assignHomelandRoom({ map: islandAndContinent, starts: [ISLAND, CONTINENT], humanIndices: [0], seed: 'room', canTradeStarts: false });
+    expect(result.starts).toEqual([ISLAND, CONTINENT]);
+    expect(result.options.get(0)!.length).toBe(1);
+  });
+
+  it('never moves a human who already has a full choice, or trades with another human', () => {
+    const roomy = assignHomelandRoom({ map: islandAndContinent, starts: [CONTINENT, ISLAND], humanIndices: [0], seed: 'room', canTradeStarts: true });
+    expect(roomy.starts).toEqual([CONTINENT, ISLAND]);
+    // Two humans: the boxed-in one may not take the other human's start.
+    const humans = assignHomelandRoom({ map: islandAndContinent, starts: [ISLAND, CONTINENT], humanIndices: [0, 1], seed: 'room', canTradeStarts: true });
+    expect(humans.starts).toEqual([ISLAND, CONTINENT]);
+  });
+
+  it('changes nothing on a map where every human already has room', () => {
+    for (const seed of ['homeland-2', 'homeland-3']) {
+      const { map, starts } = world(seed);
+      const result = assignHomelandRoom({ map, starts, humanIndices: [0], seed, canTradeStarts: true });
+      expect(result.starts).toEqual(starts);
+      expect(result.options).toEqual(selectHomelandOptions({ map, starts, humanIndices: [0], seed }));
+    }
   });
 });
 

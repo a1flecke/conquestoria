@@ -95,17 +95,77 @@ export function describeHomelandSite(map: HomelandMap, coord: HexCoord, quality:
  * with no room gives fewer, down to the placed start alone. Deterministic for a seed.
  */
 export function selectHomelandOptions(input: HomelandOptionsInput): Map<number, HomelandOption[]> {
-  const { map, starts, humanIndices, seed } = input;
+  return homelandOptionsFor(homelandContext(input), input.starts, input.humanIndices, input.seed);
+}
+
+/**
+ * A human placed where no alternate fits (squeezed between the sea and a neighbour a start distance away, as on New
+ * World) gets no choice although other starts on the same map have room. When starts are not bound to civilizations,
+ * such a human trades starts with the AI civilization whose start gives it the most options. The set of starts is
+ * unchanged (no start moves, no spacing rule relaxes, the AI keeps a start the placer chose), so fairness between
+ * civilizations is untouched; only who stands where changes. A trade is kept only when it strictly increases the
+ * options of the human it is for without costing another human any; ties keep the earlier AI. True Start homelands are
+ * bound to their civilizations and are never traded (`canTradeStarts: false`). The options returned are exactly
+ * `selectHomelandOptions` for the returned starts.
+ */
+export function assignHomelandRoom(input: HomelandOptionsInput & { canTradeStarts: boolean }): {
+  starts: HexCoord[];
+  options: Map<number, HomelandOption[]>;
+} {
+  const context = homelandContext(input);
+  const humans = new Set(input.humanIndices);
+  let starts = [...input.starts];
+  let options = homelandOptionsFor(context, starts, input.humanIndices, input.seed);
+  if (!input.canTradeStarts) return { starts, options };
+
+  const full = 1 + HOMELAND_ALTERNATE_COUNT;
+  const countOf = (result: Map<number, HomelandOption[]>, index: number): number => result.get(index)?.length ?? 1;
+  for (const human of [...input.humanIndices].sort((a, b) => a - b)) {
+    if (countOf(options, human) >= full) continue;
+    let best: { starts: HexCoord[]; options: Map<number, HomelandOption[]> } | null = null;
+    for (let ai = 0; ai < starts.length; ai++) {
+      if (humans.has(ai)) continue;
+      const traded = [...starts];
+      [traded[human], traded[ai]] = [traded[ai], traded[human]];
+      const tradedOptions = homelandOptionsFor(context, traded, input.humanIndices, input.seed);
+      const bar = best ? countOf(best.options, human) : countOf(options, human);
+      if (countOf(tradedOptions, human) <= bar) continue;
+      if (input.humanIndices.some(other => other !== human && countOf(tradedOptions, other) < countOf(options, other))) continue;
+      best = { starts: traded, options: tradedOptions };
+    }
+    if (best) ({ starts, options } = best);
+  }
+  return { starts, options };
+}
+
+interface HomelandContext {
+  map: HomelandMap;
+  quality: StartQualityIndex;
+  distance: (a: HexCoord, b: HexCoord) => number;
+  /** Every tile that may be a major start, scored once and shared by every evaluation. */
+  viable: ScoredSite[];
+}
+
+function homelandContext(input: Pick<HomelandOptionsInput, 'map' | 'polarRows'>): HomelandContext {
+  const { map } = input;
   const quality = createStartQualityIndex(map, { polarRows: input.polarRows });
   const distance = (a: HexCoord, b: HexCoord): number =>
     map.wrapsHorizontally ? wrappedHexDistance(a, b, map.width) : hexDistance(a, b);
-
   const viable: ScoredSite[] = [];
   for (const tile of Object.values(map.tiles)) {
     if (!isValidStartTile(tile) || !quality.passesFloor(tile.coord, 'major')) continue;
     viable.push({ coord: tile.coord, score: quality.assess(tile.coord).score });
   }
+  return { map, quality, distance, viable };
+}
 
+function homelandOptionsFor(
+  context: HomelandContext,
+  starts: HexCoord[],
+  humanIndices: number[],
+  seed: string,
+): Map<number, HomelandOption[]> {
+  const { map, quality, distance, viable } = context;
   const result = new Map<number, HomelandOption[]>();
   const reserved: HexCoord[] = [];
   for (const index of [...humanIndices].sort((a, b) => a - b)) {
