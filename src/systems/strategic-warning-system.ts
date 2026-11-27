@@ -145,6 +145,30 @@ function samePlanTransition(
   return before?.id === after.id && before.phase === phase;
 }
 
+/** A plan advancing on, or attacking, a city the viewer owns. */
+function isAdvanceOnViewerCity(state: GameState, viewerId: string, plan: AIStrategicPlan): boolean {
+  return (plan.phase === 'advancing' || plan.phase === 'attacking')
+    && plan.target.kind === 'city'
+    && state.cities[plan.target.id]?.owner === viewerId;
+}
+
+function wasAdvanceVisible(
+  before: GameState,
+  viewerId: string,
+  beforePlan: AIStrategicPlan | null | undefined,
+  plan: AIStrategicPlan,
+  actorId: string,
+): boolean {
+  return Boolean(
+    beforePlan
+    && beforePlan.target.kind === 'city'
+    && plan.target.kind === 'city'
+    && beforePlan.target.id === plan.target.id
+    && isAdvanceOnViewerCity(before, viewerId, beforePlan)
+    && planEvidence(before, viewerId, beforePlan, actorId),
+  );
+}
+
 function deriveMajorWarnings(
   before: GameState,
   after: GameState,
@@ -159,10 +183,14 @@ function deriveMajorWarnings(
     const beforePlan = before.opponentAI?.majorCivs[actorId]?.primaryPlan;
     const kind = plan.phase === 'mobilizing'
       ? 'mobilizing'
-      : plan.phase === 'withdrawing' ? 'withdrawing' : null;
+      : plan.phase === 'withdrawing'
+        ? 'withdrawing'
+        : isAdvanceOnViewerCity(after, viewerId, plan) ? 'advancing' : null;
     if (!kind || samePlanTransition(beforePlan, plan, plan.phase)) continue;
     const evidence = planEvidence(after, viewerId, plan, actorId);
     if (!evidence) continue;
+    // An advance the viewer could already see last round is old news, even when the AI re-planned it.
+    if (kind === 'advancing' && wasAdvanceVisible(before, viewerId, beforePlan, plan, actorId)) continue;
     const target = evidence.evidence === 'visible'
       ? safePlanTarget(after, viewerId, plan)
       : {};

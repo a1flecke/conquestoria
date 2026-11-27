@@ -72,6 +72,13 @@ export function presentStrategicWarning(
       ...(event.target ? { target: event.target } : {}),
     };
   }
+  if (event.kind === 'advancing') {
+    return {
+      message: `A ${event.actorName} force is advancing on ${event.targetLabel ?? 'one of our cities'}. Reinforce the city or seek peace.`,
+      type: 'warning',
+      ...(event.target ? { target: event.target } : {}),
+    };
+  }
   if (event.evidence === 'remembered') {
     return {
       message: `Scouts last reported ${event.actorName} troops gathering in the ${event.regionLabel ?? 'border marches'}. Their current position is uncertain.`,

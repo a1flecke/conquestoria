@@ -13,6 +13,9 @@ export interface SessionEvents {
     warningKey: string;
     kind:
       | 'mobilizing'
+      // #1693: a visible force already advancing on or attacking one of the viewer's own cities, warned once when
+      // the viewer first sees it (a war-continuing plan never passes through 'mobilizing').
+      | 'advancing'
       | 'raid'
       | 'blockade'
       | 'resource-denied'
