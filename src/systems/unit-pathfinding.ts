@@ -11,6 +11,7 @@ import {
   getMovementStepCostFor,
   isEnterableMovementTile,
   hasRoadMovementDiscount,
+  maxFiniteMovementStepCost,
   type UnitMovementContext,
 } from './unit-movement-cost';
 import { BinaryHeap } from './binary-heap';
@@ -64,6 +65,13 @@ export function findPath(
     // `territorial-access.ts`. Unlike `blockedHexKeys` it is enforced on the destination too: a
     // denied destination has no route at all.
     deniedOwnerIds?: ReadonlySet<string>;
+    // #1837: a caller that will discard any route longer than `maxSteps` steps. The result is
+    // exactly the unbounded route when it has at most `maxSteps` steps, and `null` otherwise;
+    // the bound only lets the search stop early. Every step costs at most
+    // `maxFiniteMovementStepCost`, so such a route costs at most `maxSteps` times that, and with
+    // the consistent heuristic every node on it has f within that ceiling: skipping nodes above
+    // it removes nothing that could be expanded before the goal.
+    maxSteps?: number;
   } = {},
 ): HexCoord[] | null {
   const toKey = hexKey(to);
@@ -88,6 +96,10 @@ export function findPath(
     ? 0.5
     : 1;
   const EPS = 1e-9;
+  const maxSteps = options.maxSteps;
+  const costCeiling = maxSteps === undefined
+    ? Infinity
+    : maxSteps * maxFiniteMovementStepCost(costParams);
 
   interface OpenNode { key: string; g: number; f: number; }
 
@@ -138,7 +150,7 @@ export function findPath(
         path.unshift(coords.get(key)!);
         key = parents.get(key) ?? null;
       }
-      return path;
+      return maxSteps !== undefined && path.length - 1 > maxSteps ? null : path;
     }
 
     closedSet.add(current.key);
@@ -160,10 +172,14 @@ export function findPath(
 
       const tentativeG = current.g + stepCost;
       if (tentativeG < (gScore.get(nKey) ?? Infinity) - EPS) {
+        const f = tentativeG + minStepCost * heuristicFrom(neighbor);
+        // Above the ceiling no route through here can be returned; record nothing, so a later,
+        // cheaper relaxation of this node behaves exactly as in the unbounded search.
+        if (f > costCeiling + EPS) continue;
         parents.set(nKey, current.key);
         gScore.set(nKey, tentativeG);
         coords.set(nKey, neighbor);
-        heap.push({ key: nKey, g: tentativeG, f: tentativeG + minStepCost * heuristicFrom(neighbor) });
+        heap.push({ key: nKey, g: tentativeG, f });
       }
     }
   }

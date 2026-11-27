@@ -5,10 +5,11 @@
  * SAME movement-cost model the executor (`getMovementStepCost`) and movement
  * range (`getMovementRangeDetails`) use — not a hex-count-first approximation.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { BinaryHeap } from '@/systems/binary-heap';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
-import { getMovementStepCost, getMovementStepCostFor, movementStepCostParamsForType, type MovementStepCostParams, isPassableForParams, hasRoadMovementDiscount } from '@/systems/unit-movement-cost';
+import { getMovementStepCost, getMovementStepCostFor, maxFiniteMovementStepCost, movementStepCostParamsForType, type MovementStepCostParams, isPassableForParams, hasRoadMovementDiscount } from '@/systems/unit-movement-cost';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { findPath, findPathToCity } from '@/systems/unit-pathfinding';
 import { seededLcg } from '@/systems/seeded-lcg';
@@ -329,6 +330,34 @@ describe('#1042 — findPath route cost equals the Dijkstra optimum (admissible 
   }
 });
 
+describe('#1837 — maxFiniteMovementStepCost bounds every finite step', () => {
+  it('is the dearest terrain plus the river surcharge, and drops the surcharge with bridges', () => {
+    expect(maxFiniteMovementStepCost(movementStepCostParamsForType('warrior', 'land', {}))).toBe(5);
+    expect(maxFiniteMovementStepCost(movementStepCostParamsForType('warrior', 'land', { completedTechs: ['bridge-building'] }))).toBe(4);
+    // An override that cheapens the dearest terrain lowers the bound (expedition: hills and mountains cost 1).
+    expect(maxFiniteMovementStepCost(movementStepCostParamsForType('expedition', 'land', {}))).toBe(3);
+    expect(maxFiniteMovementStepCost(movementStepCostParamsForType('trireme', 'naval', {}))).toBe(1);
+  });
+
+  it('is never below a real step cost on the seeded maps', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const map = randomMap(seed);
+      for (const techs of [[], ['bridge-building'], ['military-logistics']]) {
+        for (const type of ['warrior', 'expedition'] as UnitType[]) {
+          const params = movementStepCostParamsForType(type, 'land', { completedTechs: techs, owner: 'player' });
+          const bound = maxFiniteMovementStepCost(params);
+          for (const tile of Object.values(map.tiles)) {
+            for (const n of hexNeighbors(tile.coord)) {
+              const cost = getMovementStepCostFor(params, map, tile.coord, n);
+              if (cost !== Infinity) expect(cost, `seed ${seed} ${type}`).toBeLessThanOrEqual(bound);
+            }
+          }
+        }
+      }
+    }
+  });
+});
+
 describe('#1042 — getMovementStepCostFor is the canonical no-Unit cost provider', () => {
   it('matches getMovementStepCost for the same terrain/road/tech inputs', () => {
     const map = roadDetourMap();
@@ -480,6 +509,66 @@ describe('#1042 MR5 — findPath matches the pre-MR5 linear-scan oracle exactly'
       }
     }
     expect(compared).toBe(480);
+  });
+
+  it('maxSteps: the bounded search returns the unbounded route when it fits, else null', () => {
+    // The bound only stops a search early; it must never change which route is returned.
+    let fitted = 0;
+    let refused = 0;
+    for (let seed = 1; seed <= 120; seed++) {
+      const map = randomMap(seed);
+      const keys = Object.keys(map.tiles);
+      const pick = seededLcg(seed * 11 + 3);
+      for (let p = 0; p < 4; p++) {
+        const from = map.tiles[keys[Math.floor(pick() * keys.length)]!]!.coord;
+        const to = map.tiles[keys[Math.floor(pick() * keys.length)]!]!.coord;
+        const techs = techSets[Math.floor(pick() * techSets.length)]!;
+        const opts = { unitType: 'warrior' as UnitType, completedTechs: techs, owner: 'player' };
+        const unbounded = findPath(from, to, map, 'land', opts);
+        for (let maxSteps = 0; maxSteps <= 12; maxSteps++) {
+          const expected = unbounded && unbounded.length - 1 <= maxSteps ? unbounded : null;
+          expect(
+            findPath(from, to, map, 'land', { ...opts, maxSteps }),
+            `seed ${seed} pair ${p} maxSteps ${maxSteps}`,
+          ).toEqual(expected);
+          if (expected) fitted++;
+          else if (unbounded) refused++;
+        }
+      }
+    }
+    // Both outcomes are exercised, so the comparison is not vacuous.
+    expect(fitted).toBeGreaterThan(500);
+    expect(refused).toBeGreaterThan(500);
+  });
+
+  it('maxSteps: a target out of reach stops the search early instead of flooding the map', () => {
+    const tiles: GameMap['tiles'] = {};
+    for (let q = 0; q < 40; q++) for (let r = 0; r < 40; r++) {
+      tiles[hexKey({ q, r })] = {
+        coord: { q, r }, terrain: 'plains', elevation: 'lowland', resource: null,
+        improvement: 'none', owner: null, improvementTurnsLeft: 0,
+        hasRiver: false, hasRoad: false, wonder: null,
+      };
+    }
+    const map: GameMap = { width: 40, height: 40, wrapsHorizontally: false, tiles, rivers: [] };
+    const from = { q: 2, r: 2 };
+    const to = { q: 36, r: 2 }; // 34 steps away
+    const pops = (fn: () => unknown) => {
+      const spy = vi.spyOn(BinaryHeap.prototype, 'pop');
+      try { fn(); return spy.mock.calls.length; } finally { spy.mockRestore(); }
+    };
+    const opts = { unitType: 'warrior' as UnitType, completedTechs: [], owner: 'player' };
+    expect(findPath(from, to, map, 'land', { ...opts, maxSteps: 12 })).toBeNull();
+    expect(findPath(from, to, map, 'land', { ...opts, maxSteps: 34 })).toEqual(findPath(from, to, map, 'land', opts));
+    // A target walled off by water: the unbounded search floods the whole reachable half. The
+    // bound must assume any step might be the dearest one (mountain plus river, 5), so it only
+    // stops the search at maxSteps x 5 movement points; that is still far short of a flood.
+    const walled = { ...map, tiles: { ...tiles } };
+    for (let r = 0; r < 40; r++) walled.tiles[hexKey({ q: 20, r })] = { ...tiles[hexKey({ q: 20, r })]!, terrain: 'ocean' };
+    expect(findPath(from, to, walled, 'land', opts)).toBeNull();
+    expect(findPath(from, to, walled, 'land', { ...opts, maxSteps: 3 })).toBeNull();
+    expect(pops(() => findPath(from, to, walled, 'land', { ...opts, maxSteps: 3 })))
+      .toBeLessThan(pops(() => findPath(from, to, walled, 'land', opts)) / 2);
   });
 
   it('naval domain: equal-cost water routes resolve identically to referenceFindPath', () => {

@@ -155,13 +155,14 @@ function routePath(
   unit: Unit,
   city: City,
   completedTechs: readonly string[],
+  maxSteps?: number,
 ) {
   return findPath(
     unit.position,
     city.position,
     state.map,
     UNIT_DEFINITIONS[unit.type].domain ?? 'land',
-    { unit, completedTechs: [...completedTechs], deniedOwnerIds: getDeniedTerritoryOwners(state, unit) },
+    { unit, completedTechs: [...completedTechs], deniedOwnerIds: getDeniedTerritoryOwners(state, unit), maxSteps },
   );
 }
 
@@ -311,11 +312,15 @@ export function processAIUpgradesInPlace(
         // this change. See docs/superpowers/specs/2026-09-15-issue-1069-ai-round-perf-design.md §3.
         const maxHexSteps = 6 * Math.max(1, UNIT_DEFINITIONS[current.type].movementPoints);
         if (distance(working, current.position, cityCandidate.position) > maxHexSteps) return [];
+        // #1837: the same bound, given to the search. `rounds <= 6` below is exactly
+        // `path.length - 1 <= maxHexSteps`, so a bounded search that returns `null` for any longer
+        // route changes no decision; it only stops exploring a detour that would be thrown away.
         const path = routePath(
           working,
           current,
           cityCandidate,
           civ.techState.completed,
+          maxHexSteps,
         );
         if (!path) return [];
         const rounds = Math.ceil(
