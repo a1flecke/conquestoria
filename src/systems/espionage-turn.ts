@@ -389,7 +389,11 @@ function applySpyTurnEvents(
           const targetCivId = originalSpy?.targetCivId;
           if (crisis && !crisis.sabotage && targetCivId) {
             const untilTurn = state.turn + 4;
-            const detectRng = createRng(`sab-relief-detect-${evt.spyId}-${crisisId}-${state.turn}`);
+            const detectRng = createSimulationRng(state, {
+              domain: 'sabotage-relief-detect',
+              actorId: evt.spyId,
+              eventId: crisisId,
+            });
             const discovered = detectRng() < 0.3;
             state = {
               ...state,
@@ -909,7 +913,10 @@ function autoExfiltrateDisplacedSpies(state: GameState, civId: string, bus: Even
 
 /** Passive capture risk for cooldown spies still embedded in a foreign city. */
 function applyPassiveCaptureDetection(state: GameState, civId: string, bus: EventBus): GameState {
-  const passiveRng = createRng(`passive-detect-${civId}-${state.turn}`);
+  const passiveRng = createSimulationRng(state, {
+    domain: 'spy-passive-detect',
+    actorId: civId,
+  });
   const toCapture: string[] = [];
   for (const spy of Object.values(state.espionage![civId].spies)) {
     if (spy.status !== 'cooldown' || !spy.infiltrationCityId || !spy.targetCivId) continue;
@@ -1079,7 +1086,7 @@ function applyEspionageConsequences(
 export function processEspionageTurn(state: GameState, bus: EventBus): GameState {
   if (!state.espionage) return state;
 
-  const turnSeed = `esp-turn-${state.turn}`;
+  const turnSeed = `esp-turn-${state.gameId ?? 'legacy'}-${state.turn}`;
   // #1201: authoritative mission consequences are collected during the per-civ loop
   // and applied here, by the turn itself, after `decaySpyUnrest` (where turn-manager.ts
   // used to apply them from the emitted events).
@@ -1159,7 +1166,7 @@ export function runCounterIntelSweep(
   if (spy.status !== 'embedded' || !spy.targetCityId) return { ok: false, reason: 'not-embedded' };
   if (spy.lastSweepTurn === state.turn) return { ok: false, reason: 'already-swept' };
 
-  const swept = attemptSweep(sweeperEsp, spyId, `sweep-${spyId}-${state.turn}`, state);
+  const swept = attemptSweep(sweeperEsp, spyId, `sweep-${state.gameId ?? 'legacy'}-${spyId}-${state.turn}`, state);
   let next: GameState = { ...state, espionage: { ...state.espionage, [sweeperCivId]: swept.state } };
   const expelledSpyIds: string[] = [];
   for (const [ownerId, ownerEsp] of Object.entries(state.espionage ?? {}).sort(([a], [b]) => a.localeCompare(b))) {

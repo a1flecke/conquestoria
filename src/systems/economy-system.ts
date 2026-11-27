@@ -9,6 +9,9 @@ import type {
 } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { BUILDINGS, isBuildingObsolete, TRAINABLE_UNITS } from './city-system';
+import { getTrainableUnit } from './city-unit-catalog';
+import { isSpyUnitType } from './spy-unit-types';
+import { TECH_TREE } from './tech-definitions';
 import { calculateProjectedCityYields } from './city-work-system';
 import { getLegendaryWonderCityYieldBonus, getLegendaryWonderCivYieldBonus } from './legendary-wonder-system';
 import { getNationalProjectCivYieldBonus } from './national-project-system';
@@ -86,6 +89,8 @@ export const ECONOMY_RULES = {
     default: 1,
     advanced: 2,
   },
+  advancedMinEra: 4,
+  advancedCombatUnitCostThreshold: 50,
   advancedBuildingIds: new Set([
     'forge',
     'observatory',
@@ -108,6 +113,8 @@ export const ECONOMY_RULES = {
     'spy_informant',
     'spy_agent',
     'spy_operative',
+    'spy_intelligence_officer',
+    'spy_station_chief',
     'spy_hacker',
     'scout_hound',
     'shadow_warden',
@@ -121,6 +128,8 @@ export const ECONOMY_RULES = {
     'spy_informant',
     'spy_agent',
     'spy_operative',
+    'spy_intelligence_officer',
+    'spy_station_chief',
     'spy_hacker',
     'scout_hound',
     'shadow_warden',
@@ -237,16 +246,69 @@ export interface RushBuyQuote {
   missingMaterials: readonly MaterialFundingRow[];
 }
 
-function getBuildingUpkeep(buildingId: string): number {
+let techEraById: ReadonlyMap<string, number> | null = null;
+let techEraByIdSize = -1;
+
+function getTechEraById(techId: string | null | undefined): number {
+  if (!techId) return 1;
+  if (techEraById === null || techEraByIdSize !== TECH_TREE.length) {
+    const index = new Map<string, number>();
+    for (const tech of TECH_TREE) index.set(tech.id, tech.era);
+    techEraById = index;
+    techEraByIdSize = TECH_TREE.length;
+  }
+  return techEraById.get(techId) ?? 1;
+}
+
+function getItemUnlockEra(
+  techRequired: string | null | undefined,
+  requiredTechs: readonly string[] | undefined,
+  homeEra?: number,
+): number {
+  let era = Math.max(1, homeEra ?? 1, getTechEraById(techRequired));
+  if (requiredTechs) {
+    for (const techId of requiredTechs) {
+      era = Math.max(era, getTechEraById(techId));
+    }
+  }
+  return era;
+}
+
+function isAdvancedBuildingId(buildingId: string): boolean {
+  if (ECONOMY_RULES.coreFreeBuildings.has(buildingId)) return false;
+  if (ECONOMY_RULES.advancedBuildingIds.has(buildingId)) return true;
+  const building = BUILDINGS[buildingId];
+  if (!building) return false;
+  return getItemUnlockEra(
+    building.techRequired,
+    building.requiredTechs,
+    building.nationalProject?.homeEra,
+  ) >= ECONOMY_RULES.advancedMinEra;
+}
+
+function isAdvancedUnitType(unitType: UnitType): boolean {
+  if (ECONOMY_RULES.freeUnitTypes.has(unitType)) return false;
+  if (ECONOMY_RULES.advancedUnitTypes.has(unitType)) return true;
+  if (isSpyUnitType(unitType)) return true;
+  const trainable = getTrainableUnit(unitType);
+  if (trainable) {
+    const unlockEra = getItemUnlockEra(trainable.techRequired, trainable.requiredTechs);
+    if (unlockEra >= ECONOMY_RULES.advancedMinEra) return true;
+  }
+  const def = UNIT_DEFINITIONS[unitType];
+  return (def?.strength ?? 0) > 0 && (def?.productionCost ?? 0) >= ECONOMY_RULES.advancedCombatUnitCostThreshold;
+}
+
+export function getBuildingUpkeep(buildingId: string): number {
   if (ECONOMY_RULES.coreFreeBuildings.has(buildingId)) return 0;
-  return ECONOMY_RULES.advancedBuildingIds.has(buildingId)
+  return isAdvancedBuildingId(buildingId)
     ? ECONOMY_RULES.buildingUpkeep.advanced
     : ECONOMY_RULES.buildingUpkeep.default;
 }
 
-function getUnitUpkeep(unitType: UnitType): number {
+export function getUnitUpkeep(unitType: UnitType): number {
   if (ECONOMY_RULES.freeUnitTypes.has(unitType)) return 0;
-  return ECONOMY_RULES.advancedUnitTypes.has(unitType)
+  return isAdvancedUnitType(unitType)
     ? ECONOMY_RULES.unitUpkeep.advanced
     : ECONOMY_RULES.unitUpkeep.default;
 }
@@ -339,15 +401,15 @@ function getBuildingMaintenancePriority(buildingId: string): number {
   const building = BUILDINGS[buildingId];
   if (building?.pacing?.band === 'starter') return 1;
   if (building?.category === 'food' || building?.category === 'production' || building?.category === 'economy') return 2;
-  if (ECONOMY_RULES.advancedBuildingIds.has(buildingId)) return 4;
+  if (isAdvancedBuildingId(buildingId)) return 4;
   return 3;
 }
 
 function getUnitMaintenancePriority(unit: Unit): number {
   if (ECONOMY_RULES.freeUnitTypes.has(unit.type)) return 0;
   if (ECONOMY_RULES.basicDefenderTypes.has(unit.type)) return 1;
-  if (!ECONOMY_RULES.specialistUnitTypes.has(unit.type) && (UNIT_DEFINITIONS[unit.type]?.strength ?? 0) > 0) return 2;
-  if (ECONOMY_RULES.advancedUnitTypes.has(unit.type)) return 3;
+  if (!ECONOMY_RULES.specialistUnitTypes.has(unit.type) && !isSpyUnitType(unit.type) && (UNIT_DEFINITIONS[unit.type]?.strength ?? 0) > 0) return 2;
+  if (isAdvancedUnitType(unit.type)) return 3;
   return 4;
 }
 

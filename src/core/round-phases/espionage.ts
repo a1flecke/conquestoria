@@ -27,7 +27,7 @@ function runEspionage(state: GameState, context: RoundPhaseContext): GameState {
   // Process active interrogations and apply extracted intel to game state
   for (const [captorId, captorEsp] of Object.entries(newState.espionage ?? {})) {
     if (!captorEsp.activeInterrogations || Object.keys(captorEsp.activeInterrogations).length === 0) continue;
-    const seed = `interro-${captorId}-${newState.turn}`;
+    const seed = `interro-${newState.gameId ?? 'legacy'}-${captorId}-${newState.turn}`;
     const { state: updatedEsp, newIntel } = processInterrogation(captorEsp, seed, newState);
     newState = { ...newState, espionage: { ...newState.espionage!, [captorId]: updatedEsp } };
 

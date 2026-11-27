@@ -118,6 +118,12 @@ case "$rel_path" in
         append "Hand-rolled simulation RNG constant or truncated-id charCodeAt() detected — use createSimulationRng() from src/systems/simulation-rng.ts instead (see .claude/rules/game-systems.md#deterministic-simulation-rng):
 $rng_lines"
       fi
+      turn_seed_lines="$(grep -nE 'createRng\(`[^`]*\.turn[^`]*`' "$file_path" \
+        | grep -vE '^[0-9]+:[[:space:]]*(//|\*)|gameId' | head -5 || true)"
+      if [ -n "$turn_seed_lines" ]; then
+        append "createRng() template seed references .turn without gameId — use createSimulationRng(state, key) so campaigns diverge (see .claude/rules/game-systems.md#deterministic-simulation-rng, #1830):
+$turn_seed_lines"
+      fi
     fi
     ;;
   *) ;;

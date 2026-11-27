@@ -46,6 +46,16 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+function isCacheableResponse(response) {
+  // Never cache partial responses (206 from Range requests on audio/media):
+  // Cache.put() throws TypeError on status 206. Also skip opaque/error responses.
+  return Boolean(
+    response
+    && response.status === 200
+    && (!response.type || response.type === 'basic')
+  );
+}
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((names) => {
@@ -54,36 +64,52 @@ self.addEventListener('activate', (event) => {
           .filter((name) => name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  // Cache-first strategy for all requests
+  if (event.request.method && event.request.method !== 'GET') return;
+
+  let requestUrl;
+  try {
+    requestUrl = new URL(event.request.url, self.location && self.location.href);
+  } catch {
+    return;
+  }
+  if (requestUrl.protocol !== 'http:' && requestUrl.protocol !== 'https:') return;
+  if (self.location && requestUrl.origin !== self.location.origin) return;
+
+  // Cache-first strategy for same-origin GET requests
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) {
-        // Return cached, but also update cache in background
+        // Return cached, and keep the service worker alive while refreshing in background
         const fetchPromise = fetch(event.request).then((response) => {
-          if (response.ok) {
+          if (isCacheableResponse(response)) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, clone);
+            return caches.open(CACHE_NAME).then((cache) => {
+              return cache.put(event.request, clone);
             });
           }
           return response;
         }).catch(() => {});
 
+        if (typeof event.waitUntil === 'function') {
+          event.waitUntil(fetchPromise);
+        }
         return cached;
       }
 
       return fetch(event.request).then((response) => {
-        if (response.ok) {
+        if (isCacheableResponse(response)) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
+          const cacheWrite = caches.open(CACHE_NAME).then((cache) => {
+            return cache.put(event.request, clone);
+          }).catch(() => {});
+          if (typeof event.waitUntil === 'function') {
+            event.waitUntil(cacheWrite);
+          }
         }
         return response;
       });

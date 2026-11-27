@@ -1,6 +1,6 @@
 import type { GameState } from '@/core/types';
 import { processWonderEffects } from '@/systems/wonder-system';
-import { createRng } from '@/systems/map-generator';
+import { createSimulationRng } from '@/systems/simulation-rng';
 import { reconcileLegendaryWonderAvailability, tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
 import type { RoundPhase, RoundPhaseContext } from './types';
 
@@ -16,7 +16,10 @@ function runWondersMarket(state: GameState, context: RoundPhaseContext): GameSta
   newState = reconcileLegendaryWonderAvailability(newState, bus);
 
   // --- Process wonder effects (after city processing) ---
-  const wonderRng = createRng(`wonder-${newState.turn}`);
+  const wonderRng = createSimulationRng(newState, {
+    domain: 'wonder-eruption',
+    eventId: 'wonders-market',
+  });
   const eruptions = processWonderEffects(newState, wonderRng);
   for (const eruption of eruptions) {
     bus.emit('wonder:eruption', {

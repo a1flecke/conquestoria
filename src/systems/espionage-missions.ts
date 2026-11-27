@@ -10,7 +10,7 @@ import type {
 import type { AdvisorType } from '@/core/types/council';
 import type { Treaty } from '@/core/types/diplomacy';
 import type { OperationEffect, OperationMissionType } from '@/core/types/espionage-incident';
-import { createRng } from './map-generator';
+import { createSimulationRng } from './simulation-rng';
 import { mapDistance } from './hex-utils';
 import { REBEL_SPAWN_OFFSETS, filterLegalSpawnTiles, spawnNeighbours, type SpawnPlacementQuery } from './unit-spawn-placement';
 import { getCapitalCityId } from './capital-system';
@@ -326,7 +326,11 @@ export function resolveMissionResult(
       const alreadyStolen = new Set(spy?.stolenTechFrom?.[targetCivId] ?? []);
       const stealable = theyHave.filter(t => !iHave.has(t) && !alreadyStolen.has(t));
       if (stealable.length === 0) return {};
-      const rng = createRng(`steal-${spyId}-${targetCivId}-${targetCityId}-${gameState.turn}`);
+      const rng = createSimulationRng(gameState, {
+        domain: 'espionage-steal-tech',
+        actorId: spyId,
+        targetId: `${targetCivId}/${targetCityId}`,
+      });
       const idx = Math.floor(rng() * stealable.length);
       return { stolenTechId: stealable[idx] };
     }
@@ -334,7 +338,11 @@ export function resolveMissionResult(
     case 'sabotage_production': {
       const targetCity = gameState.cities[targetCityId];
       if (!targetCity || targetCity.productionQueue.length === 0) return {};
-      const rng = createRng(`sab-${spyId}-${targetCityId}-${gameState.turn}`);
+      const rng = createSimulationRng(gameState, {
+        domain: 'espionage-sabotage-production',
+        actorId: spyId,
+        targetId: targetCityId,
+      });
       const lostTurns = 3 + Math.floor(rng() * 3); // 3-5 turns
       const lostProgress = lostTurns * 5; // ~5 production/turn
       return { productionLost: lostProgress };
@@ -455,7 +463,11 @@ export function resolveMissionResult(
 
     case 'assassinate_advisor': {
       const advisorTypes: AdvisorType[] = ['builder', 'explorer', 'chancellor', 'warchief', 'treasurer', 'scholar', 'spymaster'];
-      const rng = createRng(`assassin-${spyId}-${targetCivId}-${gameState.turn}`);
+      const rng = createSimulationRng(gameState, {
+        domain: 'espionage-assassinate-advisor',
+        actorId: spyId,
+        targetId: targetCivId,
+      });
       const idx = Math.floor(rng() * advisorTypes.length);
       const assassinatedAdvisor = advisorTypes[idx];
       const disabledUntilTurn = gameState.turn + 10;
@@ -467,7 +479,11 @@ export function resolveMissionResult(
         id => id !== targetCivId && id !== spyingCivId,
       );
       if (allCivIds.length < 1) return {};
-      const rng = createRng(`forge-${spyId}-${targetCivId}-${gameState.turn}`);
+      const rng = createSimulationRng(gameState, {
+        domain: 'espionage-forge-documents',
+        actorId: spyId,
+        targetId: targetCivId,
+      });
       const idx = Math.floor(rng() * allCivIds.length);
       return { forgeCivA: targetCivId, forgeCivB: allCivIds[idx], forgeRelationshipPenalty: -25 };
     }
@@ -484,7 +500,11 @@ export function resolveMissionResult(
         spawnNeighbours(gameState, targetCity.position, REBEL_SPAWN_OFFSETS),
       );
       if (legal.length === 0) return {};
-      const rng = createRng(`arms-${spyId}-${targetCityId}-${gameState.turn}`);
+      const rng = createSimulationRng(gameState, {
+        domain: 'espionage-arms-smuggling',
+        actorId: spyId,
+        targetId: targetCityId,
+      });
       const spawnPosition: HexCoord = { ...legal[Math.floor(rng() * legal.length)] };
       return { spawnPosition };
     }

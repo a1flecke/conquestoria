@@ -498,4 +498,20 @@ const html = `<div style="background:${safeColor};"></div>`;
 EOF
 expect_allow "$tmp/src/ui/safe-color.ts" "sanitized hex color interpolated into HTML style attribute"
 
+# --- #1830: block turn-keyed createRng() template seeds that omit gameId ---
+cat > "$tmp/src/systems/bad-rng-seed.ts" <<'EOF'
+const rng = createRng(`event-${state.turn}`);
+EOF
+expect_block "$tmp/src/systems/bad-rng-seed.ts" "turn-keyed createRng() omitting gameId"
+
+cat > "$tmp/src/ai/bad-ai-rng-seed.ts" <<'EOF'
+const rng = createRng(`ai-roll-${civId}-${newState.turn}`);
+EOF
+expect_block "$tmp/src/ai/bad-ai-rng-seed.ts" "AI turn-keyed createRng() omitting gameId"
+
+cat > "$tmp/src/systems/good-rng-seed.ts" <<'EOF'
+const rng = createRng(`event-${state.gameId ?? 'legacy'}-${state.turn}`);
+EOF
+expect_allow "$tmp/src/systems/good-rng-seed.ts" "turn-keyed createRng() including gameId"
+
 exit "$fail"
