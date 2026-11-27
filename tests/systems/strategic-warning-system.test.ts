@@ -417,6 +417,38 @@ describe('strategic warning transition derivation', () => {
     ]);
   });
 
+  it('warns when raiders on an unchanged plan first come into view heading for our land (#1693)', () => {
+    // A raid plan warned only when it started or changed phase; raiders that set out unseen and then came into view
+    // never warned. They warn the first round they are seen, and not again while they stay in view.
+    const { before, after } = fixture();
+    const resourceCoord = after.cities[after.civilizations.player.cities[0]!].position;
+    after.map.tiles[`${resourceCoord.q},${resourceCoord.r}`].resource = 'iron';
+    after.map.tiles[`${resourceCoord.q},${resourceCoord.r}`].owner = 'player';
+    const raiderId = 'barbarian-raider';
+    after.units[raiderId] = {
+      id: raiderId, type: 'warrior', owner: 'barbarian', position: { q: resourceCoord.q + 1, r: resourceCoord.r },
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    const plan = makePlan('camp-1', raiderId, { kind: 'resource', resource: 'iron', position: resourceCoord }, 'advancing');
+    plan.objective = 'raid';
+    after.opponentAI!.barbarianCamps['camp-1'] = plan;
+    setVisibility(after, 'player', after.units[raiderId].position, 'fog');
+    // The plan already existed, unseen, last round.
+    const unseen = structuredClone(after);
+    unseen.turn = before.turn;
+
+    const seen = structuredClone(after);
+    seen.turn = after.turn;
+    setVisibility(seen, 'player', seen.units[raiderId].position, 'visible');
+    expect(deriveStrategicWarningTransitions(unseen, seen, 'player')).toEqual([
+      expect.objectContaining({ actorId: 'barbarian:camp-1', kind: 'raid', resource: 'iron' }),
+    ]);
+
+    const stillSeen = structuredClone(seen);
+    stillSeen.turn += 1;
+    expect(deriveStrategicWarningTransitions(seen, stillSeen, 'player')).toEqual([]);
+  });
+
   it('emits available-to-denied and denied-to-restored resource transitions exactly once', () => {
     const { before, after } = fixture();
     const city = Object.values(after.cities).find(candidate => candidate.owner === 'player')!;
