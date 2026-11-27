@@ -961,6 +961,9 @@ describe('AI strategic production', () => {
   it('never queues one empire-unique national project in multiple cities', () => {
     const state = setupState(['gathering'], ['city-a', 'city-b']);
     state.era = 1;
+    // Both cities hold every other building (~200+ advanced buildings), so keep treasury
+    // unstrained so production isn't paused before testing unique-project deduplication.
+    state.civilizations['ai-1'].gold = 2000;
     const allOtherBuildings = Object.keys(BUILDINGS)
       .filter(buildingId => buildingId !== 'communal_stores');
     state.cities['city-a'].buildings = [...allOtherBuildings];

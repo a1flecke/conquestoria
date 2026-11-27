@@ -800,8 +800,8 @@ describe('#1125 engineering passage feasibility', () => {
     const harborAvailable = passage.rounds.find(({ harborBuilt, quote, uncommitted: gold }) =>
       harborBuilt || (quote.available && gold >= quote.cost));
     const passageAvailable = harbor.rounds.find(round => round.uncommitted >= passageCost);
-    expect(harborAvailable?.turn).toBe(17);
-    expect(passageAvailable?.turn).toBe(18);
+    expect(harborAvailable?.turn).toBe(19);
+    expect(passageAvailable?.turn).toBe(24);
     for (const replay of [passage, harbor, deferred]) {
       expect(replay.rounds.every(round => round.uncommitted >= 0)).toBe(true);
       expect(replay.state.marketplace!.tradeRoutes.map(route => route.id))

@@ -109,16 +109,15 @@ describe('resolveMissionResult sabotage_relief eligibility', () => {
   });
 });
 
-// Full integration through processEspionageTurn -- turn numbers below are precomputed
-// against the exact seeded-RNG sequences (mission-success roll seeded
-// `esp-turn-${turn}-player`, detection roll seeded `sab-relief-detect-spy-1-crisis-1-${turn}`)
-// so the outcome is deterministic, not statistical: turn 1 rolls a mission success AND a
-// detection roll under the 0.3 threshold (discovered); turn 3 rolls a mission success AND
-// a detection roll at/above 0.3 (undiscovered).
+// Full integration through processEspionageTurn — find deterministic turns against the
+// gameId-keyed simulation RNG streams (`esp-turn-${gameId}-${turn}-player` and
+// `createSimulationRng(state, { domain: 'sabotage-relief-detect', ... })`) so both
+// discovered (< 0.3) and undiscovered (>= 0.3) outcomes are verified deterministically.
 function makeSpyFixture(turn: number): GameState {
   const state = makeCrisisGameState({ turn });
   return {
     ...state,
+    gameId: state.gameId ?? 'sabotage-relief-fixture',
     espionage: {
       player: {
         spies: {
@@ -138,28 +137,33 @@ function makeSpyFixture(turn: number): GameState {
   } as unknown as GameState;
 }
 
-describe('processEspionageTurn sabotage_relief integration', () => {
-  it('discovered: places the sabotage, applies bilateral reputation, and emits the discovery event', () => {
-    const state = makeSpyFixture(1);
+function findSabotageOutcomeTurn(wantDiscovered: boolean): { turn: number; next: GameState; events: unknown[] } {
+  for (let turn = 1; turn <= 40; turn++) {
+    const state = makeSpyFixture(turn);
     const bus = new EventBus();
     const events: unknown[] = [];
     bus.on('espionage:sabotage-relief-discovered', e => events.push(e));
-
     const next = processEspionageTurn(state, bus);
+    const sabotage = next.activeCrises!['crisis-1'].sabotage;
+    if (sabotage && sabotage.discovered === wantDiscovered) {
+      return { turn, next, events };
+    }
+  }
+  throw new Error(`No turn in 1..40 produced sabotage discovered=${wantDiscovered}`);
+}
 
-    expect(next.activeCrises!['crisis-1'].sabotage).toEqual({ byCivId: 'player', untilTurn: 1 + 4, discovered: true });
+describe('processEspionageTurn sabotage_relief integration', () => {
+  it('discovered: places the sabotage, applies bilateral reputation, and emits the discovery event', () => {
+    const { turn, next, events } = findSabotageOutcomeTurn(true);
+
+    expect(next.activeCrises!['crisis-1'].sabotage).toEqual({ byCivId: 'player', untilTurn: turn + 4, discovered: true });
     expect(next.civilizations.player.diplomacy.relationships.rival).toBe(-25);
     expect(next.civilizations.rival.diplomacy.relationships.player).toBe(-25);
     expect(events).toEqual([{ crisisId: 'crisis-1', actorCivId: 'player', targetCivId: 'rival' }]);
   });
 
   it('undiscovered: places the sabotage but applies zero reputation change and emits nothing', () => {
-    const state = makeSpyFixture(3);
-    const bus = new EventBus();
-    const events: unknown[] = [];
-    bus.on('espionage:sabotage-relief-discovered', e => events.push(e));
-
-    const next = processEspionageTurn(state, bus);
+    const { next, events } = findSabotageOutcomeTurn(false);
 
     const sabotage = next.activeCrises!['crisis-1'].sabotage;
     expect(sabotage?.byCivId).toBe('player');

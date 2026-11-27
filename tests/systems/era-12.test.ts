@@ -539,17 +539,24 @@ describe('cyber unit gold drain (Task 5)', () => {
   });
 
   it('cyber_defense_center blocks drain (deterministic: roll 0.382 < blockChance 0.65)', () => {
-    // With turn=1, city.id='city-p1' (charCode 99), cyberUnit.id='cu1' (charCode 99):
-    // roll ≈ 0.382 < 0.65 → drain is blocked; gold stays at or above p1Gold
+    // With turn=1, city.id='city-p1', cyberUnit.id='cu1':
+    // roll < 0.65 → drain is blocked; p1 pays normal Era 12 CDC upkeep (2) minus 1 city income (net -1),
+    // with 0 gold drained compared to an unattacked baseline.
     const state = makeProcessTurnState({
       p1Gold: 100,
       p1CityPos: { q: 1, r: 0 },
       cyberUnitPos: { q: 2, r: 0 },
       p1Buildings: ['cyber_defense_center'],
     });
-    const bus = new EventBus();
-    const result = processTurn(state, bus);
-    expect(result.civilizations['p1'].gold).toBeGreaterThanOrEqual(100);
+    const baseline = makeProcessTurnState({
+      p1Gold: 100,
+      p1CityPos: { q: 1, r: 0 },
+      cyberUnitPos: { q: 5, r: 5 },
+      p1Buildings: ['cyber_defense_center'],
+    });
+    const result = processTurn(state, new EventBus());
+    const baselineResult = processTurn(baseline, new EventBus());
+    expect(result.civilizations['p1'].gold).toBe(baselineResult.civilizations['p1'].gold);
   });
 });
 
@@ -595,11 +602,19 @@ describe('cyber unit gold drain — theft and war-gate (Task 2 fixes)', () => {
       cyberUnitPos: { q: 2, r: 0 },
       p1Buildings: ['cyber_defense_center'],
     });
+    const baseline = makeProcessTurnState({
+      p1Gold: 100,
+      p1CityPos: { q: 1, r: 0 },
+      cyberUnitPos: { q: 5, r: 5 },
+      p1Buildings: ['cyber_defense_center'],
+    });
     const bus = new EventBus();
     const events: any[] = [];
     bus.on('city:cyber-drained', e => events.push(e));
     const result = processTurn(state, bus);
-    expect(result.civilizations['p1'].gold).toBeGreaterThanOrEqual(100);
+    const baselineResult = processTurn(baseline, new EventBus());
+    expect(result.civilizations['p1'].gold).toBe(baselineResult.civilizations['p1'].gold);
+    expect(result.civilizations['p2'].gold).toBe(baselineResult.civilizations['p2'].gold);
     expect(events.some(e => e.blocked === true)).toBe(true);
     expect(events.some(e => e.blocked === false)).toBe(false);
   });

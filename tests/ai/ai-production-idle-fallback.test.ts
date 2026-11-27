@@ -51,7 +51,9 @@ function setupState(completed: string[] = []): GameState {
     if (tile && (tile.terrain === 'coast' || tile.terrain === 'ocean')) tile.terrain = 'plains';
   }
   civ.techState.completed = [...completed];
-  civ.gold = 500;
+  // Sufficient treasury so synthetic all-buildings fixtures (200+ advanced buildings across 2 cities)
+  // stay unstrained unless the test explicitly injects strain().
+  civ.gold = 2000;
   return state;
 }
 
