@@ -1393,7 +1393,7 @@ export function createCityPanelView(
   });
 
   famineChips.forEach((chip, idx) => {
-    const displayName = getCrisisDisplayName(chip.flavor, state.era);
+    const displayName = getCrisisDisplayName(chip.flavor, currentCivEra);
     const stageText = chip.remedyPending
       ? `Grain shipment underway — arrives in ${Math.max(0, chip.remedyCompletionTurn! - state.turn)} turn${Math.max(0, chip.remedyCompletionTurn! - state.turn) === 1 ? '' : 's'}`
       : chip.isQuarantined
@@ -1762,8 +1762,18 @@ export function createCityPanelView(
     }
   }
 
-  // Declare ref early so rerenderPanel (below) can cancel the timer via closure.
+  // Declare ref and teardown helper early so every close/switch/rerender path cancels the timer.
   const frustrationRef: { timer: ReturnType<typeof setTimeout> | null } = { timer: null };
+  const cancelFrustrationTimer = () => {
+    if (frustrationRef.timer !== null) {
+      clearTimeout(frustrationRef.timer);
+      frustrationRef.timer = null;
+    }
+  };
+  const teardownPanel = () => {
+    cancelFrustrationTimer();
+    panel.remove();
+  };
 
   // Insert 📍 Find missing resources button into the locked section header
   if (lockedItems.some(item => item.missingResources.length > 0)) {
@@ -1782,11 +1792,7 @@ export function createCityPanelView(
         sectionHeader.appendChild(findBtn);
 
         findBtn.addEventListener('click', () => {
-          // Cancel frustration timer so it doesn't fire after panel closes.
-          if (frustrationRef.timer !== null) {
-            clearTimeout(frustrationRef.timer);
-            frustrationRef.timer = null;
-          }
+          cancelFrustrationTimer();
 
           const highlights: HexCoord[] = [];
           const toasts: Array<{ message: string; type: 'info' | 'warning' }> = [];
@@ -1836,7 +1842,7 @@ export function createCityPanelView(
           }
 
           callbacks.onFindResources?.(highlights, toasts);
-          panel.remove();
+          teardownPanel();
           callbacks.onClose();
         });
       }
@@ -1848,19 +1854,16 @@ export function createCityPanelView(
     if (!panel.isConnected) return;
     currentTab = nextTab;
     // Cancel the frustration timer before destroying this panel instance.
-    if (frustrationRef.timer !== null) {
-      clearTimeout(frustrationRef.timer);
-      frustrationRef.timer = null;
-    }
+    cancelFrustrationTimer();
     const renderState = nextState ?? state;
     const refreshedCity = renderState.cities[city.id];
     if (!refreshedCity) {
-      panel.remove();
+      teardownPanel();
       callbacks.onClose();
       return;
     }
 
-    panel.remove();
+    teardownPanel();
     createCityPanelView(container, refreshedCity, renderState, callbacks, nextTab, view);
   };
 
@@ -1869,7 +1872,7 @@ export function createCityPanelView(
     rerenderPanel(nextState, currentTab);
   };
   view.close = () => {
-    panel.remove();
+    teardownPanel();
   };
 
   // Locked-item frustration tip: if the player stares at a locked section for
@@ -1895,28 +1898,20 @@ export function createCityPanelView(
     }
   }
 
-  const cancelFrustrationTimer = () => {
-    if (frustrationRef.timer !== null) {
-      clearTimeout(frustrationRef.timer);
-      frustrationRef.timer = null;
-    }
-  };
-
   byId('city-close')?.addEventListener('click', () => {
-    cancelFrustrationTimer();
-    panel.remove();
+    teardownPanel();
     callbacks.onClose();
   });
 
   if (callbacks.onPrevCity) {
     byId('city-prev')?.addEventListener('click', () => {
-      panel.remove();
+      teardownPanel();
       callbacks.onPrevCity!();
     });
   }
   if (callbacks.onNextCity) {
     byId('city-next')?.addEventListener('click', () => {
-      panel.remove();
+      teardownPanel();
       callbacks.onNextCity!();
     });
   }
@@ -1932,7 +1927,7 @@ export function createCityPanelView(
   panel.querySelectorAll<HTMLElement>('[data-wonder-card]').forEach(el => {
     el.addEventListener('click', () => {
       callbacks.onOpenWonderPanel(city.id);
-      panel.remove();
+      teardownPanel();
     });
   });
 
@@ -1960,12 +1955,12 @@ export function createCityPanelView(
 
   panel.querySelector<HTMLElement>('[data-open-wonder-panel]')?.addEventListener('click', () => {
     callbacks.onOpenWonderPanel(city.id);
-    panel.remove();
+    teardownPanel();
   });
 
   panel.querySelector<HTMLElement>('[data-open-active-wonder-journal]')?.addEventListener('click', () => {
     callbacks.onOpenWonderPanel(city.id);
-    panel.remove();
+    teardownPanel();
   });
 
   panel.querySelectorAll('[data-queue-action]').forEach(el => {
@@ -2140,7 +2135,7 @@ export function createCityPanelView(
 
   wondersTab?.addEventListener('click', () => {
     callbacks.onOpenWonderPanel(city.id);
-    panel.remove();
+    teardownPanel();
   });
 
   if (initialTab === 'districts') {

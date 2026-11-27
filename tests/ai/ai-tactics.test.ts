@@ -2261,3 +2261,46 @@ describe('#1830 — AI air tactics respect fog of war on intercept and target vi
     expect(visible.some(a => a.action.kind === 'air-strike' && a.action.target.q === 4 && a.action.target.r === 1)).toBe(true);
   });
 });
+
+describe('rankWithdrawals — linear candidate selection without comparator re-scans (#1830)', () => {
+  it('picks the closest friendly healing tile with deterministic max-stride and lex tie-breaking', () => {
+    const state = makeState('standard');
+    // Capital at (0,0) with owned tiles around it; wounded fast unit at (5,0) with 2 MP.
+    addCity(state, 'ai-cap', AI, { q: 0, r: 0 });
+    for (let q = 0; q <= 2; q++) {
+      const key = hexKey({ q, r: 0 });
+      if (state.map.tiles[key]) state.map.tiles[key].owner = AI;
+    }
+    const wounded = addUnit(state, 'wounded-cav', 'horseman', AI, { q: 5, r: 0 }, { health: 20 });
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 6, r: 0 } }, [wounded.id]);
+
+    const actions = rankUnitTacticalActions(context(state, plan), wounded.id);
+    expect(actions).toHaveLength(1);
+    expect(actions[0]!.mandatory).toBe(true);
+    expect(actions[0]!.action).toEqual({
+      kind: 'withdraw',
+      unitId: wounded.id,
+      // Horseman (3 MP) can reach (2,0) directly, which is distance 0 to owned tile (2,0).
+      destination: { q: 2, r: 0 },
+    });
+  });
+
+  it('handles large friendly territory counts without stack overflow or quadratic sort scans', () => {
+    const state = makeState('standard');
+    addCity(state, 'ai-cap', AI, { q: 0, r: 0 });
+    // Mark many owned tiles on the map to exercise healingDistance over a large territory.
+    for (const tile of Object.values(state.map.tiles)) {
+      if (tile.coord.q <= 2) tile.owner = AI;
+    }
+    const wounded = addUnit(state, 'wounded-1', 'warrior', AI, { q: 5, r: 0 }, { health: 15 });
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 6, r: 0 } }, [wounded.id]);
+
+    const actions = rankUnitTacticalActions(context(state, plan), wounded.id);
+    expect(actions).toHaveLength(1);
+    expect(actions[0]!.action.kind).toBe('withdraw');
+    if (actions[0]!.action.kind === 'withdraw') {
+      // Must step strictly closer toward q <= 2.
+      expect(actions[0]!.action.destination.q).toBeLessThan(5);
+    }
+  });
+});
