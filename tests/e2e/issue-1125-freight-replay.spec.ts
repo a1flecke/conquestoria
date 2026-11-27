@@ -71,8 +71,19 @@ test('the strait compare-and-confirm flow works with a keyboard and survives a r
   await open.focus();
   await page.keyboard.press('Enter');
   const panel = page.getByRole('dialog', { name: 'Freight investment' });
-  await expect(panel).toContainText('8 rounds');
-  await expect(panel).toContainText('4 rounds');
+  const passage = panel.getByRole('region', { name: 'Passage', exact: true });
+  const harbor = panel.getByRole('region', { name: 'Harbor', exact: true });
+  await expect(passage).toContainText('Westport Strait');
+  await expect(passage).toContainText('45 gold');
+  await expect(passage.getByText('Current', { exact: true })).toBeVisible();
+  await expect(passage.getByText('8 rounds', { exact: true })).toBeVisible();
+  await expect(passage.getByText('With passage', { exact: true })).toBeVisible();
+  await expect(passage.getByText('4 rounds', { exact: true })).toBeVisible();
+  await expect(harbor).toContainText('Northport');
+  await expect(harbor).toContainText('45 gold');
+  await expect(harbor).toContainText('+1 net gold');
+  await expect(harbor).toContainText('+1 food');
+  await expect(harbor).toContainText('Per round after completion');
   expect(await auditWithAxe(page, '#freight-investment-dialog')).toEqual([]);
   expect(await findPointerOnlyControls(page, '#freight-investment-dialog')).toEqual([]);
   await page.keyboard.press('Tab');
@@ -83,7 +94,10 @@ test('the strait compare-and-confirm flow works with a keyboard and survives a r
   await expect(confirm).toBeVisible();
   await confirm.focus();
   await page.keyboard.press('Enter');
-  await expect(panel).toContainText('Passage opened');
+  await expect(passage).toContainText('Passage opened');
+  await expect(passage.getByText('Current', { exact: true })).toBeVisible();
+  await expect(passage.getByText('4 rounds', { exact: true })).toBeVisible();
+  await expect(passage.getByText('With passage', { exact: true })).toBeHidden();
   await expect(panel).toContainText('5 gold available');
   await expect(panel.getByRole('button', { name: 'Review Harbor' })).toBeDisabled();
   await expect(panel.getByRole('status')).toHaveText('Investment confirmed.');
@@ -106,8 +120,8 @@ test('the strait compare-and-confirm flow works with a keyboard and survives a r
     await expect(next).toBeVisible();
     if (round === 14 || round === 15) {
       await open.click();
-      await expect(panel).toContainText(round === 14 ? '3 imported coal in reserve' : 'Factory was fueled last round');
-      if (round === 14) await expect(panel).toContainText('Coal is available for the next Factory fuel allocation');
+      await expect(panel).toContainText(round === 14 ? '3 imported coal in reserve' : 'Fuel used last round');
+      if (round === 14) await expect(panel).toContainText('Coal ready for next fuel allocation');
       await panel.getByRole('button', { name: 'Close', exact: true }).click();
     }
   }
@@ -126,7 +140,9 @@ test('loaded freight stays paused or resumed after a same-turn reload', async ({
   await investment.getByRole('button', { name: 'Review passage' }).click();
   await investment.getByRole('button', { name: 'Confirm passage' }).click();
   await expect(investment).toContainText('Passage opened');
-  await expect(investment).toContainText('Estimated coal round trip: 4 rounds');
+  const passage = investment.getByRole('region', { name: 'Passage', exact: true });
+  await expect(passage).toContainText('Estimated coal round trip');
+  await expect(passage.getByText('4 rounds', { exact: true })).toBeVisible();
   await investment.getByRole('button', { name: 'Close', exact: true }).click();
 
   const tradeButton = page.getByRole('button', { name: 'Trade', exact: true });
@@ -194,7 +210,10 @@ test('City cancellation delivers paid cargo and allows the trader to start a new
   const open = page.getByRole('button', { name: 'Freight investment', exact: true });
   const investment = page.getByRole('dialog', { name: 'Freight investment' });
   await open.click();
-  await expect(investment).toContainText('+1 net gold and +1 food per round');
+  const harbor = investment.getByRole('region', { name: 'Harbor', exact: true });
+  await expect(harbor).toContainText('+1 net gold');
+  await expect(harbor).toContainText('+1 food');
+  await expect(harbor).toContainText('Per round after completion');
   await investment.getByRole('button', { name: 'Review Harbor' }).click();
   await investment.getByRole('button', { name: 'Confirm Harbor' }).click();
   await expect(investment.getByRole('status')).toHaveText('Investment confirmed.');
@@ -233,7 +252,7 @@ test('City cancellation delivers paid cargo and allows the trader to start a new
   await advanceFreightTurn(page, 15);
   await open.click();
   await expect(investment).toContainText('5 imported coal in reserve');
-  await expect(investment).toContainText('Coal is available for the next Factory fuel allocation');
+  await expect(investment).toContainText('Coal ready for next fuel allocation');
   await investment.getByRole('button', { name: 'Close', exact: true }).click();
 
   await clickVisibleHex(page, { q: 1, r: 5 });
@@ -283,11 +302,11 @@ test('City cancellation delivers paid cargo and allows the trader to start a new
   for (const turn of [17, 18, 19, 20, 21]) await advanceFreightTurn(page, turn);
   await open.click();
   await expect(investment).toContainText(/[1-9]\d* imported coal in reserve/);
-  await expect(investment).toContainText('Coal is available for the next Factory fuel allocation');
+  await expect(investment).toContainText('Coal ready for next fuel allocation');
   await investment.getByRole('button', { name: 'Close', exact: true }).click();
   await advanceFreightTurn(page, 22);
   await open.click();
-  await expect(investment).toContainText('Factory was fueled last round');
+  await expect(investment).toContainText('Fuel used last round');
 });
 
 test('the two strait maps resume their own progress in the same browser', async ({ page }) => {
@@ -302,7 +321,8 @@ test('the two strait maps resume their own progress in the same browser', async 
 
   await page.goto('/?scenario=freight-strait-a');
   await open.click();
-  await expect(panel).toContainText('8 rounds now, 4 rounds with the passage');
+  await expect(panel.getByText('8 rounds', { exact: true })).toBeVisible();
+  await expect(panel.getByText('4 rounds', { exact: true })).toBeVisible();
   await choose('passage');
   const next = page.locator('#hud').getByText(/^Turn 11 ·/);
   const warning = page.getByRole('button', { name: 'End Turn Anyway', exact: true });
@@ -313,7 +333,8 @@ test('the two strait maps resume their own progress in the same browser', async 
 
   await page.goto('/?scenario=freight-strait-b');
   await open.click();
-  await expect(panel).toContainText('5 rounds now, 4 rounds with the passage');
+  await expect(panel.getByText('5 rounds', { exact: true })).toBeVisible();
+  await expect(panel.getByText('4 rounds', { exact: true })).toBeVisible();
   await choose('Harbor');
 
   await page.goto('/?scenario=freight-strait-a');
@@ -324,7 +345,8 @@ test('the two strait maps resume their own progress in the same browser', async 
   await page.goto('/?scenario=freight-strait-b');
   await open.click();
   await expect(panel).toContainText('Harbor completed');
-  await expect(panel).toContainText('5 rounds now, 4 rounds with the passage');
+  await expect(panel.getByText('5 rounds', { exact: true })).toBeVisible();
+  await expect(panel.getByText('4 rounds', { exact: true })).toBeVisible();
 });
 
 test('the funded Expedition can establish its ivory outpost through the map', async ({ page }) => {
