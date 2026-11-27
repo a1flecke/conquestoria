@@ -37,6 +37,19 @@ describe('strategic warning presentation', () => {
     });
   });
 
+  it('renders an advance on one of our cities with its map link, and without a name when remembered (#1693)', () => {
+    const target = { kind: 'map' as const, coord: { q: 3, r: 4 }, label: 'Ravenna' };
+    expect(presentStrategicWarning(warning({ kind: 'advancing', targetLabel: 'Ravenna', target }))).toEqual({
+      message: 'A Roman force is advancing on Ravenna. Reinforce the city or seek peace.',
+      type: 'warning',
+      target,
+    });
+    expect(presentStrategicWarning(warning({ kind: 'advancing', evidence: 'remembered' }))).toEqual({
+      message: 'A Roman force is advancing on one of our cities. Reinforce the city or seek peace.',
+      type: 'warning',
+    });
+  });
+
   it('marks remembered force positions as uncertain', () => {
     expect(presentStrategicWarning(warning({
       evidence: 'remembered',
