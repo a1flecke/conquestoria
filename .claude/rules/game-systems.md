@@ -238,6 +238,9 @@ The design behind the three sections above was deleted once it shipped (git hist
 - **Fair is not "identical".** Every style keeps seeded variety (Fair narrows the spread, it never copies one layout),
   and no style may relax the floor or the distance rules. If the floor cannot be met, the typed failure or map retry
   fires; there is never a silent fallback to an invalid start.
+- **A homeland alternate may be across the sea** (owner decision, 2026-11-27). `selectHomelandOptions` deliberately has
+  no same-landmass check: an alternate 6-16 hexes away on another landmass is a real choice, and it still passes the
+  start floor, including room for a second city on its own land. Do not add a same-landmass rule.
 
 ## Geographic map data is loaded on demand (#1456)
 
