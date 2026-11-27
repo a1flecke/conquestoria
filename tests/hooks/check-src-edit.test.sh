@@ -481,4 +481,21 @@ if (!initialAttacker || !canSpendUnitAction(initialAttacker, state.turn) || !leg
 EOF
 expect_allow "$tmp/src/app/controllers/player-combat-actions.ts" "canSpendUnitAction gate in player-combat-actions"
 
+# --- #1830: block raw color interpolation into HTML/SVG markup ---
+cat > "$tmp/src/ui/unsafe-color.ts" <<'EOF'
+const html = `<div style="background:${row.color};"></div>`;
+EOF
+expect_block "$tmp/src/ui/unsafe-color.ts" "raw row.color interpolated into HTML style attribute"
+
+cat > "$tmp/src/ui/unsafe-insert.ts" <<'EOF'
+el.insertAdjacentHTML('beforeend', `<div>${city.name}</div>`);
+EOF
+expect_block "$tmp/src/ui/unsafe-insert.ts" "insertAdjacentHTML with template literal interpolation"
+
+cat > "$tmp/src/ui/safe-color.ts" <<'EOF'
+const safeColor = sanitizeHexColor(row.color);
+const html = `<div style="background:${safeColor};"></div>`;
+EOF
+expect_allow "$tmp/src/ui/safe-color.ts" "sanitized hex color interpolated into HTML style attribute"
+
 exit "$fail"

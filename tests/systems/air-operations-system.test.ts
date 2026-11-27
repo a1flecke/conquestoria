@@ -516,4 +516,51 @@ describe('air bases', () => {
     expect(getLegalAirMissionTargets(missionState, 'striker', 'strike')).toEqual([{ q: 5, r: 2 }]);
     expect(selectInterceptor(missionState, missionState.units.striker, { q: 5, r: 2 })).toBeUndefined();
   });
+
+  it('#1830: strikes a hostile city-state (minor civ) city and keeps prediction/execution parity', () => {
+    const minorState = {
+      ...state,
+      turn: 12,
+      map: { width: 12, height: 12, wrapsHorizontally: false, tiles: {} },
+      units: {
+        striker: { ...biplane, id: 'striker', type: 'bomber', position: { q: 2, r: 2 } },
+      },
+      cities: {
+        'city-1': { id: 'city-1', owner: 'player', position: { q: 2, r: 2 }, buildings: ['airfield'] },
+        'mc-city': { id: 'mc-city', owner: 'mc-sparta', name: 'Sparta', position: { q: 5, r: 2 }, population: 3, hp: 100, buildings: [] },
+      },
+      civilizations: {
+        player: {
+          units: ['striker'],
+          cities: ['city-1'],
+          techState: { completed: [] },
+          visibility: { tiles: { '5,2': 'visible' } },
+          diplomacy: { atWarWith: ['mc-sparta'], events: [] },
+        },
+      },
+      minorCivs: {
+        'mc-sparta': {
+          id: 'mc-sparta',
+          definitionId: 'sparta',
+          cityId: 'mc-city',
+          units: [],
+          diplomacy: { atWarWith: ['player'], events: [], relationships: {} },
+          isDestroyed: false,
+        },
+      },
+    } as unknown as GameState;
+
+    expect(getLegalAirMissionTargets(minorState, 'striker', 'strike')).toContainEqual({ q: 5, r: 2 });
+    const predicted = resolveAirStrike(minorState, 'striker', { q: 5, r: 2 }, 'predict-unintercepted');
+    expect(predicted.ok).toBe(true);
+    if (!predicted.ok) throw new Error(predicted.reason);
+    expect(predicted.cityResult?.result.hpLost).toBeGreaterThan(0);
+
+    const executed = resolveAirStrike(minorState, 'striker', { q: 5, r: 2 });
+    expect(executed.ok).toBe(true);
+    if (!executed.ok) throw new Error(executed.reason);
+    expect(executed.cityResult?.cityId).toBe('mc-city');
+    expect(executed.cityResult?.result.hpLost).toBe(predicted.cityResult?.result.hpLost);
+    expect(executed.state.cities['mc-city']!.hp).toBe(100 - executed.cityResult!.result.hpLost);
+  });
 });

@@ -169,7 +169,7 @@
   },
   {
    "pair": "renderer -> core",
-   "count": 3
+   "count": 5
   },
   {
    "pair": "renderer -> systems",
@@ -177,7 +177,7 @@
   },
   {
    "pair": "storage -> core",
-   "count": 12
+   "count": 13
   },
   {
    "pair": "storage -> systems",
@@ -209,7 +209,7 @@
   },
   {
    "pair": "ui -> core",
-   "count": 12
+   "count": 15
   },
   {
    "pair": "ui -> platform",
@@ -225,7 +225,7 @@
   },
   {
    "pair": "ui -> systems",
-   "count": 321
+   "count": 322
   }
  ]
 }

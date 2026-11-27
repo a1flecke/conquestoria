@@ -1,15 +1,14 @@
 import '@/assets/png-sprite-animations.css';
+import { isSafeHexColor } from '@/core/html-safety';
 import { FACTION_SPRITE_ACCENT, NEUTRAL_PNG_TINT } from '../faction-accent-colors';
 import { resolveAppAssetUrl } from '../../asset-url';
 import { getPngCellPlacement } from './png-sprite-layout';
 import { getPngPlaybackCssVars, resolvePngPlayback } from './png-sprite-playback';
 import type { PngUnitSprite } from './png-sprite-types';
 
-/** Colours reach a style attribute, so accept only hex notation (never a free-form string). */
-const SAFE_HEX = /^#[0-9a-fA-F]{3,8}$/;
-
+/** Colours reach a style attribute, so accept only strict hex notation (never a free-form string). */
 export function resolvePngTint(civColor: string, faction: string): string {
-  if (civColor && SAFE_HEX.test(civColor)) return civColor;
+  if (isSafeHexColor(civColor)) return civColor;
   return FACTION_SPRITE_ACCENT[faction] ?? NEUTRAL_PNG_TINT;
 }
 

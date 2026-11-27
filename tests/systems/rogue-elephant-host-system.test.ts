@@ -15,6 +15,9 @@ import { TECH_TREE } from '@/systems/tech-definitions';
 import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { executeAIUnitAttack } from '@/ai/ai-unit-attack-execution';
+import { EventBus } from '@/core/event-bus';
+import type { CombatResult } from '@/core/types';
 
 describe('Rogue Elephant Host definitions', () => {
   it('emits one target-scoped warning transition when a Host is first scheduled', () => {
@@ -205,5 +208,63 @@ describe('Rogue Elephant Host definitions', () => {
     expect(resolved.rogueElephantHosts?.[targetCivId]).toMatchObject({ phase: 'resolved', outcome: 'dispersed', rewardGranted: true, recoveredHarnesses: { expiresTurn: resolved.turn + 10 } });
     expect(resolved.civilizations[targetCivId]!.gold).toBe(state.civilizations[targetCivId]!.gold + 48);
     expect(Object.values(resolved.units).some(unit => unit.type === 'beast_stampede_herd')).toBe(false);
+  });
+
+  it('#1830: AI unit attacks pass state to resolveCombat so Handler command and rocket splash hits apply', () => {
+    const state = createNewGame('rome', 'rogue-host-ai-combat', 'small');
+    const targetCivId = state.currentPlayer;
+    state.civilizations[targetCivId]!.techState.completed = TECH_TREE.filter(tech => tech.era <= 4).map(tech => tech.id);
+    const settler = Object.values(state.units).find(unit => unit.owner === targetCivId && unit.type === 'settler')!;
+    const city = foundCity(targetCivId, settler.position, state.map, state.idCounters);
+    state.cities = { [city.id]: city };
+    for (const position of mapNeighbors(state.map, city.position)) {
+      const key = hexKey(position);
+      if (state.map.tiles[key]) state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'plains' };
+    }
+    state.units = Object.fromEntries(Object.entries(state.units).filter(([, unit]) =>
+      !mapNeighbors(state.map, city.position).some(position => hexKey(position) === hexKey(unit.position)),
+    ));
+    const warning = startRogueElephantHostWarning(state, targetCivId, 'standard');
+    const active = processRogueElephantHostTurn({ ...warning, turn: warning.turn + 1 }, targetCivId);
+    const elephant = Object.values(active.units).find(unit => unit.type === 'rogue_elephant')!;
+    const handler = Object.values(active.units).find(unit => unit.type === 'rogue_handler')!;
+
+    // Place an AI rocket_artillery within range 2 of the rogue elephant and mark both elephant & handler visible.
+    const aiCivId = Object.keys(active.civilizations).find(id => id !== targetCivId)!;
+    const artilleryPos = mapNeighbors(active.map, elephant.position)
+      .flatMap(n => mapNeighbors(active.map, n))
+      .find(pos =>
+        active.map.tiles[hexKey(pos)]
+        && active.map.tiles[hexKey(pos)]!.terrain !== 'ocean'
+        && hexKey(pos) !== hexKey(elephant.position)
+        && hexKey(pos) !== hexKey(handler.position)
+        && !Object.values(active.units).some(u => hexKey(u.position) === hexKey(pos)),
+      )!;
+    const artillery = createUnit('rocket_artillery', aiCivId, artilleryPos, active.idCounters);
+    active.units[artillery.id] = artillery;
+    active.civilizations[aiCivId]!.units.push(artillery.id);
+    active.civilizations[aiCivId]!.visibility.tiles[hexKey(elephant.position)] = 'visible';
+    active.civilizations[aiCivId]!.visibility.tiles[hexKey(handler.position)] = 'visible';
+    // Ensure handler is adjacent to elephant so bounded splash can hit it.
+    const adjToElephant = mapNeighbors(active.map, elephant.position).find(pos =>
+      active.map.tiles[hexKey(pos)]
+      && hexKey(pos) !== hexKey(artilleryPos)
+      && !Object.values(active.units).some(u => u.id !== handler.id && hexKey(u.position) === hexKey(pos)),
+    )!;
+    active.units[handler.id] = { ...handler, position: adjToElephant };
+    active.civilizations[aiCivId]!.visibility.tiles[hexKey(adjToElephant)] = 'visible';
+
+    const bus = new EventBus();
+    const resolvedEvents: CombatResult[] = [];
+    bus.on('combat:resolved', payload => { resolvedEvents.push(payload.result); });
+
+    executeAIUnitAttack(active, artillery.id, elephant.id, aiCivId, bus, false);
+
+    expect(resolvedEvents).toHaveLength(1);
+    const combat = resolvedEvents[0]!;
+    // Defender (rogue elephant near its handler) must receive Handler Command ×1.20.
+    expect(combat.modifierFacts?.defender.some(f => f.key === 'rogue-elephant-host:handler-command')).toBe(true);
+    // Rocket artillery must populate splashHits on CombatResult (for both state application and notifications).
+    expect(combat.splashHits?.length).toBeGreaterThan(0);
   });
 });

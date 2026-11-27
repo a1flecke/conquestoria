@@ -436,4 +436,44 @@ describe('air-strike forecast (#1213)', () => {
     (b.units.fighter as Unit).health = 20;
     expect(airForecastSignature(airView(b))).not.toBe(airForecastSignature(airView(a)));
   });
+
+  it('#1830: city target forecasts and executes with parity against a hostile city-state (minor civ)', () => {
+    const state = airWorld({ target: 'city', fighter: false });
+    state.cities['enemy-city']!.owner = 'mc-sparta';
+    state.cities['enemy-city']!.name = 'Sparta';
+    delete state.civilizations.enemy;
+    state.civilizations.player!.diplomacy.atWarWith = ['mc-sparta'];
+    state.minorCivs = {
+      'mc-sparta': {
+        id: 'mc-sparta',
+        definitionId: 'sparta',
+        cityId: 'enemy-city',
+        units: [],
+        diplomacy: { atWarWith: ['player'], relationships: {}, treaties: [], events: [] } as never,
+        activeQuests: {},
+        chainStatusByCiv: {},
+        questCooldownUntilByCiv: {},
+        lastNotifiedStatusByCiv: {},
+        isDestroyed: false,
+        garrisonCooldown: 0,
+        lastEraUpgrade: 0,
+      },
+    };
+
+    const result = buildAirStrikeForecastView({
+      state,
+      viewerId: 'player',
+      unitId: 'striker',
+      target: { q: 5, r: 2 },
+      ownerName: 'Sparta',
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+
+    const real = resolveAirStrike(state, 'striker', { q: 5, r: 2 });
+    expect(real.ok).toBe(true);
+    const realLoss = 100 - real.state.cities['enemy-city']!.hp!;
+    expect(result.view.them.damage.expected).toBe(realLoss);
+    expect(result.view.them.name).toBe('Sparta');
+  });
 });

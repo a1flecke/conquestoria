@@ -182,4 +182,25 @@ describe('save-file-transfer', () => {
 
     await expect(importSaveFromFile(adapter)).resolves.toEqual({ status: 'cancelled' });
   });
+
+  it('#1830: sanitizes malicious civ and custom civilization colors on import while preserving valid hex colors', () => {
+    const state = makeState(15);
+    state.civilizations.player.color = '"><img src=x onerror=alert(1)>';
+    state.civilizations.rival = { civType: 'rome', color: '#2d6a4f' };
+    state.settings = {
+      customCivilizations: [
+        { id: 'c1', name: 'Bad', color: 'red; background:url(javascript:alert(1))' },
+        { id: 'c2', name: 'Good', color: '#abc' },
+      ],
+    };
+
+    const parsed = parseSaveFile(JSON.stringify(state));
+    expect(parsed.status).toBe('success');
+    if (parsed.status === 'success') {
+      expect(parsed.state.civilizations.player.color).toBe('#888888');
+      expect(parsed.state.civilizations.rival.color).toBe('#2d6a4f');
+      expect(parsed.state.settings?.customCivilizations?.[0]?.color).toBe('#888888');
+      expect(parsed.state.settings?.customCivilizations?.[1]?.color).toBe('#abc');
+    }
+  });
 });

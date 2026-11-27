@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
   findAttackContractViolations,
+  findResolveCombatStateArgViolations,
   EXPECTED_EXEMPTIONS,
 } from '../helpers/attack-contract-boundaries';
 import {
@@ -2189,6 +2190,27 @@ describe('#1219 — a unit-vs-unit exchange only starts through the canonical at
         source: fighter('  // attack-contract-exempt: world-actor: a new monster picks its own prey\n  resolveCombat(a, d, map, seed);'),
       }]);
       expect(all.some(violation => /expected 0 "world-actor" exemption\(s\), found 1/.test(violation.message))).toBe(true);
+    });
+  });
+
+  describe('#1830 — every resolveCombat() caller in src/ passes the 7th state argument', () => {
+    it('passes GameState at every production resolveCombat() call site', () => {
+      expect(findResolveCombatStateArgViolations(files)).toEqual([]);
+    });
+
+    it('is not vacuous: rejects 6-arg or explicit-undefined calls and accepts 7-arg calls', () => {
+      expect(findResolveCombatStateArgViolations([{
+        path: 'src/ai/bad.ts',
+        source: 'const r = resolveCombat(a, d, state.map, seed, ctx, era);',
+      }])).toHaveLength(1);
+      expect(findResolveCombatStateArgViolations([{
+        path: 'src/ai/bad-undef.ts',
+        source: 'const r = resolveCombat(a, d, state.map, seed, ctx, era, undefined);',
+      }])).toHaveLength(1);
+      expect(findResolveCombatStateArgViolations([{
+        path: 'src/ai/good.ts',
+        source: 'const r = resolveCombat(a, d, state.map, seed, ctx, era, state);',
+      }])).toEqual([]);
     });
   });
 });

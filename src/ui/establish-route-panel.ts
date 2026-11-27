@@ -137,7 +137,7 @@ export function openEstablishRoutePanel(
     return getEntitledTradeDestinations(state, viewerCivId, caravanUnitId, {
       originCityId: selectedOriginCityId ?? undefined,
       mode: selectedMode,
-    }).filter(destination => destination.cityId !== selectedOriginCityId);
+    });
   }
 
   /**

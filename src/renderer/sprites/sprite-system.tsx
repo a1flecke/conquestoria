@@ -1,3 +1,5 @@
+import { isSafeHexColor } from '@/core/html-safety';
+
 export type FactionPalette = { dark: string; mid: string; bright: string; trim: string };
 
 export const NEUTRAL_FACTION_PALETTE: FactionPalette = { dark: '#555', mid: '#888', bright: '#bbb', trim: '#999' };
@@ -6,10 +8,18 @@ export const LOD_SPRITE_ZOOM_THRESHOLD = 0.4;
 
 // --- HSL helpers ---
 
+function expandHexColor(hex: string): string {
+  if (hex.length === 4 || hex.length === 5) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+  }
+  return hex.slice(0, 7);
+}
+
 function hexToHsl(hex: string): [number, number, number] {
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const normalized = expandHexColor(hex);
+  const r = parseInt(normalized.slice(1, 3), 16) / 255;
+  const g = parseInt(normalized.slice(3, 5), 16) / 255;
+  const b = parseInt(normalized.slice(5, 7), 16) / 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b);
   const l = (max + min) / 2;
   if (max === min) return [0, 0, l * 100];
@@ -34,6 +44,9 @@ function hslToHex(h: number, s: number, l: number): string {
 }
 
 export function derivePalette(civColor: string): FactionPalette {
+  if (!isSafeHexColor(civColor)) {
+    return NEUTRAL_FACTION_PALETTE;
+  }
   const [h, s, l] = hexToHsl(civColor);
   return {
     dark:   hslToHex(h, s, Math.max(l - 40, 8)),

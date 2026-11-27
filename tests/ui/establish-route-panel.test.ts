@@ -290,6 +290,34 @@ describe('openEstablishRoutePanel (#1500 MR03)', () => {
     expect(panel.textContent).not.toContain('Betatown (Origin)');
   });
 
+  it('offers the former origin in the catalog and recommendations after changing origins', () => {
+    const onEstablish = vi.fn();
+    openEstablishRoutePanel(container, makeState(), 'trader-1', onEstablish);
+
+    const panel = document.getElementById('establish-route-panel')!;
+    const catalog = panel.querySelector('[data-all-destinations]')!.parentElement!;
+    const confirm = Array.from(panel.querySelectorAll('button')).find(button => button.textContent === 'Confirm')!;
+    expect(panel.querySelector('[data-origin-city-id="alpha-city"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(catalog.querySelector('[data-destination-city="alpha-city"]')).toBeNull();
+    catalog.querySelector<HTMLButtonElement>('button[data-destination-city="alpha-port"]')!.click();
+    expect(confirm.disabled).toBe(false);
+
+    const alternate = panel.querySelector<HTMLButtonElement>('button[data-origin-city-id="alpha-port"]')!;
+    alternate.click();
+
+    expect(alternate.getAttribute('aria-pressed')).toBe('true');
+    expect(confirm.disabled).toBe(true);
+    expect(panel.querySelector('[data-destination-city="alpha-port"]')).toBeNull();
+    const former = catalog.querySelector<HTMLButtonElement>('button[data-destination-city="alpha-city"]');
+    expect(former).not.toBeNull();
+    expect(former?.textContent).toContain('Alphaville');
+    expect(former?.dataset.recommended).toBe('true');
+    former!.click();
+    expect(confirm.disabled).toBe(false);
+    confirm.click();
+    expect(onEstablish).toHaveBeenCalledExactlyOnceWith('alpha-city', 'alpha-port', 'commerce', undefined);
+  });
+
   it('shows no positioning needed for a ship beside its home port', () => {
     const state = makeState({ unitPosition: { q: 0, r: 1 } });
     state.units['trader-1']!.type = 'naval_trader';
