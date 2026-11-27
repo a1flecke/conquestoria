@@ -223,6 +223,32 @@ describe('pirate escort and targeting', () => {
     expect(isTransportEscorted(state, transport)).toBe(true);
   });
 
+  it('does not turn an existing faction on a human who already carries the pressure cap (#1693)', () => {
+    // Only a new faction's spawn asked the cap; an existing one could aim its raid at a human with two other
+    // threats and become a third. With room under the cap the same transport is still the prize.
+    const make = (atCap: boolean) => {
+      const state = stateWithMap(oceanGrid());
+      addUnit(state, unit('pirate', 'pirate_frigate', 'pirate-1', { q: 1, r: 1 }));
+      addUnit(state, unit('transport', 'transport', 'player', { q: 3, r: 3 }));
+      addUnit(state, unit('enemy-warship', 'galley', 'ai-1', { q: 6, r: 6 }));
+      state.pirates!.factions['pirate-1'] = faction('pirate-1', 'raiding', {
+        kind: 'coastal-enclave', position: { q: 0, r: 0 }, integrity: 100, maxIntegrity: 100,
+      }, ['pirate']);
+      state.barbarianCamps = {
+        'camp-a': { id: 'camp-a', position: { q: 14, r: 14 }, strength: 5, spawnCooldown: 2 },
+        'camp-b': { id: 'camp-b', position: { q: 13, r: 14 }, strength: 5, spawnCooldown: 2 },
+      };
+      state.opponentAI!.pressureByCiv.player = {
+        activeIndependentThreatIds: atCap ? ['barbarian:camp-a', 'barbarian:camp-b'] : ['barbarian:camp-a'],
+        recoveryUntilTurn: 0, lastResolvedThreatTurn: null, lastWarningTurnByKey: {}, lastStrategicAudioTurn: null,
+      };
+      return state;
+    };
+
+    expect(choosePirateIntent(make(false), 'pirate-1')).toMatchObject({ targetCivId: 'player', targetUnitId: 'transport' });
+    expect(choosePirateIntent(make(true), 'pirate-1')).toMatchObject({ targetCivId: 'ai-1', targetUnitId: 'enemy-warship' });
+  });
+
   it('prioritizes unescorted transports, then coastal cities, hostile naval units, and Tier 3 escorted transports', () => {
     const state = stateWithMap(oceanGrid());
     addUnit(state, unit('pirate', 'pirate_frigate', 'pirate-1', { q: 1, r: 1 }));

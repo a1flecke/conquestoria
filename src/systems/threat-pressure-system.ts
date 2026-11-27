@@ -220,6 +220,20 @@ export function canStartIndependentThreat(
   return { ...base, allowed: true, reason: 'allowed' };
 }
 
+/**
+ * #1693: may an already-existing independent threat turn on `ownerId`? A camp counts against a human only once it
+ * targets them (`barbarianMateriallyAffectsHuman`), so turning on a human is where the cap is enforced: refused only
+ * while the human already carries the cap of other threats. Recovery and migration grace govern new spawns
+ * (`canStartIndependentThreat`), not what an existing camp may raid. An owner with no pressure ledger is open.
+ */
+export function canTurnIndependentThreatOn(state: GameState, ownerId: string, threatId: string): boolean {
+  // Only pressure-eligible civilizations carry a ledger, and elimination tears it down, so its presence is the
+  // eligibility test. This runs per candidate in the pirate and barbarian target scans: no liveness scan here.
+  const ledger = state.opponentAI?.pressureByCiv[ownerId];
+  if (!ledger || ledger.activeIndependentThreatIds.includes(threatId)) return true;
+  return ledger.activeIndependentThreatIds.length < getChallengeProfileForCiv(state, ownerId).maxIndependentCrisesPerHuman;
+}
+
 export function reserveIndependentThreatForHumans(
   state: GameState,
   threatId: string,
