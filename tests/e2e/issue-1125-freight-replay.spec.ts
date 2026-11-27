@@ -373,7 +373,9 @@ test('the funded Expedition can establish its ivory outpost through the map', as
   await page.getByRole('button', { name: 'Trade', exact: true }).click();
   const supplies = page.getByRole('dialog', { name: 'Trade & Supply' });
   const owned = supplies.getByText('✓ Owned', { exact: true });
-  await expect(owned.locator('..')).toContainText('Ivory');
+  const ivory = owned.locator('..');
+  await expect(ivory).toContainText('Ivory');
+  await expect(ivory).toContainText('Local access');
 });
 
 test.describe('strait comparison on touch', () => {
