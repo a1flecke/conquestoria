@@ -29,6 +29,7 @@ import { sprite as scout } from './generated/scout.manifest';
 import { sprite as knight } from './generated/knight.manifest';
 import { sprite as cuirassier } from './generated/cuirassier.manifest';
 import { sprite as war_elephant } from './generated/war_elephant.manifest';
+import { sprite as worker } from './generated/worker.manifest';
 
 /**
  * Units drawn from PNG spritesheets instead of serialized SVG. This is the migration seam: a unit listed here is
@@ -45,7 +46,7 @@ const PUPPET_UNITS: Readonly<Record<string, PngSpriteManifest>> = {
 };
 
 /** Strip units: drawn strips exported by `strips.py export`, already in the player's shape. */
-const STRIP_UNITS: readonly PngUnitSprite[] = [archer, artillery, axeman, biplane, cannon, cavalry, crossbowman, cuirassier, grenadier, horseman, infantry, ironclad, knight, machine_gunner, marine, mechanized_infantry, musketeer, observation_balloon, paratrooper, pikeman, pre_dreadnought, rifleman, scout, spearman, submarine, swordsman, tank, war_elephant, warrior];
+const STRIP_UNITS: readonly PngUnitSprite[] = [archer, artillery, axeman, biplane, cannon, cavalry, crossbowman, cuirassier, grenadier, horseman, infantry, ironclad, knight, machine_gunner, marine, mechanized_infantry, musketeer, observation_balloon, paratrooper, pikeman, pre_dreadnought, rifleman, scout, spearman, submarine, swordsman, tank, war_elephant, warrior, worker];
 
 const PNG_UNIT_SPRITES: Readonly<Record<string, PngUnitSprite>> = Object.fromEntries([
   ...Object.entries(PUPPET_UNITS).map(([id, manifest]) => [id, fromPuppetManifest(manifest)] as const),
