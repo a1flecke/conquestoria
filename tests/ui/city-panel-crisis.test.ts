@@ -311,6 +311,9 @@ function withFamineCrisis(overrides: Partial<ActiveCrisis> = {}) {
     ...overrides,
   };
   const withCrisis = { ...state, activeCrises: { [crisis.id]: crisis } };
+  withCrisis.civilizations[city.owner].techState.completed = TECH_TREE
+    .filter(tech => tech.era <= withCrisis.era && tech.countsForEraAdvancement !== false)
+    .map(tech => tech.id);
   return { container, city, state: withCrisis, crisis };
 }
 
