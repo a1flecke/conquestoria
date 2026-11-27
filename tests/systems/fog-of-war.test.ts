@@ -656,4 +656,61 @@ describe('forest concealment', () => {
 
     expect(isForestConcealedUnit(state, 'player', state.units.hidden)).toBe(false);
   });
+
+  it('#1830: surveillance reveals avoid full-state structuredClone while keeping input state immutable', () => {
+    const state = {
+      turn: 10,
+      era: 12,
+      currentPlayer: 'player',
+      gameOver: false,
+      winner: null,
+      map: {
+        width: 10,
+        height: 10,
+        wrapsHorizontally: false,
+        rivers: [],
+        tiles: {
+          '3,3': { coord: { q: 3, r: 3 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '4,4': { coord: { q: 4, r: 4 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        },
+      },
+      units: {
+        enemy: { id: 'enemy', type: 'warrior', owner: 'ai-1', position: { q: 4, r: 4 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+      },
+      cities: {},
+      civilizations: {
+        player: { id: 'player', civType: 'egypt', units: [], cities: [], visibility: createVisibilityMap(), techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any }, gold: 0, score: 0, isHuman: true, name: 'Player', color: '#4a90d9', diplomacy: { atWarWith: ['ai-1'] } as any },
+        'ai-1': { id: 'ai-1', civType: 'rome', units: ['enemy'], cities: [], visibility: createVisibilityMap(), techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any }, gold: 0, score: 0, isHuman: false, name: 'Rome', color: '#c44', diplomacy: { atWarWith: ['player'] } as any },
+      },
+      barbarianCamps: {},
+      minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+      tribalVillages: {},
+      discoveredWonders: {},
+      wonderDiscoverers: {},
+      embargoes: [],
+      defensiveLeagues: [],
+      idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
+    } as GameState;
+
+    const originalClone = globalThis.structuredClone;
+    let cloneCalls = 0;
+    globalThis.structuredClone = ((value: unknown, options?: StructuredSerializeOptions) => {
+      cloneCalls += 1;
+      return originalClone(value, options);
+    }) as typeof structuredClone;
+
+    try {
+      const sat = applySatelliteSurveillance(state, 'player', 'ai-1');
+      const mass = applyMassSurveillanceReveal(state, 'player');
+      expect(cloneCalls).toBe(0);
+      expect(sat.civilizations.player.visibility.tiles['3,3']).toBe('visible');
+      expect(mass.civilizations.player.visibility.tiles['4,4']).toBe('visible');
+      expect(state.civilizations.player.visibility.tiles['3,3']).toBeUndefined();
+      expect(state.civilizations.player.visibility.tiles['4,4']).toBeUndefined();
+    } finally {
+      globalThis.structuredClone = originalClone;
+    }
+  });
 });

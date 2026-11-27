@@ -624,4 +624,33 @@ describe('createHotSeatGame — mapScript', () => {
       }
     }
   });
+
+  it('#1830: createHotSeatGame honors settingsOverrides.beastsMode before placing beast lairs', () => {
+    const offState = createHotSeatGame({
+      ...baseConfig,
+      settingsOverrides: { beastsMode: 'off' },
+    }, 'hotseat-beasts-off');
+    expect(offState.settings.beastsMode).toBe('off');
+    expect(offState.beasts?.mode).toBe('off');
+    expect(Object.keys(offState.beasts?.lairs ?? {})).toHaveLength(0);
+
+    const calmState = createHotSeatGame({
+      ...baseConfig,
+      settingsOverrides: { beastsMode: 'calm' },
+    }, 'hotseat-beasts-calm');
+    expect(calmState.settings.beastsMode).toBe('calm');
+    expect(calmState.beasts?.mode).toBe('calm');
+  });
+
+  it('#1830: solo createNewGame scales initial barbarian camp count with map size', () => {
+    const small = createNewGame('rome', 'camp-scale-seed', 'small');
+    const medium = createNewGame('rome', 'camp-scale-seed', 'medium');
+    const large = createNewGame('rome', 'camp-scale-seed', 'large');
+
+    expect(Object.keys(small.barbarianCamps).length).toBeLessThanOrEqual(3);
+    expect(Object.keys(medium.barbarianCamps).length).toBeGreaterThan(3);
+    expect(Object.keys(medium.barbarianCamps).length).toBeLessThanOrEqual(5);
+    expect(Object.keys(large.barbarianCamps).length).toBeGreaterThan(5);
+    expect(Object.keys(large.barbarianCamps).length).toBeLessThanOrEqual(8);
+  });
 });

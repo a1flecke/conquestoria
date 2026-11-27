@@ -22,7 +22,9 @@ export function runCompletedRound(
   _bus: EventBus,
   phases: CompletedRoundPhases,
 ): CompletedRoundResult {
-  const beforeRound = structuredClone(state);
+  // `working` is a full deep clone of `state`, so `state` itself is never mutated by the
+  // phases and serves directly as the immutable `beforeRound` snapshot (#1830).
+  const beforeRound: Readonly<GameState> = state;
   const events = new GameEventBuffer();
   try {
     let working = structuredClone(state);

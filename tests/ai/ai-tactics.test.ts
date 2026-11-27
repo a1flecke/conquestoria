@@ -2213,3 +2213,51 @@ describe('the foe of the civ\'s own hunt', () => {
     expect(attacks).toEqual([]);
   });
 });
+
+describe('#1830 — AI air tactics respect fog of war on intercept and target visible hostile cities', () => {
+  it('does not trigger air-intercept for a hostile unit hidden in fog, and triggers once visible', () => {
+    const state = makeState();
+    const base = addCity(state, 'ai-base', AI, { q: 1, r: 1 });
+    base.buildings = ['airfield'];
+    const fighter = addUnit(state, 'ai-fighter', 'jet_fighter', AI, base.position);
+    fighter.airBase = { kind: 'city', cityId: base.id };
+    const enemy = addUnit(state, 'hidden-enemy', 'tank', HUMAN, { q: 4, r: 1 });
+    state.civilizations[AI]!.diplomacy.atWarWith = [HUMAN];
+    state.civilizations[HUMAN]!.diplomacy.atWarWith = [AI];
+    // Explicitly hide enemy tile in fog.
+    state.civilizations[AI]!.visibility.tiles['4,1'] = 'fog';
+
+    const plan = makePlan({ kind: 'city', id: base.id, lastKnownPosition: base.position }, [fighter.id], { objective: 'defend' });
+    const hiddenActions = rankUnitTacticalActions(context(state, plan), fighter.id);
+    expect(hiddenActions.some(a => a.action.kind === 'air-intercept')).toBe(false);
+
+    // Reveal the hostile unit's tile -> intercept now ranks.
+    state.civilizations[AI]!.visibility.tiles['4,1'] = 'visible';
+    const visibleActions = rankUnitTacticalActions(context(state, plan), fighter.id);
+    expect(visibleActions.some(a => a.action.kind === 'air-intercept')).toBe(true);
+    expect(enemy.owner).toBe(HUMAN);
+  });
+
+  it('ranks air-strike against a visible ungarrisoned hostile city, but skips fogged or garrisoned cities', () => {
+    const state = makeState();
+    const base = addCity(state, 'ai-base', AI, { q: 1, r: 1 });
+    base.buildings = ['airfield'];
+    const bomber = addUnit(state, 'ai-bomber', 'bomber', AI, base.position);
+    bomber.airBase = { kind: 'city', cityId: base.id };
+    const enemyCity = addCity(state, 'enemy-city', HUMAN, { q: 4, r: 1 });
+    state.civilizations[AI]!.diplomacy.atWarWith = [HUMAN];
+    state.civilizations[HUMAN]!.diplomacy.atWarWith = [AI];
+
+    const plan = makePlan({ kind: 'city', id: enemyCity.id, lastKnownPosition: enemyCity.position }, [bomber.id]);
+
+    // Fogged city -> no air strike.
+    state.civilizations[AI]!.visibility.tiles['4,1'] = 'fog';
+    const fogged = rankUnitTacticalActions(context(state, plan), bomber.id);
+    expect(fogged.some(a => a.action.kind === 'air-strike')).toBe(false);
+
+    // Visible ungarrisoned city -> ranks air strike on city coord.
+    state.civilizations[AI]!.visibility.tiles['4,1'] = 'visible';
+    const visible = rankUnitTacticalActions(context(state, plan), bomber.id);
+    expect(visible.some(a => a.action.kind === 'air-strike' && a.action.target.q === 4 && a.action.target.r === 1)).toBe(true);
+  });
+});
