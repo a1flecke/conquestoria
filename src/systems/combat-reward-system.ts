@@ -799,6 +799,7 @@ export function applyCombatOutcomeToState(
   // civilian of the former owner is taken along with it, and anything else of theirs withdraws to
   // the nearest tile it may legally stand on (it stays only if there is none; nothing is deleted).
   // Without this an unescorted civilian stack ended as two owners on one tile.
+  const capturedStackMateIds: string[] = [];
   const settleCapturedStack = (capturedId: string, formerOwnerId: string, position: Unit['position']): void => {
     const captured = units[capturedId];
     if (!captured || captured.owner === formerOwnerId) return;
@@ -831,6 +832,7 @@ export function applyCombatOutcomeToState(
         },
       };
       releaseCaptured(mateId);
+      capturedStackMateIds.push(mateId);
     }
     const ring = (state.map.wrapsHorizontally
       ? getWrappedHexesInRange(position, 2, state.map.width)
@@ -859,11 +861,13 @@ export function applyCombatOutcomeToState(
       espionage,
       ...(marketplace !== state.marketplace ? { marketplace } : {}),
   };
-  // #1693: the captured unit itself changed owner where it stood (#1698). A civilian taken inside its own city is now
-  // on a foreign city tile, which the new owner may not hold; step it out by the canonical stranded-unit rule.
+  // #1693: every captured unit changed owner where it stood (#1698), the one attacked and each civilian taken with its
+  // stack. A civilian taken inside its own city is now on a foreign city tile, which the new owner may not hold; step it
+  // out by the canonical stranded-unit rule.
   const capturedIds = [
     ...(attackerCaptured ? [result.attackerId] : []),
     ...(defenderCaptured ? [result.defenderId] : []),
+    ...capturedStackMateIds,
   ];
   if (capturedIds.length > 0) nextState = settleStrandedUnits(nextState, capturedIds);
   const pirateEvents: PirateActionEvent[] = [];

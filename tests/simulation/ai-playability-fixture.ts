@@ -733,7 +733,10 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
         );
       }
     }
-    for (const humanId of humanIds) {
+    // An eliminated human has no pressure ledger by design (elimination tears it down), and a solo game goes on
+    // after its only human falls until Domination resolves (#1437); the ledger and cap apply to the living.
+    const livingHumanIds = humanIds.filter(humanId => !state.civilizations[humanId]?.isEliminated);
+    for (const humanId of livingHumanIds) {
       const ledger = state.opponentAI?.pressureByCiv[humanId];
       if (!ledger) throw new Error(`${options.seed}: missing pressure ledger for ${humanId}`);
       const activeCount = ledger.activeIndependentThreatIds.length;
@@ -746,10 +749,10 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
         throw new Error(`${options.seed}: ${humanId} exceeded pressure cap ${cap}`);
       }
     }
-    for (const threatId of new Set(humanIds.flatMap(
+    for (const threatId of new Set(livingHumanIds.flatMap(
       humanId => state.opponentAI!.pressureByCiv[humanId]!.activeIndependentThreatIds,
     ))) {
-      const materiallyAffected = humanIds.filter(humanId =>
+      const materiallyAffected = livingHumanIds.filter(humanId =>
         state.opponentAI!.pressureByCiv[humanId]!.activeIndependentThreatIds.includes(threatId));
       if (materiallyAffected.length > 1 && materiallyAffected.some(humanId =>
         !state.opponentAI!.pressureByCiv[humanId]!.activeIndependentThreatIds.includes(threatId))) {

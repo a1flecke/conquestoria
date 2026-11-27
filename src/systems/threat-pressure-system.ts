@@ -100,6 +100,9 @@ function barbarianMateriallyAffectsHuman(
   // either plan is passive, even if a human asset is within sensing range.
   if (!plan || plan.target.kind === 'region') return false;
   if (planTargetOwner(state, plan) === humanId) return true;
+  // A camp defending itself against someone else's unit holds its own ground, like the patrol and recovery
+  // plans above; it is that unit's owner's threat, not a nearby bystander's (#1693).
+  if (plan.objective === 'defend') return false;
   const assets = humanAssetPositions(state, humanId);
   return plan.assignedUnitIds.some(unitId => {
     const unit = state.units[unitId];
