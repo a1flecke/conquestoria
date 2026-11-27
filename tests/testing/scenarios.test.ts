@@ -127,6 +127,7 @@ describe('#1125 freight replay', () => {
     const viewer = state.currentPlayer;
     const before = getCapitalComparison(state, viewer);
     expect(before?.passage).toBeDefined();
+    expect(before?.coalSupplierName).toBe('Eastport');
     expect(getCapitalComparison(state, 'ai-1')).toBeUndefined();
     state.materialReservesByCiv!['ai-1'].balances[resourceGoodId('coal')].native = 0;
     expect(getCapitalComparison(state, viewer)).toEqual(before);
@@ -136,7 +137,9 @@ describe('#1125 freight replay', () => {
     }
     expect(getCapitalComparison(state, viewer)?.currentRounds).toBe(8);
     delete state.civilizations[viewer].visibility.tiles['4,5'];
-    expect(getCapitalComparison(state, viewer)).toMatchObject({ passage: undefined, openRounds: undefined, passageKnown: false });
+    expect(getCapitalComparison(state, viewer)).toMatchObject({
+      passage: undefined, openRounds: undefined, passageKnown: false, coalSupplierName: undefined,
+    });
   });
 });
 

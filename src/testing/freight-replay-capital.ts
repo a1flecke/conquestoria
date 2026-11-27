@@ -81,6 +81,7 @@ export function getCapitalComparison(state: ScenarioState, viewer: string) {
   }).upkeep - calculateCityBuildingMaintenance(state, north).upkeep;
   return {
     protectedGold, freeGold, westName: west.name, northName: north.name,
+    coalSupplierName: serviceKnown ? supplier.name : undefined,
     currentRounds, openRounds, passage, harbor, coal,
     passageKnown: siteKnown,
     passageOpened: siteKnown && channel.open,

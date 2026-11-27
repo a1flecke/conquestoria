@@ -72,7 +72,7 @@
 .freight-choice {
   --freight-accent: #8aded7;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   gap: 12px;
   min-width: 0;
   padding: 14px;
@@ -187,6 +187,30 @@
 
 .freight-yield-value {
   font-size: 1.125rem;
+}
+
+.freight-review-details {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 12px;
+  margin: 4px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #394b5d;
+  font-size: 0.875rem;
+}
+
+.freight-review-details dt {
+  color: var(--freight-muted);
+  font-weight: 700;
+}
+
+.freight-review-details dd {
+  margin: 0;
+}
+
+.freight-review-details dd:last-child {
+  color: #ffe0a0;
+  font-weight: 700;
 }
 
 .freight-factory {

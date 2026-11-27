@@ -66,6 +66,7 @@ function createInvestmentCard(name: string, icon: string, action: HTMLButtonElem
   const header = textElement('header', 'freight-choice-heading');
   const title = textElement('h3', 'freight-choice-title', name);
   title.id = `freight-choice-${kind}`;
+  title.tabIndex = -1;
   card.setAttribute('aria-labelledby', title.id);
   const place = textElement('p', 'freight-muted');
   const heading = document.createElement('div');
@@ -74,7 +75,7 @@ function createInvestmentCard(name: string, icon: string, action: HTMLButtonElem
   header.append(decorativeIcon(icon, 'freight-choice-icon'), heading, cost);
   const details = textElement('div', 'freight-choice-details');
   card.append(header, details, action);
-  return { card, place, cost, details };
+  return { card, title, place, cost, details };
 }
 
 function createTripRow(label: string, style: 'current' | 'forecast') {
@@ -173,6 +174,16 @@ export function mountFreightReplayPanel(
     harborBenefits.append(textElement('p', 'freight-muted', 'Per round after completion'), yields);
     harbor.details.append(harborStatus, harborBenefits);
 
+    const reviewDetails = textElement('dl', 'freight-review-details');
+    const onPurchase = document.createElement('dd');
+    const payoff = document.createElement('dd');
+    const fundsLeft = document.createElement('dd');
+    reviewDetails.append(
+      textElement('dt', '', 'On purchase'), onPurchase,
+      textElement('dt', '', 'Payoff'), payoff,
+      textElement('dt', '', 'After purchase'), fundsLeft,
+    );
+
     const stock = textElement('div', 'freight-factory');
     const stockTitle = textElement('strong', 'freight-factory-title');
     const coal = textElement('span', 'freight-muted');
@@ -229,26 +240,47 @@ export function mountFreightReplayPanel(
       back.hidden = !reviewed;
       reviewPassage.hidden = Boolean(reviewed);
       reviewHarbor.hidden = Boolean(reviewed);
+      passage.card.hidden = reviewed?.choice === 'Harbor';
+      harbor.card.hidden = reviewed?.choice === 'passage';
+      stock.hidden = Boolean(reviewed);
+      defer.hidden = Boolean(reviewed);
       defer.textContent = model.passageOpened || model.harborBuilt ? 'Close' : 'Defer';
+
+      reviewDetails.remove();
+      if (reviewed?.choice === 'passage') {
+        const shortcut = model.coalSupplierName
+          ? `between ${model.westName} and ${model.coalSupplierName}`
+          : 'through the Strait';
+        onPurchase.textContent = `Opens Westport Strait immediately. The coal trader can use the shortcut ${shortcut}.`;
+        const factoryTiming = model.factoryFueled === undefined ? '' : ' The Factory can use it the following round.';
+        payoff.textContent = `Coal enters your reserves when the trader unloads at ${model.westName}.${factoryTiming}`;
+        passage.details.append(reviewDetails);
+      } else if (reviewed?.choice === 'Harbor') {
+        onPurchase.textContent = `Completes the queued Harbor in ${model.northName} immediately.`;
+        payoff.textContent = 'Food and net gold start accruing next round.';
+        harbor.details.append(reviewDetails);
+      }
+      if (reviewed) fundsLeft.textContent = `${model.freeGold - reviewed.cost} spendable gold left`;
     }
 
     function review(offer: CapitalOffer | undefined): void {
       if (!offer) return;
       reviewed = offer;
-      status.textContent = `Spend ${offer.cost} gold on the ${offer.choice}?`;
+      status.textContent = '';
       confirm.textContent = `Confirm ${offer.choice}`;
       paint();
-      back.focus();
+      (offer.choice === 'passage' ? passage.title : harbor.title).focus();
     }
 
     reviewPassage.addEventListener('click', () => review(comparison()?.passage));
     reviewHarbor.addEventListener('click', () => review(comparison()?.harbor));
     defer.addEventListener('click', () => modal.remove());
     back.addEventListener('click', () => {
+      const previousButton = reviewed?.choice === 'passage' ? reviewPassage : reviewHarbor;
       reviewed = undefined;
       status.textContent = '';
       paint();
-      defer.focus();
+      previousButton.focus();
     });
     confirm.addEventListener('click', () => {
       if (!reviewed) return;
@@ -265,7 +297,7 @@ export function mountFreightReplayPanel(
       paint();
       defer.focus();
     });
-    actions.append(confirm, back, defer);
+    actions.append(back, confirm, defer);
     footer.append(status, actions);
     card.append(header, options, stock, footer);
     modal.append(card);
