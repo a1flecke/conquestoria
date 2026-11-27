@@ -124,6 +124,16 @@ describe('getEntitledTradeDestinations — knowledge safety', () => {
     expect(rows.find(row => row.cityId === 'sparta-city')?.eligible).toBe(true);
   });
 
+  it('excludes the chosen origin and quotes the former origin as a destination', () => {
+    const state = makeState();
+    const rows = getEntitledTradeDestinations(state, 'alpha', 'trader-1', { originCityId: 'alpha-port' });
+
+    expect(rows.map(row => row.cityId)).toEqual(['alpha-city', 'beta-city', 'sparta-city']);
+    expect(rows[0]).toMatchObject({ cityId: 'alpha-city', eligible: true, domestic: true, denialReason: null });
+    expect(rows[0]!.positioningTurns).toBeGreaterThan(0);
+    expect(rows[0]!.roundTripRounds).toBeGreaterThan(0);
+  });
+
   it('denies a foreign destination when commercial permission is missing', () => {
     const rows = getEntitledTradeDestinations(makeState({ agreement: false }), 'alpha', 'trader-1');
 
