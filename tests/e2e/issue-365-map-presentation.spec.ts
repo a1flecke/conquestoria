@@ -148,8 +148,9 @@ test('with motion allowed, DOM sprites run their idle animations', async ({ page
   await continueFixture(page);
 
   await expect(page.locator('#sprite-overlay')).toHaveAttribute('data-reduced-motion', 'false');
-  const figure = page.locator('#unit-sprites .cq-sprite-figure').first();
-  await expect(figure).toHaveCSS('animation-name', /^cq2-/);
+  // Every unit in this save is a painted strip unit now, so the stylesheet that has to be live is the PNG player's.
+  const figure = page.locator('#unit-sprites .cq-png-layer').first();
+  await expect(figure).toHaveCSS('animation-name', /^cq-png-play-/);
   const duration = await figure.evaluate(element => getComputedStyle(element).animationDuration);
   expect(Number.parseFloat(duration)).toBeGreaterThan(0);
 });
@@ -164,9 +165,8 @@ test('mobile reduced motion keeps static DOM sprites and the crowded map usable'
 
   await expect(page.locator('#sprite-overlay')).toHaveAttribute('data-reduced-motion', 'true');
   await expect(page.locator('#unit-sprites > *')).not.toHaveCount(0);
-  const animationDuration = await page.locator('#unit-sprites .cq-sprite-figure').first()
-    .evaluate(element => getComputedStyle(element).animationDuration);
-  expect(Number.parseFloat(animationDuration)).toBeLessThanOrEqual(0.000001);
+  // Reduced motion holds a painted unit's first frame: the PNG player's animation is switched off outright.
+  await expect(page.locator('#unit-sprites .cq-png-layer').first()).toHaveCSS('animation-name', 'none');
   const canvasBox = await page.locator('#game-canvas').boundingBox();
   expect(canvasBox?.width).toBeGreaterThanOrEqual(390);
   expect(canvasBox?.height).toBeGreaterThan(500);
