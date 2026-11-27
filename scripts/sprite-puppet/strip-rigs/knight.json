@@ -1,0 +1,120 @@
+{
+  "id": "knight",
+  "family": "mounted",
+  "prompt": {
+    "name": "Knight",
+    "look": "A medieval armoured knight on a grey destrier with a darker charcoal-grey mane and tail. The rider wears a steel great helm with a narrow eye slit and a small plume, a steel chainmail hauberk with steel plate guards at the shoulders and knees, a red surcoat over the mail, steel gauntlets and steel greaves, and carries a straight steel longsword and a small steel kite shield on his left arm. The horse wears a red caparison (cloth barding) hanging to its knees under a brown leather saddle, and a brown leather bridle with steel rings.",
+    "team_area": "the rider's surcoat and the horse's caparison",
+    "coat": "The horse is a cool dapple grey (about #8A8F96) with a darker charcoal mane and tail (about #3A3D42) and dark grey legs. It must not look red or brown: no reddish, mahogany, rust, bay or warm tones anywhere on the horse, because the game recolours red.",
+    "identity": "the same rider, steel great helm with plume, chainmail, red surcoat, steel gauntlets, longsword and kite shield, and the same cool dapple-grey horse with its charcoal mane and tail, red caparison, saddle and bridle",
+    "weapon_pose": "He holds the longsword upright in his right hand, the blade pointing up and slightly forward, the kite shield on his left arm.",
+    "attack_frames": 6,
+    "attack": "(1) ready, sword upright; (2) he raises the sword high above his head; (3) wind-up: arm drawn back behind the shoulder, body twisting; (4) the cut: arm and sword sweeping forward and down to the right; (5) full extension, the blade low in front of the horse's head; (6) recover to ready.",
+    "damage_gear": "a dented great helm and a scratched shield",
+    "damage_gear_critical": "a snapped sword blade, a cracked shield and torn caparison",
+    "defeat_prop": "the sword lying beside him"
+  },
+  "frame": {
+    "height": 192,
+    "baseline": 176,
+    "restHeight": 144
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0,
+        0.045
+      ],
+      [
+        0.955,
+        1
+      ]
+    ],
+    "min_sat": 0.45,
+    "min_val": 0.18
+  },
+  "states": [
+    {
+      "state": "idle",
+      "file": "a",
+      "cells": 1,
+      "fps": 4,
+      "anchor": "torso",
+      "note": "anchored on the torso like the walk, so the unit does not jump when it starts to move"
+    },
+    {
+      "state": "damage",
+      "file": "b",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 1,
+      "loop": false,
+      "anchor": "torso",
+      "note": "idle pose at damage tiers 0-3, anchored on the torso like the walk"
+    },
+    {
+      "state": "walkrig",
+      "cells": 8,
+      "fps": 10,
+      "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the four legs alternate by construction",
+      "rig": {
+        "kind": "mounted",
+        "sources": [
+          "a",
+          "b#0",
+          "b#1",
+          "b#2",
+          "b#3"
+        ]
+      }
+    },
+    {
+      "state": "attack",
+      "file": "c",
+      "cells": 6,
+      "grid": [
+        3,
+        3
+      ],
+      "fps": 9,
+      "loop": false,
+      "restFrames": [
+        0,
+        5
+      ]
+    },
+    {
+      "state": "hit",
+      "file": "d",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 8,
+      "restFrames": [
+        0,
+        3
+      ],
+      "loop": false
+    },
+    {
+      "state": "defeat",
+      "file": "e",
+      "cells": 4,
+      "grid": [
+        2,
+        2
+      ],
+      "fps": 5,
+      "restFrames": [
+        0
+      ],
+      "loop": false
+    }
+  ]
+}
