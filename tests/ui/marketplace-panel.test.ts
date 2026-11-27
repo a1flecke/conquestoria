@@ -816,6 +816,37 @@ describe('createMarketplacePanel material reserves (#1506 MR09)', () => {
     });
   });
 
+  it('shows local Ivory access as soon as the outpost completes', () => {
+    const tile = {
+      coord: { q: 2, r: 1 },
+      terrain: 'forest',
+      resource: 'ivory',
+      owner: 'p1',
+      improvement: 'resource_outpost',
+      improvementTurnsLeft: 1,
+    };
+    const state = buildState({
+      currentPlayer: 'p1',
+      civTechs: ['foraging'],
+      tiles: { '2,1': tile },
+    });
+    state.turn = 13;
+
+    function ivoryRowText(): string {
+      const panel = createMarketplacePanel(container, state, { onClose: vi.fn() })!;
+      const name = [...panel.querySelectorAll('[data-text^="res-name-"]')]
+        .find(label => label.textContent?.includes('Ivory'))!;
+      return name.parentElement!.parentElement!.textContent!;
+    }
+
+    expect(ivoryRowText()).toContain('Not in inventory');
+    tile.improvementTurnsLeft = 0;
+    const completedRow = ivoryRowText();
+    expect(completedRow).toContain('✓ Owned');
+    expect(completedRow).toContain('Local access');
+    expect(completedRow).not.toContain('coverage');
+  });
+
   it('shows delivered luxury coverage and edits bounded service allotments', () => {
     const state = buildState({ currentPlayer: 'p1', civTechs: ['cartography'] });
     state.turn = 10;
@@ -859,7 +890,7 @@ describe('createMarketplacePanel material reserves (#1506 MR09)', () => {
     createMarketplacePanel(container, state, { onClose: vi.fn(), onSetResourcePolicy });
 
     const panel = document.getElementById('marketplace-panel')!;
-    expect(panel.textContent).toContain(`Delivered coverage until turn ${state.turn + 3}`);
+    expect(panel.textContent).toContain(`Imported coverage until turn ${state.turn + 3}`);
     const row = panel.querySelector<HTMLElement>('[data-policy-good="resource:spices"]')!;
     const service = row.querySelector<HTMLInputElement>('input[data-policy-service]')!;
     expect(service.value).toBe('2');

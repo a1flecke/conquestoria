@@ -198,13 +198,17 @@ export function createMarketplacePanel(
       const goodId = resourceGoodId(def.id);
       const coverage = getLuxuryCoverage(state, state.currentPlayer, goodId);
       const nextShipment = getNextLuxuryShipment(state, state.currentPlayer, goodId);
-      const covered = coverage && coverage.expiresOnTurn > state.turn
-        ? `Delivered coverage until turn ${coverage.expiresOnTurn}`
-        : 'No delivered coverage';
-      const shipment = nextShipment
-        ? `next shipment via route ${nextShipment.id} (${nextShipment.turnsPerTrip * 2}-round round trip)`
-        : 'no active import route';
-      setText(`lux-coverage-${idx}`, `${covered} · ${shipment}`);
+      const hasImportedCoverage = coverage && coverage.expiresOnTurn > state.turn;
+      const hasLocalAccess = !hasImportedCoverage && ownedResources.has(def.id);
+      const status = hasImportedCoverage ? `Imported coverage until turn ${coverage.expiresOnTurn}`
+        : hasLocalAccess ? 'Local access' : 'No imported coverage';
+      const details = [status];
+      if (nextShipment) {
+        details.push(`next shipment via route ${nextShipment.id} (${nextShipment.turnsPerTrip * 2}-round round trip)`);
+      } else if (!hasLocalAccess) {
+        details.push('no active import route');
+      }
+      setText(`lux-coverage-${idx}`, details.join(' · '));
     }
   });
 
