@@ -1,4 +1,5 @@
 import { createPrimaryActionBar, type PrimaryActionBarCallbacks } from '@/ui/primary-action-bar';
+import { createFloatingButton } from '@/ui/ui-kit';
 
 export interface GameShellCallbacks extends PrimaryActionBarCallbacks {
   onNextUnit: () => void;
@@ -89,20 +90,6 @@ function createHud(): HTMLDivElement {
   // toolbar and the toasts sit below whatever height this ends up (trackTopLayout).
   hud.style.cssText = 'position:absolute;top:0;left:0;right:0;min-height:60px;box-sizing:border-box;padding:8px 12px;background:rgba(0,0,0,0.6);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:2px 12px;font-size:13px;z-index:10;';
   return hud;
-}
-
-function createFloatingButton(id: string, text: string, title: string, onClick: () => void): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.id = id;
-  button.type = 'button';
-  button.textContent = text;
-  button.title = title;
-  // An icon-only button is announced by its glyph's emoji name ("scroll") unless it is given a name. A button whose
-  // visible text is a word keeps that word as its name (label in name), with the title as its description.
-  if (!/\p{L}/u.test(text)) button.setAttribute('aria-label', title);
-  button.style.cssText = 'min-height:44px;min-width:40px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;';
-  button.addEventListener('click', () => onClick());
-  return button;
 }
 
 /** #544 MR2: visually distinguishes the Supply overlay toggle's on/off state. */
