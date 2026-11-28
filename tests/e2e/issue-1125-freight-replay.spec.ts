@@ -37,6 +37,9 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 
     const ready = page.getByRole('button', { name: 'Freight investment', exact: true });
     const expectOpeningView = async () => {
       await expect(ready).toBeVisible();
+      const victory = page.getByRole('button', { name: 'Victory', exact: true });
+      const toolbarBackground = await victory.evaluate(button => getComputedStyle(button).backgroundColor);
+      await expect(ready).toHaveCSS('background-color', toolbarBackground);
       for (const [name, coord] of [
         ['Westport', { q: 0, r: 5 }],
         ['Northport', { q: 0, r: 2 }],
@@ -96,7 +99,7 @@ test('the strait compare-and-confirm flow works with a keyboard and survives a r
   await expect(passage).toContainText('The coal trader can use the shortcut between Westport and Eastport.');
   await expect(passage).toContainText('Coal enters your reserves when the trader unloads at Westport.');
   await expect(passage).toContainText('The Factory can use it the following round.');
-  await expect(passage).toContainText('5 spendable gold left');
+  await expect(passage).toContainText('35 gold in treasury · 30 reserved · 5 spendable');
   await expect(panel).toContainText('50 spendable gold');
   expect(await auditWithAxe(page, '#freight-investment-dialog')).toEqual([]);
   await panel.getByRole('button', { name: 'Back', exact: true }).click();
@@ -431,7 +434,7 @@ test.describe('strait comparison on touch', () => {
     await expect(panel.getByRole('region', { name: 'Passage', exact: true })).toBeHidden();
     await expect(harbor).toContainText('Completes the queued Harbor in Northport immediately.');
     await expect(harbor).toContainText('Food and net gold start accruing next round.');
-    await expect(harbor).toContainText('5 spendable gold left');
+    await expect(harbor).toContainText('35 gold in treasury · 30 reserved · 5 spendable');
     await expect(panel).toContainText('50 spendable gold');
     await panel.getByRole('button', { name: 'Confirm Harbor' }).tap();
     await expect(panel.getByRole('button', { name: 'Review passage' })).toBeDisabled();

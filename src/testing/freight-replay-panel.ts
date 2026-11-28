@@ -4,7 +4,7 @@ import type { EventBus } from '@/core/event-bus';
 import { autoSave, listSaves, loadGame, normalizeLoadedState } from '@/storage/save-manager';
 import { BUILDINGS } from '@/systems/city-building-catalog';
 import { markModal } from '@/ui/modal-contract';
-import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
+import { createFloatingButton, createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 import { applyCapitalOffer, getCapitalComparison, type CapitalOffer } from './freight-replay-capital';
 import { FREIGHT_REPLAY } from './scenario-steps/freight-replay';
 import type { ScenarioState } from './scenario-types';
@@ -117,8 +117,7 @@ export function mountFreightReplayPanel(
 ): void {
   const initial = session.getState();
   const viewer = initial.currentPlayer;
-  const open = createGameButton('Freight investment', 'secondary');
-  open.id = 'btn-freight-investment';
+  const open = createFloatingButton('btn-freight-investment', 'Freight investment', 'Review freight investments', showComparison);
   open.style.touchAction = 'manipulation';
   open.setAttribute('aria-haspopup', 'dialog');
   toolbar.prepend(open);
@@ -138,7 +137,7 @@ export function mountFreightReplayPanel(
     }
   });
 
-  open.addEventListener('click', () => {
+  function showComparison(): void {
     if (panel?.isConnected || !comparison()) return;
     const modal = textElement('div', 'freight-investment-overlay');
     panel = modal;
@@ -263,7 +262,11 @@ export function mountFreightReplayPanel(
         payoff.textContent = 'Food and net gold start accruing next round.';
         harbor.details.append(reviewDetails);
       }
-      if (reviewed) fundsLeft.textContent = `${model.freeGold - reviewed.cost} spendable gold left`;
+      if (reviewed) {
+        const treasuryAfterPurchase = model.treasuryGold - reviewed.cost;
+        const spendableAfterPurchase = model.freeGold - reviewed.cost;
+        fundsLeft.textContent = `${treasuryAfterPurchase} gold in treasury · ${model.protectedGold} reserved · ${spendableAfterPurchase} spendable`;
+      }
     }
 
     function review(offer: CapitalOffer | undefined): void {
@@ -307,5 +310,5 @@ export function mountFreightReplayPanel(
     markModal(modal, { cancel: defer, initialFocus: defer });
     paint();
     layer.append(modal);
-  });
+  }
 }

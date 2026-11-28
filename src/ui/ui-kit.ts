@@ -73,3 +73,17 @@ export function setButtonDisabled(btn: HTMLButtonElement, disabled: boolean): vo
     btn.style.pointerEvents = '';
   }
 }
+
+export function createFloatingButton(id: string, text: string, title: string, onClick: () => void): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.id = id;
+  button.type = 'button';
+  button.textContent = text;
+  button.title = title;
+  // An icon-only button is announced by its glyph's emoji name ("scroll") unless it is given a name. A button whose
+  // visible text is a word keeps that word as its name (label in name), with the title as its description.
+  if (!/\p{L}/u.test(text)) button.setAttribute('aria-label', title);
+  button.style.cssText = 'min-height:44px;min-width:40px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;';
+  button.addEventListener('click', () => onClick());
+  return button;
+}
